@@ -35,7 +35,7 @@ CLIP_FILES = {"vision_model_quantized.onnx": "onnx/vision_model_quantized.onnx",
               "text_model_quantized.onnx": "onnx/text_model_quantized.onnx",
               "tokenizer.json": "tokenizer.json"}
 OLLAMA = os.environ.get("CLEANVIEW_OLLAMA", "http://127.0.0.1:11434")
-VISION_MODEL = os.environ.get("CLEANVIEW_VISION_MODEL", "gemma3:4b")   # looks at pictures
+VISION_MODEL = os.environ.get("CLEANVIEW_VISION_MODEL", "qwen2.5vl:7b")   # looks at pictures
 TEXT_MODEL = os.environ.get("CLEANVIEW_TEXT_MODEL", "qwen2.5:7b")       # reads the dialogue
 MODEL = VISION_MODEL
 OLLAMA_SETUP_URL = "https://ollama.com/download/OllamaSetup.exe"
@@ -250,16 +250,22 @@ class Clip:
 # ---------------------------------------------------------------------------
 # Turning CLIP scores into candidate scenes
 # ---------------------------------------------------------------------------
-THRESH = {"kiss": 0.45, "bed": 0.5, "gore": 0.45, "fight": 0.55, "smoking": 0.55,
-          "drinking": 0.6, "drugs": 0.5, "immodest": 0.55}
+THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
+          "drinking": 0.7, "drugs": 0.6, "immodest": 0.65}
+MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
+              "drugs": 2, "immodest": 3}   # seconds of hits a scene needs
 
 
-def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0):
+def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0, lum=None, fps=2.0):
     """Runs of frames where a wanted category wins. Returns
     [{"cat", "s", "e", "peak_t", "peak", "who": {...}, "frames": [...]}]."""
     if not clipdata or not clipdata.get("t"):
         return []
     ts, rows = clipdata["t"], clipdata["scores"]
+    if lum:   # leave out frames too dark or murky to judge
+        keep = [k for k, t in enumerate(ts) if int(round(t * fps)) >= len(lum)
+                or (lum[int(round(t * fps))][0] >= 40 and lum[int(round(t * fps))][1] >= 18)]
+        ts, rows = [ts[k] for k in keep], [rows[k] for k in keep]
     out = []
     for cat in wanted:
         th = THRESH[cat]
@@ -271,8 +277,8 @@ def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0):
             else:
                 runs.append([(t, r)])
         for run in runs:
-            if len(run) == 1 and run[0][1][cat] < th + 0.2:
-                continue   # one weak frame is usually nothing
+            if len(run) < MIN_FRAMES[cat] and max(r[cat] for _, r in run) < 0.9:
+                continue   # too brief to be a real scene
             peak = max(run, key=lambda x: x[1][cat])
             who = {}
             if cat == "kiss":
@@ -427,50 +433,63 @@ def grab_frames(ffmpeg, path, times, run):
     return out
 
 
+PREFACE = ("These are a few frames from one moment of a TV show or movie. First describe in "
+           "one short sentence what you can actually see. If the frames are dark, blurry or "
+           "unclear, say so. Then answer the question. Answer yes only if you can clearly see "
+           "it in the frames; if you are not sure, answer no. ")
 LOOK = {
-    "kiss": ("These are frames from one moment of a movie. Is anyone kissing? If so, who is "
-             "kissing (a man and a woman, two men, two women, or a parent/child or family "
-             "kiss on the cheek), and is it a light kiss (a peck or short kiss) or a "
-             "passionate one (long, open-mouthed, making out)?",
+    "kiss": ("Question: are two people kissing on the lips? If yes, who is kissing (a man and a "
+             "woman, two men, two women), and is it a light kiss (a short peck) or a passionate "
+             "one (long, open-mouthed, making out)? A kiss on the cheek, a hug, or faces close "
+             "together while talking is NOT kissing.",
              {"type": "object", "properties": {
+                 "see": {"type": "string"},
                  "kissing": {"type": "boolean"},
                  "who": {"type": "string", "enum": ["man and woman", "two men", "two women",
-                                                    "family or friendly", "unclear"]},
+                                                    "unclear"]},
                  "level": {"type": "string", "enum": ["light", "passionate", "none"]}},
-              "required": ["kissing", "who", "level"]}),
-    "bed": ("These are frames from one moment of a movie. Is a couple shown in a sexual or "
-            "intimate way (in bed together, making out, undressing each other)? Who is the "
-            "couple (a man and a woman, two men, two women)?",
+              "required": ["see", "kissing", "who", "level"]}),
+    "bed": ("Question: is a couple shown in a sexual or intimate way (in bed together, making "
+            "out, undressing each other)? Who is the couple (a man and a woman, two men, two "
+            "women)? Someone simply lying in bed alone, or sitting on a bed talking, is NOT.",
             {"type": "object", "properties": {
+                "see": {"type": "string"},
                 "intimate": {"type": "boolean"},
                 "who": {"type": "string", "enum": ["man and woman", "two men", "two women",
                                                    "unclear"]}},
-             "required": ["intimate", "who"]}),
-    "gore": ("These are frames from one moment of a movie. Do they show graphic violence or "
-             "gore: blood, wounds, injuries, a dead body, someone being shot, stabbed or hurt?",
-             {"type": "object", "properties": {"graphic": {"type": "boolean"},
-                                               "what": {"type": "string"}},
-              "required": ["graphic", "what"]}),
-    "fight": ("These are frames from one moment of a movie. Do they show violence: people "
-              "fighting, hitting, shooting, threatening someone with a weapon?",
-              {"type": "object", "properties": {"violent": {"type": "boolean"},
-                                                "what": {"type": "string"}},
-               "required": ["violent", "what"]}),
-    "smoking": ("These are frames from a movie. Is someone smoking (cigarette, cigar, vape, "
-                "pipe)?", {"type": "object", "properties": {"yes": {"type": "boolean"}},
-                           "required": ["yes"]}),
-    "drinking": ("These are frames from a movie. Is someone drinking alcohol (beer, wine, "
-                 "liquor), or drunk?", {"type": "object", "properties": {"yes": {"type": "boolean"}},
-                                       "required": ["yes"]}),
-    "drugs": ("These are frames from a movie. Is someone using illegal drugs (smoking a joint, "
-              "snorting, injecting, pills)?", {"type": "object",
-                                              "properties": {"yes": {"type": "boolean"}},
-                                              "required": ["yes"]}),
-    "immodest": ("These are frames from a movie. Is someone dressed immodestly (swimsuit, "
-                 "underwear, lingerie, very revealing clothes)?",
-                 {"type": "object", "properties": {"yes": {"type": "boolean"}},
-                  "required": ["yes"]}),
+             "required": ["see", "intimate", "who"]}),
+    "gore": ("Question: is there graphic gore you can clearly see: lots of blood, open wounds, "
+             "a bloody body? A body under a sheet, a crime scene with no visible blood, or a "
+             "dark red object is NOT.",
+             {"type": "object", "properties": {"see": {"type": "string"},
+                                               "graphic": {"type": "boolean"}},
+              "required": ["see", "graphic"]}),
+    "fight": ("Question: are people clearly fighting, hitting, shooting, or threatening someone "
+              "with a weapon? People talking, running, or a police officer simply holding a gun "
+              "at their side is NOT.",
+              {"type": "object", "properties": {"see": {"type": "string"},
+                                                "violent": {"type": "boolean"}},
+               "required": ["see", "violent"]}),
+    "smoking": ("Question: is someone smoking (cigarette, cigar, vape, pipe)?",
+                {"type": "object", "properties": {"see": {"type": "string"},
+                                                  "yes": {"type": "boolean"}},
+                 "required": ["see", "yes"]}),
+    "drinking": ("Question: is someone drinking alcohol (beer, wine, liquor), or clearly drunk?",
+                 {"type": "object", "properties": {"see": {"type": "string"},
+                                                   "yes": {"type": "boolean"}},
+                  "required": ["see", "yes"]}),
+    "drugs": ("Question: is someone using illegal drugs (smoking a joint, snorting, injecting)?",
+              {"type": "object", "properties": {"see": {"type": "string"},
+                                                "yes": {"type": "boolean"}},
+               "required": ["see", "yes"]}),
+    "immodest": ("Question: is someone dressed immodestly (swimsuit, underwear, lingerie, very "
+                 "revealing clothes)?",
+                 {"type": "object", "properties": {"see": {"type": "string"},
+                                                   "yes": {"type": "boolean"}},
+                  "required": ["see", "yes"]}),
 }
+UNCLEAR = re.compile(r"\b(dark|blurr?y|unclear|can't|cannot|hard to (see|tell)|not (clear|visible)|"
+                     r"difficult to)\b", re.I)
 WHO_KEY = {"man and woman": "mf", "two men": "mm", "two women": "ff"}
 
 
@@ -484,14 +503,18 @@ def second_look(cands, frames_for, progress=None, cancel=None):
             progress(n / max(1, len(cands)))
         q, schema = LOOK[c["cat"]]
         imgs = frames_for(c)
+        if not imgs:
+            c["verdict"] = {"keep": True, "who": "?", "level": "?", "what": "", "error": "no frames"}
+            continue
         try:
-            a = chat(q + " Answer in JSON.", imgs, schema, timeout=180)
+            a = chat(PREFACE + q + " Answer in JSON.", imgs, schema, timeout=240)
         except Exception as ex:
             c["verdict"] = {"keep": True, "who": "?", "level": "?", "what": "", "error": str(ex)}
             continue
-        v = {"keep": True, "who": "?", "level": "?", "what": str(a.get("what", ""))[:60]}
+        see = str(a.get("see", "")).strip()
+        v = {"keep": True, "who": "?", "level": "?", "what": see[:90]}
         if c["cat"] == "kiss":
-            v["keep"] = bool(a.get("kissing")) and a.get("who") != "family or friendly"
+            v["keep"] = a.get("kissing") is True and a.get("level") != "none"
             v["who"] = WHO_KEY.get(a.get("who"), "?")
             v["level"] = a.get("level") if a.get("level") in ("light", "passionate") else "?"
         elif c["cat"] == "bed":
@@ -503,6 +526,8 @@ def second_look(cands, frames_for, progress=None, cancel=None):
             v["keep"] = bool(a.get("violent"))
         else:
             v["keep"] = bool(a.get("yes"))
+        if UNCLEAR.search(see):
+            v["keep"] = False   # the model itself says it can't see clearly
         c["verdict"] = v
     if progress:
         progress(1.0)

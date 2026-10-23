@@ -425,13 +425,14 @@ NUDE_CLASSES = ["FEMALE_GENITALIA_COVERED", "FACE_FEMALE", "BUTTOCKS_EXPOSED",
                 "ARMPITS_COVERED", "ARMPITS_EXPOSED", "FACE_MALE", "BELLY_EXPOSED",
                 "MALE_GENITALIA_EXPOSED", "ANUS_COVERED", "FEMALE_BREAST_COVERED",
                 "BUTTOCKS_COVERED"]
-NUDITY = {"FEMALE_BREAST_EXPOSED": 0.5, "FEMALE_GENITALIA_EXPOSED": 0.45,
-          "MALE_GENITALIA_EXPOSED": 0.45, "BUTTOCKS_EXPOSED": 0.5, "ANUS_EXPOSED": 0.45}
+NUDITY = {"FEMALE_BREAST_EXPOSED": 0.6, "FEMALE_GENITALIA_EXPOSED": 0.55,
+          "MALE_GENITALIA_EXPOSED": 0.55, "BUTTOCKS_EXPOSED": 0.6, "ANUS_EXPOSED": 0.55}
+DARK_MEAN, FLAT_STD = 40, 18   # frames darker or flatter than this are too murky to judge
 SKIN = {"MALE_BREAST_EXPOSED": 0.45, "BELLY_EXPOSED": 0.45, "ARMPITS_EXPOSED": 0.45}
 KEEP = list(NUDITY) + list(SKIN)
 
 
-PICTURE_VERSION = 2
+PICTURE_VERSION = 3
 
 
 def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
@@ -455,7 +456,7 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
     cmd = [cl._tool("ffmpeg"), "-v", "error", "-i", str(path), "-map", "0:v:0", "-an", "-sn",
            "-vf", f"fps={fps},scale={W}:{H},setsar=1,format=rgb24", "-f", "rawvideo", "-"]
     proc = cl.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    size, batch, n, out = W * H * 3, 8, 0, []
+    size, batch, n, out, lum = W * H * 3, 8, 0, [], []
     ct, cs = [], []
     try:
         while True:
@@ -472,6 +473,8 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
             best = y[:, 4:, :].max(axis=2)            # best score per class per frame
             for k, row in enumerate(best):
                 out.append([round(float(row[c]), 3) for c in cols])
+                g = frames[k].mean(axis=2)
+                lum.append([round(float(g.mean()), 1), round(float(g.std()), 1)])
                 fn = n + k
                 if clip is not None and fn % 2 == 0:  # picture AI once a second
                     ct.append(round(fn / fps, 2))
@@ -484,7 +487,7 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
         proc.kill()
         proc.wait()
     Path(out_json).write_text(json.dumps({
-        "version": PICTURE_VERSION, "fps": fps, "classes": KEEP, "scores": out,
+        "version": PICTURE_VERSION, "fps": fps, "classes": KEEP, "scores": out, "lum": lum,
         "clip": {"t": ct, "scores": cs} if clip is not None else None}))
 
 
@@ -537,8 +540,11 @@ def nudity_scenes(vis, start_off=0.0):
     nude_i = [cls.index(k) for k in NUDITY]
     skin_i = [cls.index(k) for k in SKIN]
     hits, strong, skin = [], {}, []
+    lum = vis.get("lum") or []
     for n, row in enumerate(vis["scores"]):
         t = start_off + n / fps
+        if n < len(lum) and (lum[n][0] < DARK_MEAN or lum[n][1] < FLAT_STD):
+            continue   # too dark or murky: the checker guesses on frames like these
         best = max((row[i] / NUDITY[cls[i]], cls[i]) for i in nude_i)
         if best[0] >= 1.0:
             hits.append(t)
@@ -547,11 +553,13 @@ def nudity_scenes(vis, start_off=0.0):
             skin.append(t)
     scenes = []
     for run_ in _group(hits, 5.0):
-        # a single weak frame on its own is usually a false alarm (a bare shoulder)
-        if len(run_) == 1 and strong[run_[0]] < 0.7:
+        # brief or weak hits are usually false alarms (a bare shoulder, a skin-toned blur)
+        peak = max(strong[t] for t in run_)
+        if len(run_) < 3 and peak < 0.85:
             continue
         scenes.append({"s": max(0.0, run_[0] - 1.5), "e": run_[-1] + 1.5, "kind": ["Nudity"],
-                       "why": f"nudity seen in {len(run_)} picture check{'s' if len(run_) > 1 else ''}"})
+                       "sure": peak >= 0.75 and len(run_) >= 4,
+                       "why": f"nudity seen in {len(run_)} picture checks (strongest {peak:.0%})"})
     return scenes, skin
 
 
@@ -642,6 +650,7 @@ def merge_scenes(scenes):
             o["e"] = max(o["e"], sc["e"])
             o["kind"] += [k for k in sc["kind"] if k not in o["kind"]]
             o["why"] = "; ".join(x for x in (o["why"], sc["why"]) if x)
+            o["sure"] = o.get("sure", True) and sc.get("sure", True)
         else:
             out.append(dict(sc, kind=list(sc["kind"])))
     return out
@@ -689,7 +698,8 @@ def decide_picture_scenes(cands, o, have_ai):
             if pw >= 0.5:
                 who = w.replace("kiss_", "")
         level = v.get("level", "?") if v else "?"
-        note = "" if v and not v.get("error") else " (not double-checked)"
+        checked = bool(v) and not v.get("error")
+        note = "" if checked else " (not double-checked, so left unticked)"
         if c["cat"] == "kiss":
             if who == "mf":
                 setting = o["kiss_os"]
@@ -711,8 +721,10 @@ def decide_picture_scenes(cands, o, have_ai):
             why = "a couple in bed or making out" + note
         else:
             label = CAT_LABEL[c["cat"]]
-            why = (v.get("what") or f"{label.lower()} seen") + note
-        scenes.append({"s": c["s"], "e": c["e"], "kind": [label], "why": why})
+            why = f"{label.lower()} seen" + note
+        if checked and v.get("what"):
+            why = f"{why} — {v['what']}"
+        scenes.append({"s": c["s"], "e": c["e"], "kind": [label], "why": why, "sure": checked})
     return scenes
 
 
@@ -892,7 +904,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
     if use_clip and vis and vis.get("clip"):
-        cands = ai.clip_candidates(vis["clip"], nd["clip"])
+        cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"])
         if have_ai and cands:
             say(at("look", 0), "Taking a closer look at the scenes found…")
             todo = sorted(cands, key=lambda c: -c["peak"])[:150]
@@ -934,7 +946,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     scenes += decide_picture_scenes(cands, o, have_ai)
     scenes = merge_scenes(scenes)
     for n, sc in enumerate(scenes, 1):
-        sc["id"], sc["cut"] = n, True
+        sc["id"], sc["cut"] = n, sc.get("sure", True)
         sc["e"] = min(sc["e"], dur)
         sc["s"], sc["e"] = round(sc["s"], 2), round(sc["e"], 2)
         said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]

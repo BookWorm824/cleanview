@@ -254,7 +254,7 @@ class App(tk.Tk):
         ttk.Checkbutton(b25, text="Use the AI helper to double-check scenes and read the dialogue",
                         variable=v).pack(anchor="w")
         tk.Label(b25, text="Runs on your own PC, nothing is uploaded. The first time, it downloads "
-                 "Ollama and two AI models (about 9 GB, one time only). Without it, kissing and "
+                 "Ollama and two AI models (about 11 GB, one time only). Without it, kissing and "
                  "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=640, justify="left").pack(anchor="w", pady=(4, 0))
 
