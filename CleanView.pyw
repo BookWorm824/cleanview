@@ -21,7 +21,8 @@ BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
 CHIP = {"Nudity": "#B5523B", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
-        "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B"}
+        "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
+        "Bullying": "#8A4B2E"}
 
 
 def chip_color(label):
@@ -213,7 +214,9 @@ class App(tk.Tk):
             ("mild", "Mild words  (damn, hell, crap)", True),
             ("deity", "God's name used as a swear", True),
             ("minced", "Soft substitutes  (gosh, heck, freaking)", False),
-            ("sexref", "Sexual references and innuendo", True)])
+            ("sexref", "Sexual references and innuendo", True),
+            ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
+            ("bullying", "Bullying and mocking", False)])
         checks(section("Sex and nudity"), [
             ("nudity", "Nudity", True),
             ("sex", "Sex scenes", True),
@@ -251,7 +254,7 @@ class App(tk.Tk):
         ttk.Checkbutton(b25, text="Use the AI helper to double-check scenes and read the dialogue",
                         variable=v).pack(anchor="w")
         tk.Label(b25, text="Runs on your own PC, nothing is uploaded. The first time, it downloads "
-                 "Ollama and an AI model (about 4 GB, one time only). Without it, kissing and "
+                 "Ollama and two AI models (about 9 GB, one time only). Without it, kissing and "
                  "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=640, justify="left").pack(anchor="w", pady=(4, 0))
 
@@ -385,15 +388,9 @@ class App(tk.Tk):
                     engine.install_tools(self.scan_opts,
                                          progress=lambda f, m: self.q.put(("progress", f, m, "")))
                 except Exception as ex:
-                    if not self.scan_opts.get("ai"):
-                        raise
-                    # the AI helper is a bonus: carry on without it if its setup fails
-                    self.q.put(("warn", "The AI helper couldn't be set up, so this run uses the "
-                                "basic checks.\n\n" + str(ex)[:400]))
-                    self.scan_opts = dict(self.scan_opts, ai=False)
-                    if engine.tools_missing(self.scan_opts):
-                        engine.install_tools(self.scan_opts, progress=lambda f, m: self.q.put(
-                            ("progress", f, m, "")))
+                    # carry on with whatever did install; the review page says what was skipped
+                    self.q.put(("warn", "Some of the checking tools couldn't be set up, so this "
+                                "run uses the ones that are ready.\n\n" + str(ex)[:400]))
             n = len(self.jobs)
             for k, j in enumerate(self.jobs):
                 self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
@@ -423,7 +420,7 @@ class App(tk.Tk):
                 self.q.put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
                             + short(Path(j["video"]).name, 80)))
                 results.append(engine.render(
-                    j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []),
+                    j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []), words=j.get("words"),
                     progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / len(todo), m, "")),
                     log=lambda m: None, cancel=lambda: self.cancel_flag))
             self.q.put(("rendered", results))
@@ -476,50 +473,67 @@ class App(tk.Tk):
         if not good:
             self.show_setup()
             return
-        if any(j["analysis"]["scenes"] or j["analysis"].get("lines") for j in good):
-            self.show_review()
-        else:
-            for j in good:
-                j["cuts"], j["lines"] = [], []
-            self.save()
+        self.show_review()   # always: so every mute and cut can be seen and unticked
 
     # ---------- page 3: review scenes ----------
     def show_review(self):
         good = [j for j in self.jobs if j["analysis"]]
         n = sum(len(j["analysis"]["scenes"]) for j in good)
         nl = sum(len(j["analysis"].get("lines", [])) for j in good)
+        nw = sum(len(j["analysis"]["mutes"]) for j in good)
         parts = []
         if n:
             parts.append(f"{n} scene{'s' if n != 1 else ''}")
         if nl:
             parts.append(f"{nl} line{'s' if nl != 1 else ''}")
-        p = self._new_page(" and ".join(parts) + " to check",
-                           "Checked scenes will be cut and checked lines muted. Untick anything "
-                           "you want to keep. Pictures are blurred on purpose \u2014 use Preview "
-                           "to watch a scene in your video player if you're not sure.")
+        if nw:
+            parts.append(f"{nw} word{'s' if nw != 1 else ''}")
+        title = (", ".join(parts[:-1]) + " and " + parts[-1] if len(parts) > 1 else
+                 parts[0] if parts else "Nothing found") + (" to check" if parts else "")
+        p = self._new_page(title,
+                           "Checked scenes will be cut and checked words and lines muted. Untick "
+                           "anything you want to keep. Pictures are blurred on purpose \u2014 use "
+                           "Preview to watch a scene in your video player if you're not sure.")
         inner = self._scroll_area(p)
-        self.scene_vars, self.line_vars = [], []
+        self.scene_vars, self.line_vars, self.word_vars = [], [], []
         multi = len(good) > 1
         for j in good:
             st = j["analysis"]
             if multi:
                 tk.Label(inner, text=Path(j["video"]).name, bg=BG, fg=INK,
                          font=(FONT, 12, "bold"), anchor="w").pack(fill="x", padx=8, pady=(14, 0))
-                if not st["scenes"] and not st.get("lines"):
-                    tk.Label(inner, text="Nothing to check \u2014 swear words only.", bg=BG,
-                             fg=MUTED, font=(FONT, 10)).pack(anchor="w", padx=8)
+
             for note in st.get("notes", []):
                 tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
                          wraplength=720, justify="left", anchor="w").pack(fill="x", padx=8)
+            if not st["scenes"]:
+                tk.Label(inner, text="No scenes were found to cut in this one.", bg=BG,
+                         fg=INK, font=(FONT, 10), anchor="w").pack(fill="x", padx=8, pady=(6, 0))
             for sc in st["scenes"]:
                 self._scene_card(inner, j, sc)
             if st.get("lines"):
                 self._lines_card(inner, j, st["lines"])
+            if st.get("mutes"):
+                self._words_card(inner, j, st["mutes"])
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
-        tk.Label(self.footer, text=f"{sum(len(j['analysis']['mutes']) for j in good)} swear words "
-                 "will be muted automatically.", bg=BG, fg=MUTED,
-                 font=(FONT, 10)).pack(side="left")
+
+
+    def _words_card(self, parent, job, mutes):
+        card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
+                        highlightthickness=1)
+        card.pack(fill="x", padx=8, pady=6)
+        tk.Label(card, text="Words to mute", bg=CARD, fg=INK, font=(FONT, 11, "bold")).pack(anchor="w")
+        grid = tk.Frame(card, bg=CARD)
+        grid.pack(fill="x", pady=(4, 0))
+        for n, m in enumerate(mutes):
+            v = tk.BooleanVar(value=True)
+            self.word_vars.append((v, job, m))
+            cell = tk.Frame(grid, bg=CARD)
+            cell.grid(row=n // 3, column=n % 3, sticky="w", padx=(0, 24), pady=1)
+            ttk.Checkbutton(cell, text=engine.cl.fmt_t(m["s"]), variable=v).pack(side="left")
+            tk.Label(cell, text=m["word"], bg=CARD, fg=INK, font=(FONT, 10, "bold")).pack(
+                side="left", padx=(6, 0))
 
     def _lines_card(self, parent, job, lines):
         card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
@@ -587,7 +601,10 @@ class App(tk.Tk):
 
     def _save_from_review(self):
         for j in self.jobs:
-            j["cuts"], j["lines"] = [], []
+            j["cuts"], j["lines"], j["words"] = [], [], []
+        for v, j, m in self.word_vars:
+            if v.get():
+                j["words"].append(m)
         for v, j, sc in self.scene_vars:
             if v.get():
                 j["cuts"].append(sc)

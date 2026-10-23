@@ -35,7 +35,9 @@ CLIP_FILES = {"vision_model_quantized.onnx": "onnx/vision_model_quantized.onnx",
               "text_model_quantized.onnx": "onnx/text_model_quantized.onnx",
               "tokenizer.json": "tokenizer.json"}
 OLLAMA = os.environ.get("CLEANVIEW_OLLAMA", "http://127.0.0.1:11434")
-MODEL = os.environ.get("CLEANVIEW_MODEL", "gemma3:4b")
+VISION_MODEL = os.environ.get("CLEANVIEW_VISION_MODEL", "gemma3:4b")   # looks at pictures
+TEXT_MODEL = os.environ.get("CLEANVIEW_TEXT_MODEL", "qwen2.5:7b")       # reads the dialogue
+MODEL = VISION_MODEL
 OLLAMA_SETUP_URL = "https://ollama.com/download/OllamaSetup.exe"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
 
@@ -330,13 +332,19 @@ def start_ollama(wait=60):
     return ollama_running()
 
 
-def model_ready():
+def model_ready(name=None):
+    names = [name] if name else [VISION_MODEL, TEXT_MODEL]
     try:
         with _api("/api/tags", timeout=5) as r:
             tags = json.loads(r.read())
-        want = MODEL if ":" in MODEL else MODEL + ":latest"
-        return any(m.get("name") in (MODEL, want) or m.get("model") in (MODEL, want)
-                   for m in tags.get("models", []))
+        have = set()
+        for m in tags.get("models", []):
+            for k in ("name", "model"):
+                if m.get(k):
+                    have.add(m[k])
+                    if m[k].endswith(":latest"):
+                        have.add(m[k][:-7])
+        return all(n in have or (n + ":latest") in have for n in names)
     except Exception:
         return False
 
@@ -358,37 +366,41 @@ def install_ollama(progress=None):
         raise RuntimeError("Ollama installed but didn't start. Restart your PC and try again.")
 
 
-def pull_model(progress=None):
+def pull_model(name, progress=None, label="the AI model"):
     say = progress or (lambda f, m: None)
-    with _api("/api/pull", {"model": MODEL, "stream": True}, timeout=600) as r:
+    with _api("/api/pull", {"model": name, "stream": True}, timeout=600) as r:
         for line in r:
             try:
                 d = json.loads(line)
             except ValueError:
                 continue
             if d.get("error"):
-                raise RuntimeError("Couldn't download the AI model: " + d["error"])
+                raise RuntimeError(f"Couldn't download {label}: " + d["error"])
             if d.get("total"):
                 done = d.get("completed", 0)
-                say(done / d["total"], f"Getting the AI model (one time) · "
+                say(done / d["total"], f"Getting {label} (one time) · "
                     f"{done / 1e9:.1f} of {d['total'] / 1e9:.1f} GB")
-    if not model_ready():
-        raise RuntimeError("The AI model download didn't finish. Try again.")
+    if not model_ready(name):
+        raise RuntimeError(f"The download of {label} didn't finish. Try again.")
 
 
 def ensure_ai(progress=None):
-    """Make sure Ollama is installed, running and has the model."""
+    """Make sure Ollama is installed, running and has both models."""
+    say = progress or (lambda f, m: None)
     if not start_ollama():
-        install_ollama(progress)
-    if not model_ready():
-        pull_model(progress)
+        install_ollama(lambda f, m: say(0.25 * f, m))
+    if not model_ready(VISION_MODEL):
+        pull_model(VISION_MODEL, lambda f, m: say(0.25 + 0.35 * f, m), "the picture helper")
+    if not model_ready(TEXT_MODEL):
+        pull_model(TEXT_MODEL, lambda f, m: say(0.6 + 0.4 * f, m), "the dialogue reader")
 
 
-def chat(prompt, images=None, schema=None, timeout=300):
+def chat(prompt, images=None, schema=None, timeout=300, model=None):
     msg = {"role": "user", "content": prompt}
     if images:
         msg["images"] = images
-    payload = {"model": MODEL, "messages": [msg], "stream": False,
+    model = model or (VISION_MODEL if images else TEXT_MODEL)
+    payload = {"model": model, "messages": [msg], "stream": False,
                "options": {"temperature": 0, "num_ctx": 8192}}
     if schema:
         payload["format"] = schema
@@ -513,10 +525,17 @@ LINE_TYPES = {
                 "'he's gay'). NOT: friends, coworkers, police or business partners, family"),
     "oppsex": ("says an unmarried man and woman live together or sleep together. NOT: married "
                "couples, dating, roommates, family"),
+    "crude": ("crude humor: jokes or talk about bodily functions, bathroom or toilet humor, "
+              "gross-out jokes, crude jokes about body parts. NOT: ordinary jokes, sarcasm, "
+              "plain insults"),
+    "bullying": ("bullying: mocking, taunting or demeaning someone, cruel name-calling, picking "
+                 "on someone weaker, trying to humiliate them. NOT: ordinary arguments, police "
+                 "questioning or warnings, friendly teasing between friends"),
 }
 LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around",
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
-                                                         "together"}
+                                                         "together",
+              "crude": "crude humor", "bullying": "bullying"}
 
 
 def _letters(t):
@@ -571,8 +590,9 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
         part = lines[a:a + chunk]
         listing = "\n".join(f"{i + 1}: {l['text']}" for i, l in enumerate(part))
         prompt = ("You help a family decide which lines of TV or movie dialogue to mute. Most "
-                  "lines are ordinary and must NOT be flagged. Here are numbered lines in "
-                  "order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
+                  "lines are ordinary and must NOT be flagged. The lines have no speaker names; "
+                  "use the surrounding conversation (names, he/she, who is talking about whom) to "
+                  "understand them. Here are numbered lines in order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
                   "these:\n" + defs + "\n\nFor each flagged line give its number, the type, and "
                   "the exact words from that line that fit (copied word for word). If you are "
                   "not sure, do not flag it. Most of the time the list is empty. Answer in JSON "
@@ -609,11 +629,13 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
             raise KeyboardInterrupt
         if progress:
             progress(0.7 + 0.3 * n / max(1, len(todo)))
-        before = " / ".join(l["text"] for l in lines[max(0, i - 2):i])
+        before = " / ".join(l["text"] for l in lines[max(0, i - 6):i])
+        after = " / ".join(l["text"] for l in lines[i + 1:i + 3])
         q = (f"Dialogue just before: {before or '(none)'}\n"
-             f'Line: "{lines[i]["text"]}"\n\n'
-             f"Does this line contain {LINE_NAMES[t]}? That means it {LINE_TYPES[t]}. "
-             "Answer false unless it clearly does.")
+             f'Line: "{lines[i]["text"]}"\n'
+             f"Dialogue just after: {after or '(none)'}\n\n"
+             f"Does the line in quotes contain {LINE_NAMES[t]}? That means it {LINE_TYPES[t]}. "
+             "Use the dialogue around it to understand it. Answer false unless it clearly does.")
         try:
             if chat(q, schema=yes, timeout=120).get("fits") is True:
                 found.setdefault(i, set()).add(t)

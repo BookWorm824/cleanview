@@ -9,19 +9,22 @@ its own install, its own folder, its own updates.
   extra words. Writes cleaned subtitles into the clean copy.
 - Filters you can switch on or off: sexual references, nudity, sex scenes, immodest clothing,
   sleeping around, man & woman kissing and same-sex kissing (keep / cut passionate / cut all),
-  same-sex relationships, unmarried couples living or sleeping together, violence, graphic
-  gore, smoking, drinking and drug use. Your choices are remembered.
+  same-sex relationships, unmarried couples living or sleeping together, crude humor, bullying,
+  violence, graphic gore, smoking, drinking and drug use. Your choices are remembered.
 - How it finds things:
   - NudeNet checks the picture twice a second for nudity.
   - CLIP (OpenAI's free image model) checks it once a second for kissing, couples in bed,
     gore, fights, weapons, smoking, drinking, drugs and revealing clothes, so scenes are
     caught even when they're silent.
   - A sound model listens for gunfire, explosions, screaming and blows.
-  - The optional AI helper (Ollama running gemma3:4b on your PC) double-checks each scene
-    the picture model found (who is kissing, light or passionate, is it really gore) and
-    reads the dialogue for sexual references, sleeping around and relationship talk.
-- Scenes are cut; flagged dialogue lines are muted. Everything is listed first with blurred
-  stills and a Preview button, and only what you leave ticked is changed.
+  - The optional AI helper runs two models through Ollama on your PC: gemma3:4b double-checks
+    each scene the picture model found (who is kissing, light or passionate, is it really
+    gore), and qwen2.5:7b reads the dialogue for sexual references, sleeping around,
+    relationship talk, crude humor and bullying. A line is only flagged when the model quotes
+    the words that fit and a second, stricter question about that line agrees.
+- Scenes are cut; flagged dialogue lines and swear words are muted. Everything is listed
+  first (scenes with blurred stills and a Preview button, then lines, then every swear word),
+  and only what you leave ticked is changed.
 - Pick a folder of episodes to clean a whole season in one go.
 - Saves "(Clean)" copies plus a report of every mute and cut. Originals are never changed.
   Uses an NVIDIA, Intel or AMD graphics card to save faster when one is available.
@@ -32,7 +35,7 @@ out with flatter colours after a cut. The AI checks are good but not perfect, wh
 everything is shown to you before it's cut.
 
 One-time downloads: the picture and sound checkers (about 250 MB) the first time CleanView
-looks for scenes, and Ollama plus its AI model (about 4 GB) if the AI helper is on.
+looks for scenes, and Ollama plus its two AI models (about 9 GB) if the AI helper is on.
 
 ## Installing
 

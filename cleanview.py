@@ -41,10 +41,11 @@ VISUAL_FPS = 2.0
 # ---------------------------------------------------------------------------
 # Options and one-time tools
 # ---------------------------------------------------------------------------
+LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying")
 DEFAULTS = {"nudity": True, "sex": True, "violence": True, "gore": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
-            "drinking": False, "drugs": False, "ai": True}
+            "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True}
 
 
 def full_opts(opts=None):
@@ -68,7 +69,7 @@ def needs(opts):
     for k in ("smoking", "drinking", "drugs", "immodest"):
         if o[k]:
             clip_cats.append(k)
-    lines = [k for k in ("sexref", "casual", "samesex", "oppsex") if o[k]]
+    lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"],
             "nudenet": o["nudity"] or o["sex"],
             "clip": clip_cats,
@@ -142,7 +143,10 @@ def install_tools(opts=None, progress=None, log=print):
         if not (TAG_DIR / "model.int8.onnx").exists():
             raise RuntimeError("The sound checker download looked wrong. Try again.")
     if nd["clip"] and not ai.clip_ready():
-        ai.install_clip(_venv_python(), lambda f, m: say(0.1 + 0.2 * f, m))
+        try:
+            ai.install_clip(_venv_python(), lambda f, m: say(0.1 + 0.2 * f, m))
+        except Exception as ex:
+            log(f"Picture AI download failed: {ex}")   # the run goes on without it
         importlib.invalidate_caches()
     if nd["ai"]:
         ai.ensure_ai(lambda f, m: say(0.3 + 0.7 * f, m))
@@ -657,8 +661,13 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                           r"husband and husband|wife and wife)\b", re.I),
     "oppsex": re.compile(r"\b(moved in together|living together|shacking up|"
                          r"sleeping together|slept together)\b", re.I),
+    "crude": re.compile(r"\b(farts?|farted|farting|poop(ed|ing)?|butt crack|boogers?|"
+                        r"peed (my|his|her|your) pants)\b", re.I),
+    "bullying": re.compile(r"\b(nobody likes you|you're worthless|you are worthless|"
+                           r"fatso|four[- ]eyes|crybaby|you freak)\b", re.I),
 }
-LINE_LABEL = {"sexref": "Sexual reference", "casual": "Sleeping around",
+LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying",
+              "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 CAT_LABEL = {"gore": "Gore", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
@@ -708,7 +717,7 @@ def decide_picture_scenes(cands, o, have_ai):
 
 
 def find_lines(lines, o, have_ai, progress=None, cancel=None):
-    wanted = [k for k in ("sexref", "casual", "samesex", "oppsex") if o[k]]
+    wanted = [k for k in LINE_KINDS if o[k]]
     if not wanted or not lines:
         return [], ""
     found, how = {}, "word lists"
@@ -903,6 +912,16 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         notes.append("The AI helper wasn't running, so scenes weren't double-checked and "
                      "dialogue was checked with word lists only.")
 
+    used = ["listening to the dialogue"]
+    if snd:
+        used.append("sound check")
+    if vis:
+        used.append("nudity check")
+    if use_clip and vis and vis.get("clip"):
+        used.append("picture AI")
+    if have_ai:
+        used.append("AI helper")
+    notes.insert(0, "Checked with: " + ", ".join(used) + ".")
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
     scenes = []
@@ -1059,7 +1078,7 @@ def write_srt(cues, dst):
 
 
 def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, encoders=None,
-           lines=None):
+           lines=None, words=None):
     """Write the clean copy. cuts: list of {"s","e"} (default: scenes with cut=True).
     lines: dialogue lines to mute (default: lines with mute=True)."""
     work = Path(workdir)
@@ -1075,6 +1094,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     off = info.get("start", 0.0)
     if lines is None:
         lines = [l for l in st.get("lines", []) if l.get("mute")]
+    if words is not None:          # the swear words left ticked on the review page
+        st["mutes"] = list(words)
     cut_rs = _merge((max(0.0, c["s"]), min(dur, c["e"])) for c in cuts)
     line_rs = _merge((l["s"], l["e"]) for l in lines)
     mute_rs = _merge([(m["s"], m["e"]) for m in st["mutes"]] + line_rs)
