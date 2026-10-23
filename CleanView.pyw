@@ -176,6 +176,7 @@ class App(tk.Tk):
         self.start_btn.pack(side="right")
         body = self._scroll_area(p)
 
+        self.opts = {}
         b1 = self._card(body, "1", "Movie or episodes")
         row = tk.Frame(b1, bg=CARD)
         row.pack(fill="x")
@@ -186,6 +187,14 @@ class App(tk.Tk):
         self.vid_lbl = tk.Label(b1, text="Nothing chosen yet", bg=CARD, fg=MUTED,
                                 font=(FONT, 10), wraplength=640, justify="left")
         self.vid_lbl.pack(anchor="w", pady=(8, 0))
+        v = tk.BooleanVar(value=self._load_settings().get("autosubs", True))
+        self.opts["autosubs"] = v
+        ttk.Checkbutton(b1, text="Find subtitles online for videos that don't have any",
+                        variable=v).pack(anchor="w", pady=(8, 0))
+        tk.Label(b1, text="Recommended: subtitles give the exact words, who's talking and "
+                 "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
+                 fg=MUTED, font=(FONT, 9), wraplength=640, justify="left").pack(anchor="w",
+                                                                             padx=(22, 0))
         tk.Label(b1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
                  "downloads without copy protection. If the movie has subtitles, they're used "
                  "to catch extra words and get cleaned too.", bg=CARD, fg=MUTED, font=(FONT, 9),
@@ -193,7 +202,6 @@ class App(tk.Tk):
 
         b2 = self._card(body, "2", "What to remove")
         saved = self._load_settings()
-        self.opts = {}
 
         def section(title):
             tk.Label(b2, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold")).pack(

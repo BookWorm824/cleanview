@@ -35,8 +35,12 @@ CLIP_FILES = {"vision_model_quantized.onnx": "onnx/vision_model_quantized.onnx",
               "text_model_quantized.onnx": "onnx/text_model_quantized.onnx",
               "tokenizer.json": "tokenizer.json"}
 OLLAMA = os.environ.get("CLEANVIEW_OLLAMA", "http://127.0.0.1:11434")
-VISION_MODEL = os.environ.get("CLEANVIEW_VISION_MODEL", "qwen2.5vl:7b")   # looks at pictures
-TEXT_MODEL = os.environ.get("CLEANVIEW_TEXT_MODEL", "qwen2.5:7b")       # reads the dialogue
+# Newest first; an older one is used if the newer can't be downloaded or run.
+VISION_MODELS = [m for m in (os.environ.get("CLEANVIEW_VISION_MODEL"), "qwen3-vl:8b",
+                             "qwen2.5vl:7b") if m]          # looks at pictures
+TEXT_MODELS = [m for m in (os.environ.get("CLEANVIEW_TEXT_MODEL"), "qwen3:8b",
+                           "qwen2.5:7b") if m]               # reads the dialogue
+VISION_MODEL, TEXT_MODEL = VISION_MODELS[0], TEXT_MODELS[0]
 MODEL = VISION_MODEL
 OLLAMA_SETUP_URL = "https://ollama.com/download/OllamaSetup.exe"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
@@ -338,21 +342,46 @@ def start_ollama(wait=60):
     return ollama_running()
 
 
-def model_ready(name=None):
-    names = [name] if name else [VISION_MODEL, TEXT_MODEL]
+def _installed():
+    with _api("/api/tags", timeout=5) as r:
+        tags = json.loads(r.read())
+    have = set()
+    for m in tags.get("models", []):
+        for k in ("name", "model"):
+            if m.get(k):
+                have.add(m[k])
+                if m[k].endswith(":latest"):
+                    have.add(m[k][:-7])
+    return have
+
+
+def _pick(models, have):
+    return next((m for m in models if m in have or (m + ":latest") in have), None)
+
+
+def choose_models():
+    """Use the newest installed model of each kind. Returns True when both kinds are there."""
+    global VISION_MODEL, TEXT_MODEL, MODEL
     try:
-        with _api("/api/tags", timeout=5) as r:
-            tags = json.loads(r.read())
-        have = set()
-        for m in tags.get("models", []):
-            for k in ("name", "model"):
-                if m.get(k):
-                    have.add(m[k])
-                    if m[k].endswith(":latest"):
-                        have.add(m[k][:-7])
-        return all(n in have or (n + ":latest") in have for n in names)
+        have = _installed()
     except Exception:
         return False
+    v, t = _pick(VISION_MODELS, have), _pick(TEXT_MODELS, have)
+    if v:
+        VISION_MODEL = MODEL = v
+    if t:
+        TEXT_MODEL = t
+    return bool(v and t)
+
+
+def model_ready(name=None):
+    try:
+        have = _installed()
+    except Exception:
+        return False
+    if name:
+        return _pick([name], have) is not None
+    return _pick(VISION_MODELS, have) is not None and _pick(TEXT_MODELS, have) is not None
 
 
 def install_ollama(progress=None):
@@ -391,14 +420,29 @@ def pull_model(name, progress=None, label="the AI model"):
 
 
 def ensure_ai(progress=None):
-    """Make sure Ollama is installed, running and has both models."""
+    """Make sure Ollama is installed and running, and has the newest models
+    it can get (falling back to older ones if a newer download fails)."""
     say = progress or (lambda f, m: None)
     if not start_ollama():
-        install_ollama(lambda f, m: say(0.25 * f, m))
-    if not model_ready(VISION_MODEL):
-        pull_model(VISION_MODEL, lambda f, m: say(0.25 + 0.35 * f, m), "the picture helper")
-    if not model_ready(TEXT_MODEL):
-        pull_model(TEXT_MODEL, lambda f, m: say(0.6 + 0.4 * f, m), "the dialogue reader")
+        install_ollama(lambda f, m: say(0.2 * f, m))
+    for k, (models, label) in enumerate(((VISION_MODELS, "the picture helper"),
+                                         (TEXT_MODELS, "the dialogue reader"))):
+        base, span = 0.2 + 0.4 * k, 0.4
+        if model_ready(models[0]):
+            continue
+        err = None
+        for m in models:
+            try:
+                pull_model(m, lambda f, msg: say(base + span * f, msg), label)
+                err = None
+                break
+            except Exception as ex:   # e.g. an older Ollama that can't run the newest model
+                err = ex
+                if model_ready(m):
+                    break
+        if err and not any(model_ready(m) for m in models):
+            raise err
+    choose_models()
 
 
 def chat(prompt, images=None, schema=None, timeout=300, model=None):
@@ -410,9 +454,19 @@ def chat(prompt, images=None, schema=None, timeout=300, model=None):
                "options": {"temperature": 0, "num_ctx": 8192}}
     if schema:
         payload["format"] = schema
-    with _api("/api/chat", payload, timeout=timeout) as r:
-        d = json.loads(r.read())
+    if model.startswith("qwen3"):
+        payload["think"] = False      # answer directly; much faster
+    try:
+        with _api("/api/chat", payload, timeout=timeout) as r:
+            d = json.loads(r.read())
+    except urllib.error.HTTPError as ex:
+        if "think" not in payload or ex.code != 400:
+            raise
+        payload.pop("think")          # an Ollama too old for that switch
+        with _api("/api/chat", payload, timeout=timeout) as r:
+            d = json.loads(r.read())
     text = (d.get("message") or {}).get("content", "")
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
         raise ValueError("no JSON in reply")
@@ -567,14 +621,19 @@ def _letters(t):
     return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 
 
-def _tag(l, g):
-    """How a line is shown to the dialogue reader: speaker name from the
-    subtitles if there is one, plus the voice guess."""
+def _tag(l, v):
+    """How a line is shown to the dialogue reader: the speaker's name from the
+    subtitles or a speaker number, plus the man / woman / child voice guess."""
+    if isinstance(v, str):
+        v = {"spk": "", "g": v}
+    v = v or {}
     bits = []
     if l.get("who"):
         bits.append(l["who"])
-    if g in ("man", "woman"):
-        bits.append(f"{g}'s voice")
+    elif v.get("spk"):
+        bits.append(v["spk"])
+    if v.get("g") in ("man", "woman", "child"):
+        bits.append(f"{v['g']}'s voice")
     return f"({', '.join(bits)}) " if bits else ""
 
 
@@ -613,7 +672,7 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
     question about just that line agrees."""
     if not lines or not wanted:
         return {}
-    genders = genders or ["?"] * len(lines)
+    genders = genders or [{}] * len(lines)
     defs = "\n".join(f'- "{k}": {LINE_TYPES[k]}' for k in wanted)
     schema = {"type": "object", "properties": {"flags": {"type": "array", "items": {
         "type": "object", "properties": {"line": {"type": "integer"},
@@ -632,9 +691,10 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
                              for i, l in enumerate(part))
         prompt = ("You help a family decide which lines of TV or movie dialogue to mute. Most "
                   "lines are ordinary and must NOT be flagged. Where known, a line starts with "
-                  "the speaker's name and a rough guess from the voice of whether a man or woman "
-                  "is speaking (the guess can be wrong); also use names, he/she and who is "
-                  "talking to whom. Here are numbered lines in order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
+                  "who is speaking (a name, or 'Speaker 3' when the same voice speaks again) and "
+                  "whether it sounds like a man, woman or child (these can be wrong); also use "
+                  "names, he/she and who is talking to whom. Here are numbered lines in "
+                  "order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
                   "these:\n" + defs + "\n\nFor each flagged line give its number, the type, and "
                   "the exact words from that line that fit (copied word for word). If you are "
                   "not sure, do not flag it. Most of the time the list is empty. Answer in JSON "
@@ -691,53 +751,133 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
 
 
 # ---------------------------------------------------------------------------
-# Who is talking: a rough man / woman guess from voice pitch, so the
+# Who is talking: speaker separation (which lines are the same person) and a
+# man / woman / child guess for each line from a trained sound model, so the
 # dialogue reader can tell two men flirting from a man and a woman.
 # ---------------------------------------------------------------------------
-VSR = 8000
+VSR = 16000
+SEG_NAME = "sherpa-onnx-pyannote-segmentation-3-0"
+SEG_URL = ("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/"
+           f"{SEG_NAME}.tar.bz2")
+EMB_NAME = "nemo_en_titanet_small.onnx"
+EMB_URL = ("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/"
+           + EMB_NAME)
+SEG_DIR = HERE / "models" / SEG_NAME
+EMB_FILE = HERE / "models" / EMB_NAME
+VOICE_CLASSES = ("Male speech, man speaking", "Female speech, woman speaking",
+                 "Child speech, kid speaking")
 
 
-def voice_pitch(samples):
-    """Median pitch (Hz) of the voiced parts of a stretch of speech, or 0."""
-    fr, hop = int(0.04 * VSR), int(0.02 * VSR)
-    lo, hi = int(VSR / 400), int(VSR / 70)        # 70-400 Hz
-    if len(samples) < fr * 3:
-        return 0.0
-    loud = np.sqrt(np.mean(samples ** 2)) * 0.6
-    norm = np.arange(fr, 0, -1, dtype=np.float32)
-    f0s = []
-    for k in range(0, len(samples) - fr, hop):
-        x = samples[k:k + fr] - samples[k:k + fr].mean()
-        e = float(np.dot(x, x))
-        if e <= 0 or np.sqrt(e / fr) < loud:
-            continue
-        ac = np.correlate(x, x, mode="full")[fr - 1:] / norm
-        seg = ac[lo:hi]
-        j = int(np.argmax(seg))
-        if seg[j] / ac[0] < 0.4:
-            continue                                   # not clearly voiced
-        thr = 0.85 * seg[j]                            # first strong peak = the true period
-        for q in range(1, len(seg) - 1):
-            if seg[q] >= thr and seg[q] >= seg[q - 1] and seg[q] >= seg[q + 1]:
-                j = q
-                break
-        f0s.append(VSR / (lo + j))
-    return float(np.median(f0s)) if len(f0s) >= 5 else 0.0
+def speakers_ready():
+    return (SEG_DIR / "model.onnx").exists() and EMB_FILE.exists()
 
 
-def voice_genders(ffmpeg_cmd, run, lines):
-    """'man', 'woman' or '?' for each line, from its pitch."""
-    r = run(ffmpeg_cmd, capture_output=True)
-    if r.returncode != 0 or not r.stdout:
-        return ["?"] * len(lines)
-    audio = np.frombuffer(r.stdout[: len(r.stdout) // 2 * 2], dtype=np.int16).astype(np.float32) / 32768
+def install_speakers(progress=None):
+    import tarfile
+    say = progress or (lambda f, m: None)
+    if not (SEG_DIR / "model.onnx").exists():
+        tmp = HERE / "models" / (SEG_NAME + ".tar.bz2")
+        download(SEG_URL, tmp, lambda f, m: say(0.2 * f, "Getting the speaker separator · " + m))
+        with tarfile.open(tmp, "r:bz2") as tf:
+            for mem in tf.getmembers():
+                if Path(mem.name).name == "model.onnx" and mem.isfile():
+                    SEG_DIR.mkdir(parents=True, exist_ok=True)
+                    with tf.extractfile(mem) as src, open(SEG_DIR / "model.onnx.part", "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                    os.replace(SEG_DIR / "model.onnx.part", SEG_DIR / "model.onnx")
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+    if not EMB_FILE.exists():
+        download(EMB_URL, EMB_FILE, lambda f, m: say(0.2 + 0.8 * f, "Getting the voice matcher · " + m))
+
+
+def separate_speakers(audio, threads=None, threshold=0.95):
+    """[(start, end, speaker_number)] for 16 kHz mono audio."""
+    import sherpa_onnx
+    threads = threads or max(1, min(4, (os.cpu_count() or 2)))
+    cfg = sherpa_onnx.OfflineSpeakerDiarizationConfig(
+        segmentation=sherpa_onnx.OfflineSpeakerSegmentationModelConfig(
+            pyannote=sherpa_onnx.OfflineSpeakerSegmentationPyannoteModelConfig(
+                model=str(SEG_DIR / "model.onnx")), num_threads=threads),
+        embedding=sherpa_onnx.SpeakerEmbeddingExtractorConfig(model=str(EMB_FILE),
+                                                              num_threads=threads),
+        clustering=sherpa_onnx.FastClusteringConfig(num_clusters=-1, threshold=threshold),
+        min_duration_on=0.3, min_duration_off=0.5)
+    if not cfg.validate():
+        raise RuntimeError("speaker separator settings are invalid")
+    sd = sherpa_onnx.OfflineSpeakerDiarization(cfg)
+    res = sd.process(audio).sort_by_start_time()
+    return [(float(r.start), float(r.end), int(r.speaker)) for r in res]
+
+
+def line_voices(audio, lines, tagger, segs=None):
+    """For each line: {"spk": "Speaker 3" or "", "g": "man"|"woman"|"child"|"?"}.
+
+    The man/woman/child guess comes from the sound model's speech classes on
+    the line itself; lines it can't call borrow the clear majority of the
+    same speaker's other lines."""
     out = []
     for l in lines:
-        a, b = int(max(0, l["s"]) * VSR), int(l["e"] * VSR)
-        f0 = voice_pitch(audio[a:b])
-        out.append("man" if 0 < f0 < 150 else "woman" if f0 > 185 else "?")
+        s0 = max(0.0, l["s"] - 0.2)
+        e0 = max(l["e"] + 0.2, s0 + 1.5)
+        x = audio[int(s0 * VSR):int(e0 * VSR)]
+        g = "?"
+        if len(x) > VSR * 0.5:
+            st = tagger.create_stream()
+            st.accept_waveform(VSR, x)
+            got = {e.name: e.prob for e in tagger.compute(st, top_k=527)}
+            m, f, c = (got.get(k, 0.0) for k in VOICE_CLASSES)
+            if c > 0.1 and c > 2 * max(m, f):
+                g = "child"
+            elif m > 0.02 and m > 2 * f:
+                g = "man"
+            elif f > 0.02 and f > 2 * m:
+                g = "woman"
+        spk = None
+        if segs:
+            best = 0.0
+            for s, e, k in segs:
+                if s > l["e"]:
+                    break
+                o = min(e, l["e"]) - max(s, l["s"])
+                if o > best:
+                    best, spk = o, k
+        out.append({"spk": spk, "g": g})
+    # number speakers in order of first appearance; fill unclear voices from
+    # the same speaker's other lines when they clearly agree
+    order, votes = {}, {}
+    for v in out:
+        if v["spk"] is not None:
+            order.setdefault(v["spk"], len(order) + 1)
+            if v["g"] != "?":
+                votes.setdefault(v["spk"], []).append(v["g"])
+    for v in out:
+        k = v["spk"]
+        if v["g"] == "?" and k in votes and len(votes[k]) >= 3:
+            top = max(set(votes[k]), key=votes[k].count)
+            if votes[k].count(top) >= 0.75 * len(votes[k]):
+                v["g"] = top
+    # a "speaker" heard as both a man and a woman is really two people the
+    # separator merged: give the less common voice its own number
+    extra = {}
+    nxt = len(order) + 1
+    for k, vs in votes.items():
+        kinds = {g for g in vs if g in ("man", "woman")}
+        if len(kinds) == 2:
+            minority = min(kinds, key=vs.count)
+            extra[k] = (minority, nxt)
+            nxt += 1
+    for v in out:
+        k = v["spk"]
+        if k is None:
+            v["spk"] = ""
+        elif k in extra and v["g"] == extra[k][0]:
+            v["spk"] = f"Speaker {extra[k][1]}"
+        else:
+            v["spk"] = f"Speaker {order[k]}"
     return out
-
 
 
 # ---------------------------------------------------------------------------
@@ -751,7 +891,7 @@ def romance_scenes(lines, genders, progress=None, cancel=None):
     Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice."""
     if not lines:
         return []
-    genders = genders or ["?"] * len(lines)
+    genders = genders or [{}] * len(lines)
     # split the dialogue into conversations at long pauses, at most 30 lines each
     convs, cur = [], [0]
     for i in range(1, len(lines)):
@@ -781,9 +921,10 @@ def romance_scenes(lines, genders, progress=None, cancel=None):
         listing = "\n".join(f"{k + 1}: {_tag(lines[i], genders[i])}{lines[i]['text']}"
                             for k, i in enumerate(conv))
         prompt = ("Here is one conversation from a TV show or movie. Where known, each line "
-                  "starts with the speaker's name and a rough guess from the voice of whether a "
-                  "man or a woman is speaking (the guess can be wrong; also use names, he/she, "
-                  "'handsome', 'pretty' and who is talking to whom).\n\n" + listing + "\n\n"
+                  "starts with who is speaking (a name, or 'Speaker 3' when the same voice speaks "
+                  "again) and whether it sounds like a man, woman or child (these can be wrong; "
+                  "also use names, he/she, 'handsome', 'pretty' and who is talking to "
+                  "whom).\n\n" + listing + "\n\n"
                   "Does anyone flirt or show romantic or sexual interest in someone here "
                   "(flirting, asking someone out, a romantic compliment, a pass, talk about "
                   "dating or being attracted to someone)? Friendly chat, work talk, police "

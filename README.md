@@ -18,13 +18,19 @@ its own install, its own folder, its own updates.
     gore, fights, weapons, smoking, drinking, drugs and revealing clothes, so scenes are
     caught even when they're silent.
   - A sound model listens for gunfire, explosions, screaming and blows.
-  - The optional AI helper runs two models through Ollama on your PC: qwen2.5vl:7b double-checks
+  - The optional AI helper runs two models through Ollama on your PC: qwen3-vl:8b double-checks
     each scene the picture model found (it must describe what it sees, and says no when the
-    frames are too dark or unclear), and qwen2.5:7b reads the dialogue for sexual references, sleeping around,
+    frames are too dark or unclear), and qwen3:8b reads the dialogue for sexual references, sleeping around,
     relationship talk, crude humor and bullying. A line is only flagged when the model quotes
     the words that fit and a second, stricter question about that line agrees. It is told
-    each line's speaker (from subtitles) and a man/woman guess from the voice's pitch, and
-    for same-sex relationships it also reads each whole conversation to catch flirting.
+    who says each line: names from the subtitles, speaker numbers from a speaker separator
+    (pyannote segmentation + TitaNet voice matching via sherpa-onnx), and a man/woman/child
+    guess from the sound model's speech classes. For same-sex relationships it also reads
+    each whole conversation to catch flirting. If a newer model can't be downloaded or run,
+    the older qwen2.5 models are used.
+- Videos with no subtitles get them from the internet (subliminal; hearing-impaired ones
+  first). Show and episode are read from the file and folder names, and the downloaded
+  subtitles are re-timed to the words actually heard; ones that don't match are not used.
 - Dark or murky frames are ignored, and a scene needs several seconds of strong hits. Scenes
   the AI helper didn't confirm are listed unticked.
 - Scenes are cut; flagged dialogue lines and swear words are muted. Everything is listed

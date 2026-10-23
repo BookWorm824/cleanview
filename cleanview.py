@@ -45,7 +45,8 @@ LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying")
 DEFAULTS = {"nudity": True, "sex": True, "violence": True, "gore": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
-            "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True}
+            "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True,
+            "autosubs": True}
 
 
 def full_opts(opts=None):
@@ -71,6 +72,8 @@ def needs(opts):
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"],
+            "voices": o["ai"] and bool(lines),
+            "subs": o.get("autosubs", True),
             "nudenet": o["nudity"] or o["sex"],
             "clip": clip_cats,
             "lines": lines,
@@ -91,6 +94,23 @@ def nudity_model():
     return p if p.exists() else None
 
 
+def _subs_mark():
+    return HERE / "models" / "subtitle_finder_tried.txt"
+
+
+def _subs_tried():
+    return _subs_mark().exists()
+
+
+def _upgrade_mark():
+    return HERE / "models" / ("ai_models_tried_" + re.sub(r"[^a-z0-9]+", "_", "_".join(
+        ai.VISION_MODELS[:1] + ai.TEXT_MODELS[:1]).lower()) + ".txt")
+
+
+def _upgrade_tried():
+    return _upgrade_mark().exists()
+
+
 def tools_missing(opts=None):
     """What still needs downloading (empty list = ready)."""
     nd = needs(opts)
@@ -98,12 +118,20 @@ def tools_missing(opts=None):
     if (nd["nudenet"] or nd["clip"]) and (not importlib.util.find_spec("onnxruntime")
                                           or not nudity_model()):
         need.append("picture checker")
-    if nd["sound"] and not (TAG_DIR / "model.int8.onnx").exists():
+    if (nd["sound"] or nd["voices"]) and not (TAG_DIR / "model.int8.onnx").exists():
         need.append("sound checker")
+    if nd["voices"] and not ai.speakers_ready():
+        need.append("speaker separator")
+    if nd["subs"] and importlib.util.find_spec("subliminal") is None and not _subs_tried():
+        need.append("subtitle finder")
     if nd["clip"] and not ai.clip_ready():
         need.append("picture AI")
-    if nd["ai"] and not (ai.ollama_running() and ai.model_ready()):
-        need.append("AI helper")
+    if nd["ai"]:
+        if not (ai.ollama_running() and ai.model_ready()):
+            need.append("AI helper")
+        elif not (ai.model_ready(ai.VISION_MODELS[0]) and ai.model_ready(ai.TEXT_MODELS[0])) \
+                and not _upgrade_tried():
+            need.append("newer AI models")
     return need
 
 
@@ -121,7 +149,24 @@ def install_tools(opts=None, progress=None, log=print):
                 raise RuntimeError("Couldn't download the picture checker. Check your internet "
                                    "connection and try again.\n\n" + r.stderr[-600:])
         importlib.invalidate_caches()
-    if nd["sound"] and not (TAG_DIR / "model.int8.onnx").exists():
+    if nd["voices"] and not ai.speakers_ready():
+        try:
+            ai.install_speakers(lambda f, m: say(0.02 + 0.03 * f, m))
+        except Exception as ex:
+            log(f"Speaker separator download failed: {ex}")   # carry on without it
+    if nd["subs"] and importlib.util.find_spec("subliminal") is None and not _subs_tried():
+        say(0.05, "Getting the subtitle finder (one time)…")
+        r = cl.run([_venv_python(), "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+                    "subliminal"], capture_output=True, text=True)
+        try:
+            _subs_mark().parent.mkdir(parents=True, exist_ok=True)
+            _subs_mark().write_text("tried\n")
+        except OSError:
+            pass
+        if r.returncode != 0:
+            log("Subtitle finder download failed: " + r.stderr[-300:])
+        importlib.invalidate_caches()
+    if (nd["sound"] or nd["voices"]) and not (TAG_DIR / "model.int8.onnx").exists():
         say(0.05, "Getting the sound checker (one time, about 45 MB)…")
         TAG_DIR.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(suffix=".tar.bz2", dir=TAG_DIR.parent)
@@ -149,7 +194,15 @@ def install_tools(opts=None, progress=None, log=print):
             log(f"Picture AI download failed: {ex}")   # the run goes on without it
         importlib.invalidate_caches()
     if nd["ai"]:
-        ai.ensure_ai(lambda f, m: say(0.3 + 0.7 * f, m))
+        try:
+            ai.ensure_ai(lambda f, m: say(0.3 + 0.7 * f, m))
+        finally:
+            if ai.model_ready():   # don't retry a failed upgrade on every run
+                try:
+                    _upgrade_mark().parent.mkdir(parents=True, exist_ok=True)
+                    _upgrade_mark().write_text("tried\n")
+                except OSError:
+                    pass
     say(1.0, "Ready.")
 
 # ---------------------------------------------------------------------------
@@ -299,6 +352,129 @@ def find_subtitles(path, info, workdir):
             if s["sdh"] or len(tracks) == 1:
                 break
     return best, ("subtitles inside the video" if best else "")
+
+
+# ---------------------------------------------------------------------------
+# Downloading subtitles for videos that have none
+# ---------------------------------------------------------------------------
+def guess_title(path):
+    """("Castle", 1, 7) for an episode, ("Farm Movie (2024)", None, None) for a
+    movie, or None when the name doesn't say which episode it is. Uses the
+    folder names too: E:\\Movies\\Castle\\Season 1\\S01E07_Title.mp4."""
+    p = Path(path)
+    stem = p.stem.replace("_", " ").replace(".", " ")
+    parent, grand = p.parent.name, p.parent.parent.name
+    season = episode = None
+    m = (re.search(r"\b[Ss](\d{1,2})\s*[Ee](\d{1,3})\b", stem)
+         or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem))
+    show = ""
+    if m:
+        season, episode = int(m.group(1)), int(m.group(2))
+        show = stem[:m.start()].strip(" -#")
+    else:
+        fs = re.match(r"(?i)\s*(season|series|s)\s*(\d{1,2})\s*$", parent)
+        em = re.match(r"\s*#?\s*(?:e|ep|episode)?\s*(\d{1,3})\b(?!\s*[xX:])", stem, re.I)
+        if fs and em:
+            season, episode = int(fs.group(2)), int(em.group(1))
+        elif fs or re.search(r"(?i)\b(s\d{1,2}|d\d|t\d{1,2}|disc|title|track)\b", stem):
+            return None   # a disc/track name: can't tell which episode
+    if season is not None:
+        if not re.search(r"[A-Za-z]{2}", show):
+            fs = re.match(r"(?i)\s*(season|series|s)\s*\d{1,2}\s*$", parent)
+            show = grand if fs else parent
+        show = re.sub(r"\s*[\(\[].*?[\)\]]\s*", " ", show).strip()
+        return (show, season, episode) if show else None
+    title = stem.strip()
+    return (title, None, None) if re.search(r"[A-Za-z]{2}", title) else None
+
+
+def download_subtitles(path, workdir, log=print):
+    """Look up English subtitles online (hearing-impaired ones first). Returns
+    (srt_text, where_from) or (None, reason)."""
+    if importlib.util.find_spec("subliminal") is None:
+        return None, "the subtitle finder isn't installed"
+    t = guess_title(path)
+    if not t:
+        return None, "couldn't tell which episode this is from its name"
+    import subliminal
+    from babelfish import Language
+    try:
+        subliminal.region.configure("dogpile.cache.memory", replace_existing_backend=True)
+    except Exception:
+        pass
+    ext = Path(path).suffix or ".mkv"
+    name = (f"{t[0]}.S{t[1]:02d}E{t[2]:02d}{ext}" if t[1] is not None else f"{t[0]}{ext}")
+    video = subliminal.Video.fromname(name)
+    try:
+        scanned = subliminal.scan_video(path)
+        video.size = scanned.size
+        subliminal.refine(scanned, refiners=["hash"])
+        video.hashes = getattr(scanned, "hashes", {}) or {}
+    except Exception:
+        pass
+    try:
+        got = subliminal.download_best_subtitles({video}, {Language("eng")}, only_one=True,
+                                                 subtitle_categories="hi,n")
+    except Exception as ex:
+        return None, f"the subtitle sites couldn't be reached ({str(ex)[:60]})"
+    subs = got.get(video) or []
+    for sub in subs:
+        text = getattr(sub, "text", None)
+        if text and "-->" in text:
+            label = "hearing-impaired " if getattr(sub, "hearing_impaired", False) else ""
+            return text, f"{label}subtitles downloaded from {sub.provider_name}"
+    return None, "no matching subtitles were found online"
+
+
+def sync_cues(cues, asr, min_match=0.25):
+    """Re-time downloaded subtitles to the words actually heard (they are often
+    from a different release: shifted, sped up, or cut differently). Returns
+    (retimed_cues, matched_fraction)."""
+    if not cues or not asr:
+        return [], 0.0
+    words, where = [], []
+    for ci, c in enumerate(cues):
+        toks = [cl.norm(w) for w in spoken_words(c["text"])]
+        toks = [w for w in toks if w]
+        for k, w in enumerate(toks):
+            words.append(w)
+            where.append(c["s"] + (c["e"] - c["s"]) * (k + 0.5) / max(1, len(toks)))
+    asr_n = [w["n"] if "n" in w else cl.norm(w["t"]) for w in asr]
+    mapping = cl.align(words, asr_n)
+    pairs = [(where[i], (asr[j]["s"] + asr[j]["e"]) / 2) for i, j in enumerate(mapping)
+             if j is not None]
+    frac = len(pairs) / max(1, len(words))
+    if frac < min_match or len(pairs) < 10:
+        return [], frac
+    x = np.array([p[0] for p in pairs])
+    y = np.array([p[1] for p in pairs])
+
+    def local(d, t):
+        # offset from the nearest matched words, so a jump in timing is followed
+        near = np.argsort(np.abs(x - t))[:min(9, len(x))]
+        return float(np.median(d[near]))
+
+    # speed differences between releases are frame-rate ratios (PAL 25 vs film
+    # 23.976 and so on); offsets can jump where the releases were cut differently
+    best = None
+    for rate in (1.0, 25 / 23.976, 23.976 / 25, 24 / 23.976, 23.976 / 24, 25 / 24, 24 / 25):
+        d = y - rate * x
+        err = float(np.median(np.abs(d - np.array([local(d, t) for t in x]))))
+        if best is None or err < best[0]:
+            best = (err, rate, d)
+    err, rate, d = best
+    if err > 1.0:
+        return [], frac
+
+    def fix(t):
+        return rate * t + local(d, t)
+
+    out = []
+    for c in cues:
+        s, e = fix(c["s"]), fix(c["e"])
+        if e > s > -1:
+            out.append({"s": max(0.0, s), "e": e, "text": c["text"]})
+    return out, frac
 
 
 SPOKEN_STRIP = re.compile(r"\[[^\]]*\]|\([^)]*\)|^[A-Z][A-Z .'-]{1,20}:|^\s*-\s*|♪", re.M)
@@ -728,6 +904,30 @@ def decide_picture_scenes(cands, o, have_ai):
     return scenes
 
 
+def find_voices(path, info, work, lines, cancel=None):
+    """Speaker numbers and man/woman/child guesses for each line."""
+    a = info["audio"]
+    mix = ["-af", "pan=mono|c0=FC"] if a["channels"] >= 5 else ["-ac", "1"]
+    r = cl.run([cl._tool("ffmpeg"), "-v", "error", "-i", path, "-map", f"0:{a['index']}", "-vn",
+                "-sn", *mix, "-ar", str(ai.VSR), "-f", "f32le", "-"], capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        raise RuntimeError("couldn't read the sound")
+    audio = np.frombuffer(r.stdout[: len(r.stdout) // 4 * 4], dtype=np.float32)
+    if cancel and cancel():
+        raise KeyboardInterrupt
+    segs = None
+    sfile = Path(work) / "speakers.json"
+    if sfile.exists():
+        segs = [tuple(x) for x in json.loads(sfile.read_text())]
+    elif ai.speakers_ready():
+        try:
+            segs = ai.separate_speakers(audio)
+            sfile.write_text(json.dumps(segs))
+        except Exception:
+            segs = None
+    return ai.line_voices(audio, lines, load_tagger(), segs)
+
+
 def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None):
     wanted = [k for k in LINE_KINDS if o[k]]
     if not wanted or not lines:
@@ -776,7 +976,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     cats = [c for g in groups for c in cl.GROUPS[g]]
     t_start = time.time()
     use_clip = bool(nd["clip"]) and ai.clip_ready()
-    have_ai = nd["ai"] and ai.start_ollama(wait=20) and ai.model_ready()
+    have_ai = nd["ai"] and ai.start_ollama(wait=20) and ai.choose_models()
     notes = []
 
     def eta(frac_done):
@@ -855,6 +1055,35 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
     say(at("end", 0), "Finding language…")
     cues, sub_note = find_subtitles(path, info, work)
+    if not cues and o.get("autosubs") and asr:
+        dl = work / "downloaded.srt"
+        miss = work / "no_subtitles_online.txt"
+        text, why = None, ""
+        if dl.exists():
+            text, why = dl.read_text("utf8", "replace"), (work / "downloaded.txt").read_text("utf8")
+        elif not (miss.exists() and time.time() - miss.stat().st_mtime < 3 * 86400):
+            say(at("end", 0.1), "Looking for subtitles online…")
+            try:
+                text, why = download_subtitles(path, work, log)
+            except Exception as ex:
+                text, why = None, f"the subtitle finder ran into a problem ({str(ex)[:60]})"
+            if text:
+                dl.write_text(text, encoding="utf8")
+                (work / "downloaded.txt").write_text(why, encoding="utf8")
+            else:
+                miss.write_text(why, encoding="utf8")
+        else:
+            why = miss.read_text("utf8", "replace")
+        if text:
+            synced, frac = sync_cues(parse_srt(text), asr)
+            if synced:
+                cues = synced
+                sub_note = f"{why} and matched to the sound ({frac:.0%} of words lined up)"
+            else:
+                notes.append(f"Subtitles were found online but didn't match this video "
+                             f"({frac:.0%} of words lined up), so they weren't used.")
+        else:
+            notes.append(f"No subtitles: {why}.")
     mutes = [{"s": asr[i]["s"], "e": asr[j - 1]["e"], "cat": cat, "src": "audio",
               "word": " ".join(cl.mask(asr[k]["t"]) for k in range(i, j)),
               "ctx": " ".join(asr[k]["t"] for k in range(max(0, i - 6), i))}
@@ -916,13 +1145,28 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
     genders = None
-    if have_ai and nd["lines"] and lines:
+    if have_ai and nd["voices"] and lines:
         say(at("lines", 0), "Telling voices apart…")
-        a = info["audio"]
-        mix = ["-af", "pan=mono|c0=FC"] if a["channels"] >= 5 else ["-ac", "1"]
-        genders = ai.voice_genders([cl._tool("ffmpeg"), "-v", "error", "-i", path, "-map",
-                                    f"0:{a['index']}", "-vn", "-sn", *mix, "-ar", str(ai.VSR),
-                                    "-f", "s16le", "-"], cl.run, lines)
+        try:
+            genders = find_voices(path, info, work, lines, cancel)
+            # a name from the subtitles ("DEREK: ...") names that voice's other lines too
+            named = {}
+            for l, g in zip(lines, genders):
+                if l.get("who") and g["spk"]:
+                    named.setdefault(g["spk"], {}).setdefault(l["who"], 0)
+                    named[g["spk"]][l["who"]] += 1
+            for g in genders:
+                if g["spk"] in named and len(named[g["spk"]]) == 1:
+                    g["spk"] = next(iter(named[g["spk"]]))
+            known = sum(1 for v in genders if v["g"] != "?")
+            spk = len({v["spk"] for v in genders if v["spk"]})
+            notes.append(f"Voices: {spk} speakers told apart; man/woman/child guessed for "
+                         f"{known} of {len(lines)} lines.")
+        except KeyboardInterrupt:
+            raise
+        except Exception as ex:
+            genders = None
+            notes.append(f"Voices couldn't be told apart this time ({str(ex)[:80]}).")
     line_mutes, line_how = find_lines(
         lines, o, have_ai,
         lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
