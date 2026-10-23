@@ -112,12 +112,16 @@ SEX_TERMS = {
 SEX_WINDOW_SCORE = 9   # a stretch of ~3 paragraphs (or ~60s) scoring this much gets flagged
 SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score this to be cut
 
+SAMESEX_WORDS = [r"gays?", r"homosexuals?", r"homosexuality", r"lesbians?", r"bisexuals?",
+                 r"queers?", r"fags?", r"faggots?", r"dykes?", r"homos?"]
+
 # Checkbox groups shown in the app → word-list categories
 GROUPS = {
     "swearing": ["strong", "moderate"],
     "mild": ["mild"],
     "deity": ["deity"],
     "minced": ["minced"],
+    "samesexwords": ["samesex"],
 }
 
 
@@ -132,7 +136,7 @@ def _c(pats):
 
 
 CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "mild": _c(MILD),
-        "minced": _c(MINCED), "deity": _c(DEITY_WORDS)}
+        "minced": _c(MINCED), "deity": _c(DEITY_WORDS), "samesex": _c(SAMESEX_WORDS)}
 SEX_C = {w: _c(p) for w, p in SEX_TERMS.items()}
 
 

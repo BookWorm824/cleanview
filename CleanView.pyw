@@ -214,6 +214,7 @@ class App(tk.Tk):
             ("mild", "Mild words  (damn, hell, crap)", True),
             ("deity", "God's name used as a swear", True),
             ("minced", "Soft substitutes  (gosh, heck, freaking)", False),
+            ("samesexwords", "Words about same-sex relationships  (gay, lesbian\u2026)", True),
             ("sexref", "Sexual references and innuendo", True),
             ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
             ("bullying", "Bullying and mocking", False)])
@@ -236,7 +237,7 @@ class App(tk.Tk):
                          width=22).grid(row=row, column=1, sticky="w", pady=2)
         g2 = tk.Frame(b2, bg=CARD)
         g2.pack(fill="x", pady=(4, 0))
-        checks(g2, [("samesex", "Same-sex relationships  (talk and intimate scenes)", False),
+        checks(g2, [("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False),
                     ("oppsex", "Unmarried couples living or sleeping together", False)], cols=1)
         checks(section("Violence"), [
             ("violence", "Violence  (shootings, fights, attacks)", True),
@@ -334,8 +335,9 @@ class App(tk.Tk):
     # ---------- page 2: working ----------
     def start(self):
         o = self._current_opts()
-        self.groups = [g for g in ("swearing", "mild", "deity", "minced") if o[g]]
-        self.scan_opts = {k: v for k, v in o.items() if k not in ("swearing", "mild", "deity", "minced")}
+        word_groups = ("swearing", "mild", "deity", "minced", "samesexwords")
+        self.groups = [g for g in word_groups if o.get(g)]
+        self.scan_opts = {k: v for k, v in o.items() if k not in word_groups}
         if not self.groups and not any(v not in (False, "off") for k, v in self.scan_opts.items()
                                        if k != "ai"):
             messagebox.showinfo("CleanView", "Tick at least one thing to remove.")

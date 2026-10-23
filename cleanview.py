@@ -728,14 +728,14 @@ def decide_picture_scenes(cands, o, have_ai):
     return scenes
 
 
-def find_lines(lines, o, have_ai, progress=None, cancel=None):
+def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None):
     wanted = [k for k in LINE_KINDS if o[k]]
     if not wanted or not lines:
         return [], ""
     found, how = {}, "word lists"
     if have_ai:
         try:
-            found = ai.classify_dialogue(lines, wanted, progress, cancel)
+            found = ai.classify_dialogue(lines, wanted, progress, cancel, genders=genders)
             how = "the AI helper"
         except KeyboardInterrupt:
             raise
@@ -915,9 +915,24 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
+    genders = None
+    if have_ai and nd["lines"] and lines:
+        say(at("lines", 0), "Telling voices apart…")
+        a = info["audio"]
+        mix = ["-af", "pan=mono|c0=FC"] if a["channels"] >= 5 else ["-ac", "1"]
+        genders = ai.voice_genders([cl._tool("ffmpeg"), "-v", "error", "-i", path, "-map",
+                                    f"0:{a['index']}", "-vn", "-sn", *mix, "-ar", str(ai.VSR),
+                                    "-f", "s16le", "-"], cl.run, lines)
     line_mutes, line_how = find_lines(
         lines, o, have_ai,
-        lambda f: say(at("lines", f), f"Reading the dialogue · {eta(at('lines', f))}"), cancel)
+        lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
+        cancel, genders)
+    flirts = []
+    if have_ai and o["samesex"] and lines:
+        flirts = ai.romance_scenes(
+            lines, genders,
+            lambda f: say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation · "
+                                                     f"{eta(at('lines', 0.6 + 0.4 * f))}"), cancel)
     if nd["lines"]:
         notes.append(f"Dialogue was checked with {line_how}.")
     if nd["ai"] and not have_ai:
@@ -944,6 +959,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if o["sex"]:
         scenes += sex_scenes(snd, cues, asr_n, asr, skin, nude)
     scenes += decide_picture_scenes(cands, o, have_ai)
+    for f in flirts:
+        if f["between"] in ("mm", "ff"):
+            scenes.append({"s": max(0.0, f["s"] - 1.0), "e": f["e"] + 1.0,
+                           "kind": [f"Same-sex romance · {WHO_LABEL[f['between']]}"],
+                           "why": f["what"] or "flirting or romantic interest", "sure": True})
     scenes = merge_scenes(scenes)
     for n, sc in enumerate(scenes, 1):
         sc["id"], sc["cut"] = n, sc.get("sure", True)

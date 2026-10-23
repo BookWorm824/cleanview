@@ -567,6 +567,17 @@ def _letters(t):
     return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 
 
+def _tag(l, g):
+    """How a line is shown to the dialogue reader: speaker name from the
+    subtitles if there is one, plus the voice guess."""
+    bits = []
+    if l.get("who"):
+        bits.append(l["who"])
+    if g in ("man", "woman"):
+        bits.append(f"{g}'s voice")
+    return f"({', '.join(bits)}) " if bits else ""
+
+
 def dialogue_lines(cues, asr, spoken):
     """Lines of dialogue with times: subtitle lines when there are subtitles,
     otherwise sentences from what was heard."""
@@ -575,7 +586,9 @@ def dialogue_lines(cues, asr, spoken):
         for c in cues:
             txt = " ".join(spoken(c["text"])).strip()
             if txt:
-                lines.append({"s": c["s"], "e": c["e"], "text": txt})
+                m = re.match(r"\s*-?\s*([A-Z][A-Za-z .'-]{1,20}):", c["text"])
+                lines.append({"s": c["s"], "e": c["e"], "text": txt,
+                              "who": m.group(1).strip().title() if m else ""})
         return lines
     cur = []
     for w in asr:
@@ -591,7 +604,8 @@ def dialogue_lines(cues, asr, spoken):
     return lines
 
 
-def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overlap=4):
+def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overlap=4,
+                      genders=None):
     """Returns {line_index: set(types)} for the wanted LINE_TYPES.
 
     Small local models guess a lot, so a line only counts when (1) the model
@@ -599,6 +613,7 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
     question about just that line agrees."""
     if not lines or not wanted:
         return {}
+    genders = genders or ["?"] * len(lines)
     defs = "\n".join(f'- "{k}": {LINE_TYPES[k]}' for k in wanted)
     schema = {"type": "object", "properties": {"flags": {"type": "array", "items": {
         "type": "object", "properties": {"line": {"type": "integer"},
@@ -613,11 +628,13 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
         if progress:
             progress(0.7 * n / len(starts))
         part = lines[a:a + chunk]
-        listing = "\n".join(f"{i + 1}: {l['text']}" for i, l in enumerate(part))
+        listing = "\n".join(f"{i + 1}: {_tag(l, genders[a + i])}{l['text']}"
+                             for i, l in enumerate(part))
         prompt = ("You help a family decide which lines of TV or movie dialogue to mute. Most "
-                  "lines are ordinary and must NOT be flagged. The lines have no speaker names; "
-                  "use the surrounding conversation (names, he/she, who is talking about whom) to "
-                  "understand them. Here are numbered lines in order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
+                  "lines are ordinary and must NOT be flagged. Where known, a line starts with "
+                  "the speaker's name and a rough guess from the voice of whether a man or woman "
+                  "is speaking (the guess can be wrong); also use names, he/she and who is "
+                  "talking to whom. Here are numbered lines in order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
                   "these:\n" + defs + "\n\nFor each flagged line give its number, the type, and "
                   "the exact words from that line that fit (copied word for word). If you are "
                   "not sure, do not flag it. Most of the time the list is empty. Answer in JSON "
@@ -654,10 +671,12 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
             raise KeyboardInterrupt
         if progress:
             progress(0.7 + 0.3 * n / max(1, len(todo)))
-        before = " / ".join(l["text"] for l in lines[max(0, i - 6):i])
-        after = " / ".join(l["text"] for l in lines[i + 1:i + 3])
+        before = " / ".join(_tag(l, genders[k]) + l["text"]
+                            for k, l in enumerate(lines[max(0, i - 6):i], max(0, i - 6)))
+        after = " / ".join(_tag(l, genders[k]) + l["text"]
+                           for k, l in enumerate(lines[i + 1:i + 3], i + 1))
         q = (f"Dialogue just before: {before or '(none)'}\n"
-             f'Line: "{lines[i]["text"]}"\n'
+             f'Line: {_tag(lines[i], genders[i])}"{lines[i]["text"]}"\n'
              f"Dialogue just after: {after or '(none)'}\n\n"
              f"Does the line in quotes contain {LINE_NAMES[t]}? That means it {LINE_TYPES[t]}. "
              "Use the dialogue around it to understand it. Answer false unless it clearly does.")
@@ -666,6 +685,140 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
                 found.setdefault(i, set()).add(t)
         except Exception:
             continue
+    if progress:
+        progress(1.0)
+    return found
+
+
+# ---------------------------------------------------------------------------
+# Who is talking: a rough man / woman guess from voice pitch, so the
+# dialogue reader can tell two men flirting from a man and a woman.
+# ---------------------------------------------------------------------------
+VSR = 8000
+
+
+def voice_pitch(samples):
+    """Median pitch (Hz) of the voiced parts of a stretch of speech, or 0."""
+    fr, hop = int(0.04 * VSR), int(0.02 * VSR)
+    lo, hi = int(VSR / 400), int(VSR / 70)        # 70-400 Hz
+    if len(samples) < fr * 3:
+        return 0.0
+    loud = np.sqrt(np.mean(samples ** 2)) * 0.6
+    norm = np.arange(fr, 0, -1, dtype=np.float32)
+    f0s = []
+    for k in range(0, len(samples) - fr, hop):
+        x = samples[k:k + fr] - samples[k:k + fr].mean()
+        e = float(np.dot(x, x))
+        if e <= 0 or np.sqrt(e / fr) < loud:
+            continue
+        ac = np.correlate(x, x, mode="full")[fr - 1:] / norm
+        seg = ac[lo:hi]
+        j = int(np.argmax(seg))
+        if seg[j] / ac[0] < 0.4:
+            continue                                   # not clearly voiced
+        thr = 0.85 * seg[j]                            # first strong peak = the true period
+        for q in range(1, len(seg) - 1):
+            if seg[q] >= thr and seg[q] >= seg[q - 1] and seg[q] >= seg[q + 1]:
+                j = q
+                break
+        f0s.append(VSR / (lo + j))
+    return float(np.median(f0s)) if len(f0s) >= 5 else 0.0
+
+
+def voice_genders(ffmpeg_cmd, run, lines):
+    """'man', 'woman' or '?' for each line, from its pitch."""
+    r = run(ffmpeg_cmd, capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        return ["?"] * len(lines)
+    audio = np.frombuffer(r.stdout[: len(r.stdout) // 2 * 2], dtype=np.int16).astype(np.float32) / 32768
+    out = []
+    for l in lines:
+        a, b = int(max(0, l["s"]) * VSR), int(l["e"] * VSR)
+        f0 = voice_pitch(audio[a:b])
+        out.append("man" if 0 < f0 < 150 else "woman" if f0 > 185 else "?")
+    return out
+
+
+
+# ---------------------------------------------------------------------------
+# Flirting and romance, judged a whole conversation at a time
+# ---------------------------------------------------------------------------
+BETWEEN = {"two men": "mm", "two women": "ff", "a man and a woman": "mf"}
+
+
+def romance_scenes(lines, genders, progress=None, cancel=None):
+    """Conversations where someone flirts or shows romantic or sexual interest.
+    Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice."""
+    if not lines:
+        return []
+    genders = genders or ["?"] * len(lines)
+    # split the dialogue into conversations at long pauses, at most 30 lines each
+    convs, cur = [], [0]
+    for i in range(1, len(lines)):
+        if lines[i]["s"] - lines[i - 1]["e"] > 6 or len(cur) >= 30:
+            convs.append(cur)
+            cur = [max(cur[-1] - 2, cur[0])] if len(cur) >= 30 else []
+        cur.append(i)
+    convs.append(cur)
+    convs = [c for c in convs if len(c) >= 2]
+    schema = {"type": "object", "properties": {
+        "romance": {"type": "boolean"},
+        "between": {"type": "string", "enum": list(BETWEEN) + ["unclear"]},
+        "lines": {"type": "array", "items": {"type": "integer"}},
+        "quote": {"type": "string"},
+        "what": {"type": "string"}},
+        "required": ["romance", "between", "lines", "quote", "what"]}
+    yes = {"type": "object", "properties": {
+        "romance": {"type": "boolean"},
+        "between": {"type": "string", "enum": list(BETWEEN) + ["unclear"]}},
+        "required": ["romance", "between"]}
+    found = []
+    for n, conv in enumerate(convs):
+        if cancel and cancel():
+            raise KeyboardInterrupt
+        if progress:
+            progress(n / len(convs))
+        listing = "\n".join(f"{k + 1}: {_tag(lines[i], genders[i])}{lines[i]['text']}"
+                            for k, i in enumerate(conv))
+        prompt = ("Here is one conversation from a TV show or movie. Where known, each line "
+                  "starts with the speaker's name and a rough guess from the voice of whether a "
+                  "man or a woman is speaking (the guess can be wrong; also use names, he/she, "
+                  "'handsome', 'pretty' and who is talking to whom).\n\n" + listing + "\n\n"
+                  "Does anyone flirt or show romantic or sexual interest in someone here "
+                  "(flirting, asking someone out, a romantic compliment, a pass, talk about "
+                  "dating or being attracted to someone)? Friendly chat, work talk, police "
+                  "questioning and family love do NOT count. If yes, say who it is between (two "
+                  "men, two women, or a man and a woman), the numbers of the flirting lines, the "
+                  "exact words of one of them, and one sentence on what happens. If unsure, "
+                  "answer no. Answer in JSON.")
+        try:
+            a = chat(prompt, schema=schema, timeout=300)
+        except Exception:
+            continue
+        if not a.get("romance"):
+            continue
+        nums = [int(x) - 1 for x in a.get("lines", []) if str(x).lstrip("-").isdigit()]
+        nums = [k for k in nums if 0 <= k < len(conv)]
+        quote = _letters(str(a.get("quote", "")))
+        if not nums or len(quote) < 3 or not any(quote in _letters(lines[i]["text"]) for i in conv):
+            continue   # can't point to the words: a guess
+        idx = [conv[k] for k in nums]
+        lo, hi = max(0, min(idx) - 1), min(len(lines) - 1, max(idx) + 1)
+        excerpt = "\n".join(_tag(lines[i], genders[i]) + lines[i]["text"] for i in range(lo, hi + 1))
+        try:
+            b = chat("Here is part of a conversation from a TV show or movie (speaker and "
+                     "voice guesses in brackets may be wrong):\n\n" + excerpt + "\n\n"
+                     "Is someone clearly flirting with, or showing romantic or sexual interest "
+                     "in, someone else here? If so, is it between two men, two women, or a man "
+                     "and a woman? Answer false if it's friendly, work talk, or you're unsure.",
+                     schema=yes, timeout=180)
+        except Exception:
+            continue
+        if b.get("romance") is not True:
+            continue
+        between = BETWEEN.get(b.get("between")) or BETWEEN.get(a.get("between")) or "?"
+        found.append({"s": lines[min(idx)]["s"], "e": lines[max(idx)]["e"], "between": between,
+                      "what": str(a.get("what", ""))[:120]})
     if progress:
         progress(1.0)
     return found

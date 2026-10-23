@@ -9,7 +9,8 @@ its own install, its own folder, its own updates.
   extra words. Writes cleaned subtitles into the clean copy.
 - Filters you can switch on or off: sexual references, nudity, sex scenes, immodest clothing,
   sleeping around, man & woman kissing and same-sex kissing (keep / cut passionate / cut all),
-  same-sex relationships, unmarried couples living or sleeping together, crude humor, bullying,
+  same-sex relationships (including flirting), words about same-sex relationships, unmarried
+  couples living or sleeping together, crude humor, bullying,
   violence, graphic gore, smoking, drinking and drug use. Your choices are remembered.
 - How it finds things:
   - NudeNet checks the picture twice a second for nudity.
@@ -21,7 +22,9 @@ its own install, its own folder, its own updates.
     each scene the picture model found (it must describe what it sees, and says no when the
     frames are too dark or unclear), and qwen2.5:7b reads the dialogue for sexual references, sleeping around,
     relationship talk, crude humor and bullying. A line is only flagged when the model quotes
-    the words that fit and a second, stricter question about that line agrees.
+    the words that fit and a second, stricter question about that line agrees. It is told
+    each line's speaker (from subtitles) and a man/woman guess from the voice's pitch, and
+    for same-sex relationships it also reads each whole conversation to catch flirting.
 - Dark or murky frames are ignored, and a scene needs several seconds of strong hits. Scenes
   the AI helper didn't confirm are listed unticked.
 - Scenes are cut; flagged dialogue lines and swear words are muted. Everything is listed
