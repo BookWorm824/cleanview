@@ -84,6 +84,11 @@ DEITY_PHRASES = [
     ("lord", "almighty"), ("sweet", "jesus"), ("jesus", "christ"),
     ("for", "christ's", "sake"), ("for", "christs", "sake"),
 ]
+CRUDE_PHRASES = [   # muted with the swearing group
+    ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
+    ("screw", "him"), ("screw", "her"), ("screw", "them"), ("screw", "me"), ("screw", "yourself"),
+    ("screw", "y'all"), ("screw", "ya"),
+]
 DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"goddamn.*"]
 BLOODY_SWEAR_NEXT = {
     "hell", "well", "idiot", "fool", "fools", "stupid", "ridiculous", "nuisance",
@@ -140,6 +145,14 @@ def find_language(words, cats):
                        if tuple(words[i:i + len(p)]) == p), None)
             if ph:
                 hits.append((i, i + len(ph), "deity"))
+                i += len(ph)
+                continue
+        if ("moderate" in cats and words[i] == "screw"
+                and (i == 0 or words[i - 1] not in ("the", "a", "that", "this", "loose", "one",
+                                                     "each", "every", "of", "tighten"))):
+            ph = next((p for p in CRUDE_PHRASES if tuple(words[i:i + len(p)]) == p), None)
+            if ph:
+                hits.append((i, i + len(ph), "moderate"))
                 i += len(ph)
                 continue
         w = words[i]
