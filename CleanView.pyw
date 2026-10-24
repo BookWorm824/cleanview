@@ -1,4 +1,5 @@
 """CleanView — a simple window for cleaning up movies and TV episodes you own."""
+import copy
 import hashlib
 import json
 import os
@@ -886,7 +887,7 @@ class App(tk.Tk):
                 return p
         return None
 
-    def show_review(self):
+    def show_review(self, tab=0):
         global AI_NAME
         self.page_name = "review"
         good = [j for j in self.jobs if j["analysis"]]
@@ -920,6 +921,7 @@ class App(tk.Tk):
         multi = len(good) > 1
         nb = ttk.Notebook(p)
         nb.pack(fill="both", expand=True)
+        self.after_idle(lambda: nb.winfo_exists() and nb.select(tab))
         t_found = tk.Frame(nb, bg=BG)
         t_dlg = tk.Frame(nb, bg=BG)
         t_chat = tk.Frame(nb, bg=BG)
@@ -1163,6 +1165,8 @@ class App(tk.Tk):
     def _chat_tab(self, tab, good):
         if not hasattr(self, "chat_sessions"):
             self.chat_sessions, self.chat_history = {}, []
+        if not hasattr(self, "undo_stack"):
+            self.undo_stack = []
         top = tk.Frame(tab, bg=BG)
         top.pack(fill="x", pady=(8, 6))
         self.chat_job = ttk.Combobox(top, values=[short(Path(j["video"]).name, 40) for j in good],
@@ -1186,6 +1190,10 @@ class App(tk.Tk):
         self.review_btn = ttk.Button(top, text="Review everything again", style="Accent.TButton",
                                      command=self._rereview)
         self.review_btn.pack(side="right")
+        ttk.Button(top, text="\u21b6 Undo last chat change", style="Small.TButton",
+                   command=self._undo_chat,
+                   state="normal" if self.undo_stack else "disabled").pack(side="right",
+                                                                         padx=(0, 8))
         ttk.Button(top, text=f"{n}'s findings (spreadsheet)", style="Small.TButton",
                    command=self._open_findings).pack(side="right", padx=(0, 8))
         tk.Label(tab, text=f"\u201cReview everything again\u201d has {n} look over every scene, "
@@ -1194,8 +1202,10 @@ class App(tk.Tk):
                  f"a false alarm and what was missed. Your own changes are never undone. {n}'s "
                  "calls are also saved to teach the AI on this PC, and kept in a spreadsheet.",
                  bg=BG, fg=MUTED, font=(FONT, 9), wraplength=720, justify="left").pack(anchor="w")
-        tk.Label(tab, text="You can also ask about this episode below, e.g. \u201cIs there any "
-                 "flirting between two men?\u201d or \u201cWhy did you keep the scene at 12:30?\u201d",
+        tk.Label(tab, text="Ask about this episode or tell it what to change, and the list updates "
+                 "right away: \u201cmute every time they talk about the affair\u201d, \u201ckeep "
+                 "the kiss at 12:30\u201d, \u201cjust mute the word at 4:10\u201d, \u201ccut 22:15 "
+                 "to 23:40\u201d.",
                  bg=BG, fg=MUTED, font=(FONT, 9), wraplength=720,
                  justify="left").pack(anchor="w", pady=(4, 0))
         log = tk.Text(tab, wrap="word", height=14, font=(FONT, 10), bg=CARD, fg=INK, relief="flat",
@@ -1309,7 +1319,8 @@ class App(tk.Tk):
         if not qtext:
             return
         good = [j for j in self.jobs if j["analysis"]]
-        job = good[max(0, self.chat_job.current())]
+        self._chat_ji = max(0, self.chat_job.current())
+        job = good[self._chat_ji]
         self.chat_entry.delete(0, "end")
         self.chat_btn.config(state="disabled")
         self._log("You: " + qtext, "you")
@@ -1317,74 +1328,53 @@ class App(tk.Tk):
         self._log(f"{AI_NAME} is reading the dialogue\u2026", "note")
         st = job["analysis"]
         self._sync_job(job)
-        flagged = cc.candidates(st, with_review=True)[1]
-        if st.get("claude_summary"):
-            flagged += "\n\nYour earlier review said: " + st["claude_summary"]
-        if self.chat_sessions.get(job["_ji"]):      # follow-up: send what changed since
-            qtext_send = ("(What's on the list now:\n" + flagged + ")\n\n" + qtext)
-        else:
-            qtext_send = qtext
 
         def go():
             try:
-                reply, mute, scenes, sid = cc.chat(qtext_send, st.get("dialogue", []),
-                                                   st.get("voices"), flagged,
-                                                   self.chat_sessions.get(job["_ji"]))
+                reply, acts, items, sid = cc.chat(qtext, st, self.chat_sessions.get(job["_ji"]))
                 self.chat_sessions[job["_ji"]] = sid
-                self.q.put(("chat_reply", job, reply, mute, scenes, None))
+                self.q.put(("chat_reply", job, reply, acts, items, None))
             except Exception as ex:
-                self.q.put(("chat_reply", job, "", [], [], str(ex)))
+                self.q.put(("chat_reply", job, "", {}, {}, str(ex)))
         threading.Thread(target=go, daemon=True).start()
 
-    def _chat_reply(self, job, reply, mute, scenes, err):
+    def _chat_reply(self, job, reply, acts, items, err):
         if not getattr(self, "chat_log", None) or not self.chat_log.winfo_exists():
             return
         self.chat_btn.config(state="normal")
-        if err:
-            self._log("\u26a0 " + err, "note")
-            return
+        self.chat_history = [h for h in self.chat_history if "reading the dialogue" not in h[0]]
         log = self.chat_log
         log.configure(state="normal")
         rng = log.tag_ranges("note")
-        if rng:                                   # drop the "reading…" note
-            last = (rng[-2], rng[-1])
-            if "reading the dialogue" in log.get(*last):
-                log.delete(*last)
-                self.chat_history = [h for h in self.chat_history
-                                     if "reading the dialogue" not in h[0]]
+        if rng and "reading the dialogue" in log.get(rng[-2], rng[-1]):
+            log.delete(rng[-2], rng[-1])          # drop the "reading…" note
         log.configure(state="disabled")
-        self._log(f"{AI_NAME}: " + reply)
-        if not mute and not scenes:
+        if err:
+            self._log("\u26a0 " + err, "note")
             return
-        d = job["analysis"]["dialogue"]
-        bits = []
-        if mute:
-            bits.append(f"mute {len(mute)} line{'s' if len(mute) != 1 else ''} (" +
-                        ", ".join(engine.cl.fmt_t(d[i]["s"]) for i in mute[:6]) +
-                        ("\u2026" if len(mute) > 6 else "") + ")")
-        if scenes:
-            bits.append("cut " + ", ".join(f"{engine.cl.fmt_t(d[c['from']]['s'])}\u2013"
-                                           f"{engine.cl.fmt_t(d[c['to']]['e'])}" for c in scenes))
-        log = self.chat_log
-        log.configure(state="normal")
-        log.insert("end", "Suggested: " + "; ".join(bits) + "   ", "note")
-        btn = ttk.Button(log, text="Add these to the list", style="Small.TButton")
+        self._log(f"{AI_NAME}: " + reply)
+        if not any(acts.get(k) for k in ("tick", "untick", "mute_lines", "mute_words",
+                                         "cut_scenes", "cut_times")):
+            return
+        self._sync_job(job)                       # anything clicked while it was thinking
+        snapshot = copy.deepcopy(job["analysis"])
+        done = engine.apply_chat(job["analysis"], items, acts, job["work"])
+        if done:
+            self.undo_stack.append((job, snapshot))
+            self._log("\u2713 Changed on the list: " + "; ".join(done) + ".", "note")
+        else:
+            self._log("Nothing on the list changed.", "note")
+        self.show_review(tab=2)
+        self._save_session()
 
-        def apply():
-            for i in mute:
-                self._dlg_var(job["_ji"], i).set(True)
-            for c in scenes:
-                self._add_scene(job, max(0.0, d[c["from"]]["s"] - 0.5), d[c["to"]]["e"] + 0.5,
-                                c["why"] or f"{AI_NAME} found this",
-                                kind=f"Suggested by {AI_NAME}",
-                                said=" ".join(l["text"] for l in d[c["from"]:c["to"] + 1]))
-            self._fill_dialogue()
-            btn.config(text="\u2713 Added", state="disabled")
-        btn.config(command=apply)
-        log.window_create("end", window=btn)
-        log.insert("end", "\n")
-        log.configure(state="disabled")
-        log.see("end")
+    def _undo_chat(self):
+        if not self.undo_stack:
+            return
+        job, snapshot = self.undo_stack.pop()
+        job["analysis"] = snapshot
+        self._log("\u21b6 Undid the last change from the chat.", "note")
+        self.show_review(tab=2)
+        self._save_session()
 
     def _words_card(self, parent, job, mutes):
         card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,

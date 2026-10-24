@@ -315,36 +315,73 @@ def check_dialogue(lines, voices, wanted, examples=None, chunk=500):
 
 CHAT_SCHEMA = {"type": "object", "properties": {
     "reply": {"type": "string"},
+    "tick": {"type": "array", "items": {"type": "string"}},
+    "untick": {"type": "array", "items": {"type": "string"}},
     "mute_lines": {"type": "array", "items": {"type": "integer"}},
+    "mute_words": {"type": "array", "items": {"type": "object", "properties": {
+        "line": {"type": "integer"}, "word": {"type": "string"}},
+        "required": ["line", "word"]}},
     "cut_scenes": {"type": "array", "items": {"type": "object", "properties": {
         "from_line": {"type": "integer"}, "to_line": {"type": "integer"},
-        "why": {"type": "string"}}, "required": ["from_line", "to_line", "why"]}}},
-    "required": ["reply", "mute_lines", "cut_scenes"]}
+        "why": {"type": "string"}}, "required": ["from_line", "to_line", "why"]}},
+    "cut_times": {"type": "array", "items": {"type": "object", "properties": {
+        "from": {"type": "string"}, "to": {"type": "string"},
+        "why": {"type": "string"}}, "required": ["from", "to", "why"]}}},
+    "required": ["reply", "tick", "untick", "mute_lines", "mute_words", "cut_scenes",
+                 "cut_times"]}
+
+CHAT_HOW = (
+    "You can change the list directly, and your changes happen as soon as you answer:\n"
+    "- \"tick\": ids from the list (S/L/W) to cut or mute\n"
+    "- \"untick\": ids from the list to keep (not cut or muted)\n"
+    "- \"mute_lines\": dialogue line numbers to mute whole\n"
+    "- \"mute_words\": a line number and the exact word to mute just that word\n"
+    "- \"cut_scenes\": first and last dialogue line of a stretch to cut\n"
+    "- \"cut_times\": a stretch to cut by time, like {\"from\": \"12:30\", \"to\": \"13:05\"}\n"
+    "Do what they ask: if they say to remove, keep, mute or cut something, make that change "
+    "(\"keep the kiss at 12:30\" = untick that scene; \"just mute the word\" = untick the line "
+    "and mute_words). If they only ask a question, answer it and change nothing unless they ask. "
+    "Leave every list empty when nothing should change. In \"reply\", say in a few plain "
+    "sentences what you found and exactly what you changed, using times (like 12:30) rather "
+    "than ids or line numbers. Plain text only: no bullet points, bold or headings.")
 
 
-def chat(question, lines, voices, flagged_summary, session=None):
-    """Ask about this episode. Returns (reply, mute_line_indexes, scenes, session_id)."""
+def chat(question, st, session=None):
+    """Talk about this episode and change the list. Returns (reply, actions, items, session_id):
+    actions is the answer's change lists, items maps the S/L/W ids it may use."""
+    lines = st.get("dialogue", [])
+    items, listing = candidates(st, with_review=True)
+    if st.get("claude_summary"):
+        listing += "\n\nYour earlier review said: " + st["claude_summary"]
     if session:
-        res, sid = ask(question, CHAT_SCHEMA, system=None, session=session)
+        prompt = ("The list as it is now (ids may have changed since last time):\n" + listing +
+                  "\n\n" + CHAT_HOW + "\n\nThey say: " + question)
+        res, sid = ask(prompt, CHAT_SCHEMA, system=None, session=session)
     else:
         prompt = (
             "The input is the numbered dialogue of one episode or movie (time, and where known "
             "who is speaking and a man/woman/child voice guess, which can be wrong).\n\n"
             "Everything CleanView found, and what's ticked now (S = scene to cut, L = line to "
-            "mute, W = word to mute):\n" + (flagged_summary or "(nothing)") + "\n\n"
-            "Answer the person's question in a few plain sentences. If they want something "
-            "removed, or ask you to find something, put the line numbers to mute in "
-            "\"mute_lines\" and any stretch to cut in \"cut_scenes\" (first and last line). "
-            "Only suggest what fits what they asked. Leave both lists empty if nothing should "
-            "change.\n\nTheir question: " + question)
-        res, sid = ask(prompt, CHAT_SCHEMA, numbered(lines, voices), system=SYSTEM, keep=True)
-    mute = [int(i) - 1 for i in res.get("mute_lines", []) if 0 < int(i) <= len(lines)]
-    scenes = []
-    for s in res.get("cut_scenes", []):
-        i, j = int(s.get("from_line", 0)) - 1, int(s.get("to_line", 0)) - 1
-        if 0 <= i <= j < len(lines):
-            scenes.append({"from": i, "to": j, "why": str(s.get("why", ""))[:120]})
-    return str(res.get("reply", "")).strip(), mute, scenes, sid
+            "mute, W = word to mute):\n" + (listing or "(nothing)") + "\n\n" + CHAT_HOW +
+            "\n\nThey say: " + question)
+        res, sid = ask(prompt, CHAT_SCHEMA, numbered(lines, st.get("voices")), system=SYSTEM,
+                       keep=True)
+    n = len(lines)
+    acts = {"tick": [str(x).strip().upper() for x in res.get("tick", [])],
+            "untick": [str(x).strip().upper() for x in res.get("untick", [])],
+            "mute_lines": [int(i) - 1 for i in res.get("mute_lines", []) if 0 < int(i) <= n],
+            "mute_words": [(int(w.get("line", 0)) - 1, str(w.get("word", "")).strip())
+                           for w in res.get("mute_words", [])
+                           if 0 < int(w.get("line", 0)) <= n and str(w.get("word", "")).strip()],
+            "cut_scenes": [], "cut_times": []}
+    for c in res.get("cut_scenes", []):
+        i, j = int(c.get("from_line", 0)) - 1, int(c.get("to_line", 0)) - 1
+        if 0 <= i <= j < n:
+            acts["cut_scenes"].append({"from": i, "to": j, "why": str(c.get("why", ""))[:120]})
+    for c in res.get("cut_times", []):
+        acts["cut_times"].append({"from": str(c.get("from", "")), "to": str(c.get("to", "")),
+                                  "why": str(c.get("why", ""))[:120]})
+    return str(res.get("reply", "")).strip(), acts, items, sid
 
 
 # ---------------------------------------------------------------------------

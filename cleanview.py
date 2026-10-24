@@ -856,7 +856,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
-              "shared": "CleanView learned",
+              "shared": "CleanView learned", "chat": "You asked in the chat",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
@@ -1054,6 +1054,87 @@ def apply_review(st, result):
     st["claude_summary"] = summary
     st["claude_counts"] = {"dropped": n_drop, "added": n_add, "words": n_word}
     return n_drop, n_add
+
+
+def _secs(t):
+    try:
+        x = 0.0
+        for part in str(t).strip().split(":"):
+            x = x * 60 + float(part)
+        return x
+    except ValueError:
+        return None
+
+
+def apply_chat(st, items, acts, work=None):
+    """Make the changes asked for in the chat, straight away. Everything changed
+    counts as the person's own choice. Returns a list of plain descriptions."""
+    lines = st.get("dialogue", [])
+    who = st.get("reviewer") or cc.name()
+    done = []
+
+    def t(sec):
+        return cl.fmt_t(sec)
+    for ids, on in ((acts.get("tick", []), True), (acts.get("untick", []), False)):
+        for i in ids:
+            if i not in items:
+                continue
+            kind, it = items[i]
+            _set_on(kind, it, on)
+            it["by_you"] = True
+            what = {"scene": "scene", "line": "line", "word": "word"}[kind]
+            verb = ("cut" if kind == "scene" else "mute") if on else "keep"
+            done.append(f"{verb} the {what} at {t(it['s'])}")
+    have = {l.get("idx"): l for l in st.get("lines", [])}
+    for k in acts.get("mute_lines", []):
+        l = have.get(k)
+        if l is not None:
+            l["mute"], l["by_you"] = True, True
+        else:
+            d = lines[k]
+            st["lines"].append({"s": d["s"], "e": d["e"], "text": d["text"], "plain": d["text"],
+                                "types": ["chat"], "mute": True, "idx": k, "by_you": True})
+        done.append(f"mute the line at {t(lines[k]['s'])}")
+    for k, word in acts.get("mute_words", []):
+        m = word_mute(st, lines[k], word, "you asked")
+        if m is None:
+            done.append(f"couldn't find \u201c{word}\u201d at {t(lines[k]['s'])}")
+            continue
+        m["keep"], m["by_you"] = False, True
+        l = have.get(k)
+        ticked = {id(items[i][1]) for i in acts.get("tick", []) if i in items}
+        if l is not None and l.get("mute", True) and k not in acts.get("mute_lines", []) \
+                and id(l) not in ticked:
+            l["mute"], l["by_you"] = False, True       # just the word now, not the whole line
+            done.append(f"stop muting the whole line at {t(l['s'])}")
+        done.append(f"mute \u201c{word}\u201d at {t(lines[k]['s'])}")
+    st["lines"].sort(key=lambda l: l["s"])
+    for n, l in enumerate(st["lines"], 1):
+        l["id"] = n
+    new = []
+    for c in acts.get("cut_scenes", []):
+        a, b = max(0.0, lines[c["from"]]["s"] - 0.5), lines[c["to"]]["e"] + 0.5
+        new.append((a, b, c["why"]))
+    dur = st.get("duration", 1e9)
+    for c in acts.get("cut_times", []):
+        a, b = _secs(c["from"]), _secs(c["to"])
+        if a is not None and b is not None and b > a and a < dur:
+            new.append((a, min(b, dur), c["why"]))
+    for a, b, why in new:
+        sc = {"id": max([x.get("id", 0) for x in st["scenes"]] + [0]) + 1,
+              "s": round(a, 2), "e": round(b, 2), "kind": [f"Asked {who}"],
+              "why": why or "you asked in the chat", "cut": True, "by_you": True,
+              "added": True,
+              "said": " ".join(l["text"] for l in lines if a - 0.5 <= l["s"] <= b)[:600]}
+        st["scenes"].append(sc)
+        done.append(f"cut {t(a)} to {t(b)}")
+    st["scenes"].sort(key=lambda x: x["s"])
+    if work is not None and new:
+        try:
+            make_thumbs(st["path"], [x for x in st["scenes"] if "thumbs" not in x], work)
+        except Exception:
+            pass
+    return done
 
 
 def claude_review(st, work=None):
