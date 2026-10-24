@@ -367,9 +367,15 @@ WORD_REASON = re.compile(r"\b(contains?|word|language|swear\w*|profan\w*|curse\w
                          r"crude word|bad word|says?)\b", re.I)
 
 
+MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w*|romanc\w*|"
+                            r"affair|bull\w*|mock\w*|crude humor|gross)\b", re.I)
+
+
 def _only_word(line, why, mutes):
     """Claude said to remove a whole line, but its reason is just one word
     ("Contains 'ass'"). Return that word so only it is muted, else ''."""
+    if MORE_THAN_WORD.search(why):
+        return ""
     text = line.get("plain") or line["text"]
     toks = re.findall(r"[A-Za-z][A-Za-z'\-]*", text)
     low = {t.lower().strip("'"): t for t in toks}
@@ -381,8 +387,9 @@ def _only_word(line, why, mutes):
             parts = t.lower().split("-")
             if len(parts) > 1 and q in parts:
                 return t
-    if WORD_REASON.search(why) and not re.search(r"\b(refer\w*|innuendo|joke|sexual|flirt\w*|"
-                                                r"romanc\w*|affair|bull\w*|mock\w*)\b", why, re.I):
+    if MORE_THAN_WORD.search(why):
+        return ""
+    if WORD_REASON.search(why):
         on_list = [m for m in mutes if line["s"] - 0.6 <= m["s"] <= line["e"] + 0.6]
         if on_list:                          # the listed words in this line
             return "|".join(m.get("raw") or m["word"] for m in on_list)
@@ -442,8 +449,9 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
                 word = _only_word(items[i][1], str(d.get("why", "")), st.get("mutes", []))
                 if word:
                     dec = "just the word"
-            if dec == "just the word" and (items[i][0] != "line" or not word):
-                dec = "remove"
+            if dec == "just the word" and (items[i][0] != "line" or not word or
+                                          MORE_THAN_WORD.search(str(d.get("why", "")))):
+                dec = "remove"            # a joke or innuendo: the whole line goes
             decisions[i] = (dec, str(d.get("why", ""))[:140], word)
     missed = []
     for m in res.get("missed_lines", []):

@@ -35,7 +35,7 @@ def chip_color(label):
 
 
 AI_NAME = "Claude"      # whichever online AI did the review (Claude or ChatGPT)
-CLAUDE_SAYS = {"remove": ("remove", "#8E2B2B"),
+CLAUDE_SAYS = {"remove": ("mute the whole line", "#8E2B2B"),
                "not an issue": ("not an issue", "#2E7D4F"),
                "just the word": ("mute just the word", "#A0663A"),
                "can't tell": ("can't tell", "#6D6862")}
@@ -46,6 +46,8 @@ def claude_note(item, on=None):
     if not c:
         return None, None
     head, col = CLAUDE_SAYS.get(c.get("decision"), ("", "#6D6862"))
+    if c.get("decision") == "remove" and not item.get("text"):     # a scene or a word
+        head = "cut" if "kind" in item else "mute"
     head = AI_NAME + ": " + head
     if c.get("word"):
         head += " " + ", ".join(f"\u201c{w.strip()}\u201d" for w in re.split(r"[|,]", c["word"])

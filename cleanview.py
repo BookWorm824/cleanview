@@ -934,7 +934,7 @@ def word_mute(st, line, word, why):
             s, e = w[1], heard[k + 1][2]
             break
     if s is None:                 # not heard clearly: place it by its position in the line
-        toks = [cl.norm(t) for t in line["text"].replace("-", " ").split()]
+        toks = [cl.norm(t) for t in (line.get("plain") or line["text"]).replace("-", " ").split()]
         parts = [cl.norm(p) for p in word.replace("-", " ").split()] or [target]
         pos = next((k for k in range(len(toks)) if toks[k:k + len(parts)] == parts), None)
         if pos is None:
@@ -945,7 +945,7 @@ def word_mute(st, line, word, why):
     ctx_words = [w[0] for w in st.get("asr", []) if line["s"] - 0.3 <= w[1] < s][-6:]
     m = {"s": round(s, 3), "e": round(e, 3), "cat": "claude", "src": src,
          "word": " ".join(cl.mask(p) for p in word.split()), "raw": target,
-         "ctx": " ".join(ctx_words) or line["text"][:60]}
+         "ctx": " ".join(ctx_words) or (line.get("plain") or line["text"])[:60]}
     try:
         m["s"], m["e"] = cl.snap_edges(st["path"], m["s"], m["e"], wide=src != "claude")
     except Exception:
@@ -986,7 +986,8 @@ def apply_review(st, result):
             m = None if (not ms or None in ms) else ms[0]
             if m is None:                 # couldn't place the word: keep the whole line muted
                 it["claude"]["decision"] = "remove"
-                it["claude"]["why"] = why + " (couldn't find the word, so the line stays muted)"
+                it["claude"]["why"] = why + " (couldn't pin down when the word is said, so the " \
+                                            "whole line is muted to be safe)"
                 if not mine:
                     _set_on(kind, it, True)
                 continue
