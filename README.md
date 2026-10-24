@@ -7,7 +7,8 @@ its own install, its own folder, its own updates.
 - Mutes the same language list, listening to the dialogue channel of surround-sound movies,
   and uses the movie's subtitles (a matching .srt or a text track inside the file) to catch
   extra words. Writes cleaned subtitles into the clean copy.
-- Filters you can switch on or off: sexual references, nudity, sex scenes, immodest clothing,
+- Filters you can switch on or off: sexual references, nudity (private parts shown), implied
+  nudity (under sheets, in towels, bare backs), sex scenes, immodest clothing,
   sleeping around, man & woman kissing and same-sex kissing (keep / cut passionate / cut all),
   same-sex relationships (including flirting), words about same-sex relationships, unmarried
   couples living or sleeping together, crude humor, bullying,

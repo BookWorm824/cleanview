@@ -20,7 +20,7 @@ import cleanview_learn as learn  # noqa: E402
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
     "#F6F3EE", "#FFFFFF", "#23211F", "#6D6862", "#2F6F62", "#24574D", "#E3DED6")
-CHIP = {"Nudity": "#B5523B", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
+CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
@@ -265,7 +265,8 @@ class App(tk.Tk):
             ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
             ("bullying", "Bullying and mocking", False)])
         checks(section("Sex and nudity"), [
-            ("nudity", "Nudity", True),
+            ("nudity", "Nudity  (private parts shown)", True),
+            ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
             ("sex", "Sex scenes", True),
             ("immodest", "Immodest clothing  (swimsuits, underwear)", False),
             ("casual", "Sleeping around  (casual sex, affairs)", True)])

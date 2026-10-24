@@ -536,6 +536,16 @@ LOOK = {
               {"type": "object", "properties": {"see": {"type": "string"},
                                                 "yes": {"type": "boolean"}},
                "required": ["see", "yes"]}),
+    "nudity": ("Question: is anyone naked? Answer \"shown\" only if bare breasts, bare buttocks "
+               "or genitals are clearly visible. Answer \"implied\" if someone is undressed but "
+               "covered: under a sheet or blanket, in a towel, a bare back or shoulders, a shower "
+               "or bath shown from the shoulders up, or private parts hidden by an object or the "
+               "camera angle. Answer \"none\" if everyone is dressed, or it's a shirtless man, "
+               "swimwear, or just skin-toned objects.",
+               {"type": "object", "properties": {
+                   "see": {"type": "string"},
+                   "nudity": {"type": "string", "enum": ["shown", "implied", "none"]}},
+                "required": ["see", "nudity"]}),
     "immodest": ("Question: is someone dressed immodestly (swimsuit, underwear, lingerie, very "
                  "revealing clothes)?",
                  {"type": "object", "properties": {"see": {"type": "string"},
@@ -578,6 +588,9 @@ def second_look(cands, frames_for, progress=None, cancel=None):
             v["keep"] = bool(a.get("graphic"))
         elif c["cat"] == "fight":
             v["keep"] = bool(a.get("violent"))
+        elif c["cat"] == "nudity":
+            v["level"] = a.get("nudity") if a.get("nudity") in ("shown", "implied") else "none"
+            v["keep"] = v["level"] != "none"
         else:
             v["keep"] = bool(a.get("yes"))
         if UNCLEAR.search(see):

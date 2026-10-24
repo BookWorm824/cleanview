@@ -525,8 +525,8 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
 # Looking at the picture: contact sheets of the whole episode, and a closer
 # look at each scene the picture checkers found
 # ---------------------------------------------------------------------------
-PIC_KINDS = ["violence", "gore", "nudity", "sex", "kissing", "immodest", "smoking", "drinking",
-             "drugs"]
+PIC_KINDS = ["violence", "gore", "nudity", "implied nudity", "sex", "kissing", "immodest",
+             "smoking", "drinking", "drugs"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
               "is clearly shown, not what might happen off screen.")
@@ -534,7 +534,11 @@ PIC_RULES = (
     "Be accurate. Police or soldiers simply carrying guns, a hug, a peck on the cheek, a "
     "hospital or crime-scene photo with no visible wounds, or a glass of water are NOT matches. "
     "Violence means fighting, hitting, shooting, threatening with a weapon or someone being "
-    "attacked; gore means visible blood, wounds or bodies. For kissing, say who (man & woman, two "
+    "attacked; gore means visible blood, wounds or bodies. Nudity means bare breasts, bare "
+    "buttocks or genitals actually shown; implied nudity means someone undressed but covered "
+    "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
+    "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
+    "neither. For kissing, say who (man & woman, two "
     "men, two women) and whether it's light or passionate.")
 
 
@@ -579,13 +583,14 @@ def picture_review(sheets, wanted, per_request=12, progress=None):
 
 def verify_scenes(items, wanted, per_request=10, progress=None):
     """items: [(scene_id, kind_text, why_found, sheet_path)], each sheet 6 stills of that
-    scene (3 across, 2 down). Returns {scene_id: (decision, why)}."""
+    scene (3 across, 2 down). Returns {scene_id: (decision, why, nudity)}."""
     schema = {"type": "object", "properties": {"decisions": {"type": "array", "items": {
         "type": "object", "properties": {
             "scene": {"type": "integer"},
             "decision": {"type": "string", "enum": ["remove", "not an issue", "can't tell"]},
+            "nudity": {"type": "string", "enum": ["shown", "implied", "none"]},
             "why": {"type": "string"}},
-        "required": ["scene", "decision", "why"]}}}, "required": ["decisions"]}
+        "required": ["scene", "decision", "nudity", "why"]}}}, "required": ["decisions"]}
     out = {}
     batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
     for b, batch in enumerate(batches):
@@ -598,11 +603,13 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
             "makes mistakes (dark frames, hugs, ordinary police scenes). They want removed:\n" +
             wanted + "\n\n" + PIC_RULES + "\n\nFor EVERY scene give a decision: \"remove\" if the "
             "stills really show what it was flagged for (or anything else they want removed), "
-            "\"not an issue\" if it's a false alarm, or \"can't tell\". Keep each \"why\" to a "
-            "few plain words.")
+            "\"not an issue\" if it's a false alarm, or \"can't tell\". Also say for every scene "
+            "whether nudity is \"shown\", only \"implied\", or \"none\" (judge nudity by that, "
+            "not by the decision). Keep each \"why\" to a few plain words.")
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
         for d in res.get("decisions", []):
             k = int(d.get("scene", 0)) - 1
             if 0 <= k < len(batch):
-                out[batch[k][0]] = (d.get("decision"), str(d.get("why", ""))[:140])
+                out[batch[k][0]] = (d.get("decision"), str(d.get("why", ""))[:140],
+                                    d.get("nudity", "none"))
     return out

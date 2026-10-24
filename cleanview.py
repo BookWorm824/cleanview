@@ -45,7 +45,7 @@ VISUAL_FPS = 2.0
 # ---------------------------------------------------------------------------
 CLOUD = ("claude", "chatgpt")      # readers that use your Claude or ChatGPT plan
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying")
-DEFAULTS = {"nudity": True, "sex": True, "violence": True, "gore": True,
+DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True,
@@ -77,7 +77,7 @@ def needs(opts):
     return {"sound": o["violence"] or o["sex"],
             "voices": (o["ai"] or o.get("reader") in CLOUD) and bool(lines),
             "subs": o.get("autosubs", True),
-            "nudenet": o["nudity"] or o["sex"],
+            "nudenet": o["nudity"] or o["sex"] or o["implied"],
             "clip": clip_cats,
             "lines": lines,
             "ai": o["ai"] and bool(clip_cats or lines)}
@@ -869,7 +869,9 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck",
               "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)"}
-OPT_TEXT = {"nudity": "nudity", "sex": "sex scenes", "violence": "violence",
+OPT_TEXT = {"nudity": "nudity (private parts actually shown)",
+            "implied": "implied nudity (undressed but covered by sheets, towels or the camera)",
+            "sex": "sex scenes", "violence": "violence",
             "gore": "graphic gore", "immodest": "immodest clothing", "smoking": "smoking",
             "drinking": "drinking", "drugs": "drug use",
             "samesex": "same-sex relationships and romance, including flirting",
@@ -1082,10 +1084,14 @@ def claude_review(st, work=None):
 
 # --- Claude / ChatGPT looking at the picture ----------------------------------
 PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with a weapon)",
-            "gore": "graphic gore (blood, wounds, bodies)", "nudity": "nudity",
+            "gore": "graphic gore (blood, wounds, bodies)",
+            "nudity": "nudity (bare breasts, buttocks or genitals actually shown)",
+            "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
+                       "back or shoulders, shower from the shoulders up)",
             "sex": "sex scenes or a couple in bed", "immodest": "immodest clothing",
             "smoking": "smoking", "drinking": "drinking alcohol", "drugs": "drug use"}
-PIC_LABEL = {"violence": "Violence", "gore": "Gore", "nudity": "Nudity", "sex": "Sex scene",
+PIC_LABEL = {"violence": "Violence", "gore": "Gore", "nudity": "Nudity",
+             "implied nudity": "Implied nudity", "sex": "Sex scene",
              "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs"}
 WHO_FROM = {"man & woman": "mf", "two men": "mm", "two women": "ff"}
@@ -1119,6 +1125,8 @@ def _pic_wanted(f, o):
             (f" · {f['level']}" if f.get("level") in ("light", "passionate") else "")
     if w == "sex" and not o.get("sex"):
         return None
+    if w == "implied nudity":
+        return "Implied nudity" if o.get("implied") else None
     if w in PIC_LABEL and (w == "sex" or o.get(w)):
         return PIC_LABEL[w]
     return None
@@ -1176,6 +1184,12 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     confirmed = 0
     for sc in scenes:
         hit = [k for k, f in enumerate(finds) if f["s"] < sc["e"] and f["e"] > sc["s"]]
+        if "Nudity" in sc.get("kind", []):     # nudity must be confirmed by a nudity find
+            nh = [k for k in hit if finds[k]["label"] in ("Nudity", "Implied nudity")]
+            if not nh:
+                continue                       # goes to the closer look below
+            if all(finds[k]["label"] == "Implied nudity" for k in nh):
+                sc["kind"] = ["Implied nudity" if x == "Nudity" else x for x in sc["kind"]]
         if hit:
             used.update(hit)
             sc["claude"] = {"decision": "remove", "why": "seen: " + finds[hit[0]]["why"],
@@ -1200,6 +1214,22 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
             v = verdicts.get(sc["id"])
             if not v:
                 continue
+            dec, why, nud = v
+            if "Nudity" in sc.get("kind", []) and len(sc["kind"]) == 1:
+                if nud == "implied":
+                    sc["kind"] = ["Implied nudity"]
+                    if o.get("implied"):
+                        dec = "remove"
+                    else:
+                        dec, why = "not an issue", "only implied nudity: " + why
+                elif nud == "none" and dec == "remove":       # not nudity, but something else
+                    sc["kind"] = [f"Seen by {cc.name()}"]
+                    why = "not nudity, but: " + why
+                elif nud == "none" and dec != "can't tell":   # unsure stays as it is
+                    dec, why = "not an issue", "no nudity: " + why
+                elif nud == "shown" and o.get("nudity"):
+                    dec = "remove"
+            v = (dec, why)
             sc["claude"] = {"decision": v[0], "why": v[1], "seen": True}
             if v[0] == "not an issue":
                 sc["cut"] = False
@@ -1620,7 +1650,38 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
     scenes = []
-    if o["nudity"]:
+    if (o["nudity"] or o["implied"]) and nude:
+        if have_ai:                     # the AI on this PC: really shown, or only implied?
+            say(at("end", 0.65), "Taking a closer look at the nudity found…")
+            cands = [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
+                      "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
+                     for sc in nude]
+            ff = cl._tool("ffmpeg")
+            ai.second_look(cands, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
+                           None, cancel)
+            kept, n_impl, n_none = [], 0, 0
+            for sc, c in zip(nude, cands):
+                v = c.get("verdict") or {}
+                if v.get("error"):
+                    kept.append(sc)
+                    continue
+                if v.get("level") == "implied":
+                    n_impl += 1
+                    if o["implied"]:
+                        kept.append(dict(sc, kind=["Implied nudity"], sure=True,
+                                         why=f"implied nudity — {v.get('what', '')}"))
+                elif v.get("level") == "shown":
+                    if o["nudity"]:
+                        kept.append(dict(sc, sure=True, why=f"{sc['why']} — {v.get('what', '')}"))
+                else:
+                    n_none += 1
+            if n_impl or n_none:
+                notes.append(f"Nudity check: {n_none} false alarm(s) dropped, {n_impl} scene(s) "
+                             "only implied nudity" + (" (listed as implied)" if o["implied"] else
+                                                       " (dropped; implied nudity isn't ticked)") + ".")
+            nude = kept
+        elif not o["nudity"]:
+            nude = []
         scenes += nude
     if o["violence"]:
         scenes += violence_scenes(snd, cues)
