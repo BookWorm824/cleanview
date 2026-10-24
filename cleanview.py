@@ -980,16 +980,18 @@ def apply_review(st, result):
             it["claude"]["word"] = word
         mine = it.get("by_you") or it.get("learned")
         if dec == "just the word":
-            m = word_mute(st, it, word, why)
+            ms = [word_mute(st, it, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
+            m = None if (not ms or None in ms) else ms[0]
             if m is None:                 # couldn't place the word: keep the whole line muted
                 it["claude"]["decision"] = "remove"
                 it["claude"]["why"] = why + " (couldn't find the word, so the line stays muted)"
                 if not mine:
                     _set_on(kind, it, True)
                 continue
-            if not m.get("by_you") and not m.get("learned"):
-                m["keep"] = False
-            m.setdefault("claude", {"decision": "remove", "why": f"from the line: {why}"})
+            for m in ms:
+                if not m.get("by_you") and not m.get("learned"):
+                    m["keep"] = False
+                m.setdefault("claude", {"decision": "remove", "why": f"from the line: {why}"})
             if not mine:
                 _set_on(kind, it, False)
                 n_word += 1
@@ -1005,10 +1007,11 @@ def apply_review(st, result):
         if k in have:
             continue
         l = lines[k]
-        m = word_mute(st, l, word, why) if word else None
-        if m is not None:
-            m["keep"] = False
-            m.setdefault("claude", {"decision": "remove", "why": why})
+        ms = [word_mute(st, l, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
+        if ms and None not in ms:
+            for m in ms:
+                m["keep"] = False
+                m.setdefault("claude", {"decision": "remove", "why": why})
             n_add += 1
             continue
         st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],

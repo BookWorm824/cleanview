@@ -46,7 +46,8 @@ def claude_note(item, on=None):
         return None, None
     head, col = CLAUDE_SAYS.get(c.get("decision"), ("Claude", "#6D6862"))
     if c.get("word"):
-        head += f" \u201c{c['word']}\u201d (the rest of the line stays)"
+        head += " " + ", ".join(f"\u201c{w.strip()}\u201d" for w in re.split(r"[|,]", c["word"])
+                               if w.strip()) + " (the rest of the line stays)"
     text = head + (" \u2014 " + c["why"] if c.get("why") else "")
     if (item.get("by_you") or item.get("learned")) and on is not None and \
             c.get("decision") in ("remove", "not an issue", "just the word") and \

@@ -316,6 +316,32 @@ def candidates(st, with_review=False):
     return items, "\n".join(out)
 
 
+WORD_REASON = re.compile(r"\b(contains?|word|language|swear\w*|profan\w*|curse\w*|cuss\w*|"
+                         r"crude word|bad word|says?)\b", re.I)
+
+
+def _only_word(line, why, mutes):
+    """Claude said to remove a whole line, but its reason is just one word
+    ("Contains 'ass'"). Return that word so only it is muted, else ''."""
+    text = line.get("plain") or line["text"]
+    toks = re.findall(r"[A-Za-z][A-Za-z'\-]*", text)
+    low = {t.lower().strip("'"): t for t in toks}
+    for q in re.findall(r"['\"\u2018\u201c]([A-Za-z][A-Za-z'\- ]{0,20}?)['\"\u2019\u201d]", why):
+        q = q.strip().lower()
+        if q in low:
+            return low[q]
+        for t in toks:                       # 'ass' named, 'sweet-ass' said
+            parts = t.lower().split("-")
+            if len(parts) > 1 and q in parts:
+                return t
+    if WORD_REASON.search(why) and not re.search(r"\b(refer\w*|innuendo|joke|sexual|flirt\w*|"
+                                                r"romanc\w*|affair|bull\w*|mock\w*)\b", why, re.I):
+        on_list = [m for m in mutes if line["s"] - 0.6 <= m["s"] <= line["e"] + 0.6]
+        if on_list:                          # the listed words in this line
+            return "|".join(m.get("raw") or m["word"] for m in on_list)
+    return ""
+
+
 def review(st, wanted_text, examples=None, extra_sounds=""):
     """Claude looks over everything at once. Returns (items {id: (kind, item)},
     decisions {id: (decision, why)}, missed_lines [(idx, why)], missed_scenes
@@ -336,7 +362,9 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         "Instructions:\n"
         "1. Give a decision for EVERY item above, using its id: \"remove\" if it fits what they "
         "want removed; \"just the word\" for a line (L) whose ONLY problem is one bad word, "
-        "such as 'sweet-ass deal' or 'what the hell' (put that word, exactly as said, in "
+        "such as 'sweet-ass deal' or 'what the hell' (always use this when the problem is a "
+        "word, whatever the word is; if there are several bad words, put them all, separated "
+        "by |; put that word, exactly as said, in "
         "\"word\"; CleanView then mutes only that word and keeps the rest of the line); "
         "\"not an issue\" if in context it doesn't (for example 'hell' in a place "
         "name, 'God' in a sincere prayer when they only want God's name used as a swear "
@@ -363,6 +391,10 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         if i in items:
             dec = d.get("decision")
             word = str(d.get("word") or "").strip()
+            if dec == "remove" and items[i][0] == "line" and not word:
+                word = _only_word(items[i][1], str(d.get("why", "")), st.get("mutes", []))
+                if word:
+                    dec = "just the word"
             if dec == "just the word" and (items[i][0] != "line" or not word):
                 dec = "remove"
             decisions[i] = (dec, str(d.get("why", ""))[:140], word)
