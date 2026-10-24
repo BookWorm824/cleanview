@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 import traceback
 from pathlib import Path
@@ -104,8 +105,156 @@ class App(tk.Tk):
         self._imgs = []
         self._style()
         self.page = None
-        self.show_setup()
+        self.page_name = None
+        self.upd_bar = None
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        if not (os.environ.pop("CLEANVIEW_RESUME", None) and self._resume()):
+            self.show_setup()
         self.after(100, self._poll)
+        self.after(4000, self._check_update)
+        self.bind_all("<F5>", lambda e: self._check_update(manual=True))
+
+    # ---------- updating without losing your place ----------
+    SESSION = APP_DATA / "last_review.json"
+
+    def _launcher(self):
+        import importlib.machinery
+        import importlib.util
+        path = Path(__file__).resolve().parent / "launcher.pyw"
+        loader = importlib.machinery.SourceFileLoader("cv_launcher", str(path))
+        spec = importlib.util.spec_from_loader("cv_launcher", loader)
+        mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(mod)
+        return mod
+
+    def _check_update(self, manual=False):
+        """Look for a newer version now and every 30 minutes; show a button if there is one.
+        manual: the person asked (F5 or the button), so say so if there's nothing new."""
+        def go():
+            try:
+                import urllib.request
+                lm = self._launcher()
+                local = json.loads((lm.HERE / "version.json").read_text())
+                with urllib.request.urlopen(lm.RAW + "version.json", timeout=6) as r:
+                    remote = json.loads(r.read().decode("utf8"))
+                if lm._ver(remote["version"]) > lm._ver(local["version"]):
+                    self.q.put(("update_ready", remote["version"]))
+                elif manual:
+                    self.q.put(("update_none", local["version"]))
+            except Exception:
+                if manual:
+                    self.q.put(("update_none", None))
+        threading.Thread(target=go, daemon=True).start()
+        if not manual:
+            self.after(30 * 60 * 1000, self._check_update)
+
+    def _show_update_bar(self, ver):
+        if self.upd_bar is not None and self.upd_bar.winfo_exists():
+            self.upd_lbl.config(text=f"A new version of CleanView ({ver}) is ready.")
+            return
+        bar = tk.Frame(self, bg="#E3EFEC")
+        bar.pack(side="top", fill="x", before=self.page)
+        self.upd_lbl = tk.Label(bar, text=f"A new version of CleanView ({ver}) is ready.",
+                                bg="#E3EFEC", fg=ACCENT_DK, font=(FONT, 10), padx=12, pady=6)
+        self.upd_lbl.pack(side="left")
+        self.upd_btn = ttk.Button(bar, text="Update now (keeps your place)", style="Small.TButton",
+                                  command=self.update_now)
+        self.upd_btn.pack(side="right", padx=10, pady=4)
+        self.upd_bar = bar
+
+    def _save_session(self):
+        """Save the review exactly as it is: everything found and every tick."""
+        if self.page_name != "review":
+            return False
+        good = [j for j in self.jobs if j["analysis"]]
+        if not good:
+            return False
+        for j in good:
+            try:
+                self._sync_job(j)
+            except Exception:
+                pass
+            try:
+                (Path(j["work"]) / "analysis.json").write_text(json.dumps(j["analysis"], indent=1))
+            except OSError:
+                pass
+        sess = {"saved": time.strftime("%Y-%m-%d %H:%M"), "outdir": self.outdir,
+                "jobs": [{"video": j["video"], "work": str(j["work"])} for j in good],
+                "show_fine": getattr(self, "show_fine", False),
+                "chat": getattr(self, "chat_history", [])[-60:]}
+        try:
+            APP_DATA.mkdir(parents=True, exist_ok=True)
+            self.SESSION.write_text(json.dumps(sess, indent=1), encoding="utf8")
+            return True
+        except OSError:
+            return False
+
+    def _resume(self, sess=None):
+        """Open the last review again. Returns True if it could."""
+        try:
+            sess = sess or json.loads(self.SESSION.read_text("utf8"))
+            jobs = []
+            for j in sess["jobs"]:
+                a = json.loads((Path(j["work"]) / "analysis.json").read_text())
+                jobs.append({"video": j["video"], "work": Path(j["work"]), "analysis": a,
+                             "error": None, "cuts": [], "lines": [], "words": []})
+        except Exception:
+            return False
+        if not jobs:
+            return False
+        self.jobs = jobs
+        self.videos = [j["video"] for j in jobs]
+        self.outdir = sess.get("outdir")
+        self.show_fine = sess.get("show_fine", False)
+        self.chat_history = [tuple(x) for x in sess.get("chat", [])]
+        self.chat_sessions = {}
+        self.show_review()
+        return True
+
+    def _forget_session(self):
+        try:
+            self.SESSION.unlink()
+        except OSError:
+            pass
+
+    def _on_close(self):
+        if self.page_name == "review":
+            self._save_session()        # closing by accident never loses the review
+        self.destroy()
+
+    def update_now(self):
+        if self.upd_bar is None or not self.upd_bar.winfo_exists():
+            self._show_update_bar("")
+        if self.page_name == "working":
+            messagebox.showinfo("CleanView", "CleanView is busy right now. Update when it's "
+                                "finished (the button will still be here).")
+            return
+        self._save_session()
+        self.upd_btn.config(state="disabled")
+        self.upd_lbl.config(text="Updating\u2026")
+
+        def go():
+            try:
+                new = self._launcher().update()
+                self.q.put(("update_done", new, None))
+            except Exception as ex:
+                self.q.put(("update_done", None, str(ex)))
+        threading.Thread(target=go, daemon=True).start()
+
+    def _update_done(self, new, err):
+        if err:
+            self.upd_lbl.config(text="The update didn't download. Try again in a bit.")
+            self.upd_btn.config(state="normal")
+            return
+        env = dict(os.environ)
+        env["CLEANVIEW_UPDATED"] = f"CleanView was updated to version {new}." if new else \
+            "CleanView is up to date."
+        if self.page_name == "review":
+            env["CLEANVIEW_RESUME"] = "1"
+        launcher = Path(__file__).resolve().parent / "launcher.pyw"
+        subprocess.Popen([sys.executable, str(launcher)], env=env,
+                         cwd=str(launcher.parent))
+        self.destroy()
 
     # ---------- look ----------
     def _style(self):
@@ -195,6 +344,7 @@ class App(tk.Tk):
 
     # ---------- page 1: setup ----------
     def show_setup(self):
+        self.page_name = "setup"
         p = self._new_page("CleanView", "Clean up a movie or TV episodes you own: mute bad "
                            "language and cut out nudity, sex scenes and violence.")
         upd = os.environ.pop("CLEANVIEW_UPDATED", None)
@@ -202,6 +352,31 @@ class App(tk.Tk):
             tk.Label(p, text="\u2713 " + upd,
                      bg="#E3EFEC", fg=ACCENT_DK, font=(FONT, 10), padx=10, pady=6,
                      anchor="w").pack(fill="x", pady=(0, 8))
+        try:
+            sess = json.loads(self.SESSION.read_text("utf8"))
+            names = [Path(j["video"]).name for j in sess["jobs"]]
+        except Exception:
+            sess = None
+        if sess and names:
+            box = tk.Frame(p, bg="#FFF4EC", highlightbackground="#E9C9B3", highlightthickness=1)
+            box.pack(fill="x", pady=(0, 8))
+            what = short(names[0], 50) + (f" and {len(names) - 1} more" if len(names) > 1 else "")
+            tk.Label(box, text=f"Your last review isn't finished: {what} (saved {sess['saved']}).",
+                     bg="#FFF4EC", fg=INK, font=(FONT, 10), padx=10, pady=6,
+                     anchor="w").pack(side="left")
+
+            def pick_up(sess=sess):
+                if not self._resume(sess):
+                    messagebox.showinfo("CleanView", "That review couldn't be opened (the files "
+                                        "may have been moved). Start it again.")
+                    self._forget_session()
+                    self.show_setup()
+
+            ttk.Button(box, text="Pick up where I left off", style="Small.TButton",
+                       command=pick_up).pack(side="right", padx=8, pady=4)
+            ttk.Button(box, text="Discard", style="Small.TButton",
+                       command=lambda: (self._forget_session(), box.destroy())).pack(
+                side="right", pady=4)
         try:
             ver = json.loads((Path(__file__).resolve().parent / "version.json").read_text())["version"]
             self.title(f"CleanView {ver}")
@@ -212,6 +387,8 @@ class App(tk.Tk):
         self.start_btn.pack(side="right")
         ttk.Button(self.footer, text="Send what CleanView learned\u2026", style="Plain.TButton",
                    command=self.share_learned).pack(side="left")
+        ttk.Button(self.footer, text="\u21bb Check for updates", style="Plain.TButton",
+                   command=lambda: self._check_update(manual=True)).pack(side="left", padx=(8, 0))
         body = self._scroll_area(p)
 
         self.opts = {}
@@ -553,6 +730,7 @@ class App(tk.Tk):
         threading.Thread(target=self._analyze_thread, daemon=True).start()
 
     def show_working(self, title):
+        self.page_name = "working"
         dur = sum(engine.cl.probe_duration(j["video"]) for j in self.jobs)
         n = len(self.jobs)
         what = f"These {n} videos are" if n > 1 else "This video is"
@@ -655,6 +833,14 @@ class App(tk.Tk):
                     self._chat_reply(*msg[1:])
                 elif kind == "reviewed":
                     self._reviewed(*msg[1:])
+                elif kind == "update_ready":
+                    self._show_update_bar(msg[1])
+                elif kind == "update_none":
+                    messagebox.showinfo("CleanView", f"You have the newest version ({msg[1]})."
+                                        if msg[1] else "Couldn't check for updates right now. "
+                                        "Check your internet connection.")
+                elif kind == "update_done":
+                    self._update_done(*msg[1:])
                 elif kind == "warn":
                     messagebox.showwarning("CleanView", msg[1])
                 elif kind == "preview_error":
@@ -681,6 +867,7 @@ class App(tk.Tk):
             self.show_setup()
             return
         self.show_review()   # always: so every mute and cut can be seen and unticked
+        self._save_session()   # so closing or updating never loses it
 
     # ---------- page 3: review ----------
     def _pick_review_ai(self, good):
@@ -701,6 +888,7 @@ class App(tk.Tk):
 
     def show_review(self):
         global AI_NAME
+        self.page_name = "review"
         good = [j for j in self.jobs if j["analysis"]]
         self.review_ai = self._pick_review_ai(good)
         AI_NAME = cc.name(self.review_ai)
@@ -1101,6 +1289,7 @@ class App(tk.Tk):
         st = job["analysis"]
         cnt = st.get("claude_counts") or {}
         self._log(f"{AI_NAME}'s review: " + (st.get("claude_summary") or "done."))
+        self.after(200, self._save_session)
         self._log(f"Unticked {cnt.get('dropped', 0)} false alarm(s), added {cnt.get('added', 0)} "
                   "missed item(s)" + (f", {cnt['words']} line(s) now mute just the bad word"
                                       if cnt.get("words") else "") +
@@ -1343,6 +1532,8 @@ class App(tk.Tk):
 
     # ---------- page 4: done ----------
     def show_done(self, results):
+        self.page_name = "done"
+        self._forget_session()
         multi = len(results) > 1
         p = self._new_page("All done!", f"Your clean cop{'ies are' if multi else 'y is'} ready.")
         stats = tk.Frame(p, bg=BG)

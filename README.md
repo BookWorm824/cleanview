@@ -39,6 +39,11 @@ its own install, its own folder, its own updates.
   and only what you leave ticked is changed.
 - Pick a folder of episodes to clean a whole season in one go.
 - Saves "(Clean)" copies plus a report of every mute and cut. Originals are never changed.
+  Cleaned subtitles are inside the copy but off unless you turn them on in your player.
+- Updates: a bar appears when a new version is ready ("Update now (keeps your place)"), or press
+  F5 / "Check for updates". Your review, with everything found and every tick, is saved and
+  reopened after the update. Closing CleanView mid-review saves it too ("Pick up where I left
+  off" on the start page).
   Uses an NVIDIA, Intel or AMD graphics card to save faster when one is available.
 
 Works with DRM-free video (DVD and Blu-ray rips, home videos). Copy-protected purchases

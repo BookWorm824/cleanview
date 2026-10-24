@@ -1936,10 +1936,12 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                "-i", str(src)]
         if srt:
             cmd += ["-i", str(srt)]
-        cmd += ["-map", f"0:{info['video']['index']}", "-map", f"0:{a['index']}"]
+        cmd += ["-map", f"0:{info['video']['index']}", "-map", f"0:{a['index']}",
+                "-disposition:v:0", "default", "-disposition:a:0", "default"]
         if srt:
             cmd += ["-map", "1:0", "-c:s", "mov_text" if mp4 else "srt",
-                    "-metadata:s:s:0", "language=eng"]
+                    "-metadata:s:s:0", "language=eng",
+                    "-disposition:s:0", "0"]      # there if wanted, but off unless turned on
         ch = a["channels"]
         cmd += [fopt("a"), str(work / "afilter.txt"), "-c:a", "aac", "-b:a", abr,
                 "-ac", str(ch if ch in (1, 2, 6, 8) else 2)]
@@ -2001,8 +2003,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     if not done:
         raise RuntimeError(f"Couldn't save the clean copy of {src.name}:\n{last_err[-800:]}")
 
-    if srt:
-        shutil.copyfile(srt, dst.with_suffix(".en.srt"))
+    # no separate .srt file next to the video: players show those automatically
     removed = sum(e - s for s, e in cut_rs)
     rep = [f"CleanView report — {src.name}", "=" * 40,
            f"{len(st['mutes'])} words/phrases muted, {len(lines)} lines muted, {len(cut_rs)} "
