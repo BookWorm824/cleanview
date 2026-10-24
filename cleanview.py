@@ -909,31 +909,108 @@ def _set_on(kind, it, on):
         it["keep"] = not on
 
 
+def word_mute(st, line, word, why):
+    """Mute just one word of a dialogue line (Claude's "just the word").
+    Uses a word already on the list if there is one, else finds the word's
+    time in what was heard, else estimates it from its place in the line."""
+    target = cl.norm(word.replace("-", ""))
+    if not target:
+        return None
+    a, b = line["s"] - 0.6, line["e"] + 0.6
+    for m in st.get("mutes", []):
+        if a <= m["s"] <= b and target in cl.norm((m.get("raw") or m["word"]).replace(" ", "")):
+            return m
+    s = e = None
+    src = "claude"
+    heard = [w for w in st.get("asr", []) if a <= w[1] <= b]
+    for k, w in enumerate(heard):
+        n = cl.norm(w[0])
+        if n == target or (len(target) > 3 and target in n):
+            s, e = w[1], w[2]
+            break
+        if k + 1 < len(heard) and n + cl.norm(heard[k + 1][0]) == target:   # "sweet" "ass"
+            s, e = w[1], heard[k + 1][2]
+            break
+    if s is None:                 # not heard clearly: place it by its position in the line
+        toks = [cl.norm(t) for t in line["text"].replace("-", " ").split()]
+        parts = [cl.norm(p) for p in word.replace("-", " ").split()] or [target]
+        pos = next((k for k in range(len(toks)) if toks[k:k + len(parts)] == parts), None)
+        if pos is None:
+            return None
+        mid = line["s"] + (line["e"] - line["s"]) * (pos + len(parts) / 2) / max(1, len(toks))
+        s, e = max(line["s"], mid - 0.6), min(line["e"], mid + 0.6)
+        src = "claude-estimated"
+    ctx_words = [w[0] for w in st.get("asr", []) if line["s"] - 0.3 <= w[1] < s][-6:]
+    m = {"s": round(s, 3), "e": round(e, 3), "cat": "claude", "src": src,
+         "word": " ".join(cl.mask(p) for p in word.split()), "raw": target,
+         "ctx": " ".join(ctx_words) or line["text"][:60]}
+    try:
+        m["s"], m["e"] = cl.snap_edges(st["path"], m["s"], m["e"], wide=src != "claude")
+    except Exception:
+        pass
+    st.setdefault("mutes", []).append(m)
+    st["mutes"].sort(key=lambda x: x["s"])
+    return m
+
+
+def _set_on(kind, it, on):
+    if kind == "scene":
+        it["cut"] = on
+    elif kind == "line":
+        it["mute"] = on
+    else:
+        it["keep"] = not on
+
+
 def apply_review(st, result):
     """Put Claude's full review into the analysis: tick/untick what it judged
     and add what it found missing. Never changes what she set herself."""
     items, decisions, missed, missed_scenes, summary = result
     lines = st.get("dialogue", [])
-    n_drop = n_add = 0
+    n_drop = n_add = n_word = 0
     for i, (kind, it) in items.items():
         it.pop("claude", None)
+    for i, (kind, it) in items.items():
         d = decisions.get(i)
         if not d:
             continue
-        dec, why = d
+        dec, why, word = d
         it["claude"] = {"decision": dec, "why": why}
-        if it.get("by_you") or it.get("learned"):
+        if word and dec == "just the word":
+            it["claude"]["word"] = word
+        mine = it.get("by_you") or it.get("learned")
+        if dec == "just the word":
+            m = word_mute(st, it, word, why)
+            if m is None:                 # couldn't place the word: keep the whole line muted
+                it["claude"]["decision"] = "remove"
+                it["claude"]["why"] = why + " (couldn't find the word, so the line stays muted)"
+                if not mine:
+                    _set_on(kind, it, True)
+                continue
+            if not m.get("by_you") and not m.get("learned"):
+                m["keep"] = False
+            m.setdefault("claude", {"decision": "remove", "why": f"from the line: {why}"})
+            if not mine:
+                _set_on(kind, it, False)
+                n_word += 1
+        elif mine:
             continue
-        if dec == "not an issue":
+        elif dec == "not an issue":
             n_drop += 1
             _set_on(kind, it, False)
         elif dec == "remove":
             _set_on(kind, it, True)
     have = {l.get("idx") for l in st.get("lines", [])}
-    for k, why in missed:
+    for k, why, word in missed:
         if k in have:
             continue
         l = lines[k]
+        m = word_mute(st, l, word, why) if word else None
+        if m is not None:
+            m["keep"] = False
+            m.setdefault("claude", {"decision": "remove", "why": why})
+            n_add += 1
+            continue
         st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
                             "types": ["claude"], "mute": True, "idx": k,
                             "claude": {"decision": "remove", "why": why}})
@@ -965,7 +1042,7 @@ def apply_review(st, result):
         n_add += 1
     st["scenes"].sort(key=lambda sc: sc["s"])
     st["claude_summary"] = summary
-    st["claude_counts"] = {"dropped": n_drop, "added": n_add}
+    st["claude_counts"] = {"dropped": n_drop, "added": n_add, "words": n_word}
     return n_drop, n_add
 
 
@@ -976,8 +1053,15 @@ def claude_review(st, work=None):
                     learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")))
     n = apply_review(st, res)
     st["notes"] = [x for x in st.get("notes", []) if not x.startswith("Claude reviewed everything")]
+    nw = st["claude_counts"].get("words", 0)
     st["notes"].append(f"Claude reviewed everything: {n[0]} found item(s) look fine in context "
-                       f"and were unticked, {n[1]} missed item(s) were added.")
+                       f"and were unticked, {n[1]} missed item(s) were added"
+                       + (f", and {nw} line(s) now mute just the bad word instead of the whole line"
+                          if nw else "") + ".")
+    try:
+        learn.record_claude(st)          # teaches the AI on this PC, and the spreadsheet
+    except Exception:
+        pass
     if work is not None:
         new = [sc for sc in st["scenes"] if "thumbs" not in sc]
         if new:
@@ -1386,6 +1470,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                         "who": l.get("who", "")} for l in lines],
           "voices": genders, "reader": "Claude" if claude_found is not None else line_how,
           "sub_note": sub_note, "notes": notes,
+          "asr": [[w["t"], round(w["s"], 2), round(w["e"], 2)] for w in asr],
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
           "used_clip": use_clip}
     # Claude's final review: everything above, judged together in context

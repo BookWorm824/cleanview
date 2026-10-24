@@ -58,6 +58,12 @@ looks for scenes, and Ollama plus its two AI models (about 11 GB) if the AI help
   %LOCALAPPDATA%\CleanView\learned. Lines you muted are muted again when they come back,
   lines you left alone start unticked, scene types and words you always keep start unticked,
   and your past choices are shown to the dialogue readers as examples.
+- Claude's calls teach the AI on your PC the same way: lines Claude said to remove or that
+  were fine become examples for it (your own choices always come first), and a word Claude
+  said was fine in a phrase ("dinner at Hell's Kitchen") starts unticked when that phrase
+  comes back. Every Claude finding is also kept in
+  %LOCALAPPDATA%\CleanView\claude_findings.csv, which opens in Excel ("Claude's findings"
+  button on the Ask Claude tab).
 
 ## Claude
 
@@ -70,7 +76,9 @@ including flirting and romance across a whole conversation.
 Claude then does a final review of the whole episode: it looks over everything the other
 checks found (every scene, line and word) together with the full dialogue, your settings and
 your past choices, and decides in context what really needs removing, what's a false alarm
-(unticked, with the reason shown) and what was missed (added as "Found by Claude"). Its
+(unticked, with the reason shown) and what was missed (added as "Found by Claude"). When a
+line's only problem is one word ("one sweet-ass deal"), it mutes just that word and keeps the
+rest of the line. Its
 summary is shown at the top of the Found tab. On the Ask Claude tab, "Review everything
 again" re-runs that review after you've made changes; anything you set yourself is never
 undone. You can also chat about the episode and add what Claude suggests to the list. Only

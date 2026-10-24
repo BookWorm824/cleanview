@@ -68,6 +68,10 @@ STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing"]
 MODERATE = [
     r".*shit.*", r"bitch.*", r"ass", r"asses", r"ass(hole|holes|wipe)", r"arse",
     r"arsehole.*", r"jackass.*", r"dumbass.*", r"badass.*", r"smartass.*",
+    # "sweet-ass deal", "kick-ass": the hyphen is dropped, so list the joined forms
+    r"(sweet|kick|big|fat|lazy|hard|half|wise|candy|cheap|kiss|tight|crazy|stupid|sorry|"
+    r"lame|weird|broke|punk|wuss|bad|dumb|smart|jack|whole|cold|hot|mean|tough|fine|"
+    r"nice|cool|pretty|ugly|old|cute|great|bitch)ass(es|ed)?",
     r"bastard.*", r"piss.*", r"dicks?", r"dickhead.*", r"pricks?", r"bollocks",
     r"bugger.*", r"wanker.*", r"twats?", r"sluts?", r"slutty", r"whores?",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",

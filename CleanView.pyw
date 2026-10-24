@@ -36,6 +36,7 @@ def chip_color(label):
 
 CLAUDE_SAYS = {"remove": ("Claude: remove", "#8E2B2B"),
                "not an issue": ("Claude: not an issue", "#2E7D4F"),
+               "just the word": ("Claude: mute just the word", "#A0663A"),
                "can't tell": ("Claude: can't tell", "#6D6862")}
 
 
@@ -44,9 +45,12 @@ def claude_note(item, on=None):
     if not c:
         return None, None
     head, col = CLAUDE_SAYS.get(c.get("decision"), ("Claude", "#6D6862"))
+    if c.get("word"):
+        head += f" \u201c{c['word']}\u201d (the rest of the line stays)"
     text = head + (" \u2014 " + c["why"] if c.get("why") else "")
     if (item.get("by_you") or item.get("learned")) and on is not None and \
-            c.get("decision") in ("remove", "not an issue") and on != (c["decision"] == "remove"):
+            c.get("decision") in ("remove", "not an issue", "just the word") and \
+            on != (c["decision"] == "remove"):
         text += "  (you chose otherwise, so it stays as you set it)"
     return text, col
 FONT = "Segoe UI" if os.name == "nt" else "DejaVu Sans"
@@ -658,10 +662,12 @@ class App(tk.Tk):
                 tk.Label(box, text=st["claude_summary"], bg="#FFF4EC", fg=INK, font=(FONT, 10),
                          wraplength=700, justify="left", anchor="w").pack(fill="x")
                 cnt = st.get("claude_counts") or {}
-                if cnt.get("dropped") or cnt.get("added"):
+                if cnt.get("dropped") or cnt.get("added") or cnt.get("words"):
                     tk.Label(box, text=f"Unticked {cnt.get('dropped', 0)} false alarm(s) and added "
-                             f"{cnt.get('added', 0)} missed item(s). Anything you change yourself "
-                             "stays the way you set it.", bg="#FFF4EC", fg=MUTED, font=(FONT, 9),
+                             f"{cnt.get('added', 0)} missed item(s)" +
+                             (f"; {cnt['words']} line(s) now mute just the bad word"
+                              if cnt.get("words") else "") +
+                             ". Anything you change yourself stays the way you set it.", bg="#FFF4EC", fg=MUTED, font=(FONT, 9),
                              wraplength=700, justify="left", anchor="w").pack(fill="x", pady=(2, 0))
             for note in st.get("notes", []):
                 tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
@@ -842,10 +848,13 @@ class App(tk.Tk):
         self.review_btn = ttk.Button(top, text="Review everything again", style="Accent.TButton",
                                      command=self._rereview)
         self.review_btn.pack(side="right")
+        ttk.Button(top, text="Claude's findings (spreadsheet)", style="Small.TButton",
+                   command=self._open_findings).pack(side="right", padx=(0, 8))
         tk.Label(tab, text="\u201cReview everything again\u201d has Claude look over every scene, "
                  "line and word on the Found tab (including what you've added or unticked) "
                  "together with the whole dialogue, and decide what really needs removing, what's "
-                 "a false alarm and what was missed. Your own changes are never undone.",
+                 "a false alarm and what was missed. Your own changes are never undone. Claude's "
+                 "calls are also saved to teach the AI on this PC, and kept in a spreadsheet.",
                  bg=BG, fg=MUTED, font=(FONT, 9), wraplength=720, justify="left").pack(anchor="w")
         tk.Label(tab, text="You can also ask about this episode below, e.g. \u201cIs there any "
                  "flirting between two men?\u201d or \u201cWhy did you keep the scene at 12:30?\u201d",
@@ -869,6 +878,13 @@ class App(tk.Tk):
         self.chat_entry.bind("<Return>", lambda e: self._chat_send())
         self.chat_btn = ttk.Button(row, text="Ask", style="Small.TButton", command=self._chat_send)
         self.chat_btn.pack(side="left", padx=(6, 0))
+
+    def _open_findings(self):
+        if learn.CSV_PATH.exists():
+            open_path(str(learn.CSV_PATH))
+        else:
+            messagebox.showinfo("CleanView", "Nothing saved yet. Claude's findings are saved "
+                                "each time it reviews an episode.")
 
     def _sync_job(self, job):
         """Copy the ticks on screen (and anything added) back into the analysis,
@@ -935,7 +951,9 @@ class App(tk.Tk):
         cnt = st.get("claude_counts") or {}
         self._log("Claude's review: " + (st.get("claude_summary") or "done."))
         self._log(f"Unticked {cnt.get('dropped', 0)} false alarm(s), added {cnt.get('added', 0)} "
-                  "missed item(s). The Found tab is updated.", "note")
+                  "missed item(s)" + (f", {cnt['words']} line(s) now mute just the bad word"
+                                      if cnt.get("words") else "") +
+                  ". The Found tab is updated.", "note")
         self.show_review()
 
     def _log(self, text, tag="claude"):

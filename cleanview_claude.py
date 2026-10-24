@@ -256,10 +256,13 @@ def chat(question, lines, voices, flagged_summary, session=None):
 REVIEW_SCHEMA = {"type": "object", "properties": {
     "decisions": {"type": "array", "items": {"type": "object", "properties": {
         "id": {"type": "string"},
-        "decision": {"type": "string", "enum": ["remove", "not an issue", "can't tell"]},
+        "decision": {"type": "string",
+                     "enum": ["remove", "just the word", "not an issue", "can't tell"]},
+        "word": {"type": "string"},
         "why": {"type": "string"}}, "required": ["id", "decision", "why"]}},
     "missed_lines": {"type": "array", "items": {"type": "object", "properties": {
-        "line": {"type": "integer"}, "why": {"type": "string"}}, "required": ["line", "why"]}},
+        "line": {"type": "integer"}, "word": {"type": "string"},
+        "why": {"type": "string"}}, "required": ["line", "why"]}},
     "missed_scenes": {"type": "array", "items": {"type": "object", "properties": {
         "from_line": {"type": "integer"}, "to_line": {"type": "integer"},
         "why": {"type": "string"}}, "required": ["from_line", "to_line", "why"]}},
@@ -282,7 +285,10 @@ def _yours(it):
 
 def _said(it, show):
     c = it.get("claude") if show else None
-    return f" Your review said: {c['decision']} ({c.get('why', '')})." if c else ""
+    if not c:
+        return ""
+    w = f" '{c['word']}'" if c.get("word") else ""
+    return f" Your review said: {c['decision']}{w} ({c.get('why', '')})."
 
 
 def candidates(st, with_review=False):
@@ -329,7 +335,10 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         "is speaking and whether it sounds like a man, woman or child (these can be wrong).\n\n"
         "Instructions:\n"
         "1. Give a decision for EVERY item above, using its id: \"remove\" if it fits what they "
-        "want removed, \"not an issue\" if in context it doesn't (for example 'hell' in a place "
+        "want removed; \"just the word\" for a line (L) whose ONLY problem is one bad word, "
+        "such as 'sweet-ass deal' or 'what the hell' (put that word, exactly as said, in "
+        "\"word\"; CleanView then mutes only that word and keeps the rest of the line); "
+        "\"not an issue\" if in context it doesn't (for example 'hell' in a place "
         "name, 'God' in a sincere prayer when they only want God's name used as a swear "
         "removed, a line that only sounds suggestive out of context), or \"can't tell\" (the "
         "tick then stays as it is). You can't see the picture, so for scenes found in the "
@@ -337,7 +346,8 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         "unless the dialogue clearly confirms it (\"remove\") or clearly shows it's a false "
         "alarm (\"not an issue\", e.g. the 'gunshots' are fireworks at a party).\n"
         "2. List dialogue lines that fit what they want removed but are NOT in the list "
-        "(\"missed_lines\", by line number), and stretches of conversation that should be cut "
+        "(\"missed_lines\", by line number; if only one word in it is the problem, also give "
+        "that word in \"word\" so only the word is muted), and stretches of conversation that should be cut "
         "as a whole, such as flirting or romance they asked to remove (\"missed_scenes\", "
         "first and last line).\n"
         "3. Items marked as set by them or from their past choices are their decision: still "
@@ -351,12 +361,16 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
     for d in res.get("decisions", []):
         i = str(d.get("id", "")).strip().upper()
         if i in items:
-            decisions[i] = (d.get("decision"), str(d.get("why", ""))[:140])
+            dec = d.get("decision")
+            word = str(d.get("word") or "").strip()
+            if dec == "just the word" and (items[i][0] != "line" or not word):
+                dec = "remove"
+            decisions[i] = (dec, str(d.get("why", ""))[:140], word)
     missed = []
     for m in res.get("missed_lines", []):
         k = int(m.get("line", 0)) - 1
         if 0 <= k < len(lines):
-            missed.append((k, str(m.get("why", ""))[:140]))
+            missed.append((k, str(m.get("why", ""))[:140], str(m.get("word") or "").strip()))
     scenes = []
     for s in res.get("missed_scenes", []):
         a, b = int(s.get("from_line", 0)) - 1, int(s.get("to_line", 0)) - 1
