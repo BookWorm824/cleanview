@@ -854,12 +854,136 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"fatso|four[- ]eyes|crybaby|you freak)\b", re.I),
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "learned": "You muted this before",
-              "added": "Added by you",
+              "added": "Added by you", "claude": "Found by Claude",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 CAT_LABEL = {"gore": "Gore", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing"}
+
+
+GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
+              "mild": "mild language such as crap, screw you, damn, hell",
+              "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
+              "minced": "minced oaths such as gosh, darn, heck",
+              "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)"}
+OPT_TEXT = {"nudity": "nudity", "sex": "sex scenes", "violence": "violence",
+            "gore": "graphic gore", "immodest": "immodest clothing", "smoking": "smoking",
+            "drinking": "drinking", "drugs": "drug use",
+            "samesex": "same-sex relationships and romance, including flirting",
+            "casual": "sleeping around (casual sex, hooking up, affairs)",
+            "oppsex": "unmarried man and woman living or sleeping together",
+            "sexref": "sexual references and innuendo", "crude": "crude humor",
+            "bullying": "bullying"}
+KISS_TEXT = {"passionate": "passionate kissing (light kisses are fine)", "all": "all kissing"}
+
+
+def sound_cues(cues, limit=150):
+    """Sound descriptions from hearing-impaired subtitles ([gunshot], (moaning))."""
+    out = []
+    for c in cues or []:
+        tags = [a or b for a, b in re.findall(r"\[([^\]]*)\]|\(([^)]*)\)", c["text"])]
+        tags = [t.strip() for t in tags if t.strip()]
+        if tags:
+            s = int(c["s"])
+            out.append(f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d} " + "; ".join(tags))
+    return "\n".join(out[:limit])
+
+
+def wanted_text(o, groups):
+    o = full_opts(o)
+    out = [GROUP_TEXT[g] for g in groups if g in GROUP_TEXT]
+    out += [t for k, t in OPT_TEXT.items() if o.get(k)]
+    for k, who in (("kiss_os", "between a man and a woman"), ("kiss_ss", "between two men or two women")):
+        if o.get(k) in KISS_TEXT:
+            out.append(KISS_TEXT[o[k]] + " " + who)
+    return "\n".join("- " + t for t in out) or "- (nothing chosen)"
+
+
+def _set_on(kind, it, on):
+    if kind == "scene":
+        it["cut"] = on
+    elif kind == "line":
+        it["mute"] = on
+    else:
+        it["keep"] = not on
+
+
+def apply_review(st, result):
+    """Put Claude's full review into the analysis: tick/untick what it judged
+    and add what it found missing. Never changes what she set herself."""
+    items, decisions, missed, missed_scenes, summary = result
+    lines = st.get("dialogue", [])
+    n_drop = n_add = 0
+    for i, (kind, it) in items.items():
+        it.pop("claude", None)
+        d = decisions.get(i)
+        if not d:
+            continue
+        dec, why = d
+        it["claude"] = {"decision": dec, "why": why}
+        if it.get("by_you") or it.get("learned"):
+            continue
+        if dec == "not an issue":
+            n_drop += 1
+            _set_on(kind, it, False)
+        elif dec == "remove":
+            _set_on(kind, it, True)
+    have = {l.get("idx") for l in st.get("lines", [])}
+    for k, why in missed:
+        if k in have:
+            continue
+        l = lines[k]
+        st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
+                            "types": ["claude"], "mute": True, "idx": k,
+                            "claude": {"decision": "remove", "why": why}})
+        have.add(k)
+        n_add += 1
+    st["lines"].sort(key=lambda l: l["s"])
+    for n, l in enumerate(st["lines"], 1):
+        l["id"] = n
+    for s in missed_scenes:
+        a, b = max(0.0, lines[s["from"]]["s"] - 1.0), lines[s["to"]]["e"] + 1.0
+        b = min(b, st.get("duration", b))
+        if any(sc["s"] <= a + 2 and sc["e"] >= b - 2 for sc in st["scenes"]):
+            continue
+        over = [sc for sc in st["scenes"] if sc["s"] < b and sc["e"] > a and not sc.get("by_you")]
+        if over:                          # overlaps a scene already listed: widen that one
+            sc = over[0]
+            sc["s"], sc["e"] = round(min(sc["s"], a), 2), round(max(sc["e"], b), 2)
+            sc["cut"] = True
+            sc["claude"] = {"decision": "remove", "why": s["why"] + " (widened by Claude)"}
+            sc["said"] = " ".join(l["text"] for l in lines if sc["s"] - 0.5 <= l["s"] <= sc["e"])[:600]
+            sc.pop("thumbs", None)
+            n_add += 1
+            continue
+        st["scenes"].append({"id": max([sc.get("id", 0) for sc in st["scenes"]] + [0]) + 1,
+                             "s": round(a, 2), "e": round(b, 2),
+                             "kind": ["Found by Claude"], "why": s["why"], "cut": True,
+                             "said": " ".join(l["text"] for l in lines[s["from"]:s["to"] + 1])[:600],
+                             "claude": {"decision": "remove", "why": s["why"]}})
+        n_add += 1
+    st["scenes"].sort(key=lambda sc: sc["s"])
+    st["claude_summary"] = summary
+    st["claude_counts"] = {"dropped": n_drop, "added": n_add}
+    return n_drop, n_add
+
+
+def claude_review(st, work=None):
+    """Claude's final review of everything found (also used by the
+    "Review everything again" button). Raises cc.ClaudeError."""
+    res = cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
+                    learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")))
+    n = apply_review(st, res)
+    st["notes"] = [x for x in st.get("notes", []) if not x.startswith("Claude reviewed everything")]
+    st["notes"].append(f"Claude reviewed everything: {n[0]} found item(s) look fine in context "
+                       f"and were unticked, {n[1]} missed item(s) were added.")
+    if work is not None:
+        new = [sc for sc in st["scenes"] if "thumbs" not in sc]
+        if new:
+            make_thumbs(st["path"], new, work)
+        (Path(work) / "analysis.json").write_text(json.dumps(st, indent=1))
+    return n
 
 
 def decide_picture_scenes(cands, o, have_ai):
@@ -1255,15 +1379,25 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                            "types": ["learned"], "mute": True, "idx": lines.index(l)})
     line_mutes.sort(key=lambda l: l["s"])
     notes += learned_notes
-    make_thumbs(path, scenes, work)
 
     st = {"path": path, "info": info, "groups": list(groups), "mutes": mutes, "scenes": scenes,
           "lines": line_mutes, "cues": cues, "show": key,
           "dialogue": [{"s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
                         "who": l.get("who", "")} for l in lines],
-          "voices": genders, "reader": "Claude" if claude_found is not None else line_how, "sub_note": sub_note, "notes": notes,
+          "voices": genders, "reader": "Claude" if claude_found is not None else line_how,
+          "sub_note": sub_note, "notes": notes,
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
           "used_clip": use_clip}
+    # Claude's final review: everything above, judged together in context
+    if o.get("reader") == "claude" and (lines or scenes or mutes):
+        say(at("end", 0.75), "Claude is reviewing everything that was found…")
+        try:
+            claude_review(st)
+        except cc.ClaudeError as ex:
+            notes.append(f"Claude couldn't do the final review this time: {ex}")
+        except Exception as ex:          # never lose the scan over the review
+            notes.append(f"Claude's final review didn't work this time ({str(ex)[:80]}).")
+    make_thumbs(path, st["scenes"], work)
     (work / "analysis.json").write_text(json.dumps(st, indent=1))
     say(1.0, "Done.")
     return st

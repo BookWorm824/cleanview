@@ -664,7 +664,7 @@ def dialogue_lines(cues, asr, spoken):
 
 
 def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overlap=4,
-                      genders=None):
+                      genders=None, examples=None):
     """Returns {line_index: set(types)} for the wanted LINE_TYPES.
 
     Small local models guess a lot, so a line only counts when (1) the model
@@ -673,7 +673,15 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
     if not lines or not wanted:
         return {}
     genders = genders or [{}] * len(lines)
-    defs = "\n".join(f'- "{k}": {LINE_TYPES[k]}' for k in wanted)
+    defs = "\n".join(f'- "{k}": {LINE_TYPES[k]}' for k in wanted if k in LINE_TYPES)
+    if examples and (examples.get("muted") or examples.get("kept")):
+        if examples.get("muted"):
+            defs += ("\n\nIn this show the family has muted lines like:\n" +
+                     "\n".join(f"- {t}" for t in examples["muted"][:10]))
+        if examples.get("kept"):
+            defs += ("\nAnd chose NOT to mute lines like:\n" +
+                     "\n".join(f"- {t}" for t in examples["kept"][:10]))
+    wanted = [k for k in wanted if k in LINE_TYPES]
     schema = {"type": "object", "properties": {"flags": {"type": "array", "items": {
         "type": "object", "properties": {"line": {"type": "integer"},
                                          "type": {"type": "string", "enum": list(wanted)},

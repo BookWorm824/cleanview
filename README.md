@@ -65,9 +65,16 @@ Choose "Claude" under "Who reads the dialogue" and CleanView sets up Claude Code
 (Anthropic's own program) and has you sign in with your Claude account once. It then uses
 your Claude plan (Pro, Max, Team or Enterprise; usage counts toward the same limits as the
 Claude app) with no API key. Claude reads the episode's dialogue for the dialogue filters,
-including flirting and romance across a whole conversation, and the Ask Claude tab lets you
-ask about the episode and add what it finds to the list. Only the words that are said are
-sent, never the video or sound.
+including flirting and romance across a whole conversation.
+
+Claude then does a final review of the whole episode: it looks over everything the other
+checks found (every scene, line and word) together with the full dialogue, your settings and
+your past choices, and decides in context what really needs removing, what's a false alarm
+(unticked, with the reason shown) and what was missed (added as "Found by Claude"). Its
+summary is shown at the top of the Found tab. On the Ask Claude tab, "Review everything
+again" re-runs that review after you've made changes; anything you set yourself is never
+undone. You can also chat about the episode and add what Claude suggests to the list. Only
+the words that are said are sent, never the video or sound.
 
 ## Installing
 
