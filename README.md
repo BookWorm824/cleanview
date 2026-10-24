@@ -48,6 +48,27 @@ everything is shown to you before it's cut.
 One-time downloads: the picture and sound checkers (about 250 MB) the first time CleanView
 looks for scenes, and Ollama plus its two AI models (about 11 GB) if the AI helper is on.
 
+## Fixing and teaching it
+
+- The review page has three tabs. **Found** lists every scene, line and word it will cut or
+  mute, and lets you add a scene by typing a start and end time. **All dialogue** lists every
+  line with a search box: click a line to mute it, or select several and cut them as a scene.
+  **Ask Claude** is a chat about the episode (see below).
+- CleanView remembers your choices per show (and in one file for movies) in
+  %LOCALAPPDATA%\CleanView\learned. Lines you muted are muted again when they come back,
+  lines you left alone start unticked, scene types and words you always keep start unticked,
+  and your past choices are shown to the dialogue readers as examples.
+
+## Claude
+
+Choose "Claude" under "Who reads the dialogue" and CleanView sets up Claude Code
+(Anthropic's own program) and has you sign in with your Claude account once. It then uses
+your Claude plan (Pro, Max, Team or Enterprise; usage counts toward the same limits as the
+Claude app) with no API key. Claude reads the episode's dialogue for the dialogue filters,
+including flirting and romance across a whole conversation, and the Ask Claude tab lets you
+ask about the episode and add what it finds to the list. Only the words that are said are
+sent, never the video or sound.
+
 ## Installing
 
 Download CleanView-Setup.zip, extract it, and double-click "Install CleanView.bat". If

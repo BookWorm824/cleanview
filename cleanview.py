@@ -28,6 +28,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cvcore as cl  # noqa: E402  (speech model, word lists, ffmpeg helpers)
 import cleanview_ai as ai  # noqa: E402  (picture AI and the local AI helper)
+import cleanview_claude as cc  # noqa: E402  (Claude, through Claude Code)
+import cleanview_learn as learn  # noqa: E402  (what your past choices taught it)
 
 SR = cl.SR
 VIDEO_EXTS = (".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".mpg", ".mpeg",
@@ -46,7 +48,7 @@ DEFAULTS = {"nudity": True, "sex": True, "violence": True, "gore": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True,
-            "autosubs": True}
+            "autosubs": True, "reader": "local"}
 
 
 def full_opts(opts=None):
@@ -72,7 +74,7 @@ def needs(opts):
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"],
-            "voices": o["ai"] and bool(lines),
+            "voices": (o["ai"] or o.get("reader") == "claude") and bool(lines),
             "subs": o.get("autosubs", True),
             "nudenet": o["nudity"] or o["sex"],
             "clip": clip_cats,
@@ -851,7 +853,8 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     "bullying": re.compile(r"\b(nobody likes you|you're worthless|you are worthless|"
                            r"fatso|four[- ]eyes|crybaby|you freak)\b", re.I),
 }
-LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying",
+LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "learned": "You muted this before",
+              "added": "Added by you",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
@@ -928,14 +931,19 @@ def find_voices(path, info, work, lines, cancel=None):
     return ai.line_voices(audio, lines, load_tagger(), segs)
 
 
-def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None):
+def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, claude_found=None,
+               examples=None):
     wanted = [k for k in LINE_KINDS if o[k]]
     if not wanted or not lines:
         return [], ""
     found, how = {}, "word lists"
-    if have_ai:
+    if claude_found is not None:
+        found = {i: set(t) for i, t in claude_found.items()}
+        how = "Claude"
+    elif have_ai:
         try:
-            found = ai.classify_dialogue(lines, wanted, progress, cancel, genders=genders)
+            found = ai.classify_dialogue(lines, wanted, progress, cancel, genders=genders,
+                                         examples=examples)
             how = "the AI helper"
         except KeyboardInterrupt:
             raise
@@ -954,7 +962,8 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None):
             for q in range(a_, b_):
                 toks[q] = cl.mask(toks[q])
         out.append({"id": len(out) + 1, "s": round(l["s"], 2), "e": round(l["e"], 2),
-                    "text": " ".join(toks), "types": sorted(found[i]), "mute": True})
+                    "text": " ".join(toks), "plain": l["text"], "types": sorted(found[i]),
+                    "mute": True, "idx": i})
     return out, how
 
 
@@ -1086,6 +1095,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             notes.append(f"No subtitles: {why}.")
     mutes = [{"s": asr[i]["s"], "e": asr[j - 1]["e"], "cat": cat, "src": "audio",
               "word": " ".join(cl.mask(asr[k]["t"]) for k in range(i, j)),
+              "raw": " ".join(asr[k]["n"] for k in range(i, j)),
               "ctx": " ".join(asr[k]["t"] for k in range(max(0, i - 6), i))}
              for i, j, cat in cl.find_language(asr_n, cats)]
     if cues and cats:
@@ -1120,6 +1130,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 continue
             mutes.append({"s": round(s, 3), "e": round(e, 3), "cat": cat, "src": src,
                           "word": " ".join(cl.mask(w) for w in sw[i:j]),
+                          "raw": " ".join(sn[i:j]),
                           "ctx": " ".join(sw[max(0, i - 6):i])})
             added += 1
         sub_note = f"Checked against {sub_note}: caught {added} extra word(s)."
@@ -1145,7 +1156,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
     genders = None
-    if have_ai and nd["voices"] and lines:
+    title = guess_title(path)
+    key = learn.show_key(title)
+    examples = learn.examples(key)
+    use_claude = o.get("reader") == "claude" and bool(nd["lines"]) and bool(lines)
+    if (have_ai or use_claude) and nd["lines"] and lines:
         say(at("lines", 0), "Telling voices apart…")
         try:
             genders = find_voices(path, info, work, lines, cancel)
@@ -1167,12 +1182,29 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         except Exception as ex:
             genders = None
             notes.append(f"Voices couldn't be told apart this time ({str(ex)[:80]}).")
+    claude_found, claude_scenes = None, []
+    if use_claude:
+        say(at("lines", 0.1), "Claude is reading the dialogue…")
+        try:
+            claude_found, claude_scenes = cc.check_dialogue(
+                lines, genders, [k for k in LINE_KINDS if o[k]], examples)
+            for c in claude_scenes:          # talk spread over a few lines: mute those lines
+                if c["type"] != "samesex":
+                    for i in range(c["from"], c["to"] + 1):
+                        claude_found.setdefault(i, set()).add(c["type"])
+        except cc.ClaudeError as ex:
+            claude_found = None
+            notes.append(f"Claude couldn't read the dialogue this time: {ex}")
     line_mutes, line_how = find_lines(
-        lines, o, have_ai,
+        lines, o, have_ai and claude_found is None,
         lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
-        cancel, genders)
+        cancel, genders, claude_found, examples)
     flirts = []
-    if have_ai and o["samesex"] and lines:
+    for c in claude_scenes:
+        if c["type"] == "samesex":
+            flirts.append({"s": lines[c["from"]]["s"], "e": lines[c["to"]]["e"], "between": "ss",
+                           "what": c["why"] or "same-sex romance or flirting"})
+    if have_ai and o["samesex"] and lines and claude_found is None:
         flirts = ai.romance_scenes(
             lines, genders,
             lambda f: say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation · "
@@ -1204,9 +1236,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         scenes += sex_scenes(snd, cues, asr_n, asr, skin, nude)
     scenes += decide_picture_scenes(cands, o, have_ai)
     for f in flirts:
-        if f["between"] in ("mm", "ff"):
+        if f["between"] in ("mm", "ff", "ss"):
             scenes.append({"s": max(0.0, f["s"] - 1.0), "e": f["e"] + 1.0,
-                           "kind": [f"Same-sex romance · {WHO_LABEL[f['between']]}"],
+                           "kind": ["Same-sex romance" + (f" · {WHO_LABEL[f['between']]}"
+                                                          if f["between"] in WHO_LABEL else "")],
                            "why": f["what"] or "flirting or romantic interest", "sure": True})
     scenes = merge_scenes(scenes)
     for n, sc in enumerate(scenes, 1):
@@ -1215,10 +1248,20 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         sc["s"], sc["e"] = round(sc["s"], 2), round(sc["e"], 2)
         said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]
         sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+    learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes)
+    for l in learned_lines:
+        line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),
+                           "e": round(l["e"], 2), "text": l["text"], "plain": l["text"],
+                           "types": ["learned"], "mute": True, "idx": lines.index(l)})
+    line_mutes.sort(key=lambda l: l["s"])
+    notes += learned_notes
     make_thumbs(path, scenes, work)
 
     st = {"path": path, "info": info, "groups": list(groups), "mutes": mutes, "scenes": scenes,
-          "lines": line_mutes, "cues": cues, "sub_note": sub_note, "notes": notes,
+          "lines": line_mutes, "cues": cues, "show": key,
+          "dialogue": [{"s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
+                        "who": l.get("who", "")} for l in lines],
+          "voices": genders, "reader": "Claude" if claude_found is not None else line_how, "sub_note": sub_note, "notes": notes,
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
           "used_clip": use_clip}
     (work / "analysis.json").write_text(json.dumps(st, indent=1))
