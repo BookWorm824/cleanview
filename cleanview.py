@@ -49,7 +49,7 @@ DEFAULTS = {"nudity": True, "sex": True, "violence": True, "gore": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True,
-            "autosubs": True, "reader": "local"}
+            "autosubs": True, "reader": "local", "look": True}
 
 
 def full_opts(opts=None):
@@ -971,11 +971,12 @@ def apply_review(st, result):
     lines = st.get("dialogue", [])
     n_drop = n_add = n_word = 0
     for i, (kind, it) in items.items():
-        it.pop("claude", None)
+        if not (it.get("claude") or {}).get("seen"):
+            it.pop("claude", None)
     for i, (kind, it) in items.items():
         d = decisions.get(i)
-        if not d:
-            continue
+        if not d or (it.get("claude") or {}).get("seen"):
+            continue                       # scenes already checked by looking at the picture
         dec, why, word = d
         it["claude"] = {"decision": dec, "why": why}
         if word and dec == "just the word":
@@ -1077,6 +1078,175 @@ def claude_review(st, work=None):
             make_thumbs(st["path"], new, work)
         (Path(work) / "analysis.json").write_text(json.dumps(st, indent=1))
     return n
+
+
+# --- Claude / ChatGPT looking at the picture ----------------------------------
+PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with a weapon)",
+            "gore": "graphic gore (blood, wounds, bodies)", "nudity": "nudity",
+            "sex": "sex scenes or a couple in bed", "immodest": "immodest clothing",
+            "smoking": "smoking", "drinking": "drinking alcohol", "drugs": "drug use"}
+PIC_LABEL = {"violence": "Violence", "gore": "Gore", "nudity": "Nudity", "sex": "Sex scene",
+             "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
+             "drugs": "Drugs"}
+WHO_FROM = {"man & woman": "mf", "two men": "mm", "two women": "ff"}
+
+
+def picture_wanted(o):
+    o = full_opts(o)
+    out = [t for k, t in PIC_TEXT.items() if o.get(k)]
+    for k, who in (("kiss_os", "between a man and a woman"),
+                   ("kiss_ss", "between two men or two women")):
+        if o.get(k) in KISS_TEXT:
+            out.append(KISS_TEXT[o[k]] + " " + who)
+    if o.get("samesex") and o.get("kiss_ss") == "off":
+        out.append("same-sex romance: two men or two women kissing or being intimate")
+    return "\n".join("- " + t for t in out)
+
+
+def _pic_wanted(f, o):
+    """Does a find from the picture review fit the chosen settings? -> scene label or None."""
+    w = f["what"]
+    if w == "kissing":
+        who = WHO_FROM.get(f.get("who"), "?")
+        setting = o["kiss_os"] if who == "mf" else o["kiss_ss"] if who in ("mm", "ff") else \
+            ("all" if "all" in (o["kiss_os"], o["kiss_ss"]) else
+             "passionate" if "passionate" in (o["kiss_os"], o["kiss_ss"]) else "off")
+        if who in ("mm", "ff") and o.get("samesex"):
+            setting = "all"
+        if setting == "off" or (setting == "passionate" and f.get("level") == "light"):
+            return None
+        return "Kiss" + (f" · {WHO_LABEL[who]}" if who in WHO_LABEL else "") + \
+            (f" · {f['level']}" if f.get("level") in ("light", "passionate") else "")
+    if w == "sex" and not o.get("sex"):
+        return None
+    if w in PIC_LABEL and (w == "sex" or o.get(w)):
+        return PIC_LABEL[w]
+    return None
+
+
+def make_sheets(path, work, dur):
+    """Stills every 2 seconds, 20 to a sheet (5 x 4), each sheet 40 seconds."""
+    d = Path(work) / "sheets"
+    if d.exists():
+        shutil.rmtree(d, ignore_errors=True)
+    d.mkdir(parents=True)
+    r = cl.run([cl._tool("ffmpeg"), "-v", "error", "-i", str(path), "-map", "0:v:0", "-vf",
+                "fps=1/2,scale=320:-2,tile=5x4:padding=4:color=white", "-q:v", "4",
+                str(d / "sheet_%04d.jpg")], capture_output=True)
+    files = sorted(d.glob("sheet_*.jpg"))
+    if not files:
+        raise RuntimeError("couldn't take stills from the video")
+    return [(str(f), k * 40.0) for k, f in enumerate(files)]
+
+
+def scene_sheet(path, sc, work):
+    """6 sharper stills from inside one scene (3 x 2)."""
+    d = Path(work) / "sheets"
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"scene_{sc['id']}.jpg"
+    length = max(0.6, sc["e"] - sc["s"])
+    cl.run([cl._tool("ffmpeg"), "-v", "error", "-y", "-ss", f"{sc['s']:.2f}", "-t", f"{length:.2f}",
+            "-i", str(path), "-map", "0:v:0", "-vf",
+            f"fps={6 / length:.4f},scale=480:-2,tile=3x2:padding=4:color=white", "-frames:v", "1",
+            "-q:v", "4", str(out)], capture_output=True)
+    return str(out) if out.exists() else None
+
+
+DIALOGUE_KINDS = ("Same-sex romance", "Found by", "Suggested by", "Added by you")
+
+
+def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None):
+    """Claude/ChatGPT checks the picture: confirms or rules out each scene the
+    picture/sound checks found, and adds what they missed. Returns (scenes, note)."""
+    say = progress or (lambda f, m: None)
+    o = full_opts(o)
+    wanted = picture_wanted(o)
+    if not wanted:
+        return scenes, "Nothing picture-related was chosen, so the picture wasn't looked at."
+    say(0.02, "is taking stills of the whole video")
+    sheets = make_sheets(path, work, dur)
+    if cancel and cancel():
+        raise KeyboardInterrupt
+    finds = cc.picture_review(sheets, wanted,
+                              progress=lambda f: say(0.05 + 0.6 * f, "is looking through the "
+                                                     "whole picture"))
+    finds = [dict(f, label=_pic_wanted(f, o)) for f in finds]
+    finds = [f for f in finds if f["label"]]
+    used = set()
+    confirmed = 0
+    for sc in scenes:
+        hit = [k for k, f in enumerate(finds) if f["s"] < sc["e"] and f["e"] > sc["s"]]
+        if hit:
+            used.update(hit)
+            sc["claude"] = {"decision": "remove", "why": "seen: " + finds[hit[0]]["why"],
+                            "seen": True}
+            sc["cut"] = True
+            confirmed += 1
+    # a closer look at the rest of the scenes the picture/sound checks found
+    todo = [sc for sc in scenes if "claude" not in sc
+            and not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", []))]
+    for n, sc in enumerate(scenes, 1):
+        sc.setdefault("id", n)
+    items = []
+    for sc in todo:
+        p = scene_sheet(path, sc, work)
+        if p:
+            items.append((sc["id"], ", ".join(sc.get("kind", [])), sc.get("why", ""), p))
+    ruled_out = 0
+    if items:
+        verdicts = cc.verify_scenes(items, wanted, progress=lambda f: say(
+            0.7 + 0.28 * f, "is taking a closer look at each scene found"))
+        for sc in todo:
+            v = verdicts.get(sc["id"])
+            if not v:
+                continue
+            sc["claude"] = {"decision": v[0], "why": v[1], "seen": True}
+            if v[0] == "not an issue":
+                sc["cut"] = False
+                ruled_out += 1
+            elif v[0] == "remove":
+                sc["cut"] = True
+                confirmed += 1
+    # what only the picture review saw: join neighbouring finds of the same kind
+    new = []
+    for k, f in sorted(enumerate(finds), key=lambda kv: kv[1]["s"]):
+        if k in used:
+            continue
+        if new and new[-1]["kind"][0] == f["label"] and f["s"] <= new[-1]["e"] + 4:
+            new[-1]["e"] = max(new[-1]["e"], f["e"])
+            continue
+        new.append({"s": round(f["s"], 2), "e": round(min(f["e"], dur), 2), "kind": [f["label"]],
+                    "why": "seen: " + f["why"], "cut": True, "sure": True,
+                    "claude": {"decision": "remove", "why": "seen: " + f["why"], "seen": True}})
+    top = max([sc.get("id", 0) for sc in scenes] + [0])
+    for k, sc in enumerate(new, 1):
+        sc["id"] = top + k
+        said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]
+        sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+    merged = []                 # join scenes to cut that touch or overlap
+    for sc in sorted(scenes + new, key=lambda sc: sc["s"]):
+        last = merged[-1] if merged else None
+        if last and last.get("cut", True) and sc.get("cut", True) and sc["s"] <= last["e"] + 2.0:
+            last["e"] = max(last["e"], sc["e"])
+            last["kind"] += [k for k in sc["kind"] if k not in last["kind"]]
+            if sc.get("why") and sc["why"] not in last.get("why", ""):
+                last["why"] = "; ".join(x for x in (last.get("why"), sc["why"]) if x)
+            if sc.get("claude") and last.get("claude") and sc["claude"]["why"] not in last["claude"]["why"]:
+                last["claude"] = dict(last["claude"], why=last["claude"]["why"] + "; " +
+                                      sc["claude"]["why"].replace("seen: ", ""))
+            last.pop("thumbs", None)
+            said = [w["t"] for w in asr if last["s"] <= w["s"] <= last["e"]]
+            last["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+        else:
+            merged.append(sc)
+    for k, sc in enumerate(merged, 1):
+        sc["id"] = k
+    scenes = merged
+    who = cc.name()
+    note = (f"{who} looked through the whole picture ({len(sheets) * 20} stills): it confirmed "
+            f"{confirmed} scene(s), ruled out {ruled_out} false alarm(s) and found {len(new)} "
+            f"the other checks missed.")
+    return scenes, note
 
 
 def decide_picture_scenes(cands, o, have_ai):
@@ -1215,7 +1385,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     steps = [("asr", 0.35), ("snd", 0.08 if nd["sound"] else 0),
              ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0),
              ("look", 0.08 if (have_ai and use_clip) else 0),
-             ("lines", 0.12 if (have_ai and nd["lines"]) else 0), ("end", 0.03)]
+             ("lines", 0.12 if (have_ai and nd["lines"]) else 0),
+             ("pics", 0.15 if (o.get("reader") in CLOUD and o.get("look", True)) else 0),
+             ("end", 0.03)]
     tot = sum(w for _, w in steps)
     base, acc = {}, 0.0
     for k, w in steps:
@@ -1468,6 +1640,19 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         sc["s"], sc["e"] = round(sc["s"], 2), round(sc["e"], 2)
         said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]
         sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+    if o.get("reader") in CLOUD and o.get("look", True) and dur > 5:
+        say(at("pics", 0), f"{who} is looking through the whole picture…")
+        try:
+            scenes, pic_note = look_at_picture(
+                path, work, dur, scenes, o, asr,
+                lambda f, m: say(at("pics", f), f"{who} {m} · {eta(at('pics', f))}"), cancel)
+            notes.append(pic_note)
+        except cc.ClaudeError as ex:
+            notes.append(f"{who} couldn't look at the picture this time: {ex}")
+        except KeyboardInterrupt:
+            raise
+        except Exception as ex:
+            notes.append(f"{who} couldn't look at the picture this time ({str(ex)[:80]}).")
     learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes)
     for l in learned_lines:
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),

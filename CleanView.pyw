@@ -304,7 +304,7 @@ class App(tk.Tk):
                  "Ollama and two AI models (about 11 GB, one time only). Without it, kissing and "
                  "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=640, justify="left").pack(anchor="w", pady=(4, 0))
-        tk.Label(b25, text="Who reads the dialogue", bg=CARD, fg=ACCENT_DK,
+        tk.Label(b25, text="Who reads the dialogue and checks the scenes", bg=CARD, fg=ACCENT_DK,
                  font=(FONT, 10, "bold")).pack(anchor="w", pady=(10, 2))
         v = tk.StringVar(value=saved.get("reader", "local"))
         self.opts["reader"] = v
@@ -321,9 +321,14 @@ class App(tk.Tk):
         self.claude_lbl.pack(side="left")
         self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
                                      command=self.setup_claude)
+        lv = tk.BooleanVar(value=saved.get("look", True))
+        self.opts["look"] = lv
+        self.look_chk = ttk.Checkbutton(b25, text="", variable=lv)
+        self.look_chk.pack(anchor="w", padx=(22, 0), pady=(4, 0))
         self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=640,
                                    justify="left")
         self.cloud_note.pack(anchor="w", padx=(22, 0))
+        lv.trace_add("write", lambda *_: self._reader_changed())
         self.ai_state = getattr(self, "ai_state", {})
         v.trace_add("write", lambda *_: self._reader_changed())
         self._reader_changed()
@@ -371,13 +376,25 @@ class App(tk.Tk):
         if not p:
             lbl.config(text="")
             self.claude_btn.pack_forget()
+            self.look_chk.pack_forget()
             self.cloud_note.config(text="Want it more accurate? Pick Claude or ChatGPT if you "
                                    "have either one. Everything works without them too.")
             return
         n = cc.name(p)
-        self.cloud_note.config(text=f"Only the words that are said are sent to {n}, never the "
-                               f"video or sound. {n} also reviews everything that was found, "
-                               f"and you can chat with it on the review page.")
+        self.look_chk.config(text=f"Let {n} look at the picture too  (much better at finding "
+                                  f"the right scenes)")
+        self.look_chk.pack(anchor="w", padx=(22, 0), pady=(4, 0), before=self.cloud_note)
+        if self.opts["look"].get():
+            self.cloud_note.config(
+                text=f"{n} gets the words that are said, plus still pictures from the video (one "
+                     f"every 2 seconds, small), never the sound. It looks through them all, checks "
+                     f"each scene the other checks found, and reviews everything. This uses more "
+                     f"of your {n} plan: roughly a long chat's worth per episode.")
+        else:
+            self.cloud_note.config(
+                text=f"Only the words that are said are sent to {n}, never the video or sound. "
+                     f"{n} also reviews everything that was found, and you can chat with it on "
+                     f"the review page.")
         if p in self.ai_state:
             self._show_claude_status((p, self.ai_state[p]))
         else:

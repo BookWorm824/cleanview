@@ -111,8 +111,10 @@ def strict(schema):
     return s
 
 
-def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600):
-    """One request to ChatGPT. Returns (answer_dict, session_id)."""
+def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600,
+        images=None):
+    """One request to ChatGPT. Returns (answer_dict, session_id).
+    images: [(label, path_to_jpg), ...], attached in that order."""
     exe = find()
     if not exe:
         raise GptError("ChatGPT isn't set up yet.")
@@ -127,6 +129,12 @@ def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, ti
         "\n\nAnswer only from the text given here. Don't run any commands, open files or "
         "search the web.")
     common = ["--skip-git-repo-check", "--output-schema", str(sf), "-o", str(of), "--json"]
+    if images:
+        full = ("The pictures attached are, in order: " +
+                "; ".join(f"{k + 1}) {label}" for k, (label, _) in enumerate(images)) +
+                ".\n\n" + full)
+        for _, path in images:
+            common.append(f"--image={path}")   # one per flag, so nothing after is swallowed
     if MODEL:
         common += ["-m", MODEL]
     if session:

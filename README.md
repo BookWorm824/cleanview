@@ -79,7 +79,13 @@ Choose "Claude" under "Who reads the dialogue" and CleanView sets up Claude Code
 your Claude plan (Pro, Max, Team or Enterprise; usage counts toward the same limits as the
 Claude app) with no API key. Choose "ChatGPT" and it sets up Codex (OpenAI's own program) the
 same way, using your ChatGPT plan (Plus, Pro, Business...) with no API key. Everything below
-works the same with either one. Claude reads the episode's dialogue for the dialogue filters,
+works the same with either one.
+
+With "Let Claude look at the picture too" (on by default), CleanView also sends still pictures:
+one every 2 seconds, small, 20 to a sheet. Claude looks through the whole video, confirms or
+rules out each scene the picture and sound checks found (with 6 sharper stills of each), and
+adds scenes they missed. This is much better at scenes than the checks on your PC, and uses
+more of your plan (roughly a long chat's worth per episode). Sound is never sent. Claude reads the episode's dialogue for the dialogue filters,
 including flirting and romance across a whole conversation.
 
 Claude then does a final review of the whole episode: it looks over everything the other

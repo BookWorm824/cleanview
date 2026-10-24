@@ -133,13 +133,17 @@ def sign_in(provider=None):
         raise ClaudeError(str(ex))
 
 
-def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600):
-    """One request to Claude or ChatGPT. Returns (answer_dict, session_id)."""
+def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600,
+        images=None):
+    """One request to Claude or ChatGPT. Returns (answer_dict, session_id).
+    images: [(label, path_to_jpg), ...] shown before the prompt."""
     if PROVIDER == "chatgpt":
         try:
-            return gpt.ask(prompt, schema, stdin_text, system, session, keep, timeout)
+            return gpt.ask(prompt, schema, stdin_text, system, session, keep, timeout, images)
         except gpt.GptError as ex:
             raise ClaudeError(str(ex))
+    if images:
+        return _ask_images(prompt, schema, images, system, timeout)
     exe = find_claude()
     if not exe:
         raise ClaudeError("Claude isn't set up yet.")
@@ -174,6 +178,52 @@ def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, ti
                               "few hours; CleanView's own checks still work meanwhile.")
         raise ClaudeError("Claude couldn't answer: " + msg)
     return d["structured_output"], d.get("session_id")
+
+
+def _ask_images(prompt, schema, images, system, timeout):
+    """Claude Code with pictures: the request goes in as one message with the
+    images in it (stream-json), so no tools are needed."""
+    import base64
+    exe = find_claude()
+    if not exe:
+        raise ClaudeError("Claude isn't set up yet.")
+    work = APP_DATA / "claude"
+    work.mkdir(parents=True, exist_ok=True)
+    content = []
+    for label, path in images:
+        content.append({"type": "text", "text": label})
+        content.append({"type": "image", "source": {
+            "type": "base64", "media_type": "image/jpeg",
+            "data": base64.b64encode(Path(path).read_bytes()).decode()}})
+    content.append({"type": "text", "text": prompt})
+    msg = json.dumps({"type": "user", "message": {"role": "user", "content": content}})
+    cmd = [exe, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
+           "--verbose", "--json-schema", json.dumps(schema), "--tools", "",
+           "--strict-mcp-config", "--model", MODEL, "--no-session-persistence"]
+    if system:
+        cmd += ["--system-prompt", system]
+    try:
+        r = subprocess.run(cmd, input=msg + "\n", capture_output=True, text=True, encoding="utf8",
+                           errors="replace", timeout=timeout, cwd=str(work), env=_env(), **_NOWIN)
+    except subprocess.TimeoutExpired:
+        raise ClaudeError("Claude took too long to answer. Try again.")
+    result = {}
+    for line in (r.stdout or "").splitlines():
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("type") == "result":
+            result = ev
+    if result.get("is_error") or "structured_output" not in result:
+        low = str(result.get("result") or r.stderr or r.stdout)[-400:].lower()
+        if any(k in low for k in ("not logged in", "login", "authenticat", "401")):
+            raise ClaudeError("Claude isn't signed in. Use the Sign in button, then try again.")
+        if any(k in low for k in ("usage limit", "rate limit", "limit reached", "quota")):
+            raise ClaudeError("You've reached your Claude usage limit for now. It resets after a "
+                              "few hours; CleanView's own checks still work meanwhile.")
+        raise ClaudeError("Claude couldn't answer: " + low[-300:])
+    return result["structured_output"], None
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +397,10 @@ def candidates(st, with_review=False):
         out.append(f"{i} scene {_t(sc['s'])}-{_t(sc['e'])} [{', '.join(sc.get('kind', []))}] "
                    f"found by: {sc.get('why', '')}; currently "
                    f"{'CUT' if sc.get('cut', True) else 'kept'}{_yours(sc)}. "
-                   f"Said during it: {(sc.get('said') or '(no talking)')[:300]}" + _said(sc, with_review))
+                   f"Said during it: {(sc.get('said') or '(no talking)')[:300]}" +
+                   (f" Already checked by looking at the picture: {sc['claude']['decision']} "
+                    f"({sc['claude'].get('why', '')})." if (sc.get("claude") or {}).get("seen")
+                    else _said(sc, with_review)))
     for k, l in enumerate(st.get("lines", []), 1):
         i = f"L{k}"
         items[i] = ("line", l)
@@ -426,7 +479,9 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         "tick then stays as it is). You can't see the picture, so for scenes found in the "
         "picture or the sound (nudity, kissing, violence, smoking...) say \"can't tell\" "
         "unless the dialogue clearly confirms it (\"remove\") or clearly shows it's a false "
-        "alarm (\"not an issue\", e.g. the 'gunshots' are fireworks at a party).\n"
+        "alarm (\"not an issue\", e.g. the 'gunshots' are fireworks at a party). Scenes "
+        "already checked by looking at the picture are settled: answer \"remove\" or \"not an "
+        "issue\" to match, and leave them out of the summary.\n"
         "2. List dialogue lines that fit what they want removed but are NOT in the list "
         "(\"missed_lines\", by line number; if only one word in it is the problem, also give "
         "that word in \"word\" so only the word is muted), and stretches of conversation that should be cut "
@@ -464,3 +519,90 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         if 0 <= a <= b < len(lines):
             scenes.append({"from": a, "to": b, "why": str(s.get("why", ""))[:140]})
     return items, decisions, missed, scenes, str(res.get("summary", "")).strip()
+
+
+# ---------------------------------------------------------------------------
+# Looking at the picture: contact sheets of the whole episode, and a closer
+# look at each scene the picture checkers found
+# ---------------------------------------------------------------------------
+PIC_KINDS = ["violence", "gore", "nudity", "sex", "kissing", "immodest", "smoking", "drinking",
+             "drugs"]
+PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
+              "You look at still frames and report exactly what is shown. Be accurate: flag what "
+              "is clearly shown, not what might happen off screen.")
+PIC_RULES = (
+    "Be accurate. Police or soldiers simply carrying guns, a hug, a peck on the cheek, a "
+    "hospital or crime-scene photo with no visible wounds, or a glass of water are NOT matches. "
+    "Violence means fighting, hitting, shooting, threatening with a weapon or someone being "
+    "attacked; gore means visible blood, wounds or bodies. For kissing, say who (man & woman, two "
+    "men, two women) and whether it's light or passionate.")
+
+
+def picture_review(sheets, wanted, per_request=12, progress=None):
+    """sheets: [(path, start_seconds)], each 20 stills 2 s apart (5 across, 4 down).
+    wanted: plain text of what to look for. Returns [{"s","e","what","who","level","why"}]."""
+    schema = {"type": "object", "properties": {"found": {"type": "array", "items": {
+        "type": "object", "properties": {
+            "sheet": {"type": "integer"}, "from_tile": {"type": "integer"},
+            "to_tile": {"type": "integer"},
+            "what": {"type": "string", "enum": PIC_KINDS},
+            "who": {"type": "string", "enum": ["man & woman", "two men", "two women", "n/a"]},
+            "level": {"type": "string", "enum": ["light", "passionate", "n/a"]},
+            "why": {"type": "string"}},
+        "required": ["sheet", "from_tile", "to_tile", "what", "who", "level", "why"]}}},
+        "required": ["found"]}
+    out = []
+    batches = [sheets[a:a + per_request] for a in range(0, len(sheets), per_request)]
+    for b, batch in enumerate(batches):
+        if progress:
+            progress(b / len(batches))
+        imgs = [(f"Sheet {k + 1} ({_t(t0)} to {_t(t0 + 40)}):", p) for k, (p, t0) in enumerate(batch)]
+        prompt = (
+            "Each sheet above is 20 stills from one episode or movie, 2 seconds apart, read left "
+            "to right and top to bottom (tiles 1-20, 5 across and 4 down). They want removed:\n" +
+            wanted + "\n\n" + PIC_RULES + "\n\nList every stretch that clearly shows one of "
+            "these, with the sheet number and the first and last tile. If nothing does, return "
+            "an empty list. Keep each \"why\" to a few plain words.")
+        res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
+        for f in res.get("found", []):
+            k = int(f.get("sheet", 0)) - 1
+            if not 0 <= k < len(batch):
+                continue
+            t0 = batch[k][1]
+            a = max(1, min(20, int(f.get("from_tile", 1))))
+            z = max(a, min(20, int(f.get("to_tile", a))))
+            out.append({"s": max(0.0, t0 + (a - 1) * 2 - 1.5), "e": t0 + (z - 1) * 2 + 2.5,
+                        "what": f.get("what"), "who": f.get("who", "n/a"),
+                        "level": f.get("level", "n/a"), "why": str(f.get("why", ""))[:140]})
+    return out
+
+
+def verify_scenes(items, wanted, per_request=10, progress=None):
+    """items: [(scene_id, kind_text, why_found, sheet_path)], each sheet 6 stills of that
+    scene (3 across, 2 down). Returns {scene_id: (decision, why)}."""
+    schema = {"type": "object", "properties": {"decisions": {"type": "array", "items": {
+        "type": "object", "properties": {
+            "scene": {"type": "integer"},
+            "decision": {"type": "string", "enum": ["remove", "not an issue", "can't tell"]},
+            "why": {"type": "string"}},
+        "required": ["scene", "decision", "why"]}}}, "required": ["decisions"]}
+    out = {}
+    batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
+    for b, batch in enumerate(batches):
+        if progress:
+            progress(b / len(batches))
+        imgs = [(f"Scene {k + 1}: flagged by the automatic checker as {kind} ({why}). 6 stills:",
+                 p) for k, (_, kind, why, p) in enumerate(batch)]
+        prompt = (
+            "Each numbered scene above was flagged by an automatic picture checker, which often "
+            "makes mistakes (dark frames, hugs, ordinary police scenes). They want removed:\n" +
+            wanted + "\n\n" + PIC_RULES + "\n\nFor EVERY scene give a decision: \"remove\" if the "
+            "stills really show what it was flagged for (or anything else they want removed), "
+            "\"not an issue\" if it's a false alarm, or \"can't tell\". Keep each \"why\" to a "
+            "few plain words.")
+        res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
+        for d in res.get("decisions", []):
+            k = int(d.get("scene", 0)) - 1
+            if 0 <= k < len(batch):
+                out[batch[k][0]] = (d.get("decision"), str(d.get("why", ""))[:140])
+    return out
