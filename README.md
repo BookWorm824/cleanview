@@ -64,13 +64,22 @@ looks for scenes, and Ollama plus its two AI models (about 11 GB) if the AI help
   comes back. Every Claude finding is also kept in
   %LOCALAPPDATA%\CleanView\claude_findings.csv, which opens in Excel ("Claude's findings"
   button on the Ask Claude tab).
+- "Send what CleanView learned…" on the start page saves everything it has learned into one
+  file. Send that file in and it gets merged into shared_learned.json, which comes with every
+  CleanView update, so every copy starts with it, including people without Claude or ChatGPT.
+  Your own choices always win over the shared ones.
 
-## Claude
+## Claude or ChatGPT (optional)
+
+Everything works without them: the AI on your PC reads the dialogue, for free, and nothing
+leaves your PC. If you have Claude or ChatGPT, it's more accurate.
 
 Choose "Claude" under "Who reads the dialogue" and CleanView sets up Claude Code
 (Anthropic's own program) and has you sign in with your Claude account once. It then uses
 your Claude plan (Pro, Max, Team or Enterprise; usage counts toward the same limits as the
-Claude app) with no API key. Claude reads the episode's dialogue for the dialogue filters,
+Claude app) with no API key. Choose "ChatGPT" and it sets up Codex (OpenAI's own program) the
+same way, using your ChatGPT plan (Plus, Pro, Business...) with no API key. Everything below
+works the same with either one. Claude reads the episode's dialogue for the dialogue filters,
 including flirting and romance across a whole conversation.
 
 Claude then does a final review of the whole episode: it looks over everything the other

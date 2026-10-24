@@ -43,6 +43,7 @@ VISUAL_FPS = 2.0
 # ---------------------------------------------------------------------------
 # Options and one-time tools
 # ---------------------------------------------------------------------------
+CLOUD = ("claude", "chatgpt")      # readers that use your Claude or ChatGPT plan
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying")
 DEFAULTS = {"nudity": True, "sex": True, "violence": True, "gore": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
@@ -74,7 +75,7 @@ def needs(opts):
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"],
-            "voices": (o["ai"] or o.get("reader") == "claude") and bool(lines),
+            "voices": (o["ai"] or o.get("reader") in CLOUD) and bool(lines),
             "subs": o.get("autosubs", True),
             "nudenet": o["nudity"] or o["sex"],
             "clip": clip_cats,
@@ -855,6 +856,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
+              "shared": "CleanView learned",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
@@ -1032,14 +1034,15 @@ def apply_review(st, result):
             sc = over[0]
             sc["s"], sc["e"] = round(min(sc["s"], a), 2), round(max(sc["e"], b), 2)
             sc["cut"] = True
-            sc["claude"] = {"decision": "remove", "why": s["why"] + " (widened by Claude)"}
+            sc["claude"] = {"decision": "remove", "why": s["why"] + f" (widened by {st.get('reviewer', 'Claude')})"}
             sc["said"] = " ".join(l["text"] for l in lines if sc["s"] - 0.5 <= l["s"] <= sc["e"])[:600]
             sc.pop("thumbs", None)
             n_add += 1
             continue
         st["scenes"].append({"id": max([sc.get("id", 0) for sc in st["scenes"]] + [0]) + 1,
                              "s": round(a, 2), "e": round(b, 2),
-                             "kind": ["Found by Claude"], "why": s["why"], "cut": True,
+                             "kind": ["Found by " + st.get("reviewer", "Claude")],
+                             "why": s["why"], "cut": True,
                              "said": " ".join(l["text"] for l in lines[s["from"]:s["to"] + 1])[:600],
                              "claude": {"decision": "remove", "why": s["why"]}})
         n_add += 1
@@ -1052,12 +1055,14 @@ def apply_review(st, result):
 def claude_review(st, work=None):
     """Claude's final review of everything found (also used by the
     "Review everything again" button). Raises cc.ClaudeError."""
+    st["reviewer"] = cc.name()
     res = cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
                     learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")))
     n = apply_review(st, res)
-    st["notes"] = [x for x in st.get("notes", []) if not x.startswith("Claude reviewed everything")]
+    who = st.get("reviewer", "Claude")
+    st["notes"] = [x for x in st.get("notes", []) if " reviewed everything:" not in x]
     nw = st["claude_counts"].get("words", 0)
-    st["notes"].append(f"Claude reviewed everything: {n[0]} found item(s) look fine in context "
+    st["notes"].append(f"{who} reviewed everything: {n[0]} found item(s) look fine in context "
                        f"and were unticked, {n[1]} missed item(s) were added"
                        + (f", and {nw} line(s) now mute just the bad word instead of the whole line"
                           if nw else "") + ".")
@@ -1150,7 +1155,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
     found, how = {}, "word lists"
     if claude_found is not None:
         found = {i: set(t) for i, t in claude_found.items()}
-        how = "Claude"
+        how = cc.name()
     elif have_ai:
         try:
             found = ai.classify_dialogue(lines, wanted, progress, cancel, genders=genders,
@@ -1370,7 +1375,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     title = guess_title(path)
     key = learn.show_key(title)
     examples = learn.examples(key)
-    use_claude = o.get("reader") == "claude" and bool(nd["lines"]) and bool(lines)
+    if o.get("reader") in CLOUD:
+        cc.use(o["reader"])
+    who = cc.name()
+    use_claude = o.get("reader") in CLOUD and bool(nd["lines"]) and bool(lines)
     if (have_ai or use_claude) and nd["lines"] and lines:
         say(at("lines", 0), "Telling voices apart…")
         try:
@@ -1395,7 +1403,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             notes.append(f"Voices couldn't be told apart this time ({str(ex)[:80]}).")
     claude_found, claude_scenes = None, []
     if use_claude:
-        say(at("lines", 0.1), "Claude is reading the dialogue…")
+        say(at("lines", 0.1), f"{who} is reading the dialogue…")
         try:
             claude_found, claude_scenes = cc.check_dialogue(
                 lines, genders, [k for k in LINE_KINDS if o[k]], examples)
@@ -1405,7 +1413,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                         claude_found.setdefault(i, set()).add(c["type"])
         except cc.ClaudeError as ex:
             claude_found = None
-            notes.append(f"Claude couldn't read the dialogue this time: {ex}")
+            notes.append(f"{who} couldn't read the dialogue this time: {ex}")
     line_mutes, line_how = find_lines(
         lines, o, have_ai and claude_found is None,
         lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
@@ -1463,7 +1471,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     for l in learned_lines:
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),
                            "e": round(l["e"], 2), "text": l["text"], "plain": l["text"],
-                           "types": ["learned"], "mute": True, "idx": lines.index(l)})
+                           "types": ["learned" if l.get("learned_from") == "you" else "shared"],
+                           "mute": True,
+                           "idx": next(k for k, x in enumerate(lines)
+                                       if x["s"] == l["s"] and x["text"] == l["text"])})
     line_mutes.sort(key=lambda l: l["s"])
     notes += learned_notes
 
@@ -1471,18 +1482,19 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
           "lines": line_mutes, "cues": cues, "show": key,
           "dialogue": [{"s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
                         "who": l.get("who", "")} for l in lines],
-          "voices": genders, "reader": "Claude" if claude_found is not None else line_how,
+          "voices": genders, "reader": who if claude_found is not None else line_how,
+          "reviewer": who if o.get("reader") in CLOUD else None,
           "sub_note": sub_note, "notes": notes,
           "asr": [[w["t"], round(w["s"], 2), round(w["e"], 2)] for w in asr],
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
           "used_clip": use_clip}
     # Claude's final review: everything above, judged together in context
-    if o.get("reader") == "claude" and (lines or scenes or mutes):
-        say(at("end", 0.75), "Claude is reviewing everything that was found…")
+    if o.get("reader") in CLOUD and (lines or scenes or mutes):
+        say(at("end", 0.75), f"{who} is reviewing everything that was found…")
         try:
             claude_review(st)
         except cc.ClaudeError as ex:
-            notes.append(f"Claude couldn't do the final review this time: {ex}")
+            notes.append(f"{who} couldn't do the final review this time: {ex}")
         except Exception as ex:          # never lose the scan over the review
             notes.append(f"Claude's final review didn't work this time ({str(ex)[:80]}).")
     make_thumbs(path, st["scenes"], work)
@@ -1755,7 +1767,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         rep.append("Only the main soundtrack was kept (other languages and commentary "
                    "weren't cleaned, so they were left out).")
     rep.append("")
-    events = [(m["s"], f"muted  {m['word']}" + ("" if m["src"] == "audio" else "   (caught by subtitles)"))
+    src_note = {"audio": "", "claude": f"   (only this word, per {st.get('reviewer') or 'the AI review'})",
+                "claude-estimated": f"   (only this word, per {st.get('reviewer') or 'the AI review'})"}
+    events = [(m["s"], f"muted  {m['word']}" + src_note.get(m.get("src"), "   (caught by subtitles)"))
               for m in st["mutes"]]
     events += [(l["s"], "muted line  (" + ", ".join(LINE_LABEL.get(t, t) for t in l["types"]) + ")")
                for l in lines]

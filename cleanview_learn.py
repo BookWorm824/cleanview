@@ -14,6 +14,10 @@ What CleanView learns from your choices on the review page, kept per show
   and words Claude said were fine in a phrase ("Hell's Kitchen") start
   unticked when that phrase comes back.
 - Every Claude finding is also kept in claude_findings.csv (opens in Excel).
+- export() puts everything learned into one file to send in, so it can be
+  merged into shared_learned.json, which ships with CleanView updates and
+  gives every copy (people without Claude or ChatGPT too) the same head start.
+  Your own choices always beat the shared ones.
 """
 import csv
 import json
@@ -25,6 +29,30 @@ from pathlib import Path
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 DIR = APP_DATA / "learned"
 MAX_LINES = 400
+
+
+HERE = Path(__file__).resolve().parent
+SHARED_PATH = HERE / "shared_learned.json"
+_shared = None
+
+
+def shared():
+    """Built-in knowledge that comes with CleanView updates:
+    {"shows": {key: {"muted": [], "kept": [], "ok_words": []}}, "general": {...}}."""
+    global _shared
+    if _shared is None:
+        try:
+            _shared = json.loads(SHARED_PATH.read_text("utf8"))
+        except Exception:
+            _shared = {}
+        _shared.setdefault("shows", {})
+        _shared.setdefault("general", {})
+    return _shared
+
+
+def _sh(key, k):
+    s = shared()
+    return list(s["shows"].get(key, {}).get(k, [])) + list(s["general"].get(k, []))
 
 
 def show_key(title):
@@ -112,6 +140,9 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
     notes = []
     muted, kept = set(d["muted"]), set(d["kept"])
     kept |= set(d["claude_kept"]) - muted          # Claude's calls, unless you decided otherwise
+    shared_muted = set(_sh(key, "muted")) - kept - set(d["claude_kept"])
+    kept |= set(_sh(key, "kept")) - muted - shared_muted
+    muted |= shared_muted
     flagged_at = {(round(l["s"], 2), round(l["e"], 2)) for l in line_flags}
     n_kept = 0
     for l in line_flags:
@@ -119,14 +150,17 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
         if n in kept:
             l["mute"] = False
             l["learned"] = ("you left this unmuted before" if n in d["kept"] else
-                            "Claude said this was fine before")
+                            "Claude said this was fine before" if n in d["claude_kept"] else
+                            "CleanView learned this is fine")
             n_kept += 1
     added = []
+    mine_muted = set(d["muted"])
     for l in dialogue:
         if (round(l["s"], 2), round(l["e"], 2)) in flagged_at:
             continue
-        if norm(l["text"]) in muted:
-            added.append(l)
+        n = norm(l["text"])
+        if n in muted:
+            added.append(dict(l, learned_from="you" if n in mine_muted else "shared"))
     n_sc = 0
     for sc in scenes:
         s = d["scenes"].get(scene_kind(sc))
@@ -137,7 +171,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
                 sc["why"] = (sc.get("why") or "") + " (you usually keep these in this show)"
                 n_sc += 1
     n_w = 0
-    ok_words = set(d["claude_ok_words"])
+    ok_words = set(d["claude_ok_words"]) | set(_sh(key, "ok_words"))
     for m in mutes:
         s = d["words"].get(m.get("raw") or m.get("word", ""))
         if s and s["kept"] >= 2 and s["muted"] == 0:
@@ -146,14 +180,20 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
             n_w += 1
         elif _phrase(m) in ok_words and not (s and s["muted"]):
             m["keep"] = True
-            m["learned"] = "Claude said this was fine here before"
+            m["learned"] = ("Claude said this was fine here before"
+                            if _phrase(m) in d["claude_ok_words"] else
+                            "CleanView learned this is fine here")
             n_w += 1
-    if added:
-        notes.append(f"Muted {len(added)} line(s) you muted before in this show.")
+    n_you = sum(1 for l in added if l["learned_from"] == "you")
+    if n_you:
+        notes.append(f"Muted {n_you} line(s) you muted before in this show.")
+    if len(added) - n_you:
+        notes.append(f"Muted {len(added) - n_you} line(s) CleanView has learned to mute in this "
+                     "show.")
     if n_kept or n_sc or n_w:
         bits = [f"{n_kept} line(s)" if n_kept else "", f"{n_sc} scene(s)" if n_sc else "",
                 f"{n_w} word(s)" if n_w else ""]
-        notes.append("Left unticked because of past choices (yours, and Claude's): " +
+        notes.append("Left unticked because of what CleanView has learned: " +
                      ", ".join(b for b in bits if b) + ".")
     return added, notes
 
@@ -172,8 +212,38 @@ def examples(key):
     for k in ("muted", "kept"):
         mine = d[k][-15:]
         theirs = [t for t in d["claude_" + k][::-1] if t not in mine][:15 - len(mine)]
-        out[k] = mine + theirs
+        built_in = [t for t in _sh(key, k)[::-1] if t not in mine + theirs]
+        out[k] = (mine + theirs + built_in)[:15]
     return out
+
+
+def export(dest_dir=None):
+    """Everything CleanView has learned on this PC, in one file to send in.
+    Returns the file's path."""
+    out = {"what": "CleanView learned", "date": date.today().isoformat(), "shows": {},
+           "findings": []}
+    try:
+        out["version"] = json.loads((HERE / "version.json").read_text())["version"]
+    except Exception:
+        pass
+    if DIR.exists():
+        for f in sorted(DIR.glob("*.json")):
+            try:
+                out["shows"][f.stem] = json.loads(f.read_text("utf8"))
+            except Exception:
+                pass
+    if FINDINGS.exists():
+        for f in sorted(FINDINGS.glob("*.json")):
+            try:
+                out["findings"].append(json.loads(f.read_text("utf8")))
+            except Exception:
+                pass
+    dest = Path(dest_dir) if dest_dir else next(
+        (d for d in (Path.home() / "OneDrive" / "Desktop", Path.home() / "Desktop",
+                     Path.home() / "Documents") if d.exists()), Path.home())
+    path = dest / f"CleanView learned {out['date']}.json"
+    path.write_text(json.dumps(out, indent=1), encoding="utf8")
+    return path
 
 
 FINDINGS = APP_DATA / "claude_findings"
@@ -223,19 +293,21 @@ def record_claude(st):
         FINDINGS.mkdir(parents=True, exist_ok=True)
         name = re.sub(r"[^A-Za-z0-9._ -]+", "_", video) or "video"
         (FINDINGS / f"{name}.json").write_text(json.dumps(
-            {"show": key, "date": date.today().isoformat(), "rows": rows}), encoding="utf8")
+            {"show": key, "date": date.today().isoformat(), "rows": rows,
+             "reviewer": st.get("reviewer") or "Claude"}), encoding="utf8")
         allrows = []
         for f in sorted(FINDINGS.glob("*.json")):
             try:
                 j = json.loads(f.read_text("utf8"))
             except Exception:
                 continue
-            allrows += [[j.get("date", ""), j.get("show", "")] + r for r in j.get("rows", [])]
+            allrows += [[j.get("date", ""), j.get("show", ""), r[0], j.get("reviewer", "Claude")]
+                        + r[1:] for r in j.get("rows", [])]
         tmp = CSV_PATH.with_suffix(".tmp")
         with open(tmp, "w", newline="", encoding="utf-8-sig") as fh:
             w = csv.writer(fh)
-            w.writerow(["Date", "Show", "Video", "Time", "What", "Flagged as", "Text",
-                        "Claude said", "Word", "Why"])
+            w.writerow(["Date", "Show", "Video", "Reviewer", "Time", "What", "Flagged as",
+                        "Text", "Verdict", "Word", "Why"])
             w.writerows(allrows)
         os.replace(tmp, CSV_PATH)
     except OSError:

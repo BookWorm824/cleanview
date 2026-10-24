@@ -27,24 +27,26 @@ CHIP = {"Nudity": "#B5523B", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#
         "Bullying": "#8A4B2E"}
 
 
-CHIP["Found"] = CHIP["Claude"] = "#C2581F"
+CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
 
 
 def chip_color(label):
     return CHIP.get(label.split(" ")[0], "#2F6F62")
 
 
-CLAUDE_SAYS = {"remove": ("Claude: remove", "#8E2B2B"),
-               "not an issue": ("Claude: not an issue", "#2E7D4F"),
-               "just the word": ("Claude: mute just the word", "#A0663A"),
-               "can't tell": ("Claude: can't tell", "#6D6862")}
+AI_NAME = "Claude"      # whichever online AI did the review (Claude or ChatGPT)
+CLAUDE_SAYS = {"remove": ("remove", "#8E2B2B"),
+               "not an issue": ("not an issue", "#2E7D4F"),
+               "just the word": ("mute just the word", "#A0663A"),
+               "can't tell": ("can't tell", "#6D6862")}
 
 
 def claude_note(item, on=None):
     c = item.get("claude")
     if not c:
         return None, None
-    head, col = CLAUDE_SAYS.get(c.get("decision"), ("Claude", "#6D6862"))
+    head, col = CLAUDE_SAYS.get(c.get("decision"), ("", "#6D6862"))
+    head = AI_NAME + ": " + head
     if c.get("word"):
         head += " " + ", ".join(f"\u201c{w.strip()}\u201d" for w in re.split(r"[|,]", c["word"])
                                if w.strip()) + " (the rest of the line stays)"
@@ -206,6 +208,8 @@ class App(tk.Tk):
         self.start_btn = ttk.Button(self.footer, text="Start cleaning", style="Accent.TButton",
                                     command=self.start, state="disabled")
         self.start_btn.pack(side="right")
+        ttk.Button(self.footer, text="Send what CleanView learned\u2026", style="Plain.TButton",
+                   command=self.share_learned).pack(side="left")
         body = self._scroll_area(p)
 
         self.opts = {}
@@ -302,22 +306,25 @@ class App(tk.Tk):
                  font=(FONT, 10, "bold")).pack(anchor="w", pady=(10, 2))
         v = tk.StringVar(value=saved.get("reader", "local"))
         self.opts["reader"] = v
-        ttk.Radiobutton(b25, text="The AI on this PC", value="local", variable=v,
-                        style="Card.TRadiobutton").pack(anchor="w")
+        ttk.Radiobutton(b25, text="The AI on this PC  (free, nothing leaves your PC)", value="local",
+                        variable=v, style="Card.TRadiobutton").pack(anchor="w")
         ttk.Radiobutton(b25, text="Claude  (more accurate; uses your Claude plan)", value="claude",
                         variable=v, style="Card.TRadiobutton").pack(anchor="w")
+        ttk.Radiobutton(b25, text="ChatGPT  (more accurate; uses your ChatGPT plan)",
+                        value="chatgpt", variable=v, style="Card.TRadiobutton").pack(anchor="w")
         crow = tk.Frame(b25, bg=CARD)
         crow.pack(fill="x", padx=(22, 0), pady=(2, 0))
-        self.claude_lbl = tk.Label(crow, text="Checking Claude\u2026", bg=CARD, fg=MUTED,
+        self.claude_lbl = tk.Label(crow, text="", bg=CARD, fg=MUTED,
                                    font=(FONT, 9), wraplength=430, justify="left")
         self.claude_lbl.pack(side="left")
-        self.claude_btn = ttk.Button(crow, text="Set up Claude", style="Small.TButton",
+        self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
                                      command=self.setup_claude)
-        tk.Label(b25, text="Only the words that are said are sent to Claude, never the video or "
-                 "sound. It also adds an \u201cAsk Claude\u201d chat to the review page.", bg=CARD,
-                 fg=MUTED, font=(FONT, 9), wraplength=640, justify="left").pack(anchor="w",
-                                                                             padx=(22, 0))
-        self.check_claude()
+        self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=640,
+                                   justify="left")
+        self.cloud_note.pack(anchor="w", padx=(22, 0))
+        self.ai_state = getattr(self, "ai_state", {})
+        v.trace_add("write", lambda *_: self._reader_changed())
+        self._reader_changed()
 
         b3 = self._card(body, "4", "Save to")
         row = tk.Frame(b3, bg=CARD)
@@ -331,48 +338,105 @@ class App(tk.Tk):
                  font=(FONT, 9)).pack(anchor="w", pady=(6, 0))
         self._refresh_labels()
 
-    # ---------- Claude ----------
-    def check_claude(self):
-        def go():
-            self.q.put(("claude_status", cc.status()))
-        threading.Thread(target=go, daemon=True).start()
+    def share_learned(self):
+        try:
+            path = learn.export()
+        except Exception as ex:
+            messagebox.showerror("CleanView", f"Couldn't save the file: {ex}")
+            return
+        if os.name == "nt":
+            subprocess.Popen(["explorer", "/select,", str(path)])
+        messagebox.showinfo(
+            "CleanView",
+            f"Saved as \u201c{path.name}\u201d in {path.parent}.\n\n"
+            "Attach that file in your chat with Claude and ask for it to be added to CleanView. "
+            "Once it's added, every copy of CleanView (yours, and anyone you've shared it with) "
+            "gets what it learned with the next update.\n\n"
+            "It has the lines and words you and the AI muted or kept, and its notes. No video "
+            "or sound.")
 
-    def _show_claude_status(self, st):
-        self.claude_state = st
+    # ---------- Claude / ChatGPT ----------
+    def _cloud(self):
+        """The online AI picked under "Who reads the dialogue", or None."""
+        r = self.opts["reader"].get() if "reader" in getattr(self, "opts", {}) else None
+        return r if r in ("claude", "chatgpt") else None
+
+    def _reader_changed(self):
+        p = self._cloud()
         lbl = getattr(self, "claude_lbl", None)
         if lbl is None or not lbl.winfo_exists():
             return
-        text = {"ready": "\u2713 Claude is set up and signed in.",
-                "signed_out": "Claude is installed but not signed in yet.",
-                "missing": "Claude isn't set up on this PC yet (one time, a few minutes)."}[st]
+        if not p:
+            lbl.config(text="")
+            self.claude_btn.pack_forget()
+            self.cloud_note.config(text="Want it more accurate? Pick Claude or ChatGPT if you "
+                                   "have either one. Everything works without them too.")
+            return
+        n = cc.name(p)
+        self.cloud_note.config(text=f"Only the words that are said are sent to {n}, never the "
+                               f"video or sound. {n} also reviews everything that was found, "
+                               f"and you can chat with it on the review page.")
+        if p in self.ai_state:
+            self._show_claude_status((p, self.ai_state[p]))
+        else:
+            lbl.config(text=f"Checking {n}\u2026", fg=MUTED)
+            self.claude_btn.pack_forget()
+            self.check_claude(p)
+
+    def check_claude(self, provider=None):
+        p = provider or self._cloud()
+        if not p:
+            return
+
+        def go():
+            self.q.put(("claude_status", (p, cc.status(p))))
+        threading.Thread(target=go, daemon=True).start()
+
+    def _show_claude_status(self, msg):
+        p, st = msg if isinstance(msg, tuple) else ("claude", msg)
+        self.ai_state = getattr(self, "ai_state", {})
+        self.ai_state[p] = st
+        if p == "claude":
+            self.claude_state = st
+        lbl = getattr(self, "claude_lbl", None)
+        if lbl is None or not lbl.winfo_exists() or self._cloud() != p:
+            return
+        n = cc.name(p)
+        text = {"ready": f"\u2713 {n} is set up and signed in.",
+                "signed_out": f"{n} is installed but not signed in yet.",
+                "missing": f"{n} isn't set up on this PC yet (one time, a few minutes)."}[st]
         lbl.config(text=text, fg=ACCENT_DK if st == "ready" else MUTED)
         if st == "ready":
             self.claude_btn.pack_forget()
         else:
-            self.claude_btn.config(text="Sign in to Claude" if st == "signed_out" else "Set up Claude",
+            self.claude_btn.config(text=f"Sign in to {n}" if st == "signed_out" else f"Set up {n}",
                                    state="normal")
             self.claude_btn.pack(side="left", padx=(10, 0))
 
     def setup_claude(self):
+        p = self._cloud()
+        if not p:
+            return
+        n = cc.name(p)
         self.claude_btn.config(state="disabled")
-        self.claude_lbl.config(text="Setting up Claude\u2026 (this can take a few minutes)")
+        self.claude_lbl.config(text=f"Setting up {n}\u2026 (this can take a few minutes)")
 
         def go():
+            import time
             try:
-                if not cc.find_claude():
-                    cc.install_claude()
-                if not cc.signed_in():
-                    cc.open_sign_in()
-                    self.q.put(("claude_wait",))
+                if not cc.is_installed(p):
+                    cc.install(p)
+                if not cc.is_signed_in(p):
+                    cc.sign_in(p)
+                    self.q.put(("claude_wait", n))
                     for _ in range(180):          # wait up to 6 minutes for the sign-in
-                        import time
                         time.sleep(2)
-                        if cc.signed_in():
+                        if cc.is_signed_in(p):
                             break
-                self.q.put(("claude_status", cc.status()))
+                self.q.put(("claude_status", (p, cc.status(p))))
             except Exception as ex:
-                self.q.put(("warn", f"Claude couldn't be set up: {ex}"))
-                self.q.put(("claude_status", cc.status()))
+                self.q.put(("warn", f"{n} couldn't be set up: {ex}"))
+                self.q.put(("claude_status", (p, cc.status(p))))
         threading.Thread(target=go, daemon=True).start()
 
     def _load_settings(self):
@@ -439,9 +503,10 @@ class App(tk.Tk):
     # ---------- page 2: working ----------
     def start(self):
         o = self._current_opts()
-        if o.get("reader") == "claude" and getattr(self, "claude_state", "ready") != "ready":
-            if not messagebox.askyesno("CleanView", "Claude isn't set up yet, so the AI on this "
-                                       "PC will read the dialogue this time.\n\nGo ahead?"):
+        p = o.get("reader")
+        if p in ("claude", "chatgpt") and getattr(self, "ai_state", {}).get(p, "ready") != "ready":
+            if not messagebox.askyesno("CleanView", f"{cc.name(p)} isn't set up yet, so the AI on "
+                                       "this PC will read the dialogue this time.\n\nGo ahead?"):
                 return
             o["reader"] = "local"
         word_groups = ("swearing", "mild", "deity", "minced", "samesexwords")
@@ -598,8 +663,29 @@ class App(tk.Tk):
         self.show_review()   # always: so every mute and cut can be seen and unticked
 
     # ---------- page 3: review ----------
+    def _pick_review_ai(self, good):
+        """Claude or ChatGPT for this review page: the one that did the review,
+        else the one picked on the start page, else any that's ready, else None."""
+        by_name = {v: k for k, v in cc.NAMES.items()}
+        for j in good:
+            r = by_name.get(j["analysis"].get("reviewer") or "")
+            if r:
+                return r
+        r = self._cloud() if hasattr(self, "opts") else None
+        if r:
+            return r
+        for p, stt in getattr(self, "ai_state", {}).items():
+            if stt == "ready":
+                return p
+        return None
+
     def show_review(self):
+        global AI_NAME
         good = [j for j in self.jobs if j["analysis"]]
+        self.review_ai = self._pick_review_ai(good)
+        AI_NAME = cc.name(self.review_ai)
+        if self.review_ai:
+            cc.use(self.review_ai)
         n = sum(len(j["analysis"]["scenes"]) for j in good)
         nl = sum(len(j["analysis"].get("lines", [])) for j in good)
         nw = sum(len(j["analysis"]["mutes"]) for j in good)
@@ -614,8 +700,9 @@ class App(tk.Tk):
                  parts[0] if parts else "Nothing found") + (" to check" if parts else "")
         p = self._new_page(title,
                            "Checked scenes will be cut and checked words and lines muted. Untick "
-                           "anything you want to keep, and use \u201cAll dialogue\u201d or "
-                           "\u201cAsk Claude\u201d to add anything it missed.")
+                           "anything you want to keep, and use \u201cAll dialogue\u201d" +
+                           (f" or \u201cAsk {AI_NAME}\u201d" if self.review_ai else "") +
+                           " to add anything it missed.")
         self.scene_vars, self.line_vars, self.word_vars = [], [], []
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
         self.found_frames = {}
@@ -627,7 +714,7 @@ class App(tk.Tk):
         t_chat = tk.Frame(nb, bg=BG)
         nb.add(t_found, text="  Found  ")
         nb.add(t_dlg, text="  All dialogue  ")
-        nb.add(t_chat, text="  Ask Claude  ")
+        nb.add(t_chat, text=f"  Ask {AI_NAME if self.review_ai else 'Claude or ChatGPT'}  ")
 
         # Found
         add = tk.Frame(t_found, bg=BG)
@@ -658,7 +745,8 @@ class App(tk.Tk):
                 box = tk.Frame(inner, bg="#FFF4EC", padx=12, pady=8, highlightbackground="#E9C9B3",
                                highlightthickness=1)
                 box.pack(fill="x", padx=8, pady=(8, 4))
-                tk.Label(box, text="Claude's review", bg="#FFF4EC", fg="#C2581F",
+                tk.Label(box, text=f"{st.get('reviewer') or AI_NAME}'s review", bg="#FFF4EC",
+                         fg="#C2581F",
                          font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
                 tk.Label(box, text=st["claude_summary"], bg="#FFF4EC", fg=INK, font=(FONT, 10),
                          wraplength=700, justify="left", anchor="w").pack(fill="x")
@@ -838,23 +926,28 @@ class App(tk.Tk):
         self.chat_job.current(min(getattr(self, "_chat_ji", 0), len(good) - 1))
         if len(good) > 1:
             self.chat_job.pack(side="left")
-        state = getattr(self, "claude_state", None) or cc.status()
+        p = self.review_ai
+        n = cc.name(p)
+        state = (getattr(self, "ai_state", {}).get(p) or cc.status(p)) if p else "none"
         if state != "ready":
-            msg = ("Claude isn't set up yet. Go back to the start page and use \u201cSet up "
-                   "Claude\u201d under AI helper, then run this again." if state == "missing" else
-                   "Claude isn't signed in yet. Use \u201cSign in to Claude\u201d on the start page.")
+            msg = {"none": "This needs Claude or ChatGPT. If you have either one, pick it under "
+                           "\u201cWho reads the dialogue\u201d on the start page and set it up. "
+                           "Everything else works without them.",
+                   "missing": f"{n} isn't set up yet. Go back to the start page and use "
+                              f"\u201cSet up {n}\u201d under AI helper, then run this again."}.get(
+                state, f"{n} isn't signed in yet. Use \u201cSign in to {n}\u201d on the start page.")
             tk.Label(tab, text=msg, bg=BG, fg=INK, font=(FONT, 10), wraplength=700,
                      justify="left").pack(anchor="w", pady=20)
             return
         self.review_btn = ttk.Button(top, text="Review everything again", style="Accent.TButton",
                                      command=self._rereview)
         self.review_btn.pack(side="right")
-        ttk.Button(top, text="Claude's findings (spreadsheet)", style="Small.TButton",
+        ttk.Button(top, text=f"{n}'s findings (spreadsheet)", style="Small.TButton",
                    command=self._open_findings).pack(side="right", padx=(0, 8))
-        tk.Label(tab, text="\u201cReview everything again\u201d has Claude look over every scene, "
+        tk.Label(tab, text=f"\u201cReview everything again\u201d has {n} look over every scene, "
                  "line and word on the Found tab (including what you've added or unticked) "
                  "together with the whole dialogue, and decide what really needs removing, what's "
-                 "a false alarm and what was missed. Your own changes are never undone. Claude's "
+                 f"a false alarm and what was missed. Your own changes are never undone. {n}'s "
                  "calls are also saved to teach the AI on this PC, and kept in a spreadsheet.",
                  bg=BG, fg=MUTED, font=(FONT, 9), wraplength=720, justify="left").pack(anchor="w")
         tk.Label(tab, text="You can also ask about this episode below, e.g. \u201cIs there any "
@@ -884,8 +977,8 @@ class App(tk.Tk):
         if learn.CSV_PATH.exists():
             open_path(str(learn.CSV_PATH))
         else:
-            messagebox.showinfo("CleanView", "Nothing saved yet. Claude's findings are saved "
-                                "each time it reviews an episode.")
+            messagebox.showinfo("CleanView", "Nothing saved yet. Findings are saved each time "
+                                "Claude or ChatGPT reviews an episode.")
 
     def _sync_job(self, job):
         """Copy the ticks on screen (and anything added) back into the analysis,
@@ -930,7 +1023,8 @@ class App(tk.Tk):
             self._sync_job(j)
         self.review_btn.config(state="disabled")
         self.chat_btn.config(state="disabled")
-        self._log("Claude is reviewing everything that was found, with the whole dialogue. "
+        cc.use(self.review_ai)
+        self._log(f"{AI_NAME} is reviewing everything that was found, with the whole dialogue. "
                   "This can take a minute or two\u2026", "note")
 
         def go():
@@ -950,7 +1044,7 @@ class App(tk.Tk):
             return
         st = job["analysis"]
         cnt = st.get("claude_counts") or {}
-        self._log("Claude's review: " + (st.get("claude_summary") or "done."))
+        self._log(f"{AI_NAME}'s review: " + (st.get("claude_summary") or "done."))
         self._log(f"Unticked {cnt.get('dropped', 0)} false alarm(s), added {cnt.get('added', 0)} "
                   "missed item(s)" + (f", {cnt['words']} line(s) now mute just the bad word"
                                       if cnt.get("words") else "") +
@@ -974,7 +1068,8 @@ class App(tk.Tk):
         self.chat_entry.delete(0, "end")
         self.chat_btn.config(state="disabled")
         self._log("You: " + qtext, "you")
-        self._log("Claude is reading the dialogue\u2026", "note")
+        cc.use(self.review_ai)
+        self._log(f"{AI_NAME} is reading the dialogue\u2026", "note")
         st = job["analysis"]
         self._sync_job(job)
         flagged = cc.candidates(st, with_review=True)[1]
@@ -1013,7 +1108,7 @@ class App(tk.Tk):
                 self.chat_history = [h for h in self.chat_history
                                      if "reading the dialogue" not in h[0]]
         log.configure(state="disabled")
-        self._log("Claude: " + reply)
+        self._log(f"{AI_NAME}: " + reply)
         if not mute and not scenes:
             return
         d = job["analysis"]["dialogue"]
@@ -1035,7 +1130,8 @@ class App(tk.Tk):
                 self._dlg_var(job["_ji"], i).set(True)
             for c in scenes:
                 self._add_scene(job, max(0.0, d[c["from"]]["s"] - 0.5), d[c["to"]]["e"] + 0.5,
-                                c["why"] or "Claude found this", kind="Suggested by Claude",
+                                c["why"] or f"{AI_NAME} found this",
+                                kind=f"Suggested by {AI_NAME}",
                                 said=" ".join(l["text"] for l in d[c["from"]:c["to"] + 1]))
             self._fill_dialogue()
             btn.config(text="\u2713 Added", state="disabled")
@@ -1080,7 +1176,7 @@ class App(tk.Tk):
             self.line_vars.append((v, job, l))
             ttk.Checkbutton(row, text=engine.cl.fmt_t(l["s"]), variable=v).pack(side="left", anchor="n")
             for t in l["types"]:
-                name = engine.LINE_LABEL.get(t, t)
+                name = f"Found by {AI_NAME}" if t == "claude" else engine.LINE_LABEL.get(t, t)
                 tk.Label(row, text=name, bg=chip_color(name), fg="white", font=(FONT, 8, "bold"),
                          padx=6).pack(side="left", padx=(8, 0), anchor="n")
             txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"

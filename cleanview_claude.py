@@ -1,9 +1,12 @@
 """
-Claude inside CleanView, through Claude Code on this PC.
+Claude (or ChatGPT) inside CleanView.
 
-Claude Code is Anthropic's own program. Signed in with your Claude account,
-it uses your Claude plan (no API key, nothing extra to pay). CleanView sends
-it only the episode's dialogue as text, never any video or sound.
+Claude goes through Claude Code, Anthropic's own program: signed in with your
+Claude account it uses your Claude plan. ChatGPT goes through Codex, OpenAI's
+own program, the same way (see cleanview_gpt.py). No API keys, nothing extra
+to pay. Only the episode's dialogue is sent, as text, never video or sound.
+
+use("claude") / use("chatgpt") picks which one the functions below talk to.
 """
 import json
 import os
@@ -19,6 +22,21 @@ MODEL = os.environ.get("CLEANVIEW_CLAUDE_MODEL", "sonnet")
 
 class ClaudeError(Exception):
     pass
+
+
+import cleanview_gpt as gpt  # noqa: E402
+
+PROVIDER = "claude"
+NAMES = {"claude": "Claude", "chatgpt": "ChatGPT"}
+
+
+def use(provider):
+    global PROVIDER
+    PROVIDER = provider if provider in NAMES else "claude"
+
+
+def name(provider=None):
+    return NAMES.get(provider or PROVIDER, "Claude")
 
 
 def find_claude():
@@ -84,15 +102,44 @@ def open_sign_in():
         subprocess.Popen([exe, "auth", "login"], env=_env())
 
 
-def status():
+def status(provider=None):
     """'missing', 'signed_out' or 'ready'."""
+    if (provider or PROVIDER) == "chatgpt":
+        return gpt.status()
     if not find_claude():
         return "missing"
     return "ready" if signed_in() else "signed_out"
 
 
+def is_installed(provider=None):
+    return bool(gpt.find() if (provider or PROVIDER) == "chatgpt" else find_claude())
+
+
+def is_signed_in(provider=None):
+    return gpt.signed_in() if (provider or PROVIDER) == "chatgpt" else signed_in()
+
+
+def install(provider=None):
+    try:
+        gpt.install() if (provider or PROVIDER) == "chatgpt" else install_claude()
+    except gpt.GptError as ex:
+        raise ClaudeError(str(ex))
+
+
+def sign_in(provider=None):
+    try:
+        gpt.open_sign_in() if (provider or PROVIDER) == "chatgpt" else open_sign_in()
+    except gpt.GptError as ex:
+        raise ClaudeError(str(ex))
+
+
 def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600):
-    """One request to Claude. Returns (answer_dict, session_id)."""
+    """One request to Claude or ChatGPT. Returns (answer_dict, session_id)."""
+    if PROVIDER == "chatgpt":
+        try:
+            return gpt.ask(prompt, schema, stdin_text, system, session, keep, timeout)
+        except gpt.GptError as ex:
+            raise ClaudeError(str(ex))
     exe = find_claude()
     if not exe:
         raise ClaudeError("Claude isn't set up yet.")
