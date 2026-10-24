@@ -686,9 +686,12 @@ class App(tk.Tk):
         AI_NAME = cc.name(self.review_ai)
         if self.review_ai:
             cc.use(self.review_ai)
-        n = sum(len(j["analysis"]["scenes"]) for j in good)
-        nl = sum(len(j["analysis"].get("lines", [])) for j in good)
-        nw = sum(len(j["analysis"]["mutes"]) for j in good)
+        self.show_fine = getattr(self, "show_fine", False)
+        vis = {id(j): self._visible(j["analysis"]) for j in good}
+        n = sum(len(vis[id(j)][0]) for j in good)
+        nl = sum(len(vis[id(j)][1]) for j in good)
+        nw = sum(len(vis[id(j)][2]) for j in good)
+        n_fine = sum(vis[id(j)][3] for j in good)
         parts = []
         if n:
             parts.append(f"{n} scene{'s' if n != 1 else ''}")
@@ -734,6 +737,13 @@ class App(tk.Tk):
             side="left", padx=4)
         tk.Label(add, text="(times like 12:30 or 1:02:15)", bg=BG, fg=MUTED, font=(FONT, 9)).pack(
             side="left", padx=4)
+        if n_fine or self.show_fine:
+            frow = tk.Frame(t_found, bg=BG)
+            frow.pack(fill="x", pady=(0, 4))
+            self.fine_var = tk.BooleanVar(value=self.show_fine)
+            ttk.Checkbutton(frow, text=f"Also show the {n_fine} that {AI_NAME} says are fine "
+                            "(they won't be muted or cut)", variable=self.fine_var,
+                            command=self._toggle_fine).pack(side="left")
         inner = self._scroll_area(t_found)
         for ji, j in enumerate(good):
             st = j["analysis"]
@@ -764,20 +774,46 @@ class App(tk.Tk):
             holder = tk.Frame(inner, bg=BG)
             holder.pack(fill="x")
             self.found_frames[ji] = holder
-            if not st["scenes"]:
-                tk.Label(holder, text="No scenes were found to cut in this one.", bg=BG,
+            scs, lns, wds, _ = vis[id(j)]
+            if not scs:
+                tk.Label(holder, text="No scenes to check in this one.", bg=BG,
                          fg=INK, font=(FONT, 10), anchor="w").pack(fill="x", padx=8, pady=(6, 0))
-            for sc in st["scenes"]:
+            for sc in scs:
                 self._scene_card(holder, j, sc)
-            if st.get("lines"):
-                self._lines_card(inner, j, st["lines"])
-            if st.get("mutes"):
-                self._words_card(inner, j, st["mutes"])
+            if lns:
+                self._lines_card(inner, j, lns)
+            if wds:
+                self._words_card(inner, j, wds)
 
         self._dialogue_tab(t_dlg, good)
         self._chat_tab(t_chat, good)
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
+
+    # --- hiding what the AI says is fine
+    def _visible(self, st):
+        """(scenes, lines, words, how many hidden). By default anything the AI
+        said is fine (and that's still unticked) is hidden; the rest is shown:
+        what it says to remove, what it's unsure of, and what it didn't judge."""
+        def fine(it, on):
+            return (not self.show_fine and not on and not it.get("by_you")
+                    and (it.get("claude") or {}).get("decision") == "not an issue")
+        scs = [x for x in st["scenes"] if not fine(x, x.get("cut", True))]
+        lns = [x for x in st.get("lines", []) if not fine(x, x.get("mute", True))]
+        wds = [x for x in st["mutes"] if not fine(x, not x.get("keep"))]
+        hidden = (len(st["scenes"]) - len(scs) + len(st.get("lines", [])) - len(lns)
+                  + len(st["mutes"]) - len(wds))
+        if self.show_fine:
+            hidden = sum(1 for k in ("scenes", "lines", "mutes") for x in st.get(k, [])
+                         if (x.get("claude") or {}).get("decision") == "not an issue")
+        return scs, lns, wds, hidden
+
+    def _toggle_fine(self):
+        for j in self.jobs:
+            if j["analysis"]:
+                self._sync_job(j)
+        self.show_fine = self.fine_var.get()
+        self.show_review()
 
     # --- adding scenes yourself
     @staticmethod
