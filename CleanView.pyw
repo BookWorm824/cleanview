@@ -325,6 +325,7 @@ class App(tk.Tk):
         self.bind_all("<MouseWheel>", lambda e: wheel(int(-e.delta / 120)))
         self.bind_all("<Button-4>", lambda e: wheel(-2))
         self.bind_all("<Button-5>", lambda e: wheel(2))
+        inner._canvas = canvas
         return inner
 
     def _card(self, parent, step, heading, note=""):
@@ -889,6 +890,12 @@ class App(tk.Tk):
 
     def show_review(self, tab=0):
         global AI_NAME
+        keep = None                 # rebuilding after a change: stay where you were
+        if self.page_name == "review":
+            try:
+                keep = (self._found_canvas.canvasy(0), self.dlg_tv.yview()[0])
+            except Exception:
+                keep = None
         self.page_name = "review"
         good = [j for j in self.jobs if j["analysis"]]
         self.review_ai = self._pick_review_ai(good)
@@ -959,6 +966,7 @@ class App(tk.Tk):
                             "(they won't be muted or cut)", variable=self.fine_var,
                             command=self._toggle_fine).pack(side="left")
         inner = self._scroll_area(t_found)
+        self._found_canvas = inner._canvas
         for ji, j in enumerate(good):
             st = j["analysis"]
             j["_ji"] = ji
@@ -1000,6 +1008,23 @@ class App(tk.Tk):
                 self._words_card(inner, j, wds)
 
         self._dialogue_tab(t_dlg, good)
+        if keep:
+            def restore(tries=3):
+                c = self._found_canvas
+                if not c.winfo_exists():
+                    return
+                self.update_idletasks()
+                c.configure(scrollregion=c.bbox("all"))
+                box = c.bbox("all")
+                if box and box[3] > 0:
+                    c.yview_moveto(keep[0] / box[3])
+                try:
+                    self.dlg_tv.yview_moveto(keep[1])
+                except Exception:
+                    pass
+                if tries > 1:
+                    self.after(60, lambda: restore(tries - 1))
+            self.after(20, restore)
         self._chat_tab(t_chat, good)
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
