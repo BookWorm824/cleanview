@@ -1113,6 +1113,8 @@ class App(tk.Tk):
         self.dlg_search.pack(side="left", padx=6)
         ttk.Button(top, text="Cut the selected lines as a scene", style="Small.TButton",
                    command=self._cut_selected).pack(side="right")
+        ttk.Button(top, text="Mute a word in it\u2026", style="Small.TButton",
+                   command=self._mute_word_selected).pack(side="right", padx=(0, 6))
         if getattr(self, "_ai_ok", False):
             ttk.Button(top, text=f"\U0001F4AC Ask {AI_NAME} about the selected lines",
                        style="Small.TButton", command=self._ask_selected).pack(side="right",
@@ -1180,6 +1182,33 @@ class App(tk.Tk):
         if len(v.trace_info()) == 0:
             v.trace_add("write", lambda *_: self._fill_dialogue())
             self._fill_dialogue()
+
+    def _mute_word_selected(self):
+        rows = [int(r) for r in self.dlg_tv.selection()]
+        if len(rows) != 1:
+            messagebox.showinfo("CleanView", "Pick one line first (Ctrl-click it).")
+            return
+        from tkinter import simpledialog
+        job = self._dlg_job()
+        line = job["analysis"]["dialogue"][rows[0]]
+        words = simpledialog.askstring("Mute a word", f"\u201c{line['text'][:200]}\u201d\n\nWhich "
+                                       "word or words should be muted? (type them as they're "
+                                       "written)", parent=self)
+        if not words:
+            return
+        self._sync_job(job)
+        st = job["analysis"]
+        done = []
+        for w in re.split(r"[,|]", words):
+            m = engine.word_mute(st, line, w.strip(), "you added") if w.strip() else None
+            if m is not None:
+                m["keep"], m["by_you"] = False, True
+                done.append(w.strip())
+        if not done:
+            messagebox.showinfo("CleanView", "Couldn't find that in the line.")
+            return
+        self._save_session()
+        self.show_review(tab=1)
 
     def _ask_selected(self):
         rows = [int(r) for r in self.dlg_tv.selection()]
@@ -1382,6 +1411,88 @@ class App(tk.Tk):
                 self.q.put(("chat_reply", job, "", {}, {}, str(ex), box))
         threading.Thread(target=go, daemon=True).start()
 
+    # --- the CleanListen way of editing: text you can highlight, ask right under the item
+    def _sel_text(self, parent, text, width_chars=95, max_lines=6, bg="#FBFAF8", fg=INK):
+        """Read-only text you can highlight with the mouse (to point Claude at part of it)."""
+        t = tk.Text(parent, wrap="word", width=20, font=(FONT, 10), bg=bg, fg=fg, relief="flat",
+                    padx=8, pady=4, borderwidth=0, highlightthickness=0,
+                    height=max(1, min(max_lines, 1 + len(text) // width_chars)))
+        t.insert("1.0", text)
+        t.configure(state="disabled")
+        return t
+
+    def _answer_box(self, parent, it):
+        if it.get("chat_answer"):
+            tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg="#EEF5F3", fg=ACCENT_DK,
+                     font=(FONT, 9), wraplength=680, justify="left", padx=8, pady=4,
+                     anchor="w").pack(fill="x", pady=(6, 0))
+
+    def _ask_link(self, parent, job, kind, it, txt=None, text=None, **pack):
+        if not getattr(self, "_ai_ok", False):
+            return
+        lbl = tk.Label(parent, text=text or f"Ask {AI_NAME} about this\u2026", bg=parent.cget("bg"),
+                       fg=ACCENT, font=(FONT, 9, "underline"), cursor="hand2")
+        lbl.bind("<Button-1>", lambda e: self._ask_inline(parent if kind != "word" else
+                                                          parent.master, job, kind, it, txt, lbl))
+        lbl.pack(**pack)
+
+    def _ask_inline(self, holder, job, kind, it, txt, link):
+        """A small box right under that scene, line or word: type what you want and the list
+        changes as soon as it answers. Highlight part of the text first to point at it."""
+        if getattr(link, "_open", False):
+            return
+        link._open = True
+        t = engine.cl.fmt_t
+        box = tk.Frame(holder, bg="#EEF5F3", padx=8, pady=6)
+        box.pack(fill="x", pady=(4, 0))
+        hint = "Tip: highlight part of the text above first to point at it. " if txt is not None else ""
+        tk.Label(box, text=hint + "e.g. \u201ckeep this\u201d, \u201cjust mute that word\u201d, "
+                 "\u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d", bg="#EEF5F3",
+                 fg=MUTED, font=(FONT, 8), wraplength=640, justify="left").pack(anchor="w")
+        row = tk.Frame(box, bg="#EEF5F3")
+        row.pack(fill="x", pady=(2, 0))
+        entry = ttk.Entry(row)
+        entry.pack(side="left", fill="x", expand=True)
+        box.reply = tk.Label(box, text="", bg="#EEF5F3", fg=ACCENT_DK, font=(FONT, 9),
+                             wraplength=640, justify="left")
+        box.item = it
+        ref = self._item_ref(job, it)
+        if kind == "scene":
+            focus = (f"They picked {ref or 'a scene'}: the scene from {t(it['s'])} to {t(it['e'])} "
+                     f"({', '.join(it.get('kind', []))}).")
+            head = f"the scene at {t(it['s'])}"
+        elif kind == "line":
+            focus = (f"They picked {ref or 'a line'}: the line at {t(it['s'])}, "
+                     f"\"{it.get('plain') or it['text']}\"" +
+                     (f" (dialogue line {it['idx'] + 1})." if "idx" in it else "."))
+            head = f"the line at {t(it['s'])}"
+        else:
+            focus = (f"They picked {ref or 'a word'}: the word \"{it.get('raw') or it['word']}\" "
+                     f"at {t(it['s'])}, after \"{it.get('ctx', '')}\".")
+            head = f"the word at {t(it['s'])}"
+
+        def send(_e=None):
+            q = entry.get().strip()
+            if not q:
+                return
+            picked = ""
+            if txt is not None:
+                try:
+                    picked = txt.get("sel.first", "sel.last").strip()
+                except tk.TclError:
+                    picked = ""
+            entry.delete(0, "end")
+            btn.config(state="disabled")
+            box.reply.config(text=f"{AI_NAME} is reading\u2026", fg=MUTED)
+            box.reply.pack(anchor="w", pady=(4, 0))
+            self._send_chat(job, focus + (f" They highlighted: \"{picked}\"." if picked else "") +
+                            f" They say: {q}", f"You (about {head}): {q}", box=box)
+        btn = ttk.Button(row, text="Send", style="Small.TButton", command=send)
+        btn.pack(side="left", padx=(6, 0))
+        box.send_btn = btn
+        entry.bind("<Return>", send)
+        entry.focus_set()
+
     # --- ask about one scene, line, word, or the lines picked in All dialogue
     def _item_ref(self, job, it):
         items, _ = cc.candidates(job["analysis"])
@@ -1389,14 +1500,6 @@ class App(tk.Tk):
             if x is it:
                 return i
         return None
-
-    def _ask_btn(self, parent, job, kind, it, **pack):
-        if not getattr(self, "_ai_ok", False):
-            return
-        lbl = tk.Label(parent, text=f"\U0001F4AC Ask", bg=CARD, fg=ACCENT, cursor="hand2",
-                       font=(FONT, 9, "underline"))
-        lbl.bind("<Button-1>", lambda e: self._ask_about(job, kind, it))
-        lbl.pack(**pack)
 
     def _ask_about(self, job, kind, it=None, rows=None):
         t = engine.cl.fmt_t
@@ -1461,6 +1564,8 @@ class App(tk.Tk):
 
     def _chat_reply(self, job, reply, acts, items, err, box=None):
         def to_box(text, fg=INK):
+            if box is not None and getattr(box, "item", None) is not None and not err:
+                box.item["chat_answer"] = text      # stays on that card
             if box is not None and box.winfo_exists():
                 box.reply.config(text=text, fg=fg)
                 box.send_btn.config(state="normal")
@@ -1515,23 +1620,52 @@ class App(tk.Tk):
                         highlightthickness=1)
         card.pack(fill="x", padx=8, pady=6)
         tk.Label(card, text="Words to mute", bg=CARD, fg=INK, font=(FONT, 11, "bold")).pack(anchor="w")
-        grid = tk.Frame(card, bg=CARD)
-        grid.pack(fill="x", pady=(4, 0))
+        heard = job["analysis"].get("asr") or []
         for n, m in enumerate(mutes):
             v = tk.BooleanVar(value=not m.get("keep"))
             m["_shown"] = v.get()
             self.word_vars.append((v, job, m))
-            cell = tk.Frame(grid, bg=CARD)
-            cell.grid(row=n // 3, column=n % 3, sticky="nw", padx=(0, 24), pady=1)
-            ttk.Checkbutton(cell, text=engine.cl.fmt_t(m["s"]), variable=v).pack(side="left",
-                                                                               anchor="n")
-            tk.Label(cell, text=m["word"], bg=CARD, fg=INK, font=(FONT, 10, "bold")).pack(
-                side="left", padx=(6, 0), anchor="n")
-            self._ask_btn(cell, job, "word", m, side="left", padx=(6, 0), anchor="n")
+            wrap = tk.Frame(card, bg=CARD if n % 2 == 0 else "#FAF8F5", padx=4, pady=2)
+            wrap.pack(fill="x")
+            row = tk.Frame(wrap, bg=wrap.cget("bg"))
+            row.pack(fill="x")
+            rbg = row.cget("bg")
+            ttk.Checkbutton(row, text=engine.cl.fmt_t(m["s"]), variable=v).pack(side="left")
+            after = " ".join(w[0] for w in heard if m["e"] < w[1] < m["e"] + 4)[:60]
+            show = tk.Label(row, text="Show", bg=rbg, fg=ACCENT, font=(FONT, 9, "underline"),
+                            cursor="hand2", padx=6)
+            show.pack(side="right")
+            self._ask_link(row, job, "word", m, text="Ask", side="right", padx=4)
             note, col = claude_note(m, v.get())
             if note and m["claude"]["decision"] != "remove":
-                tk.Label(cell, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=150,
-                         justify="left").pack(side="left", padx=(6, 0), anchor="n")
+                tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=220,
+                         justify="left").pack(side="right", padx=4)
+            line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
+                           fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
+                           cursor="arrow")
+            line.tag_configure("w", background="#F3E3DF", foreground="#8A3B2E",
+                               font=(FONT, 10, "bold"))
+
+            def fill(t=line, m=m, after=after, revealed=False):
+                before = m.get("ctx", "")
+                word = (m.get("raw") or m["word"]) if revealed else m["word"]
+                t.configure(state="normal")
+                t.delete("1.0", "end")
+                if before:
+                    t.insert("end", "\u2026" + before + " ")
+                t.insert("end", f" {word} ", "w")
+                if after:
+                    t.insert("end", " " + after + "\u2026")
+                t.configure(state="disabled", height=1 if len(before) + len(after) < 70 else 2)
+
+            def toggle(_e=None, t=line, lbl=show, fill=fill, state={"on": False}):
+                state["on"] = not state["on"]
+                fill(t, revealed=state["on"])
+                lbl.configure(text="Hide" if state["on"] else "Show")
+            show.bind("<Button-1>", toggle)
+            fill()
+            line.pack(side="left", fill="x", expand=True, padx=(6, 0))
+            self._answer_box(wrap, m)
 
     def _lines_card(self, parent, job, lines):
         card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
@@ -1552,15 +1686,16 @@ class App(tk.Tk):
             txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"
             if l.get("learned"):
                 txt += f"   ({l['learned']})"
-            self._ask_btn(row, job, "line", l, side="right", anchor="n")
             col_ = tk.Frame(row, bg=CARD)
-            col_.pack(side="left", padx=(8, 0), fill="x")
-            tk.Label(col_, text=txt, bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=440,
-                     justify="left", anchor="w").pack(fill="x")
+            col_.pack(side="left", padx=(8, 0), fill="x", expand=True)
+            tw = self._sel_text(col_, txt, width_chars=70, max_lines=4, bg=CARD, fg=MUTED)
+            tw.pack(fill="x")
             note, col = claude_note(l, v.get())
             if note:
                 tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=440,
-                         justify="left", anchor="w").pack(fill="x")
+                         justify="left", anchor="w").pack(fill="x", padx=(8, 0))
+            self._answer_box(col_, l)
+            self._ask_link(col_, job, "line", l, tw, text="Ask", anchor="e")
 
     def _scene_card(self, parent, job, sc, top=False):
         card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
@@ -1584,7 +1719,6 @@ class App(tk.Tk):
                      padx=8, pady=1).pack(side="left", padx=(10, 0))
         ttk.Button(top_row, text="Preview ▸", style="Small.TButton",
                    command=lambda: self.preview(job, sc)).pack(side="right")
-        self._ask_btn(top_row, job, "scene", sc, side="right", padx=(0, 10))
         mid = tk.Frame(card, bg=CARD)
         mid.pack(fill="x", pady=(8, 0))
         for t in sc.get("thumbs", [])[:3]:
@@ -1599,14 +1733,17 @@ class App(tk.Tk):
         if sc.get("why"):
             tk.Label(text, text="Found: " + sc["why"], bg=CARD, fg=INK, font=(FONT, 9),
                      wraplength=210, justify="left", anchor="w").pack(fill="x")
-        said = sc.get("said") or "(no talking)"
-        tk.Label(text, text="Said: " + (said if len(said) < 220 else said[:217] + "…"),
-                 bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=210, justify="left",
-                 anchor="w").pack(fill="x", pady=(4, 0))
         note, col = claude_note(sc, v.get())
         if note:
             tk.Label(text, text=note, bg=CARD, fg=col, font=(FONT, 9, "bold"), wraplength=210,
                      justify="left", anchor="w").pack(fill="x", pady=(4, 0))
+        said = sc.get("said") or ""
+        txt = None
+        if said:
+            txt = self._sel_text(card, "Said: " + said, max_lines=5, fg=MUTED)
+            txt.pack(fill="x", pady=(6, 0))
+        self._answer_box(card, sc)
+        self._ask_link(card, job, "scene", sc, txt, anchor="e", pady=(4, 0))
 
     def preview(self, job, sc):
         def go():

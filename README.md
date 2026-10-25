@@ -70,9 +70,12 @@ looks for scenes, and Ollama plus its two AI models (about 11 GB) if the AI help
   comes back. Every Claude finding is also kept in
   %LOCALAPPDATA%\CleanView\claude_findings.csv, which opens in Excel ("Claude's findings"
   button on the Ask Claude tab).
-- Every scene, line and word on the review page has a "💬 Ask" link, and the All dialogue tab
-  has "Ask about the selected lines": type what you want ("keep this", "just mute the word",
-  "cut a bit more after it") and the list changes as soon as Claude answers.
+- Editing works like CleanListen: every scene, line and word has "Ask Claude about this…",
+  which opens a box right under it. Highlight part of the text first to point at it, type what
+  you want ("keep this", "just mute that word", "cut a bit more after it"), and the list
+  changes as soon as Claude answers; its answer stays on that item. Words show the sentence
+  around them ("Show" reveals the real word). On All dialogue, pick a line and use "Mute a
+  word in it…" to mute just that word yourself, or ask about several selected lines.
 - When you finish a video, "Save what we refined…" saves one file with what was found, what the
   AI said, what you changed and what you kept. Send it in to improve every copy of CleanView.
 - "Send what CleanView learned…" on the start page saves everything it has learned into one
