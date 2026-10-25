@@ -895,6 +895,9 @@ class App(tk.Tk):
         AI_NAME = cc.name(self.review_ai)
         if self.review_ai:
             cc.use(self.review_ai)
+        self._ai_ok = bool(self.review_ai) and (
+            getattr(self, "ai_state", {}).get(self.review_ai) == "ready" or
+            any(j["analysis"].get("reviewer") for j in good))
         self.show_fine = getattr(self, "show_fine", False)
         vis = {id(j): self._visible(j["analysis"]) for j in good}
         n = sum(len(vis[id(j)][0]) for j in good)
@@ -921,6 +924,7 @@ class App(tk.Tk):
         multi = len(good) > 1
         nb = ttk.Notebook(p)
         nb.pack(fill="both", expand=True)
+        self._nb = nb
         self.after_idle(lambda: nb.winfo_exists() and nb.select(tab))
         t_found = tk.Frame(nb, bg=BG)
         t_dlg = tk.Frame(nb, bg=BG)
@@ -1084,8 +1088,12 @@ class App(tk.Tk):
         self.dlg_search.pack(side="left", padx=6)
         ttk.Button(top, text="Cut the selected lines as a scene", style="Small.TButton",
                    command=self._cut_selected).pack(side="right")
-        tk.Label(tab, text="Click a line to mute it (\u2714). Select several with Ctrl or Shift and "
-                 "use the button to cut that stretch instead.", bg=BG, fg=MUTED,
+        if getattr(self, "_ai_ok", False):
+            ttk.Button(top, text=f"\U0001F4AC Ask {AI_NAME} about the selected lines",
+                       style="Small.TButton", command=self._ask_selected).pack(side="right",
+                                                                              padx=(0, 6))
+        tk.Label(tab, text="Click a line to mute it (\u2714). Select lines with Ctrl-click or "
+                 "Shift-click, then cut them as a scene or ask about them.", bg=BG, fg=MUTED,
                  font=(FONT, 9)).pack(anchor="w")
         box = tk.Frame(tab, bg=BG)
         box.pack(fill="both", expand=True, pady=(4, 0))
@@ -1147,6 +1155,13 @@ class App(tk.Tk):
         if len(v.trace_info()) == 0:
             v.trace_add("write", lambda *_: self._fill_dialogue())
             self._fill_dialogue()
+
+    def _ask_selected(self):
+        rows = [int(r) for r in self.dlg_tv.selection()]
+        if not rows:
+            messagebox.showinfo("CleanView", "Select the lines first (click, then Shift-click).")
+            return
+        self._ask_about(self._dlg_job(), "lines", rows=rows)
 
     def _cut_selected(self):
         rows = [int(r) for r in self.dlg_tv.selection()]
@@ -1320,10 +1335,14 @@ class App(tk.Tk):
             return
         good = [j for j in self.jobs if j["analysis"]]
         self._chat_ji = max(0, self.chat_job.current())
-        job = good[self._chat_ji]
         self.chat_entry.delete(0, "end")
-        self.chat_btn.config(state="disabled")
-        self._log("You: " + qtext, "you")
+        self._send_chat(good[self._chat_ji], qtext, "You: " + qtext)
+
+    def _send_chat(self, job, question, shown, box=None):
+        """Send one message to Claude/ChatGPT; its changes are made when it answers."""
+        if getattr(self, "chat_btn", None) is not None and self.chat_btn.winfo_exists():
+            self.chat_btn.config(state="disabled")
+        self._log(shown, "you")
         cc.use(self.review_ai)
         self._log(f"{AI_NAME} is reading the dialogue\u2026", "note")
         st = job["analysis"]
@@ -1331,15 +1350,97 @@ class App(tk.Tk):
 
         def go():
             try:
-                reply, acts, items, sid = cc.chat(qtext, st, self.chat_sessions.get(job["_ji"]))
+                reply, acts, items, sid = cc.chat(question, st, self.chat_sessions.get(job["_ji"]))
                 self.chat_sessions[job["_ji"]] = sid
-                self.q.put(("chat_reply", job, reply, acts, items, None))
+                self.q.put(("chat_reply", job, reply, acts, items, None, box))
             except Exception as ex:
-                self.q.put(("chat_reply", job, "", {}, {}, str(ex)))
+                self.q.put(("chat_reply", job, "", {}, {}, str(ex), box))
         threading.Thread(target=go, daemon=True).start()
 
-    def _chat_reply(self, job, reply, acts, items, err):
+    # --- ask about one scene, line, word, or the lines picked in All dialogue
+    def _item_ref(self, job, it):
+        items, _ = cc.candidates(job["analysis"])
+        for i, (_, x) in items.items():
+            if x is it:
+                return i
+        return None
+
+    def _ask_btn(self, parent, job, kind, it, **pack):
+        if not getattr(self, "_ai_ok", False):
+            return
+        lbl = tk.Label(parent, text=f"\U0001F4AC Ask", bg=CARD, fg=ACCENT, cursor="hand2",
+                       font=(FONT, 9, "underline"))
+        lbl.bind("<Button-1>", lambda e: self._ask_about(job, kind, it))
+        lbl.pack(**pack)
+
+    def _ask_about(self, job, kind, it=None, rows=None):
+        t = engine.cl.fmt_t
+        st = job["analysis"]
+        if kind == "scene":
+            title = (f"The scene at {t(it['s'])}\u2013{t(it['e'])} ({', '.join(it.get('kind', []))})"
+                     f"\nSaid: {(it.get('said') or '(no talking)')[:200]}")
+            focus = (f"They picked {self._item_ref(job, it) or 'a scene'}: the scene from "
+                     f"{t(it['s'])} to {t(it['e'])} ({', '.join(it.get('kind', []))}).")
+        elif kind == "line":
+            txt = it.get("plain") or it["text"]
+            title = f"The line at {t(it['s'])}:\n\u201c{txt[:220]}\u201d"
+            focus = (f"They picked {self._item_ref(job, it) or 'a line'}: the line at "
+                     f"{t(it['s'])}, \"{txt}\"" +
+                     (f" (dialogue line {it['idx'] + 1})." if "idx" in it else "."))
+        elif kind == "word":
+            raw = it.get("raw") or it["word"]
+            title = f"The word \u201c{it['word']}\u201d at {t(it['s'])}\n\u2026{it.get('ctx', '')}"
+            focus = (f"They picked {self._item_ref(job, it) or 'a word'}: the word \"{raw}\" at "
+                     f"{t(it['s'])}, after \"{it.get('ctx', '')}\".")
+        else:
+            d = st["dialogue"]
+            a, b = min(rows), max(rows)
+            said = " ".join(l["text"] for l in d[a:b + 1])
+            title = f"Lines {t(d[a]['s'])}\u2013{t(d[b]['e'])}:\n\u201c{said[:260]}\u201d"
+            focus = (f"They picked dialogue lines {a + 1} to {b + 1} ({t(d[a]['s'])} to "
+                     f"{t(d[b]['e'])}).")
+        win = tk.Toplevel(self)
+        win.title(f"Ask {AI_NAME}")
+        win.configure(bg=BG)
+        win.transient(self)
+        win.geometry("+%d+%d" % (self.winfo_rootx() + 120, self.winfo_rooty() + 160))
+        tk.Label(win, text=title, bg=BG, fg=INK, font=(FONT, 10), wraplength=520,
+                 justify="left").pack(anchor="w", padx=14, pady=(12, 6))
+        tk.Label(win, text=f"What should {AI_NAME} do? (e.g. \u201ckeep this\u201d, \u201cjust mute "
+                 "the word\u201d, \u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d)",
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=520,
+                 justify="left").pack(anchor="w", padx=14)
+        row = tk.Frame(win, bg=BG)
+        row.pack(fill="x", padx=14, pady=8)
+        ent = ttk.Entry(row, width=60)
+        ent.pack(side="left", fill="x", expand=True)
+        ent.focus_set()
+        win.reply = tk.Label(win, text="", bg=BG, fg=INK, font=(FONT, 10), wraplength=520,
+                             justify="left")
+        win.reply.pack(anchor="w", padx=14, pady=(0, 12))
+
+        def send(_=None):
+            q = ent.get().strip()
+            if not q:
+                return
+            ent.delete(0, "end")
+            win.reply.config(text=f"{AI_NAME} is thinking\u2026", fg=MUTED)
+            btn.config(state="disabled")
+            head = title.splitlines()[0].rstrip(":")
+            self._send_chat(job, f"{focus} They say: {q}",
+                            f"You (about {head[:1].lower() + head[1:]}): {q}", box=win)
+        btn = ttk.Button(row, text="Send", style="Small.TButton", command=send)
+        btn.pack(side="left", padx=(6, 0))
+        win.send_btn = btn
+        ent.bind("<Return>", send)
+
+    def _chat_reply(self, job, reply, acts, items, err, box=None):
+        def to_box(text, fg=INK):
+            if box is not None and box.winfo_exists():
+                box.reply.config(text=text, fg=fg)
+                box.send_btn.config(state="normal")
         if not getattr(self, "chat_log", None) or not self.chat_log.winfo_exists():
+            to_box("\u26a0 " + (err or reply), MUTED)
             return
         self.chat_btn.config(state="normal")
         self.chat_history = [h for h in self.chat_history if "reading the dialogue" not in h[0]]
@@ -1351,10 +1452,12 @@ class App(tk.Tk):
         log.configure(state="disabled")
         if err:
             self._log("\u26a0 " + err, "note")
+            to_box("\u26a0 " + err, MUTED)
             return
         self._log(f"{AI_NAME}: " + reply)
         if not any(acts.get(k) for k in ("tick", "untick", "mute_lines", "mute_words",
                                          "cut_scenes", "cut_times")):
+            to_box(reply)
             return
         self._sync_job(job)                       # anything clicked while it was thinking
         snapshot = copy.deepcopy(job["analysis"])
@@ -1364,7 +1467,13 @@ class App(tk.Tk):
             self._log("\u2713 Changed on the list: " + "; ".join(done) + ".", "note")
         else:
             self._log("Nothing on the list changed.", "note")
-        self.show_review(tab=2)
+        to_box(reply + ("\n\n\u2713 Changed: " + "; ".join(done) + "." if done else ""))
+        tab = 2
+        try:
+            tab = self._nb.index("current") if box is not None else 2
+        except Exception:
+            pass
+        self.show_review(tab=tab)
         self._save_session()
 
     def _undo_chat(self):
@@ -1393,6 +1502,7 @@ class App(tk.Tk):
                                                                                anchor="n")
             tk.Label(cell, text=m["word"], bg=CARD, fg=INK, font=(FONT, 10, "bold")).pack(
                 side="left", padx=(6, 0), anchor="n")
+            self._ask_btn(cell, job, "word", m, side="left", padx=(6, 0), anchor="n")
             note, col = claude_note(m, v.get())
             if note and m["claude"]["decision"] != "remove":
                 tk.Label(cell, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=150,
@@ -1417,6 +1527,7 @@ class App(tk.Tk):
             txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"
             if l.get("learned"):
                 txt += f"   ({l['learned']})"
+            self._ask_btn(row, job, "line", l, side="right", anchor="n")
             col_ = tk.Frame(row, bg=CARD)
             col_.pack(side="left", padx=(8, 0), fill="x")
             tk.Label(col_, text=txt, bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=440,
@@ -1448,6 +1559,7 @@ class App(tk.Tk):
                      padx=8, pady=1).pack(side="left", padx=(10, 0))
         ttk.Button(top_row, text="Preview ▸", style="Small.TButton",
                    command=lambda: self.preview(job, sc)).pack(side="right")
+        self._ask_btn(top_row, job, "scene", sc, side="right", padx=(0, 10))
         mid = tk.Frame(card, bg=CARD)
         mid.pack(fill="x", pady=(8, 0))
         for t in sc.get("thumbs", [])[:3]:
@@ -1513,6 +1625,12 @@ class App(tk.Tk):
                              [m for _, m in wds], [v.get() for v, _ in wds])
             except Exception:
                 pass
+        for j in good:                  # the final choices, for the "what we refined" export
+            try:
+                self._sync_job(j)
+                (Path(j["work"]) / "analysis.json").write_text(json.dumps(j["analysis"], indent=1))
+            except Exception:
+                pass
         self.save()
 
     def save(self):
@@ -1551,6 +1669,33 @@ class App(tk.Tk):
                        command=lambda: open_path(results[0]["out"])).pack(side="left", padx=12)
         ttk.Button(self.footer, text="Clean another", style="Plain.TButton",
                    command=self.reset).pack(side="right")
+
+        # what we refined, to send in so CleanView's built-in knowledge improves
+        box = tk.Frame(p, bg="#FFF4EC", highlightbackground="#E9C9B3", highlightthickness=1)
+        box.pack(fill="x", pady=(22, 0))
+        tk.Label(box, text="Help CleanView get better", bg="#FFF4EC", fg="#C2581F",
+                 font=(FONT, 10, "bold"), padx=12, pady=(8)).pack(anchor="w")
+        tk.Label(box, text="Save what was refined on this one (what was found, what the AI said, "
+                 "what you changed and what you kept) as one file, and send it in. It's added to "
+                 "the knowledge every copy of CleanView starts with. No video or sound is in it.",
+                 bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=700, justify="left",
+                 padx=12).pack(anchor="w")
+        ttk.Button(box, text="Save what we refined\u2026", style="Small.TButton",
+                   command=self.export_refined).pack(anchor="w", padx=12, pady=(6, 10))
+        self._done_jobs = [j for j in self.jobs if j["analysis"]]
+
+    def export_refined(self):
+        try:
+            path = learn.export_refined([j["analysis"] for j in getattr(self, "_done_jobs", [])],
+                                        getattr(self, "chat_history", []))
+        except Exception as ex:
+            messagebox.showerror("CleanView", f"Couldn't save the file: {ex}")
+            return
+        if os.name == "nt":
+            subprocess.Popen(["explorer", "/select,", str(path)])
+        messagebox.showinfo("CleanView", f"Saved as \u201c{path.name}\u201d in {path.parent}.\n\n"
+                            "Attach it in your chat with Claude and ask for it to be added to "
+                            "CleanView.")
 
     def reset(self):
         self.videos, self.outdir, self.jobs = [], None, []

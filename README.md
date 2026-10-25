@@ -70,6 +70,11 @@ looks for scenes, and Ollama plus its two AI models (about 11 GB) if the AI help
   comes back. Every Claude finding is also kept in
   %LOCALAPPDATA%\CleanView\claude_findings.csv, which opens in Excel ("Claude's findings"
   button on the Ask Claude tab).
+- Every scene, line and word on the review page has a "💬 Ask" link, and the All dialogue tab
+  has "Ask about the selected lines": type what you want ("keep this", "just mute the word",
+  "cut a bit more after it") and the list changes as soon as Claude answers.
+- When you finish a video, "Save what we refined…" saves one file with what was found, what the
+  AI said, what you changed and what you kept. Send it in to improve every copy of CleanView.
 - "Send what CleanView learned…" on the start page saves everything it has learned into one
   file. Send that file in and it gets merged into shared_learned.json, which comes with every
   CleanView update, so every copy starts with it, including people without Claude or ChatGPT.

@@ -312,3 +312,48 @@ def record_claude(st):
         os.replace(tmp, CSV_PATH)
     except OSError:
         pass
+
+
+def export_refined(analyses, chat=None, dest_dir=None):
+    """Everything about how these videos were refined, to send in: what each
+    checker found, what Claude/ChatGPT said, what was changed (by hand or
+    through the chat) and what was finally muted or cut. No video or sound."""
+    def verdict(it):
+        c = it.get("claude") or {}
+        return {k: c[k] for k in ("decision", "why", "word", "seen") if k in c} or None
+
+    videos = []
+    for st in analyses:
+        videos.append({
+            "video": os.path.basename(st.get("path", "")), "show": st.get("show"),
+            "reviewer": st.get("reviewer"), "reader": st.get("reader"),
+            "settings": st.get("opts"), "word_groups": st.get("groups"),
+            "summary": st.get("claude_summary"), "notes": st.get("notes"),
+            "scenes": [{"s": sc["s"], "e": sc["e"], "kind": sc.get("kind"), "why": sc.get("why"),
+                        "ai": verdict(sc), "final": "cut" if sc.get("cut", True) else "kept",
+                        "changed_by_you": bool(sc.get("by_you")), "added": bool(sc.get("added")),
+                        "learned": sc.get("learned")} for sc in st.get("scenes", [])],
+            "lines": [{"s": l["s"], "text": l.get("plain") or l["text"], "types": l.get("types"),
+                       "ai": verdict(l), "final": "muted" if l.get("mute", True) else "kept",
+                       "changed_by_you": bool(l.get("by_you")), "learned": l.get("learned")}
+                      for l in st.get("lines", [])],
+            "words": [{"s": m["s"], "word": m.get("raw") or m["word"], "before": m.get("ctx"),
+                       "category": m.get("cat"), "heard_by": m.get("src"), "ai": verdict(m),
+                       "final": "kept" if m.get("keep") else "muted",
+                       "changed_by_you": bool(m.get("by_you")), "learned": m.get("learned")}
+                      for m in st.get("mutes", [])],
+            "dialogue": [[d["s"], d["text"]] for d in st.get("dialogue", [])]})
+    out = {"what": "CleanView refined", "date": date.today().isoformat(), "videos": videos,
+           "chat": [list(c) for c in (chat or [])]}
+    try:
+        out["version"] = json.loads((HERE / "version.json").read_text())["version"]
+    except Exception:
+        pass
+    dest = Path(dest_dir) if dest_dir else next(
+        (d for d in (Path.home() / "OneDrive" / "Desktop", Path.home() / "Desktop",
+                     Path.home() / "Documents") if d.exists()), Path.home())
+    first = re.sub(r"[^A-Za-z0-9 ._-]+", "_", Path(videos[0]["video"]).stem if videos else "video")
+    name = f"CleanView refined - {first[:50]}" + (f" +{len(videos) - 1}" if len(videos) > 1 else "")
+    path = dest / f"{name} {out['date']}.json"
+    path.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf8")
+    return path

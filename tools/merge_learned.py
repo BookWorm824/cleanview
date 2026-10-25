@@ -46,11 +46,39 @@ def merge(shared, export):
     return n
 
 
+def _norm(text):
+    import re
+    return " ".join(re.sub(r"[^a-z0-9' ]+", " ", text.lower().replace("\u2019", "'")).split())
+
+
+def from_refined(ref):
+    """A 'CleanView refined' file (the Save-what-we-refined button) in the same
+    shape as a 'CleanView learned' export, so merge() can take it."""
+    shows = {}
+    for v in ref.get("videos", []):
+        d = shows.setdefault(v.get("show") or "_movies",
+                             {"muted": [], "kept": [], "claude_ok_words": []})
+        for l in v.get("lines", []):
+            n = _norm(l["text"])
+            if len(n.split()) < 2:
+                continue
+            (d["muted"] if l["final"] == "muted" else d["kept"]).append(n)
+        for w in v.get("words", []):
+            if w["final"] == "kept" and (w.get("changed_by_you") or
+                                         (w.get("ai") or {}).get("decision") == "not an issue"):
+                ctx = _norm(w.get("before") or "").split()[-2:]
+                d["claude_ok_words"].append(" ".join(ctx + [_norm(w["word"])]))
+    return {"shows": shows}
+
+
 if __name__ == "__main__":
     target = sys.argv[1]
     shared = json.load(open(target, encoding="utf8"))
     for f in sys.argv[2:]:
-        n = merge(shared, json.load(open(f, encoding="utf8")))
+        data = json.load(open(f, encoding="utf8"))
+        if data.get("what") == "CleanView refined":
+            data = from_refined(data)
+        n = merge(shared, data)
         print(f"{f}: {n} lines merged")
     json.dump(shared, open(target, "w", encoding="utf8"), indent=1, ensure_ascii=False)
     s = shared["shows"]
