@@ -22,7 +22,7 @@ import cleanview_learn as learn  # noqa: E402
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
     "#F6F3EE", "#FFFFFF", "#23211F", "#6D6862", "#2F6F62", "#24574D", "#E3DED6")
-CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
+CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Disturbing": "#5E3A6E", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
@@ -466,8 +466,10 @@ class App(tk.Tk):
         checks(g2, [("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False),
                     ("oppsex", "Unmarried couples living or sleeping together", False)], cols=1)
         checks(section("Violence"), [
-            ("violence", "Violence  (shootings, fights, attacks)", True),
-            ("gore", "Graphic gore  (blood, wounds, bodies)", True)])
+            ("violence", "Violence  (fights, shootings, attacks)", True),
+            ("graphic", "Graphic violence  (blood, wounds, bloody crime scenes)", True),
+            ("gore", "Gore  (insides showing: organs, dismemberment)", True),
+            ("disturbing", "Disturbing  (torture, executions, cruelty)", True)])
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
             ("drugs", "Drug use", True)], cols=3)

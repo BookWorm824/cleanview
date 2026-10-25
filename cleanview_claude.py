@@ -562,16 +562,22 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
 # Looking at the picture: contact sheets of the whole episode, and a closer
 # look at each scene the picture checkers found
 # ---------------------------------------------------------------------------
-PIC_KINDS = ["violence", "gore", "nudity", "implied nudity", "sex", "kissing", "immodest",
-             "smoking", "drinking", "drugs"]
+PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
+             "sex", "kissing", "immodest", "smoking", "drinking", "drugs"]
+VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
               "is clearly shown, not what might happen off screen.")
 PIC_RULES = (
     "Be accurate. Police or soldiers simply carrying guns, a hug, a peck on the cheek, a "
     "hospital or crime-scene photo with no visible wounds, or a glass of water are NOT matches. "
-    "Violence means fighting, hitting, shooting, threatening with a weapon or someone being "
-    "attacked; gore means visible blood, wounds or bodies. Nudity means bare breasts, bare "
+    "Violence levels (pick the highest that's shown): \"violence\" = fighting, hitting, "
+    "shooting, threatening with a weapon, without much blood; \"graphic violence\" = blood "
+    "and wounds shown: bloody injuries, a bloody body, a crime-scene body with visible blood; "
+    "\"gore\" = insides on the outside: organs, entrails, brains, bone through skin, "
+    "dismemberment, a severed body part; \"disturbing\" = violence outside of combat: "
+    "torture, an execution, cruelty or abuse of someone helpless (or an animal). A body with "
+    "no visible blood (covered, or just lying there) is none of these. Nudity means bare breasts, bare "
     "buttocks or genitals actually shown; implied nudity means someone undressed but covered "
     "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
     "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
@@ -626,8 +632,10 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
             "scene": {"type": "integer"},
             "decision": {"type": "string", "enum": ["remove", "not an issue", "can't tell"]},
             "nudity": {"type": "string", "enum": ["shown", "implied", "none"]},
+            "violence": {"type": "string", "enum": VIOLENCE_LEVELS},
             "why": {"type": "string"}},
-        "required": ["scene", "decision", "nudity", "why"]}}}, "required": ["decisions"]}
+        "required": ["scene", "decision", "nudity", "violence", "why"]}}},
+        "required": ["decisions"]}
     out = {}
     batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
     for b, batch in enumerate(batches):
@@ -641,12 +649,13 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
             wanted + "\n\n" + PIC_RULES + "\n\nFor EVERY scene give a decision: \"remove\" if the "
             "stills really show what it was flagged for (or anything else they want removed), "
             "\"not an issue\" if it's a false alarm, or \"can't tell\". Also say for every scene "
-            "whether nudity is \"shown\", only \"implied\", or \"none\" (judge nudity by that, "
-            "not by the decision). Keep each \"why\" to a few plain words.")
+            "whether nudity is \"shown\", only \"implied\", or \"none\", and the highest "
+            "violence level shown (\"none\", \"violence\", \"graphic violence\", \"gore\" or "
+            "\"disturbing\"). Keep each \"why\" to a few plain words.")
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
         for d in res.get("decisions", []):
             k = int(d.get("scene", 0)) - 1
             if 0 <= k < len(batch):
                 out[batch[k][0]] = (d.get("decision"), str(d.get("why", ""))[:140],
-                                    d.get("nudity", "none"))
+                                    d.get("nudity", "none"), d.get("violence", "none"))
     return out

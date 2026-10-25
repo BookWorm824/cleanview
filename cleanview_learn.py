@@ -78,6 +78,10 @@ def load(key):
     for k, v in (("muted", []), ("kept", []), ("scenes", {}), ("words", {}),
                  ("claude_muted", []), ("claude_kept", []), ("claude_ok_words", [])):
         d.setdefault(k, v)
+    if not d.get("v2"):     # "Gore" used to mean any blood; that's "Graphic violence" now
+        if "Gore" in d["scenes"]:
+            d["scenes"]["Graphic violence"] = d["scenes"].pop("Gore")
+        d["v2"] = True
     return d
 
 

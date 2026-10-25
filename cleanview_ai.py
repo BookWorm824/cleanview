@@ -512,18 +512,25 @@ LOOK = {
                 "who": {"type": "string", "enum": ["man and woman", "two men", "two women",
                                                    "unclear"]}},
              "required": ["see", "intimate", "who"]}),
-    "gore": ("Question: is there graphic gore you can clearly see: lots of blood, open wounds, "
-             "a bloody body? A body under a sheet, a crime scene with no visible blood, or a "
-             "dark red object is NOT.",
-             {"type": "object", "properties": {"see": {"type": "string"},
-                                               "graphic": {"type": "boolean"}},
-              "required": ["see", "graphic"]}),
+    "gore": ("Question: how bloody is it? Answer \"insides\" only if the inside of a body is "
+             "shown on the outside: organs, entrails, brains, bone through skin, a severed body "
+             "part. Answer \"blood\" if there is visible blood, a bloody wound or a bloody body "
+             "but nothing inside showing. Answer \"none\" if there's no visible blood (a covered "
+             "body, a crime scene without blood, a dark red object).",
+             {"type": "object", "properties": {
+                 "see": {"type": "string"},
+                 "level": {"type": "string", "enum": ["insides", "blood", "none"]}},
+              "required": ["see", "level"]}),
     "fight": ("Question: are people clearly fighting, hitting, shooting, or threatening someone "
               "with a weapon? People talking, running, or a police officer simply holding a gun "
-              "at their side is NOT.",
-              {"type": "object", "properties": {"see": {"type": "string"},
-                                                "violent": {"type": "boolean"}},
-               "required": ["see", "violent"]}),
+              "at their side is NOT. If it is violent, is it a fight between people who can "
+              "fight back (\"combat\"), or done to someone helpless: torture, an execution, "
+              "cruelty, abuse (\"helpless\")?",
+              {"type": "object", "properties": {
+                  "see": {"type": "string"},
+                  "violent": {"type": "boolean"},
+                  "kind": {"type": "string", "enum": ["combat", "helpless", "none"]}},
+               "required": ["see", "violent", "kind"]}),
     "smoking": ("Question: is someone smoking (cigarette, cigar, vape, pipe)?",
                 {"type": "object", "properties": {"see": {"type": "string"},
                                                   "yes": {"type": "boolean"}},
@@ -585,9 +592,11 @@ def second_look(cands, frames_for, progress=None, cancel=None):
             v["keep"] = bool(a.get("intimate"))
             v["who"] = WHO_KEY.get(a.get("who"), "?")
         elif c["cat"] == "gore":
-            v["keep"] = bool(a.get("graphic"))
+            v["level"] = {"insides": "gore", "blood": "graphic"}.get(a.get("level"), "none")
+            v["keep"] = v["level"] != "none"
         elif c["cat"] == "fight":
             v["keep"] = bool(a.get("violent"))
+            v["level"] = "disturbing" if a.get("kind") == "helpless" else "combat"
         elif c["cat"] == "nudity":
             v["level"] = a.get("nudity") if a.get("nudity") in ("shown", "implied") else "none"
             v["keep"] = v["level"] != "none"

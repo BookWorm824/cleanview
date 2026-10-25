@@ -46,6 +46,7 @@ VISUAL_FPS = 2.0
 CLOUD = ("claude", "chatgpt")      # readers that use your Claude or ChatGPT plan
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying")
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
+            "graphic": True, "disturbing": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True,
@@ -66,9 +67,9 @@ def needs(opts):
         clip_cats.append("kiss")
     if o["sex"] or o["samesex"] or o["oppsex"]:
         clip_cats.append("bed")
-    if o["gore"]:
+    if o["gore"] or o["graphic"]:
         clip_cats.append("gore")
-    if o["violence"]:
+    if o["violence"] or o["disturbing"]:
         clip_cats.append("fight")
     for k in ("smoking", "drinking", "drugs", "immodest"):
         if o[k]:
@@ -860,7 +861,7 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "learned": "You mu
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
-CAT_LABEL = {"gore": "Gore", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
+CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing"}
 
 
@@ -869,10 +870,13 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck",
               "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)"}
-OPT_TEXT = {"nudity": "nudity (private parts actually shown)",
+OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)",
+            "disturbing": "disturbing violence outside of combat (torture, executions, cruelty)",
+            "nudity": "nudity (private parts actually shown)",
             "implied": "implied nudity (undressed but covered by sheets, towels or the camera)",
             "sex": "sex scenes", "violence": "violence",
-            "gore": "graphic gore", "immodest": "immodest clothing", "smoking": "smoking",
+            "gore": "gore (insides shown: organs, dismemberment)", "immodest": "immodest clothing",
+            "smoking": "smoking",
             "drinking": "drinking", "drugs": "drug use",
             "samesex": "same-sex relationships and romance, including flirting",
             "casual": "sleeping around (casual sex, hooking up, affairs)",
@@ -1166,13 +1170,18 @@ def claude_review(st, work=None):
 
 # --- Claude / ChatGPT looking at the picture ----------------------------------
 PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with a weapon)",
-            "gore": "graphic gore (blood, wounds, bodies)",
+            "graphic": "graphic violence (blood and wounds shown, bloody bodies, bloody crime "
+                       "scenes)",
+            "gore": "gore (insides on the outside: organs, entrails, brains, dismemberment)",
+            "disturbing": "disturbing violence outside of combat (torture, executions, cruelty "
+                          "to the helpless)",
             "nudity": "nudity (bare breasts, buttocks or genitals actually shown)",
             "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
                        "back or shoulders, shower from the shoulders up)",
             "sex": "sex scenes or a couple in bed", "immodest": "immodest clothing",
             "smoking": "smoking", "drinking": "drinking alcohol", "drugs": "drug use"}
-PIC_LABEL = {"violence": "Violence", "gore": "Gore", "nudity": "Nudity",
+PIC_LABEL = {"violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
+             "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
              "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs"}
@@ -1209,6 +1218,10 @@ def _pic_wanted(f, o):
         return None
     if w == "implied nudity":
         return "Implied nudity" if o.get("implied") else None
+    if w == "graphic violence":
+        return "Graphic violence" if o.get("graphic") else None
+    if w == "gore":                      # gore is graphic too
+        return "Gore" if o.get("gore") else "Graphic violence" if o.get("graphic") else None
     if w in PIC_LABEL and (w == "sex" or o.get(w)):
         return PIC_LABEL[w]
     return None
@@ -1272,6 +1285,10 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
                 continue                       # goes to the closer look below
             if all(finds[k]["label"] == "Implied nudity" for k in nh):
                 sc["kind"] = ["Implied nudity" if x == "Nudity" else x for x in sc["kind"]]
+        VK = ("Violence", "Graphic violence", "Gore", "Disturbing")
+        vh = [finds[k]["label"] for k in hit if finds[k]["label"] in VK]
+        if vh and sc.get("kind") and all(k in VK for k in sc["kind"]):
+            sc["kind"] = sorted(set(vh), key=VK.index, reverse=True)[:2]   # what Claude saw
         if hit:
             used.update(hit)
             sc["claude"] = {"decision": "remove", "why": "seen: " + finds[hit[0]]["why"],
@@ -1296,7 +1313,27 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
             v = verdicts.get(sc["id"])
             if not v:
                 continue
-            dec, why, nud = v
+            dec, why, nud, vio = (tuple(v) + ("none",))[:4]
+            VK = ("Violence", "Graphic violence", "Gore", "Disturbing")
+            if sc.get("kind") and all(k in VK for k in sc["kind"]) and vio in (
+                    "none", "violence", "graphic violence", "gore", "disturbing"):
+                lab = {"violence": "Violence", "graphic violence": "Graphic violence",
+                       "gore": "Gore", "disturbing": "Disturbing"}.get(vio)
+                want = {"Violence": o.get("violence"), "Graphic violence": o.get("graphic"),
+                        "Gore": o.get("gore") or o.get("graphic"),
+                        "Disturbing": o.get("disturbing")}
+                if lab == "Gore" and not o.get("gore"):
+                    lab = "Graphic violence"
+                if lab is None:
+                    if dec != "can't tell":
+                        dec, why = "not an issue", "no violence shown: " + why
+                elif want.get(lab):
+                    sc["kind"] = [lab]
+                    if dec != "can't tell":
+                        dec = "remove"
+                else:
+                    sc["kind"] = [lab]
+                    dec, why = "not an issue", f"only {lab.lower()}, which you're not removing: " + why
             if "Nudity" in sc.get("kind", []) and len(sc["kind"]) == 1:
                 if nud == "implied":
                     sc["kind"] = ["Implied nudity"]
@@ -1399,6 +1436,22 @@ def decide_picture_scenes(cands, o, have_ai):
             why = "a couple in bed or making out" + note
         else:
             label = CAT_LABEL[c["cat"]]
+            lvl = v.get("level") if checked else None
+            if c["cat"] == "gore":            # how bloody: graphic (blood) or gore (insides)
+                if lvl == "gore" and o["gore"]:
+                    label = "Gore"
+                elif lvl in ("gore", "graphic") and o["graphic"]:
+                    label = "Graphic violence"
+                elif lvl is None and (o["graphic"] or o["gore"]):
+                    label = "Graphic violence"
+                    checked = checked and o["graphic"]
+                else:
+                    continue
+            elif c["cat"] == "fight":         # combat, or cruelty to someone helpless
+                if lvl == "disturbing" and o["disturbing"]:
+                    label = "Disturbing"
+                elif not o["violence"]:
+                    continue
             why = f"{label.lower()} seen" + note
         if checked and v.get("what"):
             why = f"{why} — {v['what']}"
