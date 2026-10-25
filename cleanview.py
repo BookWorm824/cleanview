@@ -921,8 +921,9 @@ def word_mute(st, line, word, why):
     if not target:
         return None
     a, b = line["s"] - 0.6, line["e"] + 0.6
-    for m in st.get("mutes", []):
-        if a <= m["s"] <= b and target in cl.norm((m.get("raw") or m["word"]).replace(" ", "")):
+    for m in st.get("mutes", []):          # already on the list (timings can be ~2 s off)
+        if a - 2.0 <= m["s"] <= b + 1.0 and \
+                target in cl.norm((m.get("raw") or m["word"]).replace(" ", "")):
             return m
     s = e = None
     src = "claude"

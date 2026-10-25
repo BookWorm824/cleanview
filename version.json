@@ -1,1 +1,1 @@
-{"version": "1.9.2", "files": ["cvcore.py", "cleanview.py", "cleanview_ai.py", "cleanview_learn.py", "cleanview_claude.py", "cleanview_gpt.py", "CleanView.pyw", "launcher.pyw", "cleanview.ico", "shared_learned.json"]}
+{"version": "1.9.3", "files": ["cvcore.py", "cleanview.py", "cleanview_ai.py", "cleanview_learn.py", "cleanview_claude.py", "cleanview_gpt.py", "CleanView.pyw", "launcher.pyw", "cleanview.ico", "shared_learned.json"]}
