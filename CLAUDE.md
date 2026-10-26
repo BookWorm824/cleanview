@@ -58,6 +58,31 @@ them in. Rules that follow from this:
 | `shared_learned.json` | Built-in knowledge merged from users' exports; shipped with every update. Merged with `tools/merge_learned.py`. |
 | `launcher.pyw`, `update.json` | Auto-updater (above). |
 | `installer/` | `install.ps1`, `Install CleanView.bat`, `READ ME FIRST.txt`. Zipped by hand as `CleanView-Setup.zip`. |
+| `tests/` | The test suite (see **Tests** below). Not shipped by the updater. |
+
+## Tests
+
+Run from the repo folder with the app's own Python (it has the packages the app imports):
+
+```
+"%LOCALAPPDATA%\CleanView\venv\Scripts\python.exe" -m unittest discover -s tests -v
+```
+
+(In PowerShell: `& "$env:LOCALAPPDATA\CleanView\venv\Scripts\python.exe" -m unittest discover -s tests -v`.)
+
+- Plain `unittest`, nothing extra to install. Takes a few seconds; no models, ffmpeg,
+  Ollama, Claude or internet needed.
+- `tests/support.py` is imported first by every test file: it points `LOCALAPPDATA` at a
+  throwaway folder **before** any app module is imported, so real settings, learned files and
+  reviews are never touched, and it makes small made-up sample data (an old-style learned
+  file, a sample review). Don't use anyone's real videos, learned files or reviews in tests.
+- `test_learning.py`: learning only counts her own choices, the one-time clean-up of old
+  learned files, hints vs her own choices in `apply_review`.
+- `test_scenes.py`: the local AI's "can't see clearly" check and `merge_scenes`.
+- `test_ui.py`: plain error messages, and the real window on the sample review (message boxes
+  are faked). A CleanView window flashes up briefly; these skip where there's no screen.
+- When fixing a bug, add a test that fails before the fix, and run the suite before every
+  release.
 
 ## Pipeline (what `analyze()` does)
 
@@ -130,10 +155,10 @@ These are where results have been wrong in real use. Improvements here matter mo
 5. **Size of the code.** `cleanview.py` and `CleanView.pyw` are large single files with lots of
    shared mutable dict state (`st`). Refactoring is welcome but the update rules above apply
    (flat file names, add new files to `version.json`).
-6. **Tests.** There is no test suite in the repo. Testing so far used small sample videos, fake
-   `claude`/`codex` scripts on PATH that return canned JSON, and GUI checks under Xvfb.
-   Adding real tests (word lists, `find_language`, `word_mute`, `apply_review`, `render` on a
-   tiny generated video, `guess_title` on real file names) would make changes much safer.
+6. **Tests.** `tests/` covers learning, `apply_review` hints, the local "unclear" check,
+   scene merging and the main UI fixes. Still missing: word lists and `find_language`,
+   `word_mute`, `render` on a tiny generated video, and `guess_title` on real file names.
+   Earlier testing also used fake `claude`/`codex` scripts on PATH that return canned JSON.
 7. **Speed.** A 22-minute episode takes a long time with every check on (speech, picture,
    voices, local AI, then cloud picture review of ~700 stills). Batching, skipping work that
    isn't needed for the chosen filters, and reusing results between runs could help.
@@ -142,7 +167,8 @@ These are where results have been wrong in real use. Improvements here matter mo
 
 ## Releasing
 
-1. Make the change, bump `version` in `version.json` (and add any new file to `"files"`).
+1. Make the change, run the tests, bump `version` in `version.json` (and add any new file to
+   `"files"`).
 2. Commit as `BookWorm824 <morganscorner93@gmail.com>` and push to `main`. Installed copies
    pick it up within a few minutes (the raw GitHub CDN can lag ~5 minutes).
 3. Tell Lauren in one or two plain sentences what changed and to press F5 / "Update now".
