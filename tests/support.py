@@ -15,6 +15,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SANDBOX = Path(tempfile.mkdtemp(prefix="cleanview-tests-"))
+# The repo has no bin\ folder: borrow the installed app's ffmpeg (only to run it) if
+# there's none on PATH. Tests that need it skip when there's none at all.
+_installed_bin = Path(os.environ.get("LOCALAPPDATA") or "") / "CleanView" / "app" / "bin"
+if not shutil.which("ffmpeg") and (_installed_bin / "ffmpeg.exe").exists():
+    os.environ["PATH"] = str(_installed_bin) + os.pathsep + os.environ.get("PATH", "")
+FFMPEG = shutil.which("ffmpeg")
 os.environ["LOCALAPPDATA"] = str(SANDBOX)
 os.environ.pop("CLEANVIEW_RESUME", None)
 APP_DATA = SANDBOX / "CleanView"

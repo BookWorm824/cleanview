@@ -572,11 +572,21 @@ def spoken_words(text):
 # ---------------------------------------------------------------------------
 # Listening (dialogue) and the sound-event scan
 # ---------------------------------------------------------------------------
+def _mono(a, dialogue):
+    """ffmpeg options for reading the sound as one channel (the centre one on surround
+    sound, where the dialogue is). Where the sound starts later than the video (common in
+    MKV and DVD rips) silence is put in first, so second 0 of what's read is second 0 of
+    the clock render() mutes and cuts by; without it every mute lands early by the delay."""
+    chain = "aresample=async=1:first_pts=0"
+    if dialogue and a["channels"] >= 5:
+        return ["-af", chain + ",pan=mono|c0=FC"]
+    return ["-af", chain, "-ac", "1"]
+
+
 def _audio_cmd(path, info, dialogue):
     a = info["audio"]
-    mix = ["-af", "pan=mono|c0=FC"] if dialogue and a["channels"] >= 5 else ["-ac", "1"]
     return [cl._tool("ffmpeg"), "-v", "error", "-i", str(path), "-map", f"0:{a['index']}",
-            "-vn", "-sn", *mix, "-ar", str(SR), "-f", "f32le", "-"]
+            "-vn", "-sn", *_mono(a, dialogue), "-ar", str(SR), "-f", "f32le", "-"]
 
 
 def _stream_chunks(cmd, chunk, overlap, cancel=None):
@@ -1042,7 +1052,8 @@ def word_mute(st, line, word, why):
          "word": " ".join(cl.mask(p) for p in word.split()), "raw": target,
          "ctx": " ".join(ctx_words) or (line.get("plain") or line["text"])[:60]}
     try:
-        m["s"], m["e"] = cl.snap_edges(st["path"], m["s"], m["e"], wide=src != "claude")
+        m["s"], m["e"] = cl.snap_edges(st["path"], m["s"], m["e"], wide=src != "claude",
+                                       audio=(st.get("info") or {}).get("audio"))
     except Exception:
         pass
     st.setdefault("mutes", []).append(m)
@@ -1251,12 +1262,14 @@ def apply_chat(st, items, acts, work=None):
     return done
 
 
-def claude_review(st, work=None):
+def claude_review(st, work=None, fresh=False):
     """Claude's final review of everything found (also used by the
-    "Review everything again" button). Raises cc.ClaudeError."""
+    "Review everything again" button, with fresh=True so it really looks again
+    instead of giving the saved answer). Raises cc.ClaudeError."""
     st["reviewer"] = cc.name()
     res = cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
-                    learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")))
+                    learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")),
+                    fresh=fresh)
     n = apply_review(st, res)
     who = st.get("reviewer", "Claude")
     st["notes"] = [x for x in st.get("notes", []) if " reviewed everything:" not in x]
@@ -1687,9 +1700,8 @@ def decide_picture_scenes(cands, o, have_ai):
 def find_voices(path, info, work, lines, cancel=None):
     """Speaker numbers and man/woman/child guesses for each line."""
     a = info["audio"]
-    mix = ["-af", "pan=mono|c0=FC"] if a["channels"] >= 5 else ["-ac", "1"]
     r = cl.run([cl._tool("ffmpeg"), "-v", "error", "-i", path, "-map", f"0:{a['index']}", "-vn",
-                "-sn", *mix, "-ar", str(ai.VSR), "-f", "f32le", "-"], capture_output=True)
+                "-sn", *_mono(a, True), "-ar", str(ai.VSR), "-f", "f32le", "-"], capture_output=True)
     if r.returncode != 0 or not r.stdout:
         raise RuntimeError("couldn't read the sound")
     audio = np.frombuffer(r.stdout[: len(r.stdout) // 4 * 4], dtype=np.float32)
@@ -1742,6 +1754,18 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                     "text": " ".join(toks), "plain": l["text"], "types": sorted(found[i]),
                     "mute": True, "idx": i})
     return out, how
+
+
+def already_muted(mutes, raw, s, e):
+    """True if a word found in the subtitles is already muted from listening: the same
+    word heard about then, or most of its time already muted. Another word close by
+    ("what the hell, damn it") is no reason to skip it."""
+    for m in mutes:
+        if m.get("raw") == raw and m["s"] - 0.8 <= s <= m["e"] + 0.8:
+            return True
+        if min(e, m["e"]) - max(s, m["s"]) > 0.5 * max(0.01, e - s):
+            return True
+    return False
 
 
 def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, progress=None,
@@ -1908,7 +1932,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 mid = c["s"] + (c["e"] - c["s"]) * frac
                 s, e = max(c["s"], mid - 0.7), min(c["e"], mid + 0.7 + 0.3 * (j - i - 1))
                 src = "subtitles-estimated"
-            if any(m["s"] - 0.8 <= s <= m["e"] + 0.8 for m in mutes):
+            if already_muted(mutes, " ".join(sn[i:j]), s, e):
                 continue
             mutes.append({"s": round(s, 3), "e": round(e, 3), "cat": cat, "src": src,
                           "word": " ".join(cl.mask(w) for w in sw[i:j]),
@@ -1921,7 +1945,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         sub_note = "No subtitles found, so language was found by listening only."
     mutes.sort(key=lambda m: m["s"])
     for m in mutes:
-        m["s"], m["e"] = cl.snap_edges(path, m["s"], m["e"], wide=m["src"] != "audio")
+        m["s"], m["e"] = cl.snap_edges(path, m["s"], m["e"], wide=m["src"] != "audio",
+                                       audio=info["audio"])
 
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
@@ -2271,7 +2296,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     dur = st["duration"]
-    off = info.get("start", 0.0)
+    # ffmpeg starts the filters' clock at 0 even when the file's own clock doesn't (.ts,
+    # .m2ts, .vob and .mpg rips often start at 0.3 s to 10 s or more), and every time in
+    # the analysis counts from 0 too, so nothing is added. Adding the file's start time
+    # made every mute and cut in those files land that much late.
+    off = 0.0
     if lines is None:
         lines = [l for l in st.get("lines", []) if l.get("mute")]
     if words is not None:          # the swear words left ticked on the review page
@@ -2365,6 +2394,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                 if proc.poll() is None:
                     proc.kill()
                     proc.wait()
+                proc.stdout.close()
         if proc.returncode == 0:
             try:
                 os.replace(tmp, dst)      # fails if the old clean copy is open in a player

@@ -66,7 +66,9 @@ def probe_duration(path):
 # ---------------------------------------------------------------------------
 STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing"]
 MODERATE = [
-    r".*shit.*", r"bitch.*", r"ass", r"asses", r"ass(hole|holes|wipe)", r"arse",
+    r".*shit.*", r"bitch.*", r"son(of|ofa|uva|na)?bitch.*", r"sumbitch.*", r"ass", r"asses",
+    r"ass(holes?|wipes?|hats?|clowns?|face|faces|heads?|kick(s|ed|er|ers|ing)?|"
+    r"kiss(er|ers|ing)?)", r"arse",
     r"arsehole.*", r"jackass.*", r"dumbass.*", r"badass.*", r"smartass.*",
     # "sweet-ass deal", "kick-ass": the hyphen is dropped, so list the joined forms
     r"(sweet|kick|big|fat|lazy|hard|half|wise|candy|cheap|kiss|tight|crazy|stupid|sorry|"
@@ -76,10 +78,11 @@ MODERATE = [
     r"bugger.*", r"wanker.*", r"twats?", r"sluts?", r"slutty", r"whores?",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
 ]
-MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"hell", r"hellhole",
-        r"crap", r"crappy", r"craps", r"sod", r"sodding", r"bloody"]
-MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"jeez", r"geez",
-          r"gosh", r"darn.*", r"heck", r"dang"]
+MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
+        r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody"]
+MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
+          r"geeze?", r"gosh", r"gosh(darn|dang).*", r"darn.*", r"heck", r"dang", r"dang(it|ed)",
+          r"dagnabb?it"]
 DEITY_PHRASES = [
     ("oh", "my", "god"), ("my", "god"), ("oh", "god"), ("good", "god"),
     ("dear", "god"), ("god", "almighty"), ("for", "god's", "sake"),
@@ -88,12 +91,18 @@ DEITY_PHRASES = [
     ("lord", "almighty"), ("sweet", "jesus"), ("jesus", "christ"),
     ("for", "christ's", "sake"), ("for", "christs", "sake"),
 ]
-CRUDE_PHRASES = [   # muted with the swearing group
+CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
     ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
     ("screw", "him"), ("screw", "her"), ("screw", "them"), ("screw", "me"), ("screw", "yourself"),
     ("screw", "y'all"), ("screw", "ya"),
 ]
-DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"goddamn.*"]
+DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"oh?m[iy]god", r"goddamn.*",
+               r"godd?amm?it"]
+# "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
+# these isn't counted when one of NOT_RUDE_NEXT comes straight after it.
+PHRASE_OBJECTS = {"it", "them", "that", "this", "him", "her", "me"}
+NOT_RUDE_NEXT = {"down", "off", "in", "into", "on", "onto", "up", "out", "together", "tight",
+                 "tightly", "shut", "back", "open", "closed", "loose", "tighter", "away"}
 # rude words kids copy (a separate box, off unless ticked)
 RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?", r"idiotic",
         r"morons?", r"moronic", r"dumm(y|ies)", r"dorks?", r"dorky", r"dweebs?", r"jerks?",
@@ -139,8 +148,37 @@ GROUPS = {
 }
 
 
+# Subtitles often bleep swears ("f***ing", "s**t", "a**hole", "@#$%"). Each is matched
+# against these, most common first, so the word is still found; same length wins.
+BLEEPED = ["fuck", "fucking", "fuckin", "fucked", "fucker", "fuckers", "fucks", "motherfucker",
+           "motherfuckers", "motherfucking", "shit", "shits", "shitty", "shitting", "bullshit",
+           "horseshit", "bitch", "bitches", "bitching", "ass", "asses", "asshole", "assholes",
+           "jackass", "dumbass", "damn", "damned", "dammit", "goddamn", "goddammit", "hell", "crap",
+           "dick", "dicks", "dickhead", "bastard", "bastards", "piss", "pissed", "cunt", "whore",
+           "slut", "cock", "prick", "god", "jesus", "christ"]
+_BLEEP = re.compile(r"[*#]|[@$%&!]{2,}|(?<=[a-z])-{2,}(?=[a-z])")
+
+
+def unbleep(w):
+    """'f***ing' -> 'fucking', 's**t' -> 'shit'; anything else comes back as it was."""
+    t = w.lower().strip(".,!?;:\"'()[]")
+    if not _BLEEP.search(t):
+        return w
+    if not re.sub(r"[*#@$%&!-]", "", t) and len(t) < 3:
+        return w                                  # a lone "*" or "**": not a word
+    parts = re.split(r"([*#@$%&!-]+)", t)
+    for exact in (True, False):
+        pat = "".join(re.escape(p) if not re.fullmatch(r"[*#@$%&!-]+", p) else
+                      (f"[a-z]{{{len(p)}}}" if exact else "[a-z]+") for p in parts if p)
+        found = [b for b in BLEEPED if re.fullmatch(pat, b)]
+        if found:
+            same = [b for b in found if len(b) == len(t)]
+            return (same or found)[0]
+    return w
+
+
 def norm(w):
-    w = w.lower().replace("’", "'").replace("‘", "'")
+    w = unbleep(w).lower().replace("’", "'").replace("‘", "'")
     w = re.sub(r"[^a-z0-9']", "", w)
     return w.strip("'")
 
@@ -166,6 +204,9 @@ def listed_word(word):
     words. Used so an AI can't mute a misheard name ('Grafi') on its own."""
     w = norm(word.replace(" ", "").replace("-", ""))
     parts = [norm(p) for p in re.split(r"[\s\-]+", word) if norm(p)]
+    for ph in DEITY_PHRASES + CRUDE_PHRASES + RUDE_PHRASES:     # "shut up", "screw you"
+        if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
+            return True
     for c in [w] + parts:
         c = _base(c)
         if c in ("god", "gods", "lord", "lords"):
@@ -180,6 +221,10 @@ def listed_word(word):
 def find_language(words, cats):
     """Return (i, j, category) spans of words[i:j] to mute."""
     hits, n, i = [], len(words), 0
+
+    def rude_use(p):        # "shut it" yes, "shut it down" no
+        nxt = words[i + len(p)] if i + len(p) < n else ""
+        return p[-1] not in PHRASE_OBJECTS or nxt not in NOT_RUDE_NEXT
     while i < n:
         if "deity" in cats:
             ph = next((p for p in sorted(DEITY_PHRASES, key=len, reverse=True)
@@ -188,17 +233,18 @@ def find_language(words, cats):
                 hits.append((i, i + len(ph), "deity"))
                 i += len(ph)
                 continue
-        if ("moderate" in cats and words[i] == "screw"
+        if (("mild" in cats or "moderate" in cats) and words[i] == "screw"
                 and (i == 0 or words[i - 1] not in ("the", "a", "that", "this", "loose", "one",
                                                      "each", "every", "of", "tighten"))):
-            ph = next((p for p in CRUDE_PHRASES if tuple(words[i:i + len(p)]) == p), None)
+            ph = next((p for p in CRUDE_PHRASES if tuple(words[i:i + len(p)]) == p
+                       and rude_use(p)), None)
             if ph:
-                hits.append((i, i + len(ph), "moderate"))
+                hits.append((i, i + len(ph), "mild" if "mild" in cats else "moderate"))
                 i += len(ph)
                 continue
         if "rude" in cats:
             ph = next((p for p in sorted(RUDE_PHRASES, key=len, reverse=True)
-                       if tuple(words[i:i + len(p)]) == p), None)
+                       if tuple(words[i:i + len(p)]) == p and rude_use(p)), None)
             if ph:
                 hits.append((i, i + len(ph), "rude"))
                 i += len(ph)
@@ -310,32 +356,42 @@ def transcribe(path, rec, progress=None, chunk=30.0, overlap=2.0, cancel=None):
     return out
 
 
-def snap_edges(path, s, e, wide=False):
-    """Timestamps are only accurate to ~80ms. Look at the real audio and move
-    each edge out to true silence; if speech is continuous, pad generously
-    (better to clip a tiny neighbouring word than leak part of a swear)."""
-    reach = 0.3 if wide else 0.18
+def snap_edges(path, s, e, wide=False, audio=None):
+    """Timestamps are only accurate to ~80ms, and the speech recognition often puts
+    a word's start late, after its soft first sound (the "f" of a swear). Look at the
+    real audio and move each edge out to true silence; if speech is continuous, pad
+    generously (better to clip a tiny neighbouring word than leak part of a swear).
+    audio: the video's sound track from probe(), so this listens to the same track
+    and channel (the centre one on surround) as the speech recognition did."""
+    reach = 0.35 if wide else 0.25
     t0 = max(0.0, s - reach - 0.05)
     dur = (e + reach + 0.05) - t0
+    track = ["-map", f"0:{audio['index']}"] if audio else []
+    chain = "aresample=async=1:first_pts=0" + (
+        ",pan=mono|c0=FC" if audio and audio.get("channels", 2) >= 5 else "")
     raw = run([_tool("ffmpeg"), "-v", "error", "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}",
-               "-i", str(path), "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
-              capture_output=True).stdout
-    a = np.frombuffer(raw, dtype=np.float32)
+               "-i", str(path), *track, "-af", chain, "-ac", "1", "-ar", str(SR),
+               "-f", "f32le", "-"], capture_output=True).stdout
+    a = np.frombuffer(raw[: len(raw) // 4 * 4], dtype=np.float32)
     hop = SR // 100
     if len(a) < hop * 5:
-        return round(max(0, s - 0.12), 3), round(e + 0.12, 3)
+        return round(max(0, s - 0.15), 3), round(e + 0.15, 3)
     en = np.array([np.sqrt(np.mean(a[k:k + hop] ** 2)) for k in range(0, len(a) - hop, hop)])
     en = np.convolve(en, np.ones(3) / 3, mode="same")
     tt = t0 + np.arange(len(en)) * 0.01
-    floor = 0.06 * float(en.max())
+    top = float(en.max())
+    # Silence is quiet next to the loudest sound here. But a word's soft first sound is
+    # quiet too, so when the background is quiet (it's what's quietest in this stretch)
+    # only near-silence counts; with noise or music behind it, the old 6% line stays.
+    floor = min(0.06 * top, max(0.015 * top, 1.5 * float(np.percentile(en, 10))))
 
     def silent(lo, hi):
         idx = np.where((tt >= lo) & (tt <= hi) & (en < floor))[0]
         return idx if len(idx) else None
 
     lo, hi = silent(s - reach, s), silent(e, e + reach)
-    ns = float(tt[lo[-1]]) if lo is not None else s - 0.12
-    ne = float(tt[hi[0]] + 0.01) if hi is not None else e + 0.12
+    ns = float(tt[lo[-1]]) - 0.02 if lo is not None else s - 0.15
+    ne = float(tt[hi[0]]) + 0.03 if hi is not None else e + 0.15
     return round(max(0, ns), 3), round(max(ne, e), 3)
 
 

@@ -1529,7 +1529,7 @@ class App(tk.Tk):
 
         def go():
             try:
-                engine.claude_review(job["analysis"], job["work"])
+                engine.claude_review(job["analysis"], job["work"], fresh=True)
                 self.q.put(("reviewed", job, None))
             except Exception as ex:
                 save_details(traceback.format_exc())

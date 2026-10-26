@@ -8,6 +8,7 @@ to pay. Only the episode's dialogue is sent, as text, never video or sound.
 
 use("claude") / use("chatgpt") picks which one the functions below talk to.
 """
+import hashlib
 import json
 import os
 import re
@@ -133,10 +134,61 @@ def sign_in(provider=None):
         raise ClaudeError(str(ex))
 
 
+ANSWERS = APP_DATA / "answers"
+KEEP_ANSWERS = 3000          # the newest this many are kept (a few MB)
+
+
+def _answer_key(prompt, schema, stdin_text, system, images):
+    """The same question to the same AI: same words, settings, pictures and model."""
+    h = hashlib.sha256()
+    for part in (PROVIDER, MODEL if PROVIDER == "claude" else gpt.MODEL, prompt,
+                 stdin_text or "", system or "", json.dumps(schema, sort_keys=True)):
+        h.update(part.encode("utf8") + b"\0")
+    for label, path in images or []:
+        h.update(label.encode("utf8") + b"\0" + Path(path).read_bytes())
+    return h.hexdigest()[:32]
+
+
+def _saved_answer(key):
+    try:
+        return json.loads((ANSWERS / f"{key}.json").read_text("utf8"))["answer"]
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def _save_answer(key, answer):
+    try:
+        ANSWERS.mkdir(parents=True, exist_ok=True)
+        tmp = ANSWERS / f"{key}.tmp"
+        tmp.write_text(json.dumps({"answer": answer}), encoding="utf8")
+        os.replace(tmp, ANSWERS / f"{key}.json")
+        old = sorted(ANSWERS.glob("*.json"), key=lambda f: f.stat().st_mtime)
+        for f in old[:-KEEP_ANSWERS]:
+            f.unlink()
+    except OSError:
+        pass
+
+
 def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600,
-        images=None):
+        images=None, fresh=False):
     """One request to Claude or ChatGPT. Returns (answer_dict, session_id).
-    images: [(label, path_to_jpg), ...] shown before the prompt."""
+    images: [(label, path_to_jpg), ...] shown before the prompt.
+    The same one-off question gets the same answer as last time: the AI doesn't answer
+    the same way twice, so without this the same episode came out different each run.
+    fresh=True asks again anyway (and keeps the new answer). Chats are never reused."""
+    if session or keep:
+        return _ask_now(prompt, schema, stdin_text, system, session, keep, timeout, images)
+    key = _answer_key(prompt, schema, stdin_text, system, images)
+    saved = None if fresh else _saved_answer(key)
+    if saved is not None:
+        return saved, None
+    answer, sid = _ask_now(prompt, schema, stdin_text, system, session, keep, timeout, images)
+    _save_answer(key, answer)
+    return answer, sid
+
+
+def _ask_now(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600,
+             images=None):
     if PROVIDER == "chatgpt":
         try:
             return gpt.ask(prompt, schema, stdin_text, system, session, keep, timeout, images)
@@ -491,10 +543,10 @@ def _only_word(line, why, mutes):
     return ""
 
 
-def review(st, wanted_text, examples=None, extra_sounds=""):
+def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
     """Claude looks over everything at once. Returns (items {id: (kind, item)},
     decisions {id: (decision, why)}, missed_lines [(idx, why)], missed_scenes
-    [{"from","to","why"}], summary)."""
+    [{"from","to","why"}], summary). fresh: don't reuse the last answer."""
     lines = st.get("dialogue", [])
     items, cand = candidates(st)
     prompt = (
@@ -535,7 +587,7 @@ def review(st, wanted_text, examples=None, extra_sounds=""):
         "sentences for them about this episode: what really needed removing and what was a "
         "false alarm.")
     res, _ = ask(prompt, REVIEW_SCHEMA, numbered(lines, st.get("voices")), system=SYSTEM,
-                 timeout=900)
+                 timeout=900, fresh=fresh)
     decisions = {}
     for d in res.get("decisions", []):
         i = str(d.get("id", "")).strip().upper()

@@ -26,7 +26,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
 - Start Menu shortcut runs `launcher.pyw`, which checks GitHub for updates and then runs
   `CleanView.pyw`.
 - User data lives in `%LOCALAPPDATA%\CleanView` (`APP_DATA` in the code): settings, learned
-  choices, Claude findings, the saved in-progress review.
+  choices, Claude findings, saved Claude/ChatGPT answers (`answers\`), the saved
+  in-progress review.
+- Times: everything counts from 0 = the start of the file, the clock ffmpeg's filters use in
+  `render()` (not the file's own start time, which can be 10 s or more on .ts/.vob rips).
+  Sound is always read through `_mono()` (or `snap_edges(audio=...)`), which pads a late
+  start with silence so the sound and the picture share that clock.
 
 ### Auto-update (important when changing files)
 
@@ -81,6 +86,14 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_scenes.py`: the local AI's "can't see clearly" check and `merge_scenes`.
 - `test_ui.py`: plain error messages, and the real window on the sample review (message boxes
   are faked). A CleanView window flashes up briefly; these skip where there's no screen.
+- `test_words.py`: word lists, bleeped subtitles (`unbleep`), phrases in `listed_word` and
+  `find_language`, and subtitle words near other mutes (`already_muted`).
+- `test_timing.py`: makes tiny videos with ffmpeg and cleans them with the real `render()`
+  (a .ts whose clock starts at 10 s, an MKV whose sound starts 1 s late), and checks
+  `snap_edges` on made-up sound. Uses the installed app's ffmpeg if none is on PATH;
+  skips if there's none.
+- `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
+  contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every
   release.
 
@@ -145,9 +158,12 @@ These are where results have been wrong in real use. Improvements here matter mo
    path misses or over-flags a lot (e.g. implied vs actual nudity, crime scenes as gore,
    cartoon fights). The cloud picture review is much better. Better local models or smarter
    thresholds would help users without Claude.
-3. **Run-to-run consistency.** The same episode gives somewhat different cut lists each run
-   (the cloud model isn't deterministic). Caching the picture review per video, or a second
-   pass that merges runs, could help.
+3. **Run-to-run consistency.** The cloud model isn't deterministic, so the same episode gave
+   different cut lists each run. Since 1.11.6 every one-off question to Claude/ChatGPT is
+   saved in `APP_DATA\answers` (keyed by provider, model, prompt, input, schema and the
+   pictures' bytes; newest 3,000 kept), so the same question gets the same answer. Chats are
+   never reused, and "Review everything again" asks afresh (`fresh=True`). Anything that
+   changes the question (her past choices, settings, different local finds) still asks again.
 4. **Subtitles.** Downloads depend on `subliminal` and on parsing show/season/episode from file
    names. Windows Smart App Control blocked chardet's compiled (`__mypyc`) parts; the app now
    switches chardet/charset-normalizer to their pure-Python wheels (`subtitle_finder_loads`).
@@ -156,9 +172,10 @@ These are where results have been wrong in real use. Improvements here matter mo
    shared mutable dict state (`st`). Refactoring is welcome but the update rules above apply
    (flat file names, add new files to `version.json`).
 6. **Tests.** `tests/` covers learning, `apply_review` hints, the local "unclear" check,
-   scene merging and the main UI fixes. Still missing: word lists and `find_language`,
-   `word_mute`, `render` on a tiny generated video, and `guess_title` on real file names.
-   Earlier testing also used fake `claude`/`codex` scripts on PATH that return canned JSON.
+   scene merging, the main UI fixes, word lists, mute timing and `render` on tiny videos,
+   and saved answers. Still missing: `word_mute`, `sync_cues`, the picture scans, and
+   `guess_title` on real file names. Earlier testing also used fake `claude`/`codex`
+   scripts on PATH that return canned JSON.
 7. **Speed.** A 22-minute episode takes a long time with every check on (speech, picture,
    voices, local AI, then cloud picture review of ~700 stills). Batching, skipping work that
    isn't needed for the chosen filters, and reusing results between runs could help.
