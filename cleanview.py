@@ -2190,6 +2190,13 @@ def _removed_expr(cuts, off):
     return "+".join(f"gte(T,{e + off:.3f})*{e - s:.3f}" for s, e in cuts) or "0"
 
 
+def _remove(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 def _merge(rs):
     out = []
     for s, e in sorted(rs):
@@ -2349,12 +2356,21 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                         left = f" · about {el / f * (1 - f) / 60:.0f} min left" if f > 0.03 and el > 15 else "…"
                         say(f, label + left)
                 proc.wait()
+            except KeyboardInterrupt:     # cancelled: don't leave a half-written copy behind
+                proc.kill()
+                proc.wait()
+                _remove(tmp)
+                raise
             finally:
                 if proc.poll() is None:
                     proc.kill()
                     proc.wait()
         if proc.returncode == 0:
-            os.replace(tmp, dst)
+            try:
+                os.replace(tmp, dst)      # fails if the old clean copy is open in a player
+            except OSError:
+                _remove(tmp)
+                raise
             return True, ""
         try:
             os.remove(tmp)

@@ -103,6 +103,36 @@ def open_path(p):
         subprocess.Popen(["xdg-open", p])
 
 
+ERROR_FILE = APP_DATA / "cleanview_last_error.txt"
+
+
+def plain_error(ex):
+    """What went wrong, in everyday words. The technical part is kept out of
+    sight, in cleanview_last_error.txt (save_details)."""
+    win = getattr(ex, "winerror", None)
+    if isinstance(ex, PermissionError) or win in (32, 33):
+        return ("A file CleanView needs is open in another program (maybe a video player). "
+                "Close it and try again.")
+    if isinstance(ex, OSError) and (win == 112 or ex.errno == 28):
+        return "The drive is full. Free up some space and try again."
+    text = str(ex).strip()
+    if text and isinstance(ex, (RuntimeError, engine.VideoError, cc.ClaudeError, cc.gpt.GptError)):
+        # CleanView's own messages say it plainly first, then add the technical part
+        first = re.split(r":?\s*\n", text, maxsplit=1)[0].strip()
+        first = first[:1].upper() + first[1:]
+        return first if first.endswith((".", "!", "?")) else first + "."
+    return "Something unexpected went wrong."
+
+
+def save_details(text):
+    """Keep the technical details of a problem, for whoever helps her."""
+    try:
+        APP_DATA.mkdir(parents=True, exist_ok=True)
+        ERROR_FILE.write_text(text, encoding="utf8")
+    except OSError:
+        pass
+
+
 def short(name, n=60):
     return name if len(name) <= n else name[:n - 1] + "…"
 
@@ -243,7 +273,30 @@ class App(tk.Tk):
     def _on_close(self):
         if self.page_name == "review":
             self._save_session()        # closing by accident never loses the review
+        elif self.page_name == "working":
+            if not messagebox.askyesno(
+                    "CleanView is still working",
+                    "If you close CleanView now, this stops. Starting the same videos again "
+                    "later skips the steps that are already done.\n\nClose anyway?",
+                    icon="warning", default="no", parent=self):
+                return
+            self.cancel_flag = True       # lets the saving step stop and tidy up first
+            self.after(1500, self.destroy)
+            return
         self.destroy()
+
+    def _problem(self, plain, details=None):
+        """Say what went wrong in plain words; the details go in a file instead."""
+        if details:
+            save_details(details)
+        if messagebox.askyesno("CleanView ran into a problem",
+                               plain + ("\n\nThe details are saved in a file, for anyone helping "
+                                        "you. Open that file now?" if details else ""),
+                               icon="error", default="no", parent=self) and details:
+            try:
+                open_path(str(ERROR_FILE))
+            except OSError:
+                pass
 
     def update_now(self):
         if self.upd_bar is None or not self.upd_bar.winfo_exists():
@@ -577,7 +630,7 @@ class App(tk.Tk):
         try:
             path = learn.export()
         except Exception as ex:
-            messagebox.showerror("CleanView", f"Couldn't save the file: {ex}")
+            messagebox.showerror("CleanView", f"Couldn't save the file. {plain_error(ex)}")
             return
         if os.name == "nt":
             subprocess.Popen(["explorer", "/select,", str(path)])
@@ -709,7 +762,7 @@ class App(tk.Tk):
                             break
                 self.q.put(("claude_status", (p, cc.status(p))))
             except Exception as ex:
-                self.q.put(("warn", f"{n} couldn't be set up: {ex}"))
+                self.q.put(("warn", f"{n} couldn't be set up. {plain_error(ex)}"))
                 self.q.put(("claude_status", (p, cc.status(p))))
         threading.Thread(target=go, daemon=True).start()
 
@@ -816,8 +869,8 @@ class App(tk.Tk):
         n = len(self.jobs)
         what = f"These {n} videos are" if n > 1 else "This video is"
         p = self._new_page(title, f"{what} {fmt_len(dur)} long. You can "
-                           "leave this running and come back — if you close the window, it "
-                           "picks up where it left off next time.")
+                           "leave this running and come back. If you have to stop, starting "
+                           "the same videos again skips the steps already done.")
         box = tk.Frame(p, bg=BG)
         box.pack(fill="x", pady=30)
         self.which = tk.Label(box, text="", bg=BG, fg=MUTED, font=(FONT, 10))
@@ -844,8 +897,9 @@ class App(tk.Tk):
                                          progress=lambda f, m: self.q.put(("progress", f, m, "")))
                 except Exception as ex:
                     # carry on with whatever did install; the review page says what was skipped
+                    save_details(traceback.format_exc())
                     self.q.put(("warn", "Some of the checking tools couldn't be set up, so this "
-                                "run uses the ones that are ready.\n\n" + str(ex)[:400]))
+                                "run uses the ones that are ready.\n\n" + plain_error(ex)))
             n = len(self.jobs)
             for k, j in enumerate(self.jobs):
                 self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
@@ -857,11 +911,14 @@ class App(tk.Tk):
                         log=lambda m: None, cancel=lambda: self.cancel_flag)
                 except engine.VideoError as ex:
                     j["error"] = str(ex)
+                except Exception as ex:     # one episode going wrong mustn't stop the rest
+                    save_details(traceback.format_exc())
+                    j["error"] = f"{Path(j['video']).name}: {plain_error(ex)}"
             self.q.put(("analyzed",))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
         except Exception as ex:
-            self.q.put(("error", str(ex), traceback.format_exc()))
+            self.q.put(("error", plain_error(ex), traceback.format_exc()))
 
     def _render_thread(self):
         try:
@@ -870,73 +927,97 @@ class App(tk.Tk):
             if any(j["cuts"] for j in todo):
                 self.q.put(("progress", 0.0, "Checking the fastest way to save video…", ""))
                 encs = engine.working_encoders()
-            results = []
+            results, failed = [], []
             for k, j in enumerate(todo):
                 self.q.put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
                             + short(Path(j["video"]).name, 80)))
-                results.append(engine.render(
-                    j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []), words=j.get("words"),
-                    progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / len(todo), m, "")),
-                    log=lambda m: None, cancel=lambda: self.cancel_flag))
-            self.q.put(("rendered", results))
+                try:
+                    results.append(engine.render(
+                        j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []), words=j.get("words"),
+                        progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / len(todo), m, "")),
+                        log=lambda m: None, cancel=lambda: self.cancel_flag))
+                except Exception as ex:     # carry on with the other episodes
+                    save_details(traceback.format_exc())
+                    failed.append(f"{Path(j['video']).name}: {plain_error(ex)}")
+            self.q.put(("rendered", results, failed))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
         except Exception as ex:
-            self.q.put(("error", str(ex), traceback.format_exc()))
+            self.q.put(("error", plain_error(ex), traceback.format_exc()))
 
     def _poll(self):
         try:
             while True:
                 msg = self.q.get_nowait()
-                kind = msg[0]
-                alive = getattr(self, "pb", None) is not None and self.pb.winfo_exists()
-                if kind == "progress" and alive:
-                    self.pb["value"] = int(max(0.0, min(1.0, msg[1])) * 1000)
-                    self.status.config(text=msg[2])
-                elif kind == "which" and alive:
-                    self.which.config(text=msg[1])
-                elif kind == "analyzed":
-                    self.after_analyze()
-                elif kind == "rendered":
-                    self.show_done(msg[1])
-                elif kind == "cancelled":
-                    self.show_setup()
-                elif kind == "preview_ready":
-                    open_path(msg[1])
-                elif kind == "claude_status":
-                    self._show_claude_status(msg[1])
-                elif kind == "claude_wait":
-                    lbl = getattr(self, "claude_lbl", None)
-                    if lbl is not None and lbl.winfo_exists():
-                        lbl.config(text="Finish signing in in the browser window that opened. "
-                                   "This will update by itself when you're done.")
-                elif kind == "chat_reply":
-                    self._chat_reply(*msg[1:])
-                elif kind == "reviewed":
-                    self._reviewed(*msg[1:])
-                elif kind == "update_ready":
-                    self._show_update_bar(msg[1])
-                elif kind == "update_none":
-                    messagebox.showinfo("CleanView", f"You have the newest version ({msg[1]})."
-                                        if msg[1] else "Couldn't check for updates right now. "
-                                        "Check your internet connection.")
-                elif kind == "update_done":
-                    self._update_done(*msg[1:])
-                elif kind == "warn":
-                    messagebox.showwarning("CleanView", msg[1])
-                elif kind == "preview_error":
-                    messagebox.showerror("CleanView", msg[1])
-                elif kind == "error":
-                    try:
-                        APP_DATA.mkdir(parents=True, exist_ok=True)
-                        (APP_DATA / "cleanview_last_error.txt").write_text(msg[2], encoding="utf8")
-                    except Exception:
-                        pass
-                    messagebox.showerror("CleanView ran into a problem", msg[1])
-                    self.show_setup()
+                try:
+                    self._handle(msg)
+                except Exception:      # one bad message must never stop the window updating
+                    self._problem("Something unexpected went wrong, but CleanView is still "
+                                  "running.", traceback.format_exc())
         except queue.Empty:
             pass
-        self.after(150, self._poll)
+        finally:
+            self.after(150, self._poll)
+
+    def _handle(self, msg):
+        kind = msg[0]
+        alive = getattr(self, "pb", None) is not None and self.pb.winfo_exists()
+        if kind == "progress" and alive:
+            self.pb["value"] = int(max(0.0, min(1.0, msg[1])) * 1000)
+            self.status.config(text=msg[2])
+        elif kind == "which" and alive:
+            self.which.config(text=msg[1])
+        elif kind == "analyzed":
+            self.after_analyze()
+        elif kind == "rendered":
+            self._rendered(msg[1], msg[2])
+        elif kind == "cancelled":
+            self.show_setup()
+        elif kind == "preview_ready":
+            open_path(msg[1])
+        elif kind == "claude_status":
+            self._show_claude_status(msg[1])
+        elif kind == "claude_wait":
+            lbl = getattr(self, "claude_lbl", None)
+            if lbl is not None and lbl.winfo_exists():
+                lbl.config(text="Finish signing in in the browser window that opened. "
+                           "This will update by itself when you're done.")
+        elif kind == "chat_reply":
+            self._chat_reply(*msg[1:])
+        elif kind == "reviewed":
+            self._reviewed(*msg[1:])
+        elif kind == "update_ready":
+            self._show_update_bar(msg[1])
+        elif kind == "update_none":
+            messagebox.showinfo("CleanView", f"You have the newest version ({msg[1]})."
+                                if msg[1] else "Couldn't check for updates right now. "
+                                "Check your internet connection.")
+        elif kind == "update_done":
+            self._update_done(*msg[1:])
+        elif kind == "warn":
+            messagebox.showwarning("CleanView", msg[1])
+        elif kind == "preview_error":
+            messagebox.showerror("CleanView", msg[1])
+        elif kind == "error":
+            self._problem(msg[1], msg[2])
+            self.show_setup()
+
+    def _rendered(self, results, failed):
+        """After saving: the done page for what was saved, and a plain word about
+        anything that couldn't be. If nothing was saved, back to the review."""
+        if not failed:
+            self.show_done(results)
+            return
+        listing = "\n\n".join(failed)
+        if not results:
+            messagebox.showwarning("CleanView", "The clean copy couldn't be saved:\n\n" + listing +
+                                   "\n\nYour review is just as you left it, so you can try again.")
+            self.show_review()
+            return
+        messagebox.showwarning("CleanView", "These couldn't be saved:\n\n" + listing +
+                               "\n\nThe others are done. Your review is still saved: use “Pick "
+                               "up where I left off” on the start page to try these again.")
+        self.show_done(results, keep_review=True)
 
     def after_analyze(self):
         bad = [j for j in self.jobs if j["error"]]
@@ -1198,9 +1279,10 @@ class App(tk.Tk):
             ttk.Button(top, text=f"\U0001F4AC Ask {AI_NAME} about the selected lines",
                        style="Small.TButton", command=self._ask_selected).pack(side="right",
                                                                               padx=(0, 6))
-        tk.Label(tab, text="Click a line to mute it (\u2714). Select lines with Ctrl-click or "
-                 "Shift-click, then cut them as a scene or ask about them.", bg=BG, fg=MUTED,
-                 font=(FONT, 9)).pack(anchor="w")
+        tk.Label(tab, text="Click the box in the Mute column to mute a line (or pick lines and "
+                 "press Space). Click a line to pick it; Ctrl-click or Shift-click picks more, "
+                 "to cut them as a scene or ask about them.", bg=BG, fg=MUTED,
+                 font=(FONT, 9), wraplength=760, justify="left").pack(anchor="w")
         box = tk.Frame(tab, bg=BG)
         box.pack(fill="both", expand=True, pady=(4, 0))
         tv = ttk.Treeview(box, columns=("mute", "time", "who", "line"), show="headings",
@@ -1208,7 +1290,9 @@ class App(tk.Tk):
         for col, w, txt in (("mute", 50, "Mute"), ("time", 70, "Time"), ("who", 120, "Who"),
                             ("line", 560, "Line")):
             tv.heading(col, text=txt)
-            tv.column(col, width=w, anchor="w", stretch=(col == "line"))
+            tv.column(col, width=w, anchor="center" if col == "mute" else "w",
+                      stretch=(col == "line"))
+        tv.tag_configure("muted", background="#F3E3DF", foreground="#8A3B2E")
         sb = ttk.Scrollbar(box, orient="vertical", command=tv.yview)
         tv.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
@@ -1221,6 +1305,7 @@ class App(tk.Tk):
         for (ji, i), v in self.dlg_vars.items():
             v.trace_add("write", lambda *_: self._fill_dialogue())
         tv.bind("<ButtonRelease-1>", self._dlg_click)
+        tv.bind("<space>", self._dlg_space)
         self.dlg_search.bind("<KeyRelease>", lambda e: self._fill_dialogue())
         self.dlg_job.bind("<<ComboboxSelected>>", lambda e: self._fill_dialogue())
         self._fill_dialogue()
@@ -1238,34 +1323,47 @@ class App(tk.Tk):
         q = self.dlg_search.get().strip().lower()
         voices = st.get("voices") or []
         y = tv.yview()[0]
+        picked = tv.selection()
         tv.delete(*tv.get_children())
         for i, l in enumerate(st.get("dialogue", [])):
             if q and q not in l["text"].lower():
                 continue
             v = self.dlg_vars.get((job["_ji"], i))
             who = l.get("who") or (voices[i].get("spk") if i < len(voices) and voices[i] else "")
-            tv.insert("", "end", iid=str(i), values=("\u2714" if v is not None and v.get() else "",
-                                                     engine.cl.fmt_t(l["s"]), who, l["text"]))
+            on = v is not None and v.get()
+            tv.insert("", "end", iid=str(i), values=("\u2611" if on else "\u2610",
+                                                     engine.cl.fmt_t(l["s"]), who, l["text"]),
+                      tags=("muted",) if on else ())
+        tv.selection_set([r for r in picked if tv.exists(r)])
         tv.yview_moveto(y)
+
+    def _dlg_toggle(self, rows):
+        job = self._dlg_job()
+        for row in rows:
+            v = self._dlg_var(job["_ji"], int(row))
+            v.set(not v.get())
+            if len(v.trace_info()) == 0:
+                v.trace_add("write", lambda *_: self._fill_dialogue())
+        self._fill_dialogue()
 
     def _dlg_click(self, ev):
         tv = self.dlg_tv
         if tv.identify_region(ev.x, ev.y) != "cell" or (ev.state & 0x0005):
             return       # header click, or Ctrl/Shift selection
+        if tv.identify_column(ev.x) != "#1":
+            return       # anywhere but the Mute box just picks the line
         row = tv.identify_row(ev.y)
-        if not row:
-            return
-        job = self._dlg_job()
-        v = self._dlg_var(job["_ji"], int(row))
-        v.set(not v.get())
-        if len(v.trace_info()) == 0:
-            v.trace_add("write", lambda *_: self._fill_dialogue())
-            self._fill_dialogue()
+        if row:
+            self._dlg_toggle([row])
+
+    def _dlg_space(self, _ev=None):
+        self._dlg_toggle(self.dlg_tv.selection())
+        return "break"
 
     def _mute_word_selected(self):
         rows = [int(r) for r in self.dlg_tv.selection()]
         if len(rows) != 1:
-            messagebox.showinfo("CleanView", "Pick one line first (Ctrl-click it).")
+            messagebox.showinfo("CleanView", "Click one line first, then try again.")
             return
         from tkinter import simpledialog
         job = self._dlg_job()
@@ -1434,7 +1532,8 @@ class App(tk.Tk):
                 engine.claude_review(job["analysis"], job["work"])
                 self.q.put(("reviewed", job, None))
             except Exception as ex:
-                self.q.put(("reviewed", job, str(ex)))
+                save_details(traceback.format_exc())
+                self.q.put(("reviewed", job, plain_error(ex)))
         threading.Thread(target=go, daemon=True).start()
 
     def _reviewed(self, job, err):
@@ -1487,7 +1586,8 @@ class App(tk.Tk):
                 self.chat_sessions[job["_ji"]] = sid
                 self.q.put(("chat_reply", job, reply, acts, items, None, box))
             except Exception as ex:
-                self.q.put(("chat_reply", job, "", {}, {}, str(ex), box))
+                save_details(traceback.format_exc())
+                self.q.put(("chat_reply", job, "", {}, {}, plain_error(ex), box))
         threading.Thread(target=go, daemon=True).start()
 
     # --- the CleanListen way of editing: text you can highlight, ask right under the item
@@ -1831,7 +1931,8 @@ class App(tk.Tk):
                 self.q.put(("preview_ready", engine.make_preview(job["video"], sc["s"], sc["e"],
                                                                  job["work"])))
             except Exception as ex:
-                self.q.put(("preview_error", str(ex)))
+                save_details(traceback.format_exc())
+                self.q.put(("preview_error", plain_error(ex)))
         threading.Thread(target=go, daemon=True).start()
 
     def _save_from_review(self):
@@ -1881,9 +1982,10 @@ class App(tk.Tk):
         threading.Thread(target=self._render_thread, daemon=True).start()
 
     # ---------- page 4: done ----------
-    def show_done(self, results):
+    def show_done(self, results, keep_review=False):
         self.page_name = "done"
-        self._forget_session()
+        if not keep_review:         # kept when some couldn't be saved, to try them again
+            self._forget_session()
         multi = len(results) > 1
         p = self._new_page("All done!", f"Your clean cop{'ies are' if multi else 'y is'} ready.")
         stats = tk.Frame(p, bg=BG)
@@ -1931,7 +2033,7 @@ class App(tk.Tk):
             path = learn.export_refined([j["analysis"] for j in getattr(self, "_done_jobs", [])],
                                         getattr(self, "chat_history", []))
         except Exception as ex:
-            messagebox.showerror("CleanView", f"Couldn't save the file: {ex}")
+            messagebox.showerror("CleanView", f"Couldn't save the file. {plain_error(ex)}")
             return
         if os.name == "nt":
             subprocess.Popen(["explorer", "/select,", str(path)])
