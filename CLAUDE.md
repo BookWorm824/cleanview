@@ -17,6 +17,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
 - Her sister and others: may have **no Claude and no ChatGPT**, so everything must work fully
   offline with the local models. Claude/ChatGPT are optional upgrades.
 - All UI text must be plain, short, everyday language. No jargon, no stack traces in the UI.
+- Text size (Normal / Larger / Largest, start page) works through `tk scaling`, which Tk
+  only applies as the window is built, so changing it restarts CleanView. Give fonts in
+  points (`(FONT, 10)`) and wrap widths through `wrap(px)` so both follow it. Tick boxes
+  are drawn images (`_tick_boxes`), since the theme's own show an ✗.
+- Slow things (reading video lengths, Claude) run in a thread and come back to the
+  window through `self.q` (`("call", fn)` runs fn on the window's thread).
 
 ## How it runs
 
@@ -85,7 +91,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   learned files, hints vs her own choices in `apply_review`.
 - `test_scenes.py`: the local AI's "can't see clearly" check and `merge_scenes`.
 - `test_ui.py`: plain error messages, and the real window on the sample review (message boxes
-  are faked). A CleanView window flashes up briefly; these skip where there's no screen.
+  are faked): tick boxes, text size, the working page's list and time left, start-page
+  ticks kept on close, "Review everything again" keeping ticks made meanwhile. A CleanView
+  window flashes up briefly; these skip where there's no screen.
 - `test_words.py`: word lists, bleeped subtitles (`unbleep`), phrases in `listed_word` and
   `find_language`, and subtitle words near other mutes (`already_muted`).
 - `test_timing.py`: makes tiny videos with ffmpeg and cleans them with the real `render()`

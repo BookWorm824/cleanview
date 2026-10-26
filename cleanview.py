@@ -1263,13 +1263,38 @@ def apply_chat(st, items, acts, work=None):
 
 
 def claude_review(st, work=None, fresh=False):
-    """Claude's final review of everything found (also used by the
-    "Review everything again" button, with fresh=True so it really looks again
-    instead of giving the saved answer). Raises cc.ClaudeError."""
+    """Claude's final review of everything found. Raises cc.ClaudeError."""
+    return finish_review(st, fetch_review(st, fresh), work)
+
+
+def fetch_review(st, fresh=False):
+    """Ask Claude/ChatGPT for the final review (the slow part; changes nothing in st).
+    "Review everything again" asks with fresh=True, so it really looks again instead of
+    giving the saved answer, and asks about a copy so she can keep ticking meanwhile."""
+    return cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
+                     learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")),
+                     fresh=fresh)
+
+
+def match_review(st, res):
+    """A review asked about a copy of st, matched to st itself, which may have changed
+    meanwhile (a scene added shifts every number after it). An answer only counts for
+    the item it was about: same kind, same time, same words. Others are dropped."""
+    items, decisions, missed, missed_scenes, summary = res
+    live, _ = cc.candidates(st)
+
+    def what(kind_item):
+        kind, it = kind_item
+        return (kind, round(it["s"], 2), round(it["e"], 2),
+                it.get("plain") or it.get("text") or it.get("raw") or it.get("word"))
+    keep = {i: live[i] for i in items if i in live and what(live[i]) == what(items[i])}
+    return keep, {i: d for i, d in decisions.items() if i in keep}, missed, missed_scenes, summary
+
+
+def finish_review(st, res, work=None):
+    """Put a review into st: tick and untick, add what was missed, notes, and the
+    findings log. Her own choices are never changed (apply_review)."""
     st["reviewer"] = cc.name()
-    res = cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
-                    learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")),
-                    fresh=fresh)
     n = apply_review(st, res)
     who = st.get("reviewer", "Claude")
     st["notes"] = [x for x in st.get("notes", []) if " reviewed everything:" not in x]

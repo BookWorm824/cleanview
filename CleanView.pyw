@@ -58,6 +58,15 @@ def chip_color(label):
     return CHIP.get(label.split(" ")[0], "#2F6F62")
 
 
+TEXT_SIZES = {"Normal": 1.0, "Larger": 1.15, "Largest": 1.3}
+_text_scale = 1.0          # the chosen one, set as the window opens
+
+
+def wrap(px):
+    """A width for wrapping text that grows with the chosen text size."""
+    return round(px * _text_scale)
+
+
 AI_NAME = "Claude"      # whichever online AI did the review (Claude or ChatGPT)
 CLAUDE_SAYS = {"remove": ("mute the whole line", "#8E2B2B"),
                "not an issue": ("not an issue", "#2E7D4F"),
@@ -141,6 +150,15 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("CleanView")
+        # bigger text if she chose it: Tk only sizes text as the window is built, so this
+        # comes first (and changing it restarts CleanView, see _set_text_size)
+        self._base_scaling = float(self.tk.call("tk", "scaling"))
+        self.text_size = self._load_settings().get("text_size")
+        if self.text_size not in TEXT_SIZES:
+            self.text_size = "Normal"
+        global _text_scale
+        _text_scale = TEXT_SIZES[self.text_size]
+        self.tk.call("tk", "scaling", self._base_scaling * _text_scale)
         scale = max(1.0, self.winfo_fpixels("1i") / 96.0)
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         w = min(int(860 * scale), sw - 40)
@@ -273,6 +291,8 @@ class App(tk.Tk):
     def _on_close(self):
         if self.page_name == "review":
             self._save_session()        # closing by accident never loses the review
+        elif self.page_name == "setup":
+            self._save_settings()       # nor the ticks just changed on the start page
         elif self.page_name == "working":
             if not messagebox.askyesno(
                     "CleanView is still working",
@@ -342,8 +362,9 @@ class App(tk.Tk):
         s.map("Card.TRadiobutton", background=[("active", CARD)])
         s.configure("TNotebook", background=BG, borderwidth=0)
         s.configure("TNotebook.Tab", padding=(16, 6), font=(FONT, 10))
-        s.configure("Treeview", rowheight=24, font=(FONT, 9))
+        s.configure("Treeview", rowheight=round(self.winfo_fpixels("18p")), font=(FONT, 9))
         s.map("TCheckbutton", background=[("active", CARD)])
+        self._tick_boxes(s)
         s.configure("Accent.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 12, "bold"), padding=(22, 10), borderwidth=0)
         s.map("Accent.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
@@ -355,6 +376,37 @@ class App(tk.Tk):
         s.map("Small.TButton", background=[("active", "#E0D9CF")])
         s.configure("Green.Horizontal.TProgressbar", troughcolor="#E6E1DA",
                     background=ACCENT, bordercolor="#E6E1DA", lightcolor=ACCENT, darkcolor=ACCENT)
+
+    def _tick_boxes(self, s):
+        """Tick boxes that show a tick when ticked. The theme's own show an ✗, which
+        reads as "no" (so a ticked "Swearing" looked like swearing was left in)."""
+        n = max(13, round(self.winfo_fpixels("10p")))      # grows with the text size
+        gap = max(5, n // 2)                                # see-through, before the words
+
+        def box(fill, edge, tick=None):
+            img = tk.PhotoImage(width=n + gap, height=n)
+            img.put(edge, to=(0, 0, n, n))
+            img.put(fill, to=(1, 1, n - 1, n - 1))
+            if tick:
+                w = max(2, round(n / 7))
+                pts = [(0.2, 0.52), (0.42, 0.74), (0.8, 0.28)]
+                for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+                    for k in range(2 * n + 1):
+                        x = round((x0 + (x1 - x0) * k / (2 * n)) * n - w / 2)
+                        y = round((y0 + (y1 - y0) * k / (2 * n)) * n - w / 2)
+                        img.put(tick, to=(max(0, x), max(0, y), min(n, x + w), min(n, y + w)))
+            return img
+        self._ticks = {"off": box("#FFFFFF", "#8C857C"), "on": box(ACCENT, ACCENT, "#FFFFFF"),
+                       "off_dim": box("#F1EEEA", "#C9C3BB"),
+                       "on_dim": box("#A9C2BC", "#A9C2BC", "#FFFFFF")}
+        t = self._ticks
+        s.element_create("Tick.indicator", "image", t["off"],
+                         ("selected", "disabled", t["on_dim"]), ("disabled", t["off_dim"]),
+                         ("selected", t["on"]), sticky="")
+        s.layout("TCheckbutton", [("Checkbutton.padding", {"sticky": "nswe", "children": [
+            ("Tick.indicator", {"side": "left", "sticky": ""}),
+            ("Checkbutton.focus", {"side": "left", "sticky": "w", "children": [
+                ("Checkbutton.label", {"sticky": "nswe"})]})]})])
 
     def _new_page(self, title, subtitle=""):
         for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
@@ -369,7 +421,7 @@ class App(tk.Tk):
         tk.Label(self.page, text=title, bg=BG, fg=INK, font=(FONT, 20, "bold")).pack(anchor="w")
         if subtitle:
             tk.Label(self.page, text=subtitle, bg=BG, fg=MUTED, font=(FONT, 11),
-                     wraplength=740, justify="left").pack(anchor="w", pady=(2, 12))
+                     wraplength=wrap(740), justify="left").pack(anchor="w", pady=(2, 12))
         return self.page
 
     def _scroll_area(self, parent):
@@ -466,6 +518,21 @@ class App(tk.Tk):
                    command=self.share_learned).pack(side="left")
         ttk.Button(self.footer, text="\u21bb Check for updates", style="Plain.TButton",
                    command=lambda: self._check_update(manual=True)).pack(side="left", padx=(8, 0))
+        tk.Label(self.footer, text="Text size", bg=BG, fg=MUTED, font=(FONT, 10)).pack(
+            side="left", padx=(18, 6))
+        size_var = tk.StringVar(value=self.text_size)
+        size_box = ttk.Combobox(self.footer, textvariable=size_var, values=list(TEXT_SIZES),
+                                state="readonly", width=8, font=(FONT, 10))
+        size_box.pack(side="left")
+        size_box.bind("<<ComboboxSelected>>", lambda e: self._set_text_size(size_var.get()))
+        picked = os.environ.pop("CLEANVIEW_PICKED", None)     # back from a text-size change
+        if picked:
+            try:
+                picked = json.loads(picked)
+                self.videos = [v for v in picked.get("videos", []) if os.path.exists(v)]
+                self.outdir = picked.get("outdir")
+            except ValueError:
+                pass
         body = self._scroll_area(p)
 
         self.opts = {}
@@ -477,7 +544,7 @@ class App(tk.Tk):
         ttk.Button(row, text="Choose a folder of episodes…", style="Plain.TButton",
                    command=self.pick_folder).pack(side="left", padx=(8, 0))
         self.vid_lbl = tk.Label(b1, text="Nothing chosen yet", bg=CARD, fg=MUTED,
-                                font=(FONT, 10), wraplength=640, justify="left")
+                                font=(FONT, 10), wraplength=wrap(640), justify="left")
         self.vid_lbl.pack(anchor="w", pady=(8, 0))
         v = tk.BooleanVar(value=self._load_settings().get("autosubs", True))
         self.opts["autosubs"] = v
@@ -485,12 +552,12 @@ class App(tk.Tk):
                         variable=v).pack(anchor="w", pady=(8, 0))
         tk.Label(b1, text="Recommended: subtitles give the exact words, who's talking and "
                  "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
-                 fg=MUTED, font=(FONT, 9), wraplength=640, justify="left").pack(anchor="w",
+                 fg=MUTED, font=(FONT, 9), wraplength=wrap(640), justify="left").pack(anchor="w",
                                                                              padx=(22, 0))
         tk.Label(b1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
                  "downloads without copy protection. If the movie has subtitles, they're used "
                  "to catch extra words and get cleaned too.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=640, justify="left").pack(anchor="w", pady=(6, 0))
+                 wraplength=wrap(640), justify="left").pack(anchor="w", pady=(6, 0))
 
         b2 = self._card(body, "2", "What to remove")
         saved = self._load_settings()
@@ -516,7 +583,7 @@ class App(tk.Tk):
         reset.bind("<Button-1>", lambda e: self._profile_reset())
         tk.Label(b2, text="Each one remembers its own ticks, and what CleanView learns from "
                  "your choices is kept separately for each.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=640, justify="left").pack(anchor="w")
+                 wraplength=wrap(640), justify="left").pack(anchor="w")
 
         def section(title):
             tk.Label(b2, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold")).pack(
@@ -574,7 +641,7 @@ class App(tk.Tk):
             ("drugs", "Drug use", True)], cols=3)
         tk.Label(b2, text="Swear words are muted automatically. Everything else is listed for "
                  "you to check before anything is muted or cut.", bg=CARD, fg=MUTED,
-                 font=(FONT, 9), wraplength=640, justify="left").pack(anchor="w", pady=(10, 0))
+                 font=(FONT, 9), wraplength=wrap(640), justify="left").pack(anchor="w", pady=(10, 0))
 
         b25 = self._card(body, "3", "AI helper", "recommended")
         v = tk.BooleanVar(value=saved.get("ai", True))
@@ -584,7 +651,7 @@ class App(tk.Tk):
         tk.Label(b25, text="Runs on your own PC, nothing is uploaded. The first time, it downloads "
                  "Ollama and two AI models (about 11 GB, one time only). Without it, kissing and "
                  "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=640, justify="left").pack(anchor="w", pady=(4, 0))
+                 wraplength=wrap(640), justify="left").pack(anchor="w", pady=(4, 0))
         tk.Label(b25, text="Who reads the dialogue and checks the scenes", bg=CARD, fg=ACCENT_DK,
                  font=(FONT, 10, "bold")).pack(anchor="w", pady=(10, 2))
         v = tk.StringVar(value=saved.get("reader", "local"))
@@ -598,7 +665,7 @@ class App(tk.Tk):
         crow = tk.Frame(b25, bg=CARD)
         crow.pack(fill="x", padx=(22, 0), pady=(2, 0))
         self.claude_lbl = tk.Label(crow, text="", bg=CARD, fg=MUTED,
-                                   font=(FONT, 9), wraplength=430, justify="left")
+                                   font=(FONT, 9), wraplength=wrap(430), justify="left")
         self.claude_lbl.pack(side="left")
         self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
                                      command=self.setup_claude)
@@ -606,7 +673,7 @@ class App(tk.Tk):
         self.opts["look"] = lv
         self.look_chk = ttk.Checkbutton(b25, text="", variable=lv)
         self.look_chk.pack(anchor="w", padx=(22, 0), pady=(4, 0))
-        self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=640,
+        self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap(640),
                                    justify="left")
         self.cloud_note.pack(anchor="w", padx=(22, 0))
         lv.trace_add("write", lambda *_: self._reader_changed())
@@ -620,7 +687,7 @@ class App(tk.Tk):
         ttk.Button(row, text="Change…", style="Plain.TButton",
                    command=self.pick_out).pack(side="right")
         self.out_lbl = tk.Label(row, text="A “Clean” folder next to the video", bg=CARD,
-                                fg=MUTED, font=(FONT, 10), wraplength=500, justify="left")
+                                fg=MUTED, font=(FONT, 10), wraplength=wrap(500), justify="left")
         self.out_lbl.pack(side="left")
         tk.Label(b3, text="Your original files are never changed.", bg=CARD, fg=MUTED,
                  font=(FONT, 9)).pack(anchor="w", pady=(6, 0))
@@ -772,6 +839,36 @@ class App(tk.Tk):
         except Exception:
             return {}
 
+    def _save_settings(self):
+        """Remember the start page: her ticks for each age, and the other choices. Done
+        on Start and when the window closes, so changes aren't lost by closing first."""
+        if not getattr(self, "opts", None) or not hasattr(self, "profiles"):
+            return
+        try:
+            self.profiles[self.profile] = self._filter_values()
+            keep = {k: v for k, v in self._current_opts().items() if k not in FILTER_KEYS}
+            keep.update(profile=self.profile, profiles=self.profiles, text_size=self.text_size)
+            APP_DATA.mkdir(parents=True, exist_ok=True)
+            path = APP_DATA / "cleanview_settings.json"
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(keep))
+            os.replace(tmp, path)
+        except Exception:
+            pass
+
+    def _set_text_size(self, name):
+        """Tk sizes text only as the window is built, so restart CleanView with the new
+        size, keeping the start page as it was (the videos chosen and every tick)."""
+        if name == self.text_size or name not in TEXT_SIZES:
+            return
+        self.text_size = name
+        self._save_settings()
+        env = dict(os.environ, CLEANVIEW_PICKED=json.dumps(
+            {"videos": list(self.videos), "outdir": self.outdir}))
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve())], env=env,
+                         cwd=str(Path(__file__).resolve().parent))
+        self.destroy()
+
     def _current_opts(self):
         o = {}
         for k, v in self.opts.items():
@@ -780,15 +877,28 @@ class App(tk.Tk):
         o["profile"] = getattr(self, "profile", "adults")
         return o
 
+    def _lengths(self, videos, then):
+        """Add up how long the videos are without freezing the window (reading each
+        file takes a moment, which adds up for a whole season); then(seconds) after."""
+        def go():
+            dur = sum(engine.cl.probe_duration(v) for v in videos)
+            self.q.put(("call", lambda: then(dur)))
+        threading.Thread(target=go, daemon=True).start()
+
     def _refresh_labels(self):
         if self.videos:
-            dur = sum(engine.cl.probe_duration(v) for v in self.videos)
-            first = short(Path(self.videos[0]).name, 70)
-            extra = f"  … and {len(self.videos) - 1} more" if len(self.videos) > 1 else ""
-            folder = os.path.normpath(str(Path(self.videos[0]).parent))
-            n = len(self.videos)
-            self.vid_lbl.config(text=f"{n} video{'s' if n != 1 else ''} · {fmt_len(dur)}   in  "
-                                f"{folder}\n{first}{extra}", fg=INK)
+            videos = list(self.videos)
+            first = short(Path(videos[0]).name, 70)
+            extra = f"  … and {len(videos) - 1} more" if len(videos) > 1 else ""
+            folder = os.path.normpath(str(Path(videos[0]).parent))
+            n = len(videos)
+
+            def show(length=""):
+                if self.videos == videos and self.vid_lbl.winfo_exists():
+                    self.vid_lbl.config(text=f"{n} video{'s' if n != 1 else ''}{length}   in  "
+                                        f"{folder}\n{first}{extra}", fg=INK)
+            show()
+            self._lengths(videos, lambda dur: show(f" · {fmt_len(dur)}"))
             self.start_btn.config(state="normal")
             if not self.outdir:
                 self.out_lbl.config(text=os.path.normpath(str(Path(self.videos[0]).parent / "Clean")),
@@ -844,14 +954,7 @@ class App(tk.Tk):
                                        if k != "ai"):
             messagebox.showinfo("CleanView", "Tick at least one thing to remove.")
             return
-        try:
-            self.profiles[self.profile] = self._filter_values()
-            keep = {k: v for k, v in o.items() if k not in FILTER_KEYS}
-            keep.update(profile=self.profile, profiles=self.profiles)
-            APP_DATA.mkdir(parents=True, exist_ok=True)
-            (APP_DATA / "cleanview_settings.json").write_text(json.dumps(keep))
-        except Exception:
-            pass
+        self._save_settings()
         if not self.outdir:
             self.outdir = str(Path(self.videos[0]).parent / "Clean")
         self.jobs = []
@@ -863,16 +966,24 @@ class App(tk.Tk):
         self.show_working("Watching and listening…")
         threading.Thread(target=self._analyze_thread, daemon=True).start()
 
-    def show_working(self, title):
+    JOB_LOOK = {"wait": ("○", MUTED), "now": ("▶", ACCENT), "done": ("✓", ACCENT_DK),
+                "failed": ("!", "#B5523B")}
+
+    def show_working(self, title, videos=None):
+        """The progress page. videos: the files being worked on, listed with how each
+        is going when there are several."""
         self.page_name = "working"
-        dur = sum(engine.cl.probe_duration(j["video"]) for j in self.jobs)
-        n = len(self.jobs)
-        what = f"These {n} videos are" if n > 1 else "This video is"
-        p = self._new_page(title, f"{what} {fmt_len(dur)} long. You can "
-                           "leave this running and come back. If you have to stop, starting "
-                           "the same videos again skips the steps already done.")
+        videos = videos or [j["video"] for j in self.jobs]
+        n = len(videos)
+        what = f"These {n} videos" if n > 1 else "This video"
+        p = self._new_page(title, "You can leave this running and come back. If you have to "
+                           "stop, starting the same videos again skips the steps already done.")
+        length = tk.Label(p, text=f"{what}…", bg=BG, fg=MUTED, font=(FONT, 10))
+        length.pack(anchor="w")
+        self._lengths(videos, lambda dur: length.winfo_exists() and length.config(
+            text=f"{what} {'are' if n > 1 else 'is'} {fmt_len(dur)} long."))
         box = tk.Frame(p, bg=BG)
-        box.pack(fill="x", pady=30)
+        box.pack(fill="x", pady=(24, 0))
         self.which = tk.Label(box, text="", bg=BG, fg=MUTED, font=(FONT, 10))
         self.which.pack(anchor="w", pady=(0, 6))
         self.pb = ttk.Progressbar(box, style="Green.Horizontal.TProgressbar", maximum=1000,
@@ -880,9 +991,50 @@ class App(tk.Tk):
         self.pb.pack(fill="x")
         self.status = tk.Label(box, text="Starting…", bg=BG, fg=INK, font=(FONT, 12))
         self.status.pack(anchor="w", pady=(12, 0))
+        self.overall = tk.Label(box, text="", bg=BG, fg=ACCENT_DK, font=(FONT, 11, "bold"))
+        self.overall.pack(anchor="w", pady=(4, 0))
+        self._work_n, self._work_t0 = n, None
+        self.job_rows = []
+        if n > 1:                       # each video, ticked off as it's done
+            tk.Label(p, text="Videos", bg=BG, fg=INK, font=(FONT, 11, "bold")).pack(
+                anchor="w", pady=(22, 4))
+            lst = self._scroll_area(p)
+            for v in videos:
+                row = tk.Frame(lst, bg=BG)
+                row.pack(fill="x", pady=1)
+                icon = tk.Label(row, text=self.JOB_LOOK["wait"][0], bg=BG, fg=MUTED,
+                                font=(FONT, 10, "bold"), width=2)
+                icon.pack(side="left")
+                name = tk.Label(row, text=short(Path(v).name, 90), bg=BG, fg=MUTED, font=(FONT, 10),
+                                anchor="w")
+                name.pack(side="left", fill="x")
+                self.job_rows.append((icon, name))
         self.cancel_btn = ttk.Button(self.footer, text="Cancel", style="Plain.TButton",
                                      command=self.cancel)
         self.cancel_btn.pack(side="right")
+
+    def _job_state(self, k, state):
+        """One video in the list: waiting, being worked on, done, or couldn't be done."""
+        if state == "now" and self._work_t0 is None:
+            self._work_t0 = time.time()          # time left counts from the first video
+        rows = getattr(self, "job_rows", [])
+        if 0 <= k < len(rows) and rows[k][0].winfo_exists():
+            sym, col = self.JOB_LOOK[state]
+            rows[k][0].config(text=sym, fg=col)
+            rows[k][1].config(fg=INK if state == "now" else col if state == "failed" else MUTED,
+                              font=(FONT, 10, "bold") if state == "now" else (FONT, 10))
+
+    def _time_left_for_all(self, frac):
+        """"About 1 hr 20 min left for all 13", once there's enough to go on."""
+        lbl = getattr(self, "overall", None)
+        if self._work_n < 2 or self._work_t0 is None or lbl is None or not lbl.winfo_exists():
+            return
+        el = time.time() - self._work_t0
+        if frac < 0.02 or el < 30:
+            return
+        left = el / frac * (1 - frac)
+        lbl.config(text=("Less than a minute" if left < 60 else f"About {fmt_len(left)}")
+                   + f" left for all {self._work_n}")
 
     def cancel(self):
         self.cancel_flag = True
@@ -904,16 +1056,20 @@ class App(tk.Tk):
             for k, j in enumerate(self.jobs):
                 self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
                             short(Path(j["video"]).name, 80)))
+                self.q.put(("job", k, "now"))
                 try:
                     j["analysis"] = engine.analyze(
                         j["video"], j["work"], groups=self.groups, opts=self.scan_opts,
                         progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / n, m, "")),
                         log=lambda m: None, cancel=lambda: self.cancel_flag)
+                    self.q.put(("job", k, "done"))
                 except engine.VideoError as ex:
                     j["error"] = str(ex)
+                    self.q.put(("job", k, "failed"))
                 except Exception as ex:     # one episode going wrong mustn't stop the rest
                     save_details(traceback.format_exc())
                     j["error"] = f"{Path(j['video']).name}: {plain_error(ex)}"
+                    self.q.put(("job", k, "failed"))
             self.q.put(("analyzed",))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
@@ -931,14 +1087,17 @@ class App(tk.Tk):
             for k, j in enumerate(todo):
                 self.q.put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
                             + short(Path(j["video"]).name, 80)))
+                self.q.put(("job", k, "now"))
                 try:
                     results.append(engine.render(
                         j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []), words=j.get("words"),
                         progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / len(todo), m, "")),
                         log=lambda m: None, cancel=lambda: self.cancel_flag))
+                    self.q.put(("job", k, "done"))
                 except Exception as ex:     # carry on with the other episodes
                     save_details(traceback.format_exc())
                     failed.append(f"{Path(j['video']).name}: {plain_error(ex)}")
+                    self.q.put(("job", k, "failed"))
             self.q.put(("rendered", results, failed))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
@@ -965,8 +1124,13 @@ class App(tk.Tk):
         if kind == "progress" and alive:
             self.pb["value"] = int(max(0.0, min(1.0, msg[1])) * 1000)
             self.status.config(text=msg[2])
+            self._time_left_for_all(msg[1])
         elif kind == "which" and alive:
             self.which.config(text=msg[1])
+        elif kind == "job" and alive:
+            self._job_state(msg[1], msg[2])
+        elif kind == "call":
+            msg[1]()
         elif kind == "analyzed":
             self.after_analyze()
         elif kind == "rendered":
@@ -1141,7 +1305,7 @@ class App(tk.Tk):
                          fg="#C2581F",
                          font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
                 tk.Label(box, text=st["claude_summary"], bg="#FFF4EC", fg=INK, font=(FONT, 10),
-                         wraplength=700, justify="left", anchor="w").pack(fill="x")
+                         wraplength=wrap(700), justify="left", anchor="w").pack(fill="x")
                 cnt = st.get("claude_counts") or {}
                 if cnt.get("dropped") or cnt.get("added") or cnt.get("words"):
                     tk.Label(box, text=f"Unticked {cnt.get('dropped', 0)} false alarm(s) and added "
@@ -1149,10 +1313,10 @@ class App(tk.Tk):
                              (f"; {cnt['words']} line(s) now mute just the bad word"
                               if cnt.get("words") else "") +
                              ". Anything you change yourself stays the way you set it.", bg="#FFF4EC", fg=MUTED, font=(FONT, 9),
-                             wraplength=700, justify="left", anchor="w").pack(fill="x", pady=(2, 0))
+                             wraplength=wrap(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
             for note in st.get("notes", []):
                 tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
-                         wraplength=720, justify="left", anchor="w").pack(fill="x", padx=8)
+                         wraplength=wrap(720), justify="left", anchor="w").pack(fill="x", padx=8)
             holder = tk.Frame(inner, bg=BG)
             holder.pack(fill="x")
             self.found_frames[ji] = holder
@@ -1282,7 +1446,7 @@ class App(tk.Tk):
         tk.Label(tab, text="Click the box in the Mute column to mute a line (or pick lines and "
                  "press Space). Click a line to pick it; Ctrl-click or Shift-click picks more, "
                  "to cut them as a scene or ask about them.", bg=BG, fg=MUTED,
-                 font=(FONT, 9), wraplength=760, justify="left").pack(anchor="w")
+                 font=(FONT, 9), wraplength=wrap(760), justify="left").pack(anchor="w")
         box = tk.Frame(tab, bg=BG)
         box.pack(fill="both", expand=True, pady=(4, 0))
         tv = ttk.Treeview(box, columns=("mute", "time", "who", "line"), show="headings",
@@ -1430,7 +1594,7 @@ class App(tk.Tk):
                    "missing": f"{n} isn't set up yet. Go back to the start page and use "
                               f"\u201cSet up {n}\u201d under AI helper, then run this again."}.get(
                 state, f"{n} isn't signed in yet. Use \u201cSign in to {n}\u201d on the start page.")
-            tk.Label(tab, text=msg, bg=BG, fg=INK, font=(FONT, 10), wraplength=700,
+            tk.Label(tab, text=msg, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap(700),
                      justify="left").pack(anchor="w", pady=20)
             return
         self.review_btn = ttk.Button(top, text="Review everything again", style="Accent.TButton",
@@ -1447,12 +1611,12 @@ class App(tk.Tk):
                  "together with the whole dialogue, and decide what really needs removing, what's "
                  f"a false alarm and what was missed. Your own changes are never undone. {n}'s "
                  "calls are also saved to teach the AI on this PC, and kept in a spreadsheet.",
-                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=720, justify="left").pack(anchor="w")
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap(720), justify="left").pack(anchor="w")
         tk.Label(tab, text="Ask about this episode or tell it what to change, and the list updates "
                  "right away: \u201cmute every time they talk about the affair\u201d, \u201ckeep "
                  "the kiss at 12:30\u201d, \u201cjust mute the word at 4:10\u201d, \u201ccut 22:15 "
                  "to 23:40\u201d.",
-                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=720,
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap(720),
                  justify="left").pack(anchor="w", pady=(4, 0))
         log = tk.Text(tab, wrap="word", height=14, font=(FONT, 10), bg=CARD, fg=INK, relief="flat",
                       padx=10, pady=8, highlightbackground=LINE, highlightthickness=1)
@@ -1527,23 +1691,28 @@ class App(tk.Tk):
         self._log(f"{AI_NAME} is reviewing everything that was found, with the whole dialogue. "
                   "This can take a minute or two\u2026", "note")
 
+        copy_ = copy.deepcopy(job["analysis"])    # she can keep ticking while it reads
+
         def go():
             try:
-                engine.claude_review(job["analysis"], job["work"], fresh=True)
-                self.q.put(("reviewed", job, None))
+                self.q.put(("reviewed", job, None, engine.fetch_review(copy_, fresh=True)))
             except Exception as ex:
                 save_details(traceback.format_exc())
-                self.q.put(("reviewed", job, plain_error(ex)))
+                self.q.put(("reviewed", job, plain_error(ex), None))
         threading.Thread(target=go, daemon=True).start()
 
-    def _reviewed(self, job, err):
+    def _reviewed(self, job, err, res):
         if err:
             if getattr(self, "chat_log", None) is not None and self.chat_log.winfo_exists():
                 self.review_btn.config(state="normal")
                 self.chat_btn.config(state="normal")
                 self._log("\u26a0 " + err, "note")
             return
+        if self.page_name != "review":       # she's moved on (saving): leave it be
+            return
         st = job["analysis"]
+        self._sync_job(job)                  # ticks she changed meanwhile count as hers
+        engine.finish_review(st, engine.match_review(st, res), job["work"])
         cnt = st.get("claude_counts") or {}
         self._log(f"{AI_NAME}'s review: " + (st.get("claude_summary") or "done."))
         self.after(200, self._save_session)
@@ -1603,7 +1772,7 @@ class App(tk.Tk):
     def _answer_box(self, parent, it):
         if it.get("chat_answer"):
             tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg="#EEF5F3", fg=ACCENT_DK,
-                     font=(FONT, 9), wraplength=680, justify="left", padx=8, pady=4,
+                     font=(FONT, 9), wraplength=wrap(680), justify="left", padx=8, pady=4,
                      anchor="w").pack(fill="x", pady=(6, 0))
 
     def _ask_link(self, parent, job, kind, it, txt=None, text=None, **pack):
@@ -1627,13 +1796,13 @@ class App(tk.Tk):
         hint = "Tip: highlight part of the text above first to point at it. " if txt is not None else ""
         tk.Label(box, text=hint + "e.g. \u201ckeep this\u201d, \u201cjust mute that word\u201d, "
                  "\u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d", bg="#EEF5F3",
-                 fg=MUTED, font=(FONT, 8), wraplength=640, justify="left").pack(anchor="w")
+                 fg=MUTED, font=(FONT, 8), wraplength=wrap(640), justify="left").pack(anchor="w")
         row = tk.Frame(box, bg="#EEF5F3")
         row.pack(fill="x", pady=(2, 0))
         entry = ttk.Entry(row)
         entry.pack(side="left", fill="x", expand=True)
         box.reply = tk.Label(box, text="", bg="#EEF5F3", fg=ACCENT_DK, font=(FONT, 9),
-                             wraplength=640, justify="left")
+                             wraplength=wrap(640), justify="left")
         box.item = it
         ref = self._item_ref(job, it)
         if kind == "scene":
@@ -1711,18 +1880,18 @@ class App(tk.Tk):
         win.configure(bg=BG)
         win.transient(self)
         win.geometry("+%d+%d" % (self.winfo_rootx() + 120, self.winfo_rooty() + 160))
-        tk.Label(win, text=title, bg=BG, fg=INK, font=(FONT, 10), wraplength=520,
+        tk.Label(win, text=title, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap(520),
                  justify="left").pack(anchor="w", padx=14, pady=(12, 6))
         tk.Label(win, text=f"What should {AI_NAME} do? (e.g. \u201ckeep this\u201d, \u201cjust mute "
                  "the word\u201d, \u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d)",
-                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=520,
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap(520),
                  justify="left").pack(anchor="w", padx=14)
         row = tk.Frame(win, bg=BG)
         row.pack(fill="x", padx=14, pady=8)
         ent = ttk.Entry(row, width=60)
         ent.pack(side="left", fill="x", expand=True)
         ent.focus_set()
-        win.reply = tk.Label(win, text="", bg=BG, fg=INK, font=(FONT, 10), wraplength=520,
+        win.reply = tk.Label(win, text="", bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap(520),
                              justify="left")
         win.reply.pack(anchor="w", padx=14, pady=(0, 12))
 
@@ -1817,7 +1986,7 @@ class App(tk.Tk):
             self._ask_link(row, job, "word", m, text="Ask", side="right", padx=4)
             note, col = claude_note(m, v.get())
             if note and m["claude"]["decision"] != "remove":
-                tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=220,
+                tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap(220),
                          justify="left").pack(side="right", padx=4)
             line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
                            fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
@@ -1872,7 +2041,7 @@ class App(tk.Tk):
             tw.pack(fill="x")
             note, col = claude_note(l, v.get())
             if note:
-                tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=440,
+                tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=wrap(440),
                          justify="left", anchor="w").pack(fill="x", padx=(8, 0))
             self._answer_box(col_, l)
             self._ask_link(col_, job, "line", l, tw, text="Ask", anchor="e")
@@ -1912,10 +2081,10 @@ class App(tk.Tk):
         text.pack(side="left", fill="both", expand=True, padx=(6, 0))
         if sc.get("why"):
             tk.Label(text, text="Found: " + sc["why"], bg=CARD, fg=INK, font=(FONT, 9),
-                     wraplength=210, justify="left", anchor="w").pack(fill="x")
+                     wraplength=wrap(210), justify="left", anchor="w").pack(fill="x")
         note, col = claude_note(sc, v.get())
         if note:
-            tk.Label(text, text=note, bg=CARD, fg=col, font=(FONT, 9, "bold"), wraplength=210,
+            tk.Label(text, text=note, bg=CARD, fg=col, font=(FONT, 9, "bold"), wraplength=wrap(210),
                      justify="left", anchor="w").pack(fill="x", pady=(4, 0))
         said = sc.get("said") or ""
         txt = None
@@ -1978,7 +2147,8 @@ class App(tk.Tk):
 
     def save(self):
         self.cancel_flag = False
-        self.show_working("Saving the clean copy…")
+        todo = [j["video"] for j in self.jobs if j["analysis"]]
+        self.show_working("Saving the clean cop" + ("ies…" if len(todo) > 1 else "y…"), todo)
         threading.Thread(target=self._render_thread, daemon=True).start()
 
     # ---------- page 4: done ----------
@@ -2000,10 +2170,10 @@ class App(tk.Tk):
             tk.Label(box, text=big, bg=CARD, fg=ACCENT, font=(FONT, 26, "bold")).pack()
             tk.Label(box, text=small, bg=CARD, fg=MUTED, font=(FONT, 10)).pack()
         tk.Label(p, text=f"Saved in:  {os.path.normpath(results[0]['folder'])}", bg=BG, fg=INK,
-                 font=(FONT, 10), wraplength=740, justify="left").pack(anchor="w", pady=(4, 4))
+                 font=(FONT, 10), wraplength=wrap(740), justify="left").pack(anchor="w", pady=(4, 4))
         tk.Label(p, text="Each clean copy has “(Clean)” in its name. Its report, listing everything "
                  "that was muted or cut, is in the Reports folder inside.", bg=BG, fg=MUTED,
-                 font=(FONT, 10), wraplength=740, justify="left").pack(anchor="w", pady=(0, 16))
+                 font=(FONT, 10), wraplength=wrap(740), justify="left").pack(anchor="w", pady=(0, 16))
         row = tk.Frame(p, bg=BG)
         row.pack(anchor="w")
         ttk.Button(row, text="Open folder", style="Accent.TButton",
@@ -2022,7 +2192,7 @@ class App(tk.Tk):
         tk.Label(box, text="Save what was refined on this one (what was found, what the AI said, "
                  "what you changed and what you kept) as one file, and send it in. It's added to "
                  "the knowledge every copy of CleanView starts with. No video or sound is in it.",
-                 bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=700, justify="left",
+                 bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=wrap(700), justify="left",
                  padx=12).pack(anchor="w")
         ttk.Button(box, text="Save what we refined\u2026", style="Small.TButton",
                    command=self.export_refined).pack(anchor="w", padx=12, pady=(6, 10))

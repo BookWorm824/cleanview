@@ -180,6 +180,121 @@ class Window(unittest.TestCase):
             self.app.destroy = saved
         self.assertTrue(json.loads(self.app.SESSION.read_text("utf8"))["jobs"])
 
+    # --- the start page
+    def test_tick_boxes_show_a_tick(self):
+        layout = str(ui.ttk.Style(self.app).layout("TCheckbutton"))
+        self.assertIn("Tick.indicator", layout)
+        self.assertEqual(set(self.app._ticks), {"off", "on", "off_dim", "on_dim"})
+
+    def test_closing_the_start_page_keeps_its_ticks(self):
+        app = self.app
+        app.show_setup()
+        app.opts["swearing"].set(False)
+        saved, app.destroy = app.destroy, lambda: None
+        try:
+            app._on_close()
+        finally:
+            app.destroy = saved
+        settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
+        self.assertFalse(settings["profiles"][settings["profile"]]["swearing"])
+
+    def test_text_size_restarts_keeping_the_chosen_videos(self):
+        app = self.app
+        app.show_setup()
+        video = support.SANDBOX / "Episode 1.mp4"
+        video.write_bytes(b"")
+        app.videos = [str(video)]
+        started = []
+        saved = (ui.subprocess.Popen, app.destroy)
+        real = ui.subprocess.Popen
+
+        def popen(cmd, *a, env=None, **k):        # only CleanView restarting itself is faked
+            if str(cmd[-1]).endswith("CleanView.pyw"):
+                return started.append((cmd, env))
+            return real(cmd, *a, env=env, **k)
+        ui.subprocess.Popen = popen
+        app.destroy = lambda: None
+        try:
+            app._set_text_size("Normal")              # the size it already is: nothing
+            self.assertEqual(started, [])
+            app._set_text_size("Largest")
+        finally:
+            ui.subprocess.Popen, app.destroy = saved
+            app.text_size = "Normal"
+        self.assertEqual(len(started), 1)
+        self.assertEqual(json.loads(started[0][1]["CLEANVIEW_PICKED"])["videos"], [str(video)])
+        settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
+        self.assertEqual(settings["text_size"], "Largest")
+
+    def test_wrap_widths_grow_with_the_text(self):
+        self.assertEqual(ui.wrap(640), 640)
+        saved, ui._text_scale = ui._text_scale, 1.3
+        try:
+            self.assertEqual(ui.wrap(640), 832)
+        finally:
+            ui._text_scale = saved
+
+    # --- the working page
+    def test_each_video_is_ticked_off(self):
+        app = self.app
+        app.show_working("Watching and listening…", [f"Episode {k}.mp4" for k in (1, 2, 3)])
+        app.update()
+        icons = lambda: [icon.cget("text") for icon, _ in app.job_rows]
+        self.assertEqual(icons(), ["○"] * 3)
+        app._handle(("job", 0, "now"))
+        app._handle(("job", 0, "done"))
+        app._handle(("job", 1, "now"))
+        app._handle(("job", 2, "failed"))
+        self.assertEqual(icons(), ["✓", "▶", "!"])
+
+    def test_time_left_for_all(self):
+        app = self.app
+        app.show_working("Watching and listening…", [f"Episode {k}.mp4" for k in (1, 2, 3)])
+        app._handle(("job", 0, "now"))
+        app._work_t0 -= 600                      # ten minutes in, 40% done
+        app._handle(("progress", 0.4, "Listening to the dialogue", ""))
+        self.assertEqual(app.overall.cget("text"), "About 15 min left for all 3")
+
+    def test_one_video_has_no_list(self):
+        self.app.show_working("Watching and listening…", ["Episode 1.mp4"])
+        self.assertEqual(self.app.job_rows, [])
+
+    def test_lengths_are_read_in_the_background(self):
+        got = []
+        saved, ui.engine.cl.probe_duration = ui.engine.cl.probe_duration, lambda v: 60.0
+        try:
+            self.app._lengths(["a.mp4", "b.mp4"], got.append)
+            for _ in range(100):
+                if got:
+                    break
+                self.app.after(20)
+                self.app._poll()
+        finally:
+            ui.engine.cl.probe_duration = saved
+        self.assertEqual(got, [120.0])
+
+    # --- "Review everything again"
+    def test_ticks_changed_during_a_review_are_kept(self):
+        app = self.app
+        job = next(j for j in app.jobs if j["analysis"])
+        for sc in job["analysis"]["scenes"]:
+            sc["thumbs"] = []                     # no pictures to make for the sample
+        asked_about = ui.copy.deepcopy(job["analysis"])          # what the review reads
+        items, _ = ui.cc.candidates(asked_about)
+        res = (items, {"S1": ("not an issue", "made up", ""), "S2": ("not an issue", "made up", ""),
+                       "L1": ("not an issue", "made up", "")}, [], [], "")
+        kiss = next(v for v, j, sc in app.scene_vars if sc["kind"] == ["Kiss"])
+        kiss.set(True)                            # she ticks the kiss while it's reading
+        saved_log, app._log = app._log, lambda *a, **k: None
+        try:
+            app._reviewed(job, None, res)
+        finally:
+            app._log = saved_log
+        scenes = {sc["kind"][0]: sc for sc in job["analysis"]["scenes"]}
+        self.assertTrue(scenes["Kiss"]["cut"], "her tick is kept")
+        self.assertFalse(scenes["Violence"]["cut"], "the review still counts for the rest")
+        self.assertFalse(job["analysis"]["lines"][0]["mute"])
+
 
 if __name__ == "__main__":
     unittest.main()

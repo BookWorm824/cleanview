@@ -139,6 +139,32 @@ class NewReviewVersusOld(unittest.TestCase):
         self.assertNotIn("learned", m)
 
 
+class ReviewOfACopy(unittest.TestCase):
+    """"Review everything again" asks about a copy; by the time the answer comes, a scene
+    may have been added, which shifts the numbers (S1, S2...). Answers must only count
+    for the item they were about."""
+
+    def test_answers_follow_their_items(self):
+        import copy
+        st = support.sample_review()
+        asked = copy.deepcopy(st)
+        items, _ = engine.cc.candidates(asked)
+        res = (items, {"S1": ("not an issue", "made up", ""), "L1": ("remove", "made up", "")},
+               [], [], "")
+        st["scenes"].insert(0, {"id": 9, "s": 5.0, "e": 9.0, "kind": ["Added by you"],
+                                "why": "", "cut": True, "by_you": True})
+        keep, decisions, *_ = engine.match_review(st, res)
+        self.assertNotIn("S1", keep, "S1 is now her added scene, not the fight it was about")
+        self.assertEqual(keep["L1"][1], st["lines"][0])
+        self.assertEqual(set(decisions), {"L1"})
+
+    def test_unchanged_review_matches_everything(self):
+        st = support.sample_review()
+        items, _ = engine.cc.candidates(st)
+        keep, *_ = engine.match_review(st, (items, {}, [], [], ""))
+        self.assertEqual(set(keep), set(items))
+
+
 class MutedBeforeStaysMuted(unittest.TestCase):
 
     def test_not_an_issue_doesnt_unmute_her_line(self):
