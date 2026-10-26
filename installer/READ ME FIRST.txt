@@ -1,0 +1,6 @@
+CleanView setup
+
+1. Right-click the zip and choose "Extract All", then open the extracted folder.
+2. Double-click "Install CleanView.bat".
+3. If Windows shows a blue "Windows protected your PC" box, click "More info",
+   then "Run anyway".

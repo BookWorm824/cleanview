@@ -1,0 +1,149 @@
+# CleanView: project brief
+
+CleanView is a Windows desktop app that makes family-friendly copies of movies and TV episodes
+the user owns: it **mutes** bad language and problem dialogue and **cuts** scenes (violence,
+nudity, sex, etc.), in the spirit of VidAngel, but on local DRM-free files (DVD/Blu-ray rips).
+Originals are never changed; it writes a "(Clean)" copy plus a report.
+
+It is a sister app to **CleanListen** (an audiobook cleaner, separate repo). The two must stay
+separate programs (separate install, folder, settings, updates) so both can run at once. They
+share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
+
+## Who uses it
+
+- The owner, Lauren: not a programmer. She runs it on her Windows PC, cleans whole seasons of
+  kids' shows (e.g. *Adventures of the Gummi Bears*) and adult shows (*Castle*, *Blue Bloods*),
+  checks the result, and reports back with the report file or a screenshot.
+- Her sister and others: may have **no Claude and no ChatGPT**, so everything must work fully
+  offline with the local models. Claude/ChatGPT are optional upgrades.
+- All UI text must be plain, short, everyday language. No jargon, no stack traces in the UI.
+
+## How it runs
+
+- Python 3.12 + tkinter. Installed per-user into `%LOCALAPPDATA%\CleanView` with its own venv by
+  `installer/install.ps1` (run from `installer/Install CleanView.bat`, no admin rights). The
+  installer copies CleanListen's speech model and ffmpeg if present, to save downloading them.
+- Start Menu shortcut runs `launcher.pyw`, which checks GitHub for updates and then runs
+  `CleanView.pyw`.
+- User data lives in `%LOCALAPPDATA%\CleanView` (`APP_DATA` in the code): settings, learned
+  choices, Claude findings, the saved in-progress review.
+
+### Auto-update (important when changing files)
+
+`launcher.pyw` reads `version.json` from `raw.githubusercontent.com/BookWorm824/cleanview/main`.
+If its `version` is higher (compared as int tuples, so 1.10.0 > 1.9.3) it downloads every
+name in its `"files"` list, compiles each `.py/.pyw` to reject a broken download, then swaps
+them in. Rules that follow from this:
+
+- **Every release must bump `version` in `version.json`.**
+- **A new module must be added to the `"files"` list**, or installed copies never get it.
+- File names must be flat (no folders): the launcher refuses names with `/`.
+- New pip dependencies are NOT installed by the updater. Install them at runtime the way
+  `install_tools()` in `cleanview.py` does (one-time, with a progress message), and also add
+  them to `installer/install.ps1` for new installs.
+- The app also checks for updates every 30 minutes and on F5 ("Update now" keeps the review
+  in progress: it saves the session to `last_review.json` and reopens it after restart).
+
+## Files
+
+| File | What it does |
+|---|---|
+| `CleanView.pyw` | The tkinter UI (~1,950 lines). Start page (pick files/folder, filters, "Filtering for" age profiles, who reads the dialogue), progress, the review page (Found / All dialogue / Ask Claude tabs), done page. Update bar, session save/resume. |
+| `cleanview.py` | The engine (~2,450 lines). `analyze()` finds everything and returns a JSON-able state dict; `render()` writes the clean copy and report with ffmpeg. Also picture/sound scanning, scene building, subtitle download and syncing, Claude/ChatGPT picture review, applying AI reviews and chat edits. |
+| `cvcore.py` | Speech recognition (sherpa-onnx, NeMo Parakeet TDT 0.6B int8), word lists and `find_language()`, timing helpers, `snap_edges()` (move mute edges into silence), ffmpeg helpers. |
+| `cleanview_ai.py` | Local AI: CLIP (ViT-B/32 ONNX) picture categories, NudeNet, audio tagging, speaker separation (pyannote segmentation + TitaNet via sherpa-onnx), and the Ollama helper (`qwen3-vl:8b` checks scenes, `qwen3:8b` reads dialogue; falls back to qwen2.5). |
+| `cleanview_claude.py` | Claude through the **Claude Code CLI** (`claude -p --json-schema ...`, uses the user's Claude plan, no API key). Dialogue reading, the final "review everything" pass, the chat, picture review from contact sheets. Also the provider switch (`use("claude"/"chatgpt")`). |
+| `cleanview_gpt.py` | ChatGPT through the **Codex CLI** (`codex exec ... --output-schema`), same interface as the Claude path. Strict JSON schemas (all properties required). |
+| `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
+| `shared_learned.json` | Built-in knowledge merged from users' exports; shipped with every update. Merged with `tools/merge_learned.py`. |
+| `launcher.pyw`, `update.json` | Auto-updater (above). |
+| `installer/` | `install.ps1`, `Install CleanView.bat`, `READ ME FIRST.txt`. Zipped by hand as `CleanView-Setup.zip`. |
+
+## Pipeline (what `analyze()` does)
+
+1. **Listen**: transcribe the dialogue channel (center channel on surround) to word timings
+   (`st["asr"]`). Find words on the lists (`cvcore.find_language`).
+2. **Subtitles**: use a matching `.srt` or embedded text track; otherwise download with
+   `subliminal` (hearing-impaired first, title parsed from file/folder names by
+   `guess_title()`), then re-time them to the heard words (`sync_cues`). Subtitles add names,
+   missed words and sound descriptions.
+3. **Sound**: audio tagger for gunfire, explosions, screams, blows.
+4. **Picture**: NudeNet twice a second, CLIP once a second for kissing, gore, fights, weapons,
+   smoking, drinking, drugs, revealing clothes. Hits become scenes (several seconds of strong
+   hits, dark frames ignored), then the local vision model double-checks each scene.
+5. **Voices**: speaker separation and a man/woman/child guess for each line.
+6. **Dialogue filters** (sexual references, sleeping around, same-sex relationships and
+   flirting, crude humor, bullying, rude words...): read by the local text model, or by
+   Claude/ChatGPT if chosen. A line is flagged only if the model quotes the words that fit.
+7. **Cloud picture review** (if Claude/ChatGPT and "look at the picture" are on): contact
+   sheets of the whole video (a still every 2 s, 20 per sheet) find missed scenes; 6 sharper
+   stills per found scene confirm, relabel or rule it out (violence levels below); scene
+   edges are refined with 30-still "bounds" sheets and snapped to shot changes.
+8. **Final review** (cloud only): Claude/ChatGPT sees every found scene, line and word plus the
+   whole numbered dialogue, settings and past choices, and returns remove / "just the word" /
+   not an issue / can't tell, plus missed lines and scenes (`apply_review`).
+9. The user reviews everything in the UI (all ticked items are what will be changed), can
+   chat to change things live, then `render()` cuts scenes and mutes with ffmpeg (GPU encoder
+   when available), and writes `Clean/<name> (Clean).<ext>` and
+   `Clean/Reports/<name> - CleanView report.txt` (times shown in original and clean-copy time).
+
+## Filters and the user's standards
+
+- Profiles under "Filtering for": Young kids / Kids / Teens / Adults. Each has a standard set of
+  ticks (`PRESETS` in `CleanView.pyw`), remembers her own changes, and learns separately
+  (e.g. bullying filtered for kids, not for herself).
+- Language groups: swearing, mild, God's name, minced oaths, same-sex words, rude words kids
+  copy (stupid, dumb, idiot, shut up...). "screw you" and "crap" count as language.
+- Violence follows **VidAngel's levels**: Violence (non-graphic fighting, including cartoon
+  slapstick); Graphic (blood and wounds, crime-scene bodies with blood); Gore (insides on the
+  outside); Disturbing (violence outside combat: torture, execution, cruelty to the helpless).
+  Crime scenes are Graphic, not Gore.
+- Nudity (actually shown) is separate from Implied nudity (sheets, towels, bare backs).
+- Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
+- When one word is the only problem in a line, mute just the word, not the whole line. But
+  jokes or innuendo mean the whole line goes.
+- An AI may only mute a single word on its own if it is on a word list (`cvcore.listed_word`);
+  otherwise it is offered unticked. Speech recognition mishears character names ("Grafi" for
+  Gruffi) and those must never be muted.
+- No captions on clean copies (the subtitle track is included but not default; no sidecar
+  .srt).
+- She always reviews before anything is cut, and her own ticks are never undone by an AI.
+
+## Known weak spots / ideas worth improving
+
+These are where results have been wrong in real use. Improvements here matter most.
+
+1. **Scene edges.** Cuts often start late or end a few seconds early (e.g. a fight's last
+   blow survives). Current fix: bounds sheets + snapping to shot changes. Could use better
+   shot/scene segmentation, audio cues, or padding by scene type.
+2. **Picture-only scenes when there is no Claude/ChatGPT.** The local CLIP + NudeNet + qwen3-vl
+   path misses or over-flags a lot (e.g. implied vs actual nudity, crime scenes as gore,
+   cartoon fights). The cloud picture review is much better. Better local models or smarter
+   thresholds would help users without Claude.
+3. **Run-to-run consistency.** The same episode gives somewhat different cut lists each run
+   (the cloud model isn't deterministic). Caching the picture review per video, or a second
+   pass that merges runs, could help.
+4. **Subtitles.** Downloads depend on `subliminal` and on parsing show/season/episode from file
+   names. Windows Smart App Control blocked chardet's compiled (`__mypyc`) parts; the app now
+   switches chardet/charset-normalizer to their pure-Python wheels (`subtitle_finder_loads`).
+   Watch for other blocked compiled packages.
+5. **Size of the code.** `cleanview.py` and `CleanView.pyw` are large single files with lots of
+   shared mutable dict state (`st`). Refactoring is welcome but the update rules above apply
+   (flat file names, add new files to `version.json`).
+6. **Tests.** There is no test suite in the repo. Testing so far used small sample videos, fake
+   `claude`/`codex` scripts on PATH that return canned JSON, and GUI checks under Xvfb.
+   Adding real tests (word lists, `find_language`, `word_mute`, `apply_review`, `render` on a
+   tiny generated video, `guess_title` on real file names) would make changes much safer.
+7. **Speed.** A 22-minute episode takes a long time with every check on (speech, picture,
+   voices, local AI, then cloud picture review of ~700 stills). Batching, skipping work that
+   isn't needed for the chosen filters, and reusing results between runs could help.
+8. **CleanListen parity.** Features added here (age profiles, rude words, word-only mutes,
+   live chat edits, exports) are wanted in CleanListen too.
+
+## Releasing
+
+1. Make the change, bump `version` in `version.json` (and add any new file to `"files"`).
+2. Commit as `BookWorm824 <morganscorner93@gmail.com>` and push to `main`. Installed copies
+   pick it up within a few minutes (the raw GitHub CDN can lag ~5 minutes).
+3. Tell Lauren in one or two plain sentences what changed and to press F5 / "Update now".
+4. The installer zip is only rebuilt for new installs (e.g. for her sister).
