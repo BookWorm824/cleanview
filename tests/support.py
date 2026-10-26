@@ -67,7 +67,8 @@ def sample_review():
                  "subs": [], "audio_tracks": 1},
         "groups": ["mild"],
         "mutes": [{"s": 14.2, "e": 14.5, "cat": "minced", "src": "asr", "word": "d**n",
-                   "raw": "darn", "ctx": "Oh", "keep": False}],
+                   "raw": "darn", "ctx": "Oh", "keep": False,     # an AI note, so the words
+                   "claude": {"decision": "can't tell", "why": "made-up reason"}}],  # card shows it
         "scenes": [{"id": 1, "s": 30.0, "e": 38.0, "kind": ["Violence"], "why": "a fight",
                     "cut": True, "sure": True, "said": ""},
                    {"id": 2, "s": 60.0, "e": 64.0, "kind": ["Kiss"], "why": "kissing seen",

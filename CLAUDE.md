@@ -19,7 +19,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
 - All UI text must be plain, short, everyday language. No jargon, no stack traces in the UI.
 - Text size (Normal / Larger / Largest, start page) works through `tk scaling`, which Tk
   only applies as the window is built, so changing it restarts CleanView. Give fonts in
-  points (`(FONT, 10)`) and wrap widths through `wrap(px)` so both follow it. Tick boxes
+  points (`(FONT, 10)`) and wrap widths through `wrap_width(px)` so both follow it.
+  Never give a local variable the name of a module helper a function calls (1.11.7 named a
+  box `wrap` in a function calling `wrap()`, and the review page failed to open);
+  `test_ui.NoHiddenNames` checks for this. Tick boxes
   are drawn images (`_tick_boxes`), since the theme's own show an ✗.
 - Slow things (reading video lengths, Claude) run in a thread and come back to the
   window through `self.q` (`("call", fn)` runs fn on the window's thread).

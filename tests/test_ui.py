@@ -42,6 +42,39 @@ class PlainErrors(unittest.TestCase):
             self.assertEqual(ui.plain_error(ex), str(ex))
 
 
+class NoHiddenNames(unittest.TestCase):
+    """A function that names one of its own things like a helper it calls (a box called
+    "wrap" in a function calling wrap()) breaks only when that line runs. 1.11.7 did
+    this, and the review page failed to open. Check the whole file for it."""
+
+    def test_no_function_hides_a_helper_it_calls(self):
+        import ast
+        tree = ast.parse((support.ROOT / "CleanView.pyw").read_text("utf8"))
+        helpers = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+
+        def own_names(fn):              # names given a value in fn itself, not in inner defs
+            out, todo = set(), list(fn.body)
+            while todo:
+                node = todo.pop()
+                if isinstance(node, (ast.FunctionDef, ast.Lambda, ast.ClassDef)):
+                    if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                        out.add(node.name)
+                    continue
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                    out.add(node.id)
+                todo.extend(ast.iter_child_nodes(node))
+            out |= {a.arg for a in fn.args.args + fn.args.kwonlyargs}
+            return out
+        bad = []
+        for fn in ast.walk(tree):
+            if isinstance(fn, ast.FunctionDef):
+                called = {c.func.id for c in ast.walk(fn)
+                          if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+                for name in own_names(fn) & called & helpers:
+                    bad.append(f"{fn.name}() line {fn.lineno}: {name}")
+        self.assertEqual(bad, [])
+
+
 class Window(unittest.TestCase):
     """One window for all these tests, opened on the sample review."""
 
@@ -133,6 +166,16 @@ class Window(unittest.TestCase):
         self.assertIn("muted", tv.item("1", "tags"))
         self.click(tv, "1", "#1")
         self.assertEqual(tv.set("1", "mute"), UNTICKED)
+
+    def test_review_page_shows_every_card(self):
+        """Scenes, lines and words, each with an AI note: the page that failed in 1.11.7."""
+        self.said.clear()
+        self.app._poll()
+        self.app.show_review()
+        self.app.update()
+        self.assertEqual(self.app.page_name, "review")
+        self.assertEqual(len(self.app.word_vars), 1)
+        self.assertEqual(self.said, [])
 
     def test_flagged_lines_show_ticked(self):
         tv = self.dialogue_tab()
@@ -227,10 +270,10 @@ class Window(unittest.TestCase):
         self.assertEqual(settings["text_size"], "Largest")
 
     def test_wrap_widths_grow_with_the_text(self):
-        self.assertEqual(ui.wrap(640), 640)
+        self.assertEqual(ui.wrap_width(640), 640)
         saved, ui._text_scale = ui._text_scale, 1.3
         try:
-            self.assertEqual(ui.wrap(640), 832)
+            self.assertEqual(ui.wrap_width(640), 832)
         finally:
             ui._text_scale = saved
 

@@ -62,7 +62,7 @@ TEXT_SIZES = {"Normal": 1.0, "Larger": 1.15, "Largest": 1.3}
 _text_scale = 1.0          # the chosen one, set as the window opens
 
 
-def wrap(px):
+def wrap_width(px):
     """A width for wrapping text that grows with the chosen text size."""
     return round(px * _text_scale)
 
@@ -421,7 +421,7 @@ class App(tk.Tk):
         tk.Label(self.page, text=title, bg=BG, fg=INK, font=(FONT, 20, "bold")).pack(anchor="w")
         if subtitle:
             tk.Label(self.page, text=subtitle, bg=BG, fg=MUTED, font=(FONT, 11),
-                     wraplength=wrap(740), justify="left").pack(anchor="w", pady=(2, 12))
+                     wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(2, 12))
         return self.page
 
     def _scroll_area(self, parent):
@@ -544,7 +544,7 @@ class App(tk.Tk):
         ttk.Button(row, text="Choose a folder of episodes…", style="Plain.TButton",
                    command=self.pick_folder).pack(side="left", padx=(8, 0))
         self.vid_lbl = tk.Label(b1, text="Nothing chosen yet", bg=CARD, fg=MUTED,
-                                font=(FONT, 10), wraplength=wrap(640), justify="left")
+                                font=(FONT, 10), wraplength=wrap_width(640), justify="left")
         self.vid_lbl.pack(anchor="w", pady=(8, 0))
         v = tk.BooleanVar(value=self._load_settings().get("autosubs", True))
         self.opts["autosubs"] = v
@@ -552,12 +552,12 @@ class App(tk.Tk):
                         variable=v).pack(anchor="w", pady=(8, 0))
         tk.Label(b1, text="Recommended: subtitles give the exact words, who's talking and "
                  "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
-                 fg=MUTED, font=(FONT, 9), wraplength=wrap(640), justify="left").pack(anchor="w",
+                 fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(anchor="w",
                                                                              padx=(22, 0))
         tk.Label(b1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
                  "downloads without copy protection. If the movie has subtitles, they're used "
                  "to catch extra words and get cleaned too.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=wrap(640), justify="left").pack(anchor="w", pady=(6, 0))
+                 wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(6, 0))
 
         b2 = self._card(body, "2", "What to remove")
         saved = self._load_settings()
@@ -583,7 +583,7 @@ class App(tk.Tk):
         reset.bind("<Button-1>", lambda e: self._profile_reset())
         tk.Label(b2, text="Each one remembers its own ticks, and what CleanView learns from "
                  "your choices is kept separately for each.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=wrap(640), justify="left").pack(anchor="w")
+                 wraplength=wrap_width(640), justify="left").pack(anchor="w")
 
         def section(title):
             tk.Label(b2, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold")).pack(
@@ -641,7 +641,7 @@ class App(tk.Tk):
             ("drugs", "Drug use", True)], cols=3)
         tk.Label(b2, text="Swear words are muted automatically. Everything else is listed for "
                  "you to check before anything is muted or cut.", bg=CARD, fg=MUTED,
-                 font=(FONT, 9), wraplength=wrap(640), justify="left").pack(anchor="w", pady=(10, 0))
+                 font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(10, 0))
 
         b25 = self._card(body, "3", "AI helper", "recommended")
         v = tk.BooleanVar(value=saved.get("ai", True))
@@ -651,7 +651,7 @@ class App(tk.Tk):
         tk.Label(b25, text="Runs on your own PC, nothing is uploaded. The first time, it downloads "
                  "Ollama and two AI models (about 11 GB, one time only). Without it, kissing and "
                  "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=wrap(640), justify="left").pack(anchor="w", pady=(4, 0))
+                 wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(4, 0))
         tk.Label(b25, text="Who reads the dialogue and checks the scenes", bg=CARD, fg=ACCENT_DK,
                  font=(FONT, 10, "bold")).pack(anchor="w", pady=(10, 2))
         v = tk.StringVar(value=saved.get("reader", "local"))
@@ -665,7 +665,7 @@ class App(tk.Tk):
         crow = tk.Frame(b25, bg=CARD)
         crow.pack(fill="x", padx=(22, 0), pady=(2, 0))
         self.claude_lbl = tk.Label(crow, text="", bg=CARD, fg=MUTED,
-                                   font=(FONT, 9), wraplength=wrap(430), justify="left")
+                                   font=(FONT, 9), wraplength=wrap_width(430), justify="left")
         self.claude_lbl.pack(side="left")
         self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
                                      command=self.setup_claude)
@@ -673,7 +673,7 @@ class App(tk.Tk):
         self.opts["look"] = lv
         self.look_chk = ttk.Checkbutton(b25, text="", variable=lv)
         self.look_chk.pack(anchor="w", padx=(22, 0), pady=(4, 0))
-        self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap(640),
+        self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640),
                                    justify="left")
         self.cloud_note.pack(anchor="w", padx=(22, 0))
         lv.trace_add("write", lambda *_: self._reader_changed())
@@ -687,7 +687,7 @@ class App(tk.Tk):
         ttk.Button(row, text="Change…", style="Plain.TButton",
                    command=self.pick_out).pack(side="right")
         self.out_lbl = tk.Label(row, text="A “Clean” folder next to the video", bg=CARD,
-                                fg=MUTED, font=(FONT, 10), wraplength=wrap(500), justify="left")
+                                fg=MUTED, font=(FONT, 10), wraplength=wrap_width(500), justify="left")
         self.out_lbl.pack(side="left")
         tk.Label(b3, text="Your original files are never changed.", bg=CARD, fg=MUTED,
                  font=(FONT, 9)).pack(anchor="w", pady=(6, 0))
@@ -1305,7 +1305,7 @@ class App(tk.Tk):
                          fg="#C2581F",
                          font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
                 tk.Label(box, text=st["claude_summary"], bg="#FFF4EC", fg=INK, font=(FONT, 10),
-                         wraplength=wrap(700), justify="left", anchor="w").pack(fill="x")
+                         wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x")
                 cnt = st.get("claude_counts") or {}
                 if cnt.get("dropped") or cnt.get("added") or cnt.get("words"):
                     tk.Label(box, text=f"Unticked {cnt.get('dropped', 0)} false alarm(s) and added "
@@ -1313,10 +1313,10 @@ class App(tk.Tk):
                              (f"; {cnt['words']} line(s) now mute just the bad word"
                               if cnt.get("words") else "") +
                              ". Anything you change yourself stays the way you set it.", bg="#FFF4EC", fg=MUTED, font=(FONT, 9),
-                             wraplength=wrap(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
+                             wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
             for note in st.get("notes", []):
                 tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
-                         wraplength=wrap(720), justify="left", anchor="w").pack(fill="x", padx=8)
+                         wraplength=wrap_width(720), justify="left", anchor="w").pack(fill="x", padx=8)
             holder = tk.Frame(inner, bg=BG)
             holder.pack(fill="x")
             self.found_frames[ji] = holder
@@ -1446,7 +1446,7 @@ class App(tk.Tk):
         tk.Label(tab, text="Click the box in the Mute column to mute a line (or pick lines and "
                  "press Space). Click a line to pick it; Ctrl-click or Shift-click picks more, "
                  "to cut them as a scene or ask about them.", bg=BG, fg=MUTED,
-                 font=(FONT, 9), wraplength=wrap(760), justify="left").pack(anchor="w")
+                 font=(FONT, 9), wraplength=wrap_width(760), justify="left").pack(anchor="w")
         box = tk.Frame(tab, bg=BG)
         box.pack(fill="both", expand=True, pady=(4, 0))
         tv = ttk.Treeview(box, columns=("mute", "time", "who", "line"), show="headings",
@@ -1594,7 +1594,7 @@ class App(tk.Tk):
                    "missing": f"{n} isn't set up yet. Go back to the start page and use "
                               f"\u201cSet up {n}\u201d under AI helper, then run this again."}.get(
                 state, f"{n} isn't signed in yet. Use \u201cSign in to {n}\u201d on the start page.")
-            tk.Label(tab, text=msg, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap(700),
+            tk.Label(tab, text=msg, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap_width(700),
                      justify="left").pack(anchor="w", pady=20)
             return
         self.review_btn = ttk.Button(top, text="Review everything again", style="Accent.TButton",
@@ -1611,12 +1611,12 @@ class App(tk.Tk):
                  "together with the whole dialogue, and decide what really needs removing, what's "
                  f"a false alarm and what was missed. Your own changes are never undone. {n}'s "
                  "calls are also saved to teach the AI on this PC, and kept in a spreadsheet.",
-                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap(720), justify="left").pack(anchor="w")
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(720), justify="left").pack(anchor="w")
         tk.Label(tab, text="Ask about this episode or tell it what to change, and the list updates "
                  "right away: \u201cmute every time they talk about the affair\u201d, \u201ckeep "
                  "the kiss at 12:30\u201d, \u201cjust mute the word at 4:10\u201d, \u201ccut 22:15 "
                  "to 23:40\u201d.",
-                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap(720),
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(720),
                  justify="left").pack(anchor="w", pady=(4, 0))
         log = tk.Text(tab, wrap="word", height=14, font=(FONT, 10), bg=CARD, fg=INK, relief="flat",
                       padx=10, pady=8, highlightbackground=LINE, highlightthickness=1)
@@ -1772,7 +1772,7 @@ class App(tk.Tk):
     def _answer_box(self, parent, it):
         if it.get("chat_answer"):
             tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg="#EEF5F3", fg=ACCENT_DK,
-                     font=(FONT, 9), wraplength=wrap(680), justify="left", padx=8, pady=4,
+                     font=(FONT, 9), wraplength=wrap_width(680), justify="left", padx=8, pady=4,
                      anchor="w").pack(fill="x", pady=(6, 0))
 
     def _ask_link(self, parent, job, kind, it, txt=None, text=None, **pack):
@@ -1796,13 +1796,13 @@ class App(tk.Tk):
         hint = "Tip: highlight part of the text above first to point at it. " if txt is not None else ""
         tk.Label(box, text=hint + "e.g. \u201ckeep this\u201d, \u201cjust mute that word\u201d, "
                  "\u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d", bg="#EEF5F3",
-                 fg=MUTED, font=(FONT, 8), wraplength=wrap(640), justify="left").pack(anchor="w")
+                 fg=MUTED, font=(FONT, 8), wraplength=wrap_width(640), justify="left").pack(anchor="w")
         row = tk.Frame(box, bg="#EEF5F3")
         row.pack(fill="x", pady=(2, 0))
         entry = ttk.Entry(row)
         entry.pack(side="left", fill="x", expand=True)
         box.reply = tk.Label(box, text="", bg="#EEF5F3", fg=ACCENT_DK, font=(FONT, 9),
-                             wraplength=wrap(640), justify="left")
+                             wraplength=wrap_width(640), justify="left")
         box.item = it
         ref = self._item_ref(job, it)
         if kind == "scene":
@@ -1880,18 +1880,18 @@ class App(tk.Tk):
         win.configure(bg=BG)
         win.transient(self)
         win.geometry("+%d+%d" % (self.winfo_rootx() + 120, self.winfo_rooty() + 160))
-        tk.Label(win, text=title, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap(520),
+        tk.Label(win, text=title, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap_width(520),
                  justify="left").pack(anchor="w", padx=14, pady=(12, 6))
         tk.Label(win, text=f"What should {AI_NAME} do? (e.g. \u201ckeep this\u201d, \u201cjust mute "
                  "the word\u201d, \u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d)",
-                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap(520),
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(520),
                  justify="left").pack(anchor="w", padx=14)
         row = tk.Frame(win, bg=BG)
         row.pack(fill="x", padx=14, pady=8)
         ent = ttk.Entry(row, width=60)
         ent.pack(side="left", fill="x", expand=True)
         ent.focus_set()
-        win.reply = tk.Label(win, text="", bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap(520),
+        win.reply = tk.Label(win, text="", bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap_width(520),
                              justify="left")
         win.reply.pack(anchor="w", padx=14, pady=(0, 12))
 
@@ -1986,7 +1986,7 @@ class App(tk.Tk):
             self._ask_link(row, job, "word", m, text="Ask", side="right", padx=4)
             note, col = claude_note(m, v.get())
             if note and m["claude"]["decision"] != "remove":
-                tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap(220),
+                tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap_width(220),
                          justify="left").pack(side="right", padx=4)
             line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
                            fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
@@ -2041,7 +2041,7 @@ class App(tk.Tk):
             tw.pack(fill="x")
             note, col = claude_note(l, v.get())
             if note:
-                tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=wrap(440),
+                tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=wrap_width(440),
                          justify="left", anchor="w").pack(fill="x", padx=(8, 0))
             self._answer_box(col_, l)
             self._ask_link(col_, job, "line", l, tw, text="Ask", anchor="e")
@@ -2081,10 +2081,10 @@ class App(tk.Tk):
         text.pack(side="left", fill="both", expand=True, padx=(6, 0))
         if sc.get("why"):
             tk.Label(text, text="Found: " + sc["why"], bg=CARD, fg=INK, font=(FONT, 9),
-                     wraplength=wrap(210), justify="left", anchor="w").pack(fill="x")
+                     wraplength=wrap_width(210), justify="left", anchor="w").pack(fill="x")
         note, col = claude_note(sc, v.get())
         if note:
-            tk.Label(text, text=note, bg=CARD, fg=col, font=(FONT, 9, "bold"), wraplength=wrap(210),
+            tk.Label(text, text=note, bg=CARD, fg=col, font=(FONT, 9, "bold"), wraplength=wrap_width(210),
                      justify="left", anchor="w").pack(fill="x", pady=(4, 0))
         said = sc.get("said") or ""
         txt = None
@@ -2170,10 +2170,10 @@ class App(tk.Tk):
             tk.Label(box, text=big, bg=CARD, fg=ACCENT, font=(FONT, 26, "bold")).pack()
             tk.Label(box, text=small, bg=CARD, fg=MUTED, font=(FONT, 10)).pack()
         tk.Label(p, text=f"Saved in:  {os.path.normpath(results[0]['folder'])}", bg=BG, fg=INK,
-                 font=(FONT, 10), wraplength=wrap(740), justify="left").pack(anchor="w", pady=(4, 4))
+                 font=(FONT, 10), wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(4, 4))
         tk.Label(p, text="Each clean copy has “(Clean)” in its name. Its report, listing everything "
                  "that was muted or cut, is in the Reports folder inside.", bg=BG, fg=MUTED,
-                 font=(FONT, 10), wraplength=wrap(740), justify="left").pack(anchor="w", pady=(0, 16))
+                 font=(FONT, 10), wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(0, 16))
         row = tk.Frame(p, bg=BG)
         row.pack(anchor="w")
         ttk.Button(row, text="Open folder", style="Accent.TButton",
@@ -2192,7 +2192,7 @@ class App(tk.Tk):
         tk.Label(box, text="Save what was refined on this one (what was found, what the AI said, "
                  "what you changed and what you kept) as one file, and send it in. It's added to "
                  "the knowledge every copy of CleanView starts with. No video or sound is in it.",
-                 bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=wrap(700), justify="left",
+                 bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=wrap_width(700), justify="left",
                  padx=12).pack(anchor="w")
         ttk.Button(box, text="Save what we refined\u2026", style="Small.TButton",
                    command=self.export_refined).pack(anchor="w", padx=12, pady=(6, 10))
