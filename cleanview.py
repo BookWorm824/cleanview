@@ -1255,7 +1255,111 @@ def scene_sheet(path, sc, work):
     return str(out) if out.exists() else None
 
 
-DIALOGUE_KINDS = ("Same-sex romance", "Found by", "Suggested by", "Added by you")
+DIALOGUE_KINDS = ("Same-sex romance", "Found by", "Suggested by", "Added by you", "Asked ")
+
+
+def shot_changes(path, a, b):
+    """Times (in the video) where the picture changes shot, between a and b."""
+    a = max(0.0, a)
+    r = cl.run([cl._tool("ffmpeg"), "-hide_banner", "-ss", f"{a:.2f}", "-t", f"{max(0.5, b - a):.2f}",
+                "-i", str(path), "-map", "0:v:0", "-vf", "scale=160:-2,select='gt(scene,0.3)',showinfo",
+                "-f", "null", "-"], capture_output=True)
+    err = r.stderr if isinstance(r.stderr, str) else (r.stderr or b"").decode("utf8", "ignore")
+    return [a + float(x) for x in re.findall(r"pts_time:([0-9.]+)", err)]
+
+
+def snap_to_shots(path, sc, reach=4.0, dur=None):
+    """Start and end a cut on a change of shot, so it never stops halfway through one."""
+    try:
+        ch = shot_changes(path, sc["s"] - reach, sc["e"] + reach)
+    except Exception:
+        return
+    before = [t for t in ch if sc["s"] - reach <= t <= sc["s"] + 0.4]
+    after = [t for t in ch if sc["e"] - 0.4 <= t <= sc["e"] + reach]
+    if before:
+        sc["s"] = round(max(0.0, max(before) - 0.04), 2)
+    if after:
+        sc["e"] = round(min(after) - 0.04, 2)
+    if dur:
+        sc["e"] = min(sc["e"], dur)
+
+
+def bounds_sheet(path, a, b, work, name):
+    """30 stills evenly spread from a to b (6 x 5)."""
+    d = Path(work) / "sheets"
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"bounds_{name}.jpg"
+    step = (b - a) / 30.0
+    cl.run([cl._tool("ffmpeg"), "-v", "error", "-y", "-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i",
+            str(path), "-map", "0:v:0", "-vf",
+            f"fps={1 / step:.5f},scale=240:-2,tile=6x5:padding=3:color=white", "-frames:v", "1",
+            "-q:v", "4", str(out)], capture_output=True)
+    return (str(out), step) if out.exists() else (None, step)
+
+
+def refine_bounds(path, work, dur, scenes, asr, progress=None):
+    """Claude/ChatGPT sets where each scene to cut really starts and ends (the whole
+    fight, not just its worst moment), then the edges snap to changes of shot."""
+    say = progress or (lambda f, m: None)
+    todo = [sc for sc in scenes if sc.get("cut", True)
+            and not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", []))]
+    windows = {sc["id"]: (max(0.0, sc["s"] - 12), min(dur, sc["e"] + 12)) for sc in todo}
+    widened = 0
+    for rnd in range(2):                 # once, then again for scenes that ran off the edge
+        items, steps = [], {}
+        for sc in todo:
+            if sc["id"] not in windows:
+                continue
+            a, b = windows[sc["id"]]
+            p, step = bounds_sheet(path, a, b, work, f"{sc['id']}_{rnd}")
+            if p:
+                items.append((sc["id"], ", ".join(sc.get("kind", [])), p))
+                steps[sc["id"]] = (a, step)
+        if not items:
+            break
+        got = cc.scene_bounds(items, progress=lambda f: say(
+            (rnd + f) / 2, "is checking where each scene starts and ends"))
+        windows = {}
+        for sc in todo:
+            if sc["id"] not in got or sc["id"] not in steps:
+                continue
+            v = got[sc["id"]]
+            if v is None:
+                continue
+            a, step = steps[sc["id"]]
+            first, last, before, after = v
+            s_new = a + (first - 1) * step - step / 2
+            e_new = a + last * step + step / 2
+            old = (sc["s"], sc["e"])
+            sc["s"], sc["e"] = round(max(0.0, min(sc["s"], s_new)), 2), round(min(dur, max(sc["e"], e_new)), 2)
+            if (sc["s"], sc["e"]) != old:
+                widened += 1
+            if rnd == 0 and (before and first == 1 or after and last == 30):
+                windows[sc["id"]] = (max(0.0, sc["s"] - 20 if before else sc["s"] - 4),
+                                     min(dur, sc["e"] + 20 if after else sc["e"] + 4))
+        if not windows:
+            break
+    for sc in todo:
+        snap_to_shots(path, sc, dur=dur)
+        said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]
+        sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+        sc.pop("thumbs", None)
+    # scenes that now overlap become one
+    merged = []
+    for sc in sorted(scenes, key=lambda x: x["s"]):
+        last = merged[-1] if merged else None
+        if last and last.get("cut", True) and sc.get("cut", True) and sc["s"] <= last["e"] + 1.0:
+            last["e"] = max(last["e"], sc["e"])
+            last["kind"] += [k for k in sc["kind"] if k not in last["kind"]]
+            if sc.get("why") and sc["why"] not in last.get("why", ""):
+                last["why"] = "; ".join(x for x in (last.get("why"), sc["why"]) if x)
+            said = [w["t"] for w in asr if last["s"] <= w["s"] <= last["e"]]
+            last["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+        else:
+            merged.append(sc)
+    for k, sc in enumerate(merged, 1):
+        sc["id"] = k
+    return merged, widened
 
 
 def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None):
@@ -1308,7 +1412,7 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     ruled_out = 0
     if items:
         verdicts = cc.verify_scenes(items, wanted, progress=lambda f: say(
-            0.7 + 0.28 * f, "is taking a closer look at each scene found"))
+            0.7 + 0.2 * f, "is taking a closer look at each scene found"))
         for sc in todo:
             v = verdicts.get(sc["id"])
             if not v:
@@ -1391,10 +1495,21 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     for k, sc in enumerate(merged, 1):
         sc["id"] = k
     scenes = merged
+    widened = 0
+    try:
+        scenes, widened = refine_bounds(path, work, dur, scenes, asr,
+                                        lambda f, m: say(0.9 + 0.09 * f, m))
+    except cc.ClaudeError:
+        raise
+    except Exception:
+        for sc in scenes:
+            if sc.get("cut", True):
+                snap_to_shots(path, sc, dur=dur)
     who = cc.name()
     note = (f"{who} looked through the whole picture ({len(sheets) * 20} stills): it confirmed "
             f"{confirmed} scene(s), ruled out {ruled_out} false alarm(s) and found {len(new)} "
-            f"the other checks missed.")
+            f"the other checks missed" + (f", and stretched {widened} cut(s) to cover the whole "
+                                          f"scene" if widened else "") + ".")
     return scenes, note
 
 
@@ -1849,6 +1964,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             raise
         except Exception as ex:
             notes.append(f"{who} couldn't look at the picture this time ({str(ex)[:80]}).")
+    if not (o.get("reader") in CLOUD and o.get("look", True)):
+        for sc in scenes:               # no AI looking: at least start and end on a shot change
+            if not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", [])):
+                snap_to_shots(path, sc, dur=dur)
     learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes)
     for l in learned_lines:
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),
@@ -2158,7 +2277,20 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                for l in lines]
     events += [(c["s"], f"CUT {c['e'] - c['s']:.0f} seconds  {' + '.join(c.get('kind') or ['scene'])}"
                         f"  ({c.get('why', '')})") for c in cuts]
-    rep += [f"  {cl.fmt_t(t)}  {txt}" for t, txt in sorted(events)]
+
+    def in_clean(t):
+        """Where a moment of the original is in the clean copy (cuts make it earlier)."""
+        if any(a <= t < b for a, b in cut_rs):
+            return None
+        return t - sum(min(b, t) - a for a, b in cut_rs if a < t)
+    rep += ["Times: first the original episode, then [in brackets] the same moment in the clean "
+            "copy, which is earlier after each cut.", ""]
+    for t, txt in sorted(events):
+        ct = None if txt.startswith("CUT") else in_clean(t)
+        where = ("[cut out]" if ct is None and not txt.startswith("CUT") else
+                 f"[{cl.fmt_t(ct)}]" if ct is not None else
+                 f"[{cl.fmt_t(t - sum(min(b, t) - a for a, b in cut_rs if a < t))}]")
+        rep.append(f"  {cl.fmt_t(t)}  {where:>10}  {txt}")
     (out / f"{src.stem} - CleanView report.txt").write_text("\n".join(rep) + "\n", encoding="utf8")
     say(1.0, "Saved.")
     log(f"Saved {dst}")

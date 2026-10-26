@@ -659,3 +659,48 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
                 out[batch[k][0]] = (d.get("decision"), str(d.get("why", ""))[:140],
                                     d.get("nudity", "none"), d.get("violence", "none"))
     return out
+
+
+def scene_bounds(items, per_request=8, progress=None):
+    """items: [(scene_id, kind_text, sheet_path)], each sheet 30 stills (6 across, 5 down),
+    evenly spaced from well before to well after a scene that will be cut. Returns
+    {scene_id: (first_tile, last_tile, continues_before, continues_after)} or None for a
+    scene where the trouble isn't seen at all."""
+    schema = {"type": "object", "properties": {"scenes": {"type": "array", "items": {
+        "type": "object", "properties": {
+            "scene": {"type": "integer"},
+            "seen": {"type": "boolean"},
+            "first_tile": {"type": "integer"}, "last_tile": {"type": "integer"},
+            "continues_before": {"type": "boolean"}, "continues_after": {"type": "boolean"}},
+        "required": ["scene", "seen", "first_tile", "last_tile", "continues_before",
+                     "continues_after"]}}}, "required": ["scenes"]}
+    out = {}
+    batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
+    for b, batch in enumerate(batches):
+        if progress:
+            progress(b / len(batches))
+        imgs = [(f"Scene {k + 1} (to be cut for: {kind}). 30 stills, tiles 1-30, read left to "
+                 f"right and top to bottom:", p) for k, (_, kind, p) in enumerate(batch)]
+        prompt = (
+            "Each numbered scene above is going to be cut out of a family's copy of a show. The "
+            "stills run from well before the scene to well after it. For each one, find the "
+            "WHOLE stretch to cut: from the first still where that trouble starts (including "
+            "the start of a fight, a grab, or someone being attacked or pulled down) to the last "
+            "still where it's over (people still struggling, someone still being hurt or in "
+            "danger, the attacker still at it). It's better to include a little too much than "
+            "leave part of it in. Give first_tile and last_tile. Set continues_before if it "
+            "was already going on in tile 1, and continues_after if it's still going on in tile "
+            "30. Set seen to false if none of the stills show it.")
+        res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
+        for d in res.get("scenes", []):
+            k = int(d.get("scene", 0)) - 1
+            if not 0 <= k < len(batch):
+                continue
+            if not d.get("seen", True):
+                out[batch[k][0]] = None
+                continue
+            a = max(1, min(30, int(d.get("first_tile", 1))))
+            z = max(a, min(30, int(d.get("last_tile", 30))))
+            out[batch[k][0]] = (a, z, bool(d.get("continues_before")),
+                                bool(d.get("continues_after")))
+    return out
