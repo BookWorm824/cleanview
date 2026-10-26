@@ -907,7 +907,8 @@ def merge_scenes(scenes):
             o["e"] = max(o["e"], sc["e"])
             o["kind"] += [k for k in sc["kind"] if k not in o["kind"]]
             o["why"] = "; ".join(x for x in (o["why"], sc["why"]) if x)
-            o["sure"] = o.get("sure", True) and sc.get("sure", True)
+            # one sure part (e.g. gunfire heard) is enough to cut the whole thing
+            o["sure"] = o.get("sure", True) or sc.get("sure", True)
         else:
             out.append(dict(sc, kind=list(sc["kind"])))
     return out
@@ -1110,6 +1111,7 @@ def apply_review(st, result):
             _set_on(kind, it, False)
         elif dec == "remove":
             _set_on(kind, it, True)
+            it.pop("hint", None)           # "fine before" no longer holds
     have = {l.get("idx") for l in st.get("lines", [])}
     for k, why, word in missed:
         if k in have:
@@ -1635,8 +1637,9 @@ def decide_picture_scenes(cands, o, have_ai):
             if pw >= 0.5:
                 who = w.replace("kiss_", "")
         level = v.get("level", "?") if v else "?"
-        checked = bool(v) and not v.get("error")
-        note = "" if checked else " (not double-checked, so left unticked)"
+        checked = bool(v) and not v.get("error") and not v.get("unclear")
+        note = ("" if checked else " (hard to see, so left unticked)" if v.get("unclear")
+                else " (not double-checked, so left unticked)")
         if c["cat"] == "kiss":
             if who == "mf":
                 setting = o["kiss_os"]
@@ -2027,14 +2030,15 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 if v.get("error"):
                     kept.append(sc)
                     continue
+                sure = not v.get("unclear")     # hard to see: offered, but unticked
                 if v.get("level") == "implied":
                     n_impl += 1
                     if o["implied"]:
-                        kept.append(dict(sc, kind=["Implied nudity"], sure=True,
+                        kept.append(dict(sc, kind=["Implied nudity"], sure=sure,
                                          why=f"implied nudity — {v.get('what', '')}"))
                 elif v.get("level") == "shown":
                     if o["nudity"]:
-                        kept.append(dict(sc, sure=True, why=f"{sc['why']} — {v.get('what', '')}"))
+                        kept.append(dict(sc, sure=sure, why=f"{sc['why']} — {v.get('what', '')}"))
                 else:
                     n_none += 1
             if n_impl or n_none:
@@ -2082,12 +2086,15 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 snap_to_shots(path, sc, dur=dur)
     learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes)
     for l in learned_lines:
+        yours = l.get("learned_from") == "you"
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),
                            "e": round(l["e"], 2), "text": l["text"], "plain": l["text"],
-                           "types": ["learned" if l.get("learned_from") == "you" else "shared"],
+                           "types": ["learned" if yours else "shared"],
                            "mute": True,
                            "idx": next(k for k, x in enumerate(lines)
                                        if x["s"] == l["s"] and x["text"] == l["text"])})
+        if yours:                       # your own choice, so no AI review undoes it
+            line_mutes[-1]["learned"] = "you muted this before"
     line_mutes.sort(key=lambda l: l["s"])
     notes += learned_notes
 

@@ -559,8 +559,15 @@ LOOK = {
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),
 }
-UNCLEAR = re.compile(r"\b(dark|blurr?y|unclear|can't|cannot|hard to (see|tell)|not (clear|visible)|"
-                     r"difficult to)\b", re.I)
+CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are too dark, blurry "
+             "or unclear to judge (dark hair, dark clothes or a dark room you can still see "
+             "into are fine).")
+# Only for a model that skips "clear": phrases about the frames themselves, so a "woman with
+# dark hair" or "a dark parking garage" isn't taken as the model being unable to see.
+UNCLEAR = re.compile(r"\b(too (dark|blurr?y)|blurr?y|unclear|"
+                     r"(image|frame|picture|shot|scene)s? (is|are) (very |quite |too )?(dark|blurr?y)|"
+                     r"(can't|cannot|can not|hard to|difficult to) (see|tell|make out)|"
+                     r"not (clearly )?visible)\b", re.I)
 WHO_KEY = {"man and woman": "mf", "two men": "mm", "two women": "ff"}
 
 
@@ -573,12 +580,14 @@ def second_look(cands, frames_for, progress=None, cancel=None):
         if progress:
             progress(n / max(1, len(cands)))
         q, schema = LOOK[c["cat"]]
+        schema = dict(schema, properties=dict(schema["properties"], clear={"type": "boolean"}),
+                      required=schema["required"] + ["clear"])
         imgs = frames_for(c)
         if not imgs:
             c["verdict"] = {"keep": True, "who": "?", "level": "?", "what": "", "error": "no frames"}
             continue
         try:
-            a = chat(PREFACE + q + " Answer in JSON.", imgs, schema, timeout=240)
+            a = chat(PREFACE + q + CLEAR_ASK + " Answer in JSON.", imgs, schema, timeout=240)
         except Exception as ex:
             c["verdict"] = {"keep": True, "who": "?", "level": "?", "what": "", "error": str(ex)}
             continue
@@ -602,8 +611,11 @@ def second_look(cands, frames_for, progress=None, cancel=None):
             v["keep"] = v["level"] != "none"
         else:
             v["keep"] = bool(a.get("yes"))
-        if UNCLEAR.search(see):
-            v["keep"] = False   # the model itself says it can't see clearly
+        clear = a.get("clear")
+        if clear is False or (clear is None and UNCLEAR.search(see)):
+            # the model itself says it can't see clearly: if it still saw something, offer
+            # the scene unticked rather than throwing it away
+            v["unclear"] = True
         c["verdict"] = v
     if progress:
         progress(1.0)

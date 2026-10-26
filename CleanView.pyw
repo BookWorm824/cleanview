@@ -1763,8 +1763,9 @@ class App(tk.Tk):
                 tk.Label(row, text=name, bg=chip_color(name), fg="white", font=(FONT, 8, "bold"),
                          padx=6).pack(side="left", padx=(8, 0), anchor="n")
             txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"
-            if l.get("learned"):
-                txt += f"   ({l['learned']})"
+            why_ = l.get("learned") or l.get("hint")
+            if why_ and "learned" not in l["types"]:     # that chip already says so
+                txt += f"   ({why_})"
             col_ = tk.Frame(row, bg=CARD)
             col_.pack(side="left", padx=(8, 0), fill="x", expand=True)
             tw = self._sel_text(col_, txt, width_chars=70, max_lines=4, bg=CARD, fg=MUTED)

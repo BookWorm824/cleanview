@@ -3,10 +3,12 @@ What CleanView learns from your choices on the review page, kept per show
 (and one shared file for movies) in %LOCALAPPDATA%\\CleanView\\learned.
 
 - Lines you mute (or add yourself) are muted again when they come back
-  (catchphrases, theme-song lyrics, recaps), and lines you leave unmuted
+  (catchphrases, theme-song lyrics, recaps), and lines you unmute
   start unticked next time.
-- Scene types you nearly always keep in a show start unticked there.
+- Scene types you nearly always untick in a show start unticked there.
 - Swear words you keep unticking start unticked.
+- Only what you change yourself counts: something the AI unticked and you
+  left alone isn't taken as your choice.
 - Your past choices are shown to the dialogue readers (the AI on this PC
   and Claude) as examples of what you do and don't want.
 - Claude's verdicts teach the AI on this PC too: lines Claude said to remove
@@ -24,6 +26,7 @@ import json
 from datetime import date
 import os
 import re
+import shutil
 from pathlib import Path
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
@@ -75,20 +78,43 @@ def load(key):
         d = json.loads(_path(key).read_text("utf8"))
     except Exception:
         d = {}
-    for k, v in (("muted", []), ("kept", []), ("scenes", {}), ("words", {}),
+    for k, v in (("muted", []), ("kept", []), ("scenes", {}), ("words", {}), ("old_kept", []),
                  ("claude_muted", []), ("claude_kept", []), ("claude_ok_words", [])):
         d.setdefault(k, v)
     if not d.get("v2"):     # "Gore" used to mean any blood; that's "Graphic violence" now
         if "Gore" in d["scenes"]:
             d["scenes"]["Graphic violence"] = d["scenes"].pop("Gore")
         d["v2"] = True
+    if not d.get("v3"):
+        # Before 1.11.4 anything left unticked counted as your choice, even when the AI (or
+        # this file) had unticked it, so "kept" snowballed (Castle: Gore kept 65, cut 0).
+        # Those counts can't be told apart from your real choices, so start them over;
+        # the old kept lines become hints a new review can overrule.
+        _backup(key)
+        d["old_kept"] = d["kept"] + [t for t in d["old_kept"] if t not in d["kept"]]
+        d["kept"] = []
+        for s in d["scenes"].values():
+            s["kept"] = 0
+        for s in d["words"].values():
+            s["kept"] = 0
+        d["v3"] = True
     return d
+
+
+def _backup(key):
+    """A copy of the learned file as it was before the 1.11.4 clean-up, just in case."""
+    try:
+        old = DIR / f"{key}.before-1.11.4.bak"
+        if _path(key).exists() and not old.exists():
+            shutil.copyfile(_path(key), old)
+    except OSError:
+        pass
 
 
 def save(key, d):
     try:
         DIR.mkdir(parents=True, exist_ok=True)
-        for k in ("muted", "kept", "claude_muted", "claude_kept", "claude_ok_words"):
+        for k in ("muted", "kept", "old_kept", "claude_muted", "claude_kept", "claude_ok_words"):
             d[k] = d[k][-MAX_LINES:]
         tmp = _path(key).with_suffix(".tmp")
         tmp.write_text(json.dumps(d, indent=1), encoding="utf8")
@@ -107,9 +133,18 @@ def _remember(lst, text):
         lst.append(n)
 
 
+def _changed(it, on):
+    """True if you set this yourself: ticked or unticked it on the review page
+    (this time, or in an earlier look at it)."""
+    return bool(it.get("by_you")) or ("_shown" in it and it["_shown"] != on)
+
+
 def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, added_scenes,
            mutes, word_choice):
-    """Store what you did. *_choice are parallel lists of True (mute/cut) / False."""
+    """Store what you did. *_choice are parallel lists of True (mute/cut) / False.
+    Something ticked and left ticked counts as yours (you let it be changed);
+    something left unticked only counts if you unticked it yourself, since the AI
+    or what was learned before may have unticked it."""
     d = load(key)
     for l, on in zip(flagged_lines, line_choice):
         n = norm(l.get("plain") or l["text"])
@@ -117,23 +152,23 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
             _remember(d["muted"], n)
             if n in d["kept"]:
                 d["kept"].remove(n)
-        else:
+        elif _changed(l, on):
             _remember(d["kept"], n)
             if n in d["muted"]:
                 d["muted"].remove(n)
     for l in extra_lines:
         _remember(d["muted"], l.get("plain") or l["text"])
     for sc, on in zip(scenes, scene_choice):
-        k = scene_kind(sc)
-        s = d["scenes"].setdefault(k, {"cut": 0, "kept": 0})
-        s["cut" if on else "kept"] += 1
+        if on or _changed(sc, on):
+            s = d["scenes"].setdefault(scene_kind(sc), {"cut": 0, "kept": 0})
+            s["cut" if on else "kept"] += 1
     if added_scenes:
         s = d["scenes"].setdefault("Added by you", {"cut": 0, "kept": 0})
         s["cut"] += len(added_scenes)
     for m, on in zip(mutes, word_choice):
-        w = m.get("raw") or m.get("word", "")
-        s = d["words"].setdefault(w, {"muted": 0, "kept": 0})
-        s["muted" if on else "kept"] += 1
+        if on or _changed(m, on):
+            s = d["words"].setdefault(m.get("raw") or m.get("word", ""), {"muted": 0, "kept": 0})
+            s["muted" if on else "kept"] += 1
     save(key, d)
 
 
@@ -142,20 +177,27 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
     returns (added_lines, notes)."""
     d = load(key)
     notes = []
-    muted, kept = set(d["muted"]), set(d["kept"])
-    kept |= set(d["claude_kept"]) - muted          # Claude's calls, unless you decided otherwise
-    shared_muted = set(_sh(key, "muted")) - kept - set(d["claude_kept"])
-    kept |= set(_sh(key, "kept")) - muted - shared_muted
+    muted, mine_kept = set(d["muted"]), set(d["kept"])
+    # Claude's past calls, and what CleanView learned elsewhere, start lines unticked too,
+    # but only as a hint ("hint", not "learned"): a new review may still say to remove them.
+    # Only your own choices ("learned") are never undone.
+    hint_kept = (set(d["claude_kept"]) | set(d["old_kept"])) - muted
+    shared_muted = set(_sh(key, "muted")) - mine_kept - hint_kept
+    hint_kept |= set(_sh(key, "kept")) - muted - shared_muted
+    hint_kept -= mine_kept
     muted |= shared_muted
     flagged_at = {(round(l["s"], 2), round(l["e"], 2)) for l in line_flags}
     n_kept = 0
     for l in line_flags:
         n = norm(l.get("plain") or l["text"])
-        if n in kept:
+        if n in mine_kept:
             l["mute"] = False
-            l["learned"] = ("you left this unmuted before" if n in d["kept"] else
-                            "Claude said this was fine before" if n in d["claude_kept"] else
-                            "CleanView learned this is fine")
+            l["learned"] = "you left this unmuted before"
+            n_kept += 1
+        elif n in hint_kept:
+            l["mute"] = False
+            l["hint"] = ("Claude said this was fine before" if n in d["claude_kept"] else
+                         "CleanView learned this is fine")
             n_kept += 1
     added = []
     mine_muted = set(d["muted"])
@@ -184,9 +226,9 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
             n_w += 1
         elif _phrase(m) in ok_words and not (s and s["muted"]):
             m["keep"] = True
-            m["learned"] = ("Claude said this was fine here before"
-                            if _phrase(m) in d["claude_ok_words"] else
-                            "CleanView learned this is fine here")
+            m["hint"] = ("Claude said this was fine here before"
+                         if _phrase(m) in d["claude_ok_words"] else
+                         "CleanView learned this is fine here")
             n_w += 1
     n_you = sum(1 for l in added if l["learned_from"] == "you")
     if n_you:

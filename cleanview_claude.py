@@ -417,6 +417,8 @@ def _yours(it):
         return " (they set this themselves)"
     if it.get("learned"):
         return f" (from their past choices: {it['learned']})"
+    if it.get("hint"):
+        return f" (an earlier review's call, which you may overrule: {it['hint']})"
     return ""
 
 
