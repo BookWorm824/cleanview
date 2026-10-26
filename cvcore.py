@@ -155,6 +155,28 @@ CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "mild": _c(MILD),
 SEX_C = {w: _c(p) for w, p in SEX_TERMS.items()}
 
 
+def _base(w):
+    """'fool's' -> 'fool', 'idiots'' -> 'idiots' (possessives)."""
+    return w[:-2] if w.endswith("'s") and len(w) > 3 else w
+
+
+def listed_word(word):
+    """True if a word (or phrase like 'sweet-ass', 'fool's') is on any of the
+    word lists: swearing, mild, minced, God's name, rude, sex words, same-sex
+    words. Used so an AI can't mute a misheard name ('Grafi') on its own."""
+    w = norm(word.replace(" ", "").replace("-", ""))
+    parts = [norm(p) for p in re.split(r"[\s\-]+", word) if norm(p)]
+    for c in [w] + parts:
+        c = _base(c)
+        if c in ("god", "gods", "lord", "lords"):
+            return True
+        if any(p.match(c) for pats in CATS.values() for p in pats):
+            return True
+        if any(p.match(c) for p in SEX_C[3]):
+            return True
+    return False
+
+
 def find_language(words, cats):
     """Return (i, j, category) spans of words[i:j] to mute."""
     hits, n, i = [], len(words), 0
@@ -182,8 +204,9 @@ def find_language(words, cats):
                 i += len(ph)
                 continue
         w = words[i]
+        wb = _base(w)
         for cat in cats:
-            if any(p.match(w) for p in CATS[cat]):
+            if any(p.match(w) or p.match(wb) for p in CATS[cat]):
                 if w == "bloody" and (words[i + 1] if i + 1 < n else "") not in BLOODY_SWEAR_NEXT:
                     break
                 hits.append((i, i + 1, cat))

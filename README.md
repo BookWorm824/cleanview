@@ -34,7 +34,8 @@ its own install, its own folder, its own updates.
     the older qwen2.5 models are used.
 - Videos with no subtitles get them from the internet (subliminal; hearing-impaired ones
   first). Show and episode are read from the file and folder names, and the downloaded
-  subtitles are re-timed to the words actually heard; ones that don't match are not used.
+  subtitles are re-timed to the words actually heard; ones that don't match are not used. If Windows Smart App Control
+  blocks part of the subtitle finder, CleanView switches it to plain Python by itself.
 - Dark or murky frames are ignored, and a scene needs several seconds of strong hits. Scenes
   the AI helper didn't confirm are listed unticked.
 - Scenes are cut; flagged dialogue lines and swear words are muted. Everything is listed
@@ -110,7 +111,9 @@ checks found (every scene, line and word) together with the full dialogue, your 
 your past choices, and decides in context what really needs removing, what's a false alarm
 (unticked, with the reason shown) and what was missed (added as "Found by Claude"). When a
 line's only problem is one word ("one sweet-ass deal"), it mutes just that word and keeps the
-rest of the line. Its
+rest of the line. A word that isn't on any word list (often a name the speech recognition
+misheard, like "Grafi" for Gruffi) is never muted on its own: it is listed unticked for you
+to decide. Its
 summary is shown at the top of the Found tab. On the Ask Claude tab, "Review everything
 again" re-runs that review after you've made changes; anything you set yourself is never
 undone. You can also chat about the episode and add what Claude suggests to the list. Only

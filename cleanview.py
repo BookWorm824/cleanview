@@ -106,6 +106,69 @@ def _subs_tried():
     return _subs_mark().exists()
 
 
+# Windows Smart App Control blocks some compiled add-ons (chardet's "__mypyc"
+# files: "DLL load failed ... An Application Control policy has blocked this
+# file"). Both packages also come as plain Python, which is never blocked.
+PURE_PY = ("chardet", "charset-normalizer")
+
+
+def _pure_mark():
+    return HERE / "models" / "subtitle_finder_ok.txt"
+
+
+def make_pure_python(log=print):
+    """Swap chardet / charset-normalizer for their plain-Python versions."""
+    from importlib import metadata
+    py = _venv_python()
+    tmp = tempfile.mkdtemp(prefix="cv_pure_")
+    try:
+        for pkg in PURE_PY:
+            try:
+                ver = metadata.version(pkg)
+            except metadata.PackageNotFoundError:
+                continue
+            r = cl.run([py, "-m", "pip", "download", "--quiet", "--disable-pip-version-check",
+                        "--no-deps", "--only-binary=:all:", "--platform", "any",
+                        "--python-version", f"{sys.version_info[0]}.{sys.version_info[1]}",
+                        "-d", tmp, f"{pkg}=={ver}"], capture_output=True, text=True)
+            whl = [p for p in Path(tmp).glob("*.whl")
+                   if p.name.lower().startswith(pkg.replace("-", "_") + "-")]
+            if r.returncode != 0 or not whl:
+                log(f"Couldn't get plain-Python {pkg}: {(r.stderr or '')[-200:]}")
+                continue
+            r = cl.run([py, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+                        "--no-deps", "--force-reinstall", str(whl[0])],
+                       capture_output=True, text=True)
+            if r.returncode != 0:
+                log(f"Couldn't install plain-Python {pkg}: {(r.stderr or '')[-200:]}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    importlib.invalidate_caches()
+
+
+def subtitle_finder_loads(log=print):
+    """Check (in a separate process, so nothing gets locked) that the subtitle
+    finder can load; if Windows blocked part of it, switch to plain Python."""
+    if _pure_mark().exists():
+        return True, ""
+    test = [_venv_python(), "-c", "import subliminal, babelfish"]
+    r = cl.run(test, capture_output=True, text=True)
+    if r.returncode != 0 and ("DLL load failed" in r.stderr or "Application Control" in r.stderr
+                              or "mypyc" in r.stderr):
+        log("Windows blocked part of the subtitle finder; switching it to plain Python…")
+        make_pure_python(log)
+        r = cl.run(test, capture_output=True, text=True)
+    if r.returncode != 0:
+        err = (r.stderr.strip().splitlines() or ["unknown problem"])[-1]
+        return False, err[:160]
+    try:
+        _pure_mark().parent.mkdir(parents=True, exist_ok=True)
+        _pure_mark().write_text("ok\n")
+    except OSError:
+        pass
+    return True, ""
+
+
 def _upgrade_mark():
     return HERE / "models" / ("ai_models_tried_" + re.sub(r"[^a-z0-9]+", "_", "_".join(
         ai.VISION_MODELS[:1] + ai.TEXT_MODELS[:1]).lower()) + ".txt")
@@ -169,6 +232,8 @@ def install_tools(opts=None, progress=None, log=print):
             pass
         if r.returncode != 0:
             log("Subtitle finder download failed: " + r.stderr[-300:])
+        elif os.name == "nt":
+            make_pure_python(log)         # Smart App Control can block the compiled parts
         importlib.invalidate_caches()
     if (nd["sound"] or nd["voices"]) and not (TAG_DIR / "model.int8.onnx").exists():
         say(0.05, "Getting the sound checker (one time, about 45 MB)…")
@@ -402,6 +467,13 @@ def download_subtitles(path, workdir, log=print):
     t = guess_title(path)
     if not t:
         return None, "couldn't tell which episode this is from its name"
+    if "subliminal" not in sys.modules:
+        ok, err = subtitle_finder_loads(log)
+        if not ok:
+            return None, f"the subtitle finder won't load ({err})"
+        for k in [k for k in sys.modules if k.split(".")[0] in ("chardet", "charset_normalizer")]:
+            sys.modules.pop(k, None)      # half-loaded by an earlier failed try
+        importlib.invalidate_caches()
     import subliminal
     from babelfish import Language
     try:
@@ -920,6 +992,15 @@ def _set_on(kind, it, on):
         it["keep"] = not on
 
 
+UNLISTED = (" (not a word on any list, so left unticked: it may be a name the speech "
+            "recognition misheard. Tick it if it really is a bad word.)")
+
+
+def _words_listed(word):
+    ws = [w.strip() for w in re.split(r"[|,]", word or "") if w.strip()]
+    return bool(ws) and all(cl.listed_word(w) for w in ws)
+
+
 def word_mute(st, line, word, why):
     """Mute just one word of a dialogue line (Claude's "just the word").
     Uses a word already on the list if there is one, else finds the word's
@@ -992,6 +1073,16 @@ def apply_review(st, result):
         if word and dec == "just the word":
             it["claude"]["word"] = word
         mine = it.get("by_you") or it.get("learned")
+        if dec == "just the word" and not _words_listed(word):
+            # not a word on any list: often a name the speech recognition misheard
+            # ("Grafi" for Gruffi). Offer it unticked; the line stays as it was.
+            for w in re.split(r"[|,]", word):
+                m = word_mute(st, it, w.strip(), why) if w.strip() else None
+                if m and not m.get("by_you") and not m.get("learned") and m.get("cat") == "claude":
+                    m["keep"] = True
+                    m["claude"] = {"decision": "can't tell", "why": why + UNLISTED}
+            it["claude"] = {"decision": "can't tell", "why": why + UNLISTED, "word": word}
+            continue
         if dec == "just the word":
             ms = [word_mute(st, it, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
             m = None if (not ms or None in ms) else ms[0]
@@ -1023,11 +1114,21 @@ def apply_review(st, result):
         l = lines[k]
         ms = [word_mute(st, l, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
         if ms and None not in ms:
+            ok = _words_listed(word)
             for m in ms:
-                m["keep"] = False
-                m.setdefault("claude", {"decision": "remove", "why": why})
-            n_add += 1
+                if m.get("by_you") or m.get("learned"):
+                    continue
+                if ok:
+                    m["keep"] = False
+                    m.setdefault("claude", {"decision": "remove", "why": why})
+                elif m.get("cat") == "claude":   # unlisted: offer it, unticked
+                    m["keep"] = True
+                    m["claude"] = {"decision": "can't tell", "why": why + UNLISTED}
+            if ok:
+                n_add += 1
             continue
+        if word and not _words_listed(word):
+            continue                      # couldn't even place an unlisted word: skip it
         st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
                             "types": ["claude"], "mute": True, "idx": k,
                             "claude": {"decision": "remove", "why": why}})
