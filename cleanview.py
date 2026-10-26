@@ -2403,7 +2403,15 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                  f"[{cl.fmt_t(ct)}]" if ct is not None else
                  f"[{cl.fmt_t(t - sum(min(b, t) - a for a, b in cut_rs if a < t))}]")
         rep.append(f"  {cl.fmt_t(t)}  {where:>10}  {txt}")
-    (out / f"{src.stem} - CleanView report.txt").write_text("\n".join(rep) + "\n", encoding="utf8")
+    reports = out / "Reports"                 # kept apart from the episodes
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / f"{src.stem} - CleanView report.txt").write_text("\n".join(rep) + "\n", encoding="utf8")
+    old = out / f"{src.stem} - CleanView report.txt"   # from before there was a Reports folder
+    try:
+        if old.exists():
+            old.unlink()
+    except OSError:
+        pass
     say(1.0, "Saved.")
     log(f"Saved {dst}")
     return {"mutes": len(st["mutes"]) + len(lines), "cuts": len(cut_rs), "cut_minutes": removed / 60,

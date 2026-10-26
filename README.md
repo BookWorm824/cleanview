@@ -42,7 +42,7 @@ its own install, its own folder, its own updates.
   first (scenes with blurred stills and a Preview button, then lines, then every swear word),
   and only what you leave ticked is changed.
 - Pick a folder of episodes to clean a whole season in one go.
-- Saves "(Clean)" copies plus a report of every mute and cut. Originals are never changed.
+- Saves "(Clean)" copies, with a report of every mute and cut in a "Reports" folder beside them. Originals are never changed.
   Cleaned subtitles are inside the copy but off unless you turn them on in your player.
 - Updates: a bar appears when a new version is ready ("Update now (keeps your place)"), or press
   F5 / "Check for updates". Your review, with everything found and every tick, is saved and

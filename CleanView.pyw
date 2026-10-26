@@ -1898,8 +1898,8 @@ class App(tk.Tk):
             tk.Label(box, text=small, bg=CARD, fg=MUTED, font=(FONT, 10)).pack()
         tk.Label(p, text=f"Saved in:  {os.path.normpath(results[0]['folder'])}", bg=BG, fg=INK,
                  font=(FONT, 10), wraplength=740, justify="left").pack(anchor="w", pady=(4, 4))
-        tk.Label(p, text="Each clean copy has “(Clean)” in its name, with a report "
-                 "beside it listing everything that was muted or cut.", bg=BG, fg=MUTED,
+        tk.Label(p, text="Each clean copy has “(Clean)” in its name. Its report, listing everything "
+                 "that was muted or cut, is in the Reports folder inside.", bg=BG, fg=MUTED,
                  font=(FONT, 10), wraplength=740, justify="left").pack(anchor="w", pady=(0, 16))
         row = tk.Frame(p, bg=BG)
         row.pack(anchor="w")
