@@ -459,6 +459,9 @@ def guess_title(path):
     return (title, None, None) if re.search(r"[A-Za-z]{2}", title) else None
 
 
+MISS_REMEMBER = "no matching subtitles were found online"
+
+
 def download_subtitles(path, workdir, log=print):
     """Look up English subtitles online (hearing-impaired ones first). Returns
     (srt_text, where_from) or (None, reason)."""
@@ -1843,7 +1846,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         text, why = None, ""
         if dl.exists():
             text, why = dl.read_text("utf8", "replace"), (work / "downloaded.txt").read_text("utf8")
-        elif not (miss.exists() and time.time() - miss.stat().st_mtime < 3 * 86400):
+        elif not (miss.exists() and time.time() - miss.stat().st_mtime < 3 * 86400
+                  and miss.read_text("utf8", "replace").startswith(MISS_REMEMBER)):
             say(at("end", 0.1), "Looking for subtitles online…")
             try:
                 text, why = download_subtitles(path, work, log)
@@ -1852,8 +1856,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             if text:
                 dl.write_text(text, encoding="utf8")
                 (work / "downloaded.txt").write_text(why, encoding="utf8")
-            else:
+            elif why.startswith(MISS_REMEMBER):   # only remember "none online", never an error
                 miss.write_text(why, encoding="utf8")
+            elif miss.exists():
+                miss.unlink()
         else:
             why = miss.read_text("utf8", "replace")
         if text:
