@@ -231,8 +231,11 @@ def _ask_images(prompt, schema, images, system, timeout):
 # ---------------------------------------------------------------------------
 SYSTEM = ("You help a family make movies and TV shows fit their standards by muting dialogue "
           "and cutting scenes. You only ever see the dialogue as numbered lines. Be accurate: "
-          "flag what clearly fits what they asked for, and nothing else. Don't lecture or add "
-          "opinions about their choices.")
+          "flag what clearly fits what they asked for, and nothing else. When there are no "
+          "subtitles the dialogue comes from speech recognition, which mishears names and made-"
+          "up words (\"Grafi\" for the character Gruffi): never mute a character's name or a "
+          "word just because it looks odd, only words that really are on their list. Don't "
+          "lecture or add opinions about their choices.")
 
 TYPE_TEXT = {
     "sexref": "sexual references, sexual jokes or innuendo",
