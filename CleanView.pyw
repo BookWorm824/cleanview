@@ -32,6 +32,28 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
 
 
+# ---------- who you're filtering for: each has its own ticks, remembered separately ----------
+PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adults", "Adults")]
+FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
+               "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
+               "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
+               "drinking", "drugs"]
+_ALL = {k: True for k in FILTER_KEYS}
+_ALL.update(kiss_os="all", kiss_ss="all")
+PRESETS = {
+    "young": dict(_ALL),
+    "kids": dict(_ALL, kiss_os="passionate"),
+    "teens": dict(_ALL, rude=False, minced=False, crude=False, kiss_os="passionate",
+                  implied=False),
+    "adults": dict(swearing=True, mild=True, deity=True, minced=False, samesexwords=True,
+                   rude=False, sexref=True, crude=False, bullying=False, nudity=True,
+                   implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
+                   kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
+                   graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
+                   drugs=True),
+}
+
+
 def chip_color(label):
     return CHIP.get(label.split(" ")[0], "#2F6F62")
 
@@ -419,6 +441,29 @@ class App(tk.Tk):
 
         b2 = self._card(body, "2", "What to remove")
         saved = self._load_settings()
+        profiles = saved.get("profiles")
+        if profiles is None:            # first time: your old ticks become your "Adults" ticks
+            old = {k: saved[k] for k in FILTER_KEYS if k in saved}
+            profiles = {"adults": old} if old else {}
+        self.profiles = {p: dict(PRESETS[p], **profiles.get(p, {})) for p, _ in PROFILES}
+        self.profile = saved.get("profile") or ("adults" if profiles.get("adults") else "young")
+        cur = self.profiles[self.profile]
+        prow = tk.Frame(b2, bg=CARD)
+        prow.pack(fill="x", pady=(0, 4))
+        tk.Label(prow, text="Filtering for:", bg=CARD, fg=INK, font=(FONT, 10, "bold")).pack(
+            side="left", padx=(0, 8))
+        self.profile_var = tk.StringVar(value=self.profile)
+        for key, name in PROFILES:
+            ttk.Radiobutton(prow, text=name, value=key, variable=self.profile_var,
+                            style="Card.TRadiobutton",
+                            command=self._profile_changed).pack(side="left", padx=(0, 10))
+        reset = tk.Label(prow, text="Reset to the standard for this age", bg=CARD, fg=ACCENT,
+                         font=(FONT, 9, "underline"), cursor="hand2")
+        reset.pack(side="right")
+        reset.bind("<Button-1>", lambda e: self._profile_reset())
+        tk.Label(b2, text="Each one remembers its own ticks, and what CleanView learns from "
+                 "your choices is kept separately for each.", bg=CARD, fg=MUTED, font=(FONT, 9),
+                 wraplength=640, justify="left").pack(anchor="w")
 
         def section(title):
             tk.Label(b2, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold")).pack(
@@ -429,7 +474,7 @@ class App(tk.Tk):
 
         def checks(grid, items, cols=2):
             for n, (key, label, on) in enumerate(items):
-                v = tk.BooleanVar(value=saved.get(key, on))
+                v = tk.BooleanVar(value=cur.get(key, on))
                 self.opts[key] = v
                 ttk.Checkbutton(grid, text=label, variable=v).grid(
                     row=n // cols, column=n % cols, sticky="w", padx=(0, 26), pady=1)
@@ -442,7 +487,8 @@ class App(tk.Tk):
             ("samesexwords", "Words about same-sex relationships  (gay, lesbian\u2026)", True),
             ("sexref", "Sexual references and innuendo", True),
             ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
-            ("bullying", "Bullying and mocking", False)])
+            ("bullying", "Bullying and mocking", False),
+            ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False)])
         checks(section("Sex and nudity"), [
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
@@ -457,7 +503,7 @@ class App(tk.Tk):
                                                      ("kiss_ss", "Same-sex kissing", "passionate")]):
             tk.Label(g, text=label, bg=CARD, fg=INK, font=(FONT, 10)).grid(
                 row=row, column=0, sticky="w", padx=(0, 12), pady=2)
-            v = tk.StringVar(value=self.level_names[saved.get(key, default)])
+            v = tk.StringVar(value=self.level_names[cur.get(key, default)])
             self.opts[key] = v
             ttk.Combobox(g, textvariable=v, values=list(levels), state="readonly",
                          width=22).grid(row=row, column=1, sticky="w", pady=2)
@@ -467,7 +513,7 @@ class App(tk.Tk):
                     ("oppsex", "Unmarried couples living or sleeping together", False)], cols=1)
         checks(section("Violence"), [
             ("violence", "Violence  (fights, shootings, attacks)", True),
-            ("graphic", "Graphic violence  (blood, wounds, bloody crime scenes)", True),
+            ("graphic", "Graphic violence  (blood, bloody wounds)", True),
             ("gore", "Gore  (insides showing: organs, dismemberment)", True),
             ("disturbing", "Disturbing  (torture, executions, cruelty)", True)])
         checks(section("Other"), [
@@ -543,6 +589,33 @@ class App(tk.Tk):
             "gets what it learned with the next update.\n\n"
             "It has the lines and words you and the AI muted or kept, and its notes. No video "
             "or sound.")
+
+    # ---------- who you're filtering for ----------
+    def _filter_values(self):
+        out = {}
+        for k in FILTER_KEYS:
+            if k in self.opts:
+                val = self.opts[k].get()
+                out[k] = self.level_values.get(val, val) if isinstance(val, str) else bool(val)
+        return out
+
+    def _set_filters(self, vals):
+        for k in FILTER_KEYS:
+            if k in self.opts and k in vals:
+                v = vals[k]
+                self.opts[k].set(self.level_names[v] if k in ("kiss_os", "kiss_ss") else bool(v))
+
+    def _profile_changed(self):
+        new = self.profile_var.get()
+        if new == self.profile:
+            return
+        self.profiles[self.profile] = self._filter_values()     # keep what you set
+        self.profile = new
+        self._set_filters(self.profiles[new])
+
+    def _profile_reset(self):
+        self.profiles[self.profile] = dict(PRESETS[self.profile])
+        self._set_filters(self.profiles[self.profile])
 
     # ---------- Claude / ChatGPT ----------
     def _cloud(self):
@@ -651,6 +724,7 @@ class App(tk.Tk):
         for k, v in self.opts.items():
             val = v.get()
             o[k] = self.level_values.get(val, val) if isinstance(val, str) else bool(val)
+        o["profile"] = getattr(self, "profile", "adults")
         return o
 
     def _refresh_labels(self):
@@ -710,7 +784,7 @@ class App(tk.Tk):
                                        "this PC will read the dialogue this time.\n\nGo ahead?"):
                 return
             o["reader"] = "local"
-        word_groups = ("swearing", "mild", "deity", "minced", "samesexwords")
+        word_groups = ("swearing", "mild", "deity", "minced", "samesexwords", "rude")
         self.groups = [g for g in word_groups if o.get(g)]
         self.scan_opts = {k: v for k, v in o.items() if k not in word_groups}
         if not self.groups and not any(v not in (False, "off") for k, v in self.scan_opts.items()
@@ -718,8 +792,11 @@ class App(tk.Tk):
             messagebox.showinfo("CleanView", "Tick at least one thing to remove.")
             return
         try:
+            self.profiles[self.profile] = self._filter_values()
+            keep = {k: v for k, v in o.items() if k not in FILTER_KEYS}
+            keep.update(profile=self.profile, profiles=self.profiles)
             APP_DATA.mkdir(parents=True, exist_ok=True)
-            (APP_DATA / "cleanview_settings.json").write_text(json.dumps(o))
+            (APP_DATA / "cleanview_settings.json").write_text(json.dumps(keep))
         except Exception:
             pass
         if not self.outdir:

@@ -94,6 +94,15 @@ CRUDE_PHRASES = [   # muted with the swearing group
     ("screw", "y'all"), ("screw", "ya"),
 ]
 DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"goddamn.*"]
+# rude words kids copy (a separate box, off unless ticked)
+RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?", r"idiotic",
+        r"morons?", r"moronic", r"dumm(y|ies)", r"dorks?", r"dorky", r"dweebs?", r"jerks?",
+        r"losers?", r"fools?", r"butts?", r"butthead(s)?", r"buttface", r"nincompoops?",
+        r"nitwits?", r"dimwits?", r"halfwits?", r"numbskulls?", r"knucklehead(s)?",
+        r"dummkopf", r"bonehead(s)?", r"airhead(s)?", r"doofus", r"dingbat(s)?", r"pea-?brain(s)?"]
+RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
+                ("shut", "your", "face"), ("shut", "it"), ("you", "suck"), ("it", "sucks"),
+                ("this", "sucks"), ("that", "sucks")]
 BLOODY_SWEAR_NEXT = {
     "hell", "well", "idiot", "fool", "fools", "stupid", "ridiculous", "nuisance",
     "nonsense", "cheek", "marvellous", "marvelous", "brilliant", "awful", "good",
@@ -126,6 +135,7 @@ GROUPS = {
     "deity": ["deity"],
     "minced": ["minced"],
     "samesexwords": ["samesex"],
+    "rude": ["rude"],
 }
 
 
@@ -140,7 +150,8 @@ def _c(pats):
 
 
 CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "mild": _c(MILD),
-        "minced": _c(MINCED), "deity": _c(DEITY_WORDS), "samesex": _c(SAMESEX_WORDS)}
+        "minced": _c(MINCED), "deity": _c(DEITY_WORDS), "samesex": _c(SAMESEX_WORDS),
+        "rude": _c(RUDE)}
 SEX_C = {w: _c(p) for w, p in SEX_TERMS.items()}
 
 
@@ -161,6 +172,13 @@ def find_language(words, cats):
             ph = next((p for p in CRUDE_PHRASES if tuple(words[i:i + len(p)]) == p), None)
             if ph:
                 hits.append((i, i + len(ph), "moderate"))
+                i += len(ph)
+                continue
+        if "rude" in cats:
+            ph = next((p for p in sorted(RUDE_PHRASES, key=len, reverse=True)
+                       if tuple(words[i:i + len(p)]) == p), None)
+            if ph:
+                hits.append((i, i + len(ph), "rude"))
                 i += len(ph)
                 continue
         w = words[i]

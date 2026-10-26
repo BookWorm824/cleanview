@@ -871,7 +871,8 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
               "mild": "mild language such as crap, screw you, damn, hell",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck",
-              "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)"}
+              "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)",
+              "rude": "rude words kids copy (stupid, dumb, idiot, shut up, fool, loser...)"}
 OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)",
             "disturbing": "disturbing violence outside of combat (torture, executions, cruelty)",
             "nudity": "nudity (private parts actually shown)",
@@ -1829,6 +1830,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     genders = None
     title = guess_title(path)
     key = learn.show_key(title)
+    if o.get("profile") and o["profile"] != "adults":
+        key += "@" + o["profile"]       # what you choose for the kids is learned separately
     examples = learn.examples(key)
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
