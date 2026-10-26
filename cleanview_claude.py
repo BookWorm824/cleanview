@@ -297,6 +297,11 @@ TYPE_TEXT = {
     "oppsex": "an unmarried man and woman living or sleeping together",
     "crude": "crude humor: bathroom, bodily-function or gross-out jokes",
     "bullying": "bullying: mocking, taunting, demeaning someone or cruel name-calling",
+    "religion": "religious conversations: any talk about God, Jesus, faith, prayer or praying, "
+                "church, the Bible, heaven or hell as places, angels, sin, or the beliefs, "
+                "practices, clergy or holidays of any religion; the whole conversation, not just "
+                "the line that names it. Not: God's or Jesus' name said as a swear or "
+                "exclamation, 'bless you' after a sneeze, a character's name",
 }
 
 
@@ -515,7 +520,9 @@ WORD_REASON = re.compile(r"\b(contains?|word|language|swear\w*|profan\w*|curse\w
 
 
 MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w*|romanc\w*|"
-                            r"affair|bull\w*|mock\w*|crude humor|gross)\b", re.I)
+                            r"affair|bull\w*|mock\w*|crude humor|gross|relig\w*|faith|pray\w*|"
+                            r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*)\b", re.I)
+WHOLE_LINE_TYPES = {"religion"}       # the whole line goes, never just one word in it
 
 
 def _only_word(line, why, mutes):
@@ -599,14 +606,18 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
                 if word:
                     dec = "just the word"
             if dec == "just the word" and (items[i][0] != "line" or not word or
-                                          MORE_THAN_WORD.search(str(d.get("why", "")))):
-                dec = "remove"            # a joke or innuendo: the whole line goes
+                                          MORE_THAN_WORD.search(str(d.get("why", ""))) or
+                                          WHOLE_LINE_TYPES & set(items[i][1].get("types", []))):
+                dec = "remove"            # a joke, innuendo or religious talk: the whole line goes
             decisions[i] = (dec, str(d.get("why", ""))[:140], word)
     missed = []
     for m in res.get("missed_lines", []):
         k = int(m.get("line", 0)) - 1
         if 0 <= k < len(lines):
-            missed.append((k, str(m.get("why", ""))[:140], str(m.get("word") or "").strip()))
+            why, word = str(m.get("why", ""))[:140], str(m.get("word") or "").strip()
+            if MORE_THAN_WORD.search(why):
+                word = ""                 # about more than a word: mute the whole line
+            missed.append((k, why, word))
     scenes = []
     for s in res.get("missed_scenes", []):
         a, b = int(s.get("from_line", 0)) - 1, int(s.get("to_line", 0)) - 1

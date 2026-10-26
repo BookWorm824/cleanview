@@ -26,7 +26,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
-        "Bullying": "#8A4B2E"}
+        "Bullying": "#8A4B2E", "Religious": "#3F5F7F"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
@@ -37,9 +37,9 @@ PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adu
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
-               "drinking", "drugs"]
+               "drinking", "drugs", "religion"]
 _ALL = {k: True for k in FILTER_KEYS}
-_ALL.update(kiss_os="all", kiss_ss="all")
+_ALL.update(kiss_os="all", kiss_ss="all", religion=False)    # religion: only if she ticks it
 PRESETS = {
     "young": dict(_ALL),
     "kids": dict(_ALL, kiss_os="passionate"),
@@ -50,7 +50,7 @@ PRESETS = {
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
                    graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
-                   drugs=True),
+                   drugs=True, religion=False),
 }
 
 
@@ -608,7 +608,9 @@ class App(tk.Tk):
             ("sexref", "Sexual references and innuendo", True),
             ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
             ("bullying", "Bullying and mocking", False),
-            ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False)])
+            ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False),
+            ("religion", "Religious conversations  (prayer, church, faith, the Bible\u2026)",
+             False)])
         checks(section("Sex and nudity"), [
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),

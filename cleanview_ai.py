@@ -644,11 +644,16 @@ LINE_TYPES = {
     "bullying": ("bullying: mocking, taunting or demeaning someone, cruel name-calling, picking "
                  "on someone weaker, trying to humiliate them. NOT: ordinary arguments, police "
                  "questioning or warnings, friendly teasing between friends"),
+    "religion": ("talks about religion or faith: God, Jesus, prayer or praying, church, the "
+                 "Bible, heaven or hell as places, angels, sin, or the beliefs, practices, "
+                 "clergy or holidays of any religion. NOT: 'oh my God' or 'Jesus' said as a "
+                 "swear or exclamation, 'bless you' after a sneeze, 'thank heavens', a "
+                 "character's name"),
 }
 LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around",
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
                                                          "together",
-              "crude": "crude humor", "bullying": "bullying"}
+              "crude": "crude humor", "bullying": "bullying", "religion": "religious talk"}
 
 
 def _letters(t):

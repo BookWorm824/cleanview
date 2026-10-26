@@ -229,6 +229,18 @@ class Window(unittest.TestCase):
         self.assertIn("Tick.indicator", layout)
         self.assertEqual(set(self.app._ticks), {"off", "on", "off_dim", "on_dim"})
 
+    def test_religious_conversations_box(self):
+        """Off for every age to start with, and remembered once she ticks it."""
+        app = self.app
+        app.show_setup()
+        self.assertFalse(any(ui.PRESETS[p]["religion"] for p in ui.PRESETS))
+        self.assertIn("religion", app.opts)
+        app.opts["religion"].set(True)
+        app._save_settings()
+        settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
+        self.assertTrue(settings["profiles"][settings["profile"]]["religion"])
+        self.assertEqual(ui.chip_color("Religious talk"), ui.CHIP["Religious"])
+
     def test_closing_the_start_page_keeps_its_ticks(self):
         app = self.app
         app.show_setup()

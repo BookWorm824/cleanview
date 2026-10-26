@@ -44,13 +44,13 @@ VISUAL_FPS = 2.0
 # Options and one-time tools
 # ---------------------------------------------------------------------------
 CLOUD = ("claude", "chatgpt")      # readers that use your Claude or ChatGPT plan
-LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying")
+LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "religion")
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "graphic": True, "disturbing": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
-            "drinking": False, "drugs": False, "crude": False, "bullying": False, "ai": True,
-            "autosubs": True, "reader": "local", "look": True}
+            "drinking": False, "drugs": False, "crude": False, "bullying": False,
+            "religion": False, "ai": True, "autosubs": True, "reader": "local", "look": True}
 
 
 def full_opts(opts=None):
@@ -942,8 +942,15 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                         r"peed (my|his|her|your) pants)\b", re.I),
     "bullying": re.compile(r"\b(nobody likes you|you're worthless|you are worthless|"
                            r"fatso|four[- ]eyes|crybaby|you freak)\b", re.I),
+    # not "God", "heaven", "angel" or "bless you": too often an exclamation, a name or a sneeze
+    "religion": re.compile(r"\b(pray|prays|prayed|praying|prayers?|amen|hallelujah|bible|"
+                           r"scriptures?|gospels?|sermons?|worship(ped|ping)?|salvation|"
+                           r"bapti[sz](e|ed|m)|church(es)?|synagogues?|mosques?|pastor|priests?|"
+                           r"rabbis?|imams?|the lord|god bless|our father|holy spirit|"
+                           r"born again|sunday school|bible study)\b", re.I),
 }
-LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "learned": "You muted this before",
+LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
+              "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
               "shared": "CleanView learned", "chat": "You asked in the chat",
               "sexref": "Sexual reference", "casual": "Sleeping around",
@@ -971,7 +978,10 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "casual": "sleeping around (casual sex, hooking up, affairs)",
             "oppsex": "unmarried man and woman living or sleeping together",
             "sexref": "sexual references and innuendo", "crude": "crude humor",
-            "bullying": "bullying"}
+            "bullying": "bullying",
+            "religion": "all religious conversations: talk about God, faith, prayer, church, the "
+                        "Bible, heaven, or any religion's beliefs and practices, including "
+                        "sincere prayer (God's name said as a swear is a separate choice)"}
 KISS_TEXT = {"passionate": "passionate kissing (light kisses are fine)", "all": "all kissing"}
 
 
@@ -1767,6 +1777,8 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
         for k in wanted:
             if LINE_WORDS[k].search(l["text"]):
                 found.setdefault(i, set()).add(k)
+    if "religion" in wanted:
+        fill_conversations(found, lines, "religion")
     out = []
     for i in sorted(found):
         l = lines[i]
@@ -1779,6 +1791,17 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                     "text": " ".join(toks), "plain": l["text"], "types": sorted(found[i]),
                     "mute": True, "idx": i})
     return out, how
+
+
+def fill_conversations(found, lines, kind, gap_lines=3, gap_secs=20.0):
+    """Lines of one kind found close together are one conversation: the lines between
+    them ("Do you believe that?" "I do.") go too. Used for religious conversations,
+    where she asked for the whole conversation, not just the lines naming the topic."""
+    hits = sorted(i for i, t in found.items() if kind in t)
+    for a, b in zip(hits, hits[1:]):
+        if 1 < b - a <= gap_lines + 1 and lines[b]["s"] - lines[a]["e"] <= gap_secs:
+            for i in range(a + 1, b):
+                found.setdefault(i, set()).add(kind)
 
 
 def already_muted(mutes, raw, s, e):

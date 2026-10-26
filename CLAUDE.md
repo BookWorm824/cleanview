@@ -122,8 +122,12 @@ Run from the repo folder with the app's own Python (it has the packages the app 
    hits, dark frames ignored), then the local vision model double-checks each scene.
 5. **Voices**: speaker separation and a man/woman/child guess for each line.
 6. **Dialogue filters** (sexual references, sleeping around, same-sex relationships and
-   flirting, crude humor, bullying, rude words...): read by the local text model, or by
-   Claude/ChatGPT if chosen. A line is flagged only if the model quotes the words that fit.
+   flirting, crude humor, bullying, religious conversations, rude words...): read by the
+   local text model, or by Claude/ChatGPT if chosen, plus a short list of hard-to-mistake
+   phrases (`LINE_WORDS`) that works with no AI. A line is flagged only if the model quotes
+   the words that fit. A new one needs: `LINE_KINDS`/`DEFAULTS`/`LINE_WORDS`/`LINE_LABEL`/
+   `OPT_TEXT` (cleanview.py), `LINE_TYPES`/`LINE_NAMES` (cleanview_ai.py), `TYPE_TEXT`
+   (cleanview_claude.py), and `FILTER_KEYS`/`PRESETS`/a tick box/`CHIP` (CleanView.pyw).
 7. **Cloud picture review** (if Claude/ChatGPT and "look at the picture" are on): contact
    sheets of the whole video (a still every 2 s, 20 per sheet) find missed scenes; 6 sharper
    stills per found scene confirm, relabel or rule it out (violence levels below); scene
@@ -151,6 +155,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
 - When one word is the only problem in a line, mute just the word, not the whole line. But
   jokes or innuendo mean the whole line goes.
+- Religious conversations (off for every age unless ticked): any talk about God, faith,
+  prayer, church, the Bible or any religion, including sincere prayer; whole conversations
+  (`fill_conversations` joins lines found close together) and always whole lines
+  (`WHOLE_LINE_TYPES`). God's name said as a swear stays the separate "deity" word group.
 - An AI may only mute a single word on its own if it is on a word list (`cvcore.listed_word`);
   otherwise it is offered unticked. Speech recognition mishears character names ("Grafi" for
   Gruffi) and those must never be muted.
