@@ -28,7 +28,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
         "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
         "Christmas": "#2E6B45", "Halloween": "#B4621E", "Birthday": "#8C5AA8",
-        "Valentine's": "#B23A5A"}
+        "Valentine's": "#B23A5A", "Rude": "#8A4B2E"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
@@ -40,7 +40,7 @@ FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "s
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
                "drinking", "drugs", "religion", "loudmusic", "christmas", "halloween",
-               "birthday", "valentine"]
+               "birthday", "valentine", "gestures"]
 HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")
 _ALL = {k: True for k in FILTER_KEYS}
 _ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
@@ -56,7 +56,8 @@ PRESETS = {
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
                    graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
-                   drugs=True, religion=False, loudmusic=False, **NO_HOLIDAYS),
+                   drugs=True, religion=False, loudmusic=False, gestures=True,
+                   **NO_HOLIDAYS),
 }
 
 
@@ -657,7 +658,8 @@ class App(tk.Tk):
             ("disturbing", "Disturbing  (torture, executions, cruelty)", True)])
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
-            ("drugs", "Drug use", True)], cols=3)
+            ("drugs", "Drug use", True),
+            ("gestures", "Rude hand gestures  (the middle finger…)", True)], cols=2)
         checks(section("Holidays and birthdays"), [
             ("christmas", "Christmas  (Santa, trees, presents)", False),
             ("halloween", "Halloween  (costumes, jack-o'-lanterns, trick-or-treating)", False),

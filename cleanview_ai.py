@@ -80,6 +80,8 @@ CLIP_CATS = {
                  "a birthday party with balloons and party hats"],
     "valentine": ["valentine's day cards and red hearts", "a heart-shaped box of chocolates",
                   "valentine decorations with cupid"],
+    "gestures": ["a person giving the middle finger", "a person flipping someone off with "
+                 "their middle finger", "a person making an obscene hand gesture"],
 }
 # kiss_mf / kiss_mm / kiss_ff only decide *who*, never whether there is a kiss
 WHO = ("kiss_mf", "kiss_mm", "kiss_ff")
@@ -264,10 +266,11 @@ class Clip:
 # ---------------------------------------------------------------------------
 THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
           "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
-          "halloween": 0.65, "birthday": 0.65, "valentine": 0.7}
+          "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
               "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
-              "valentine": 3}   # seconds of hits a scene needs
+              "valentine": 3,
+              "gestures": 1}   # seconds of hits a scene needs (a rude gesture is over in a second)
 
 
 def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0, lum=None, fps=2.0):
@@ -581,6 +584,10 @@ LOOK = {
                  "meal with no candles is NOT.", _YES),
     "valentine": ("Question: is something about Valentine's Day shown: valentine cards, "
                   "Cupid, or hearts used as Valentine decorations?", _YES),
+    "gestures": ("Question: is someone making a rude or obscene gesture, such as raising the "
+                 "middle finger at someone (flipping them off) or another vulgar hand or body "
+                 "gesture? Waving, pointing, a thumbs up, a peace sign or counting on fingers "
+                 "is NOT.", _YES),
 }
 CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are too dark, blurry "
              "or unclear to judge (dark hair, dark clothes or a dark room you can still see "

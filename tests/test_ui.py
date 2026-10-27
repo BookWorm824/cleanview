@@ -289,6 +289,12 @@ class Window(unittest.TestCase):
             app.jobs = []
         self.assertEqual(started, [True])
 
+    def test_rude_gestures_ticked_for_every_age(self):
+        self.app.show_setup()
+        self.assertIn("gestures", self.app.opts)
+        self.assertTrue(all(ui.PRESETS[p]["gestures"] for p in ui.PRESETS))
+        self.assertEqual(ui.chip_color("Rude gesture"), ui.CHIP["Rude"])
+
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()
         self.assertIn("loudmusic", self.app.opts)

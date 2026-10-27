@@ -642,7 +642,7 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
 # ---------------------------------------------------------------------------
 PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
-             "halloween", "birthday", "valentine"]
+             "halloween", "birthday", "valentine", "rude gesture"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
@@ -668,7 +668,9 @@ PIC_RULES = (
     "men, two women) and whether it's light or passionate. For holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
     "story's own witches or monsters, a cake with no candles at an ordinary meal, or a single "
-    "red heart are NOT.")
+    "red heart are NOT. A rude gesture is someone raising the middle finger at someone, or "
+    "another obscene hand or body gesture; it's often over in a second, so look closely at "
+    "hands. Waving, pointing, a thumbs up or a peace sign are NOT.")
 
 
 def picture_review(sheets, wanted, per_request=12, progress=None):

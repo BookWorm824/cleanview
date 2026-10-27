@@ -53,7 +53,8 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
-            "birthday": False, "valentine": False, "mywords": (), "ai": True, "autosubs": True,
+            "birthday": False, "valentine": False, "gestures": False, "mywords": (), "ai": True,
+            "autosubs": True,
             "reader": "local", "look": True}
 
 
@@ -75,7 +76,7 @@ def needs(opts):
         clip_cats.append("gore")
     if o["violence"] or o["disturbing"]:
         clip_cats.append("fight")
-    for k in ("smoking", "drinking", "drugs", "immodest") + HOLIDAYS:
+    for k in ("smoking", "drinking", "drugs", "immodest", "gestures") + HOLIDAYS:
         if o[k]:
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
@@ -1046,7 +1047,8 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
-             "halloween": "Halloween", "birthday": "Birthday", "valentine": "Valentine's Day"}
+             "halloween": "Halloween", "birthday": "Birthday", "valentine": "Valentine's Day",
+             "gestures": "Rude gesture"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
@@ -1081,7 +1083,9 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                         "candles, blowing out candles, singing Happy Birthday, birthday parties "
                         "and presents",
             "valentine": "Valentine's Day, in talk or on screen: valentines, Valentine cards, "
-                         "hearts and Cupid decorations"}
+                         "hearts and Cupid decorations",
+            "gestures": "rude hand gestures: raising the middle finger at someone or another "
+                        "obscene gesture"}
 KISS_TEXT = {"passionate": "passionate kissing (light kisses are fine)", "all": "all kissing"}
 
 
@@ -1457,9 +1461,11 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
                          "Halloween decorations)",
             "birthday": "birthday (a birthday cake, birthday candles or blowing them out, a "
                         "birthday party)",
-            "valentine": "valentine (Valentine's Day cards, hearts or Cupid decorations)"}
+            "valentine": "valentine (Valentine's Day cards, hearts or Cupid decorations)",
+            "gestures": "rude gesture (someone raising the middle finger, or another obscene "
+                        "hand or body gesture)"}
 PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday",
-             "valentine": "Valentine's Day",
+             "valentine": "Valentine's Day", "rude gesture": "Rude gesture",
              "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
              "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
@@ -1502,6 +1508,8 @@ def _pic_wanted(f, o):
         return "Graphic violence" if o.get("graphic") else None
     if w == "gore":                      # gore is graphic too
         return "Gore" if o.get("gore") else "Graphic violence" if o.get("graphic") else None
+    if w == "rude gesture":              # the tick box is "gestures"
+        return "Rude gesture" if o.get("gestures") else None
     if w in PIC_LABEL and (w == "sex" or o.get(w)):
         return PIC_LABEL[w]
     return None
