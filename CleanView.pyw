@@ -31,7 +31,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Valentine's": "#B23A5A", "Rude": "#8A4B2E"}
 
 
-CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
+CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
 
 
 # ---------- who you're filtering for: each has its own ticks, remembered separately ----------
@@ -74,7 +74,7 @@ def wrap_width(px):
     return round(px * _text_scale)
 
 
-AI_NAME = "Claude"      # whichever online AI did the review (Claude or ChatGPT)
+AI_NAME = "Claude"      # whichever online AI did the review (Claude, ChatGPT or Gemini)
 CLAUDE_SAYS = {"remove": ("mute the whole line", "#8E2B2B"),
                "not an issue": ("not an issue", "#2E7D4F"),
                "just the word": ("mute just the word", "#A0663A"),
@@ -132,7 +132,8 @@ def plain_error(ex):
     if isinstance(ex, OSError) and (win == 112 or ex.errno == 28):
         return "The drive is full. Free up some space and try again."
     text = str(ex).strip()
-    if text and isinstance(ex, (RuntimeError, engine.VideoError, cc.ClaudeError, cc.gpt.GptError)):
+    if text and isinstance(ex, (RuntimeError, engine.VideoError, cc.ClaudeError, cc.gpt.GptError,
+                                                cc.gem.GeminiError)):
         # CleanView's own messages say it plainly first, then add the technical part
         first = re.split(r":?\s*\n", text, maxsplit=1)[0].strip()
         first = first[:1].upper() + first[1:]
@@ -692,6 +693,8 @@ class App(tk.Tk):
                         variable=v, style="Card.TRadiobutton").pack(anchor="w")
         ttk.Radiobutton(b25, text="ChatGPT  (more accurate; uses your ChatGPT plan)",
                         value="chatgpt", variable=v, style="Card.TRadiobutton").pack(anchor="w")
+        ttk.Radiobutton(b25, text="Gemini  (more accurate; uses your Google account)",
+                        value="gemini", variable=v, style="Card.TRadiobutton").pack(anchor="w")
         crow = tk.Frame(b25, bg=CARD)
         crow.pack(fill="x", padx=(22, 0), pady=(2, 0))
         self.claude_lbl = tk.Label(crow, text="", bg=CARD, fg=MUTED,
@@ -771,7 +774,7 @@ class App(tk.Tk):
     def _cloud(self):
         """The online AI picked under "Who reads the dialogue", or None."""
         r = self.opts["reader"].get() if "reader" in getattr(self, "opts", {}) else None
-        return r if r in ("claude", "chatgpt") else None
+        return r if r in cc.NAMES else None
 
     def _reader_changed(self):
         p = self._cloud()
@@ -782,8 +785,8 @@ class App(tk.Tk):
             lbl.config(text="")
             self.claude_btn.pack_forget()
             self.look_chk.pack_forget()
-            self.cloud_note.config(text="Want it more accurate? Pick Claude or ChatGPT if you "
-                                   "have either one. Everything works without them too.")
+            self.cloud_note.config(text="Want it more accurate? Pick Claude, ChatGPT or Gemini if you "
+                                   "have one of them. Everything works without them too.")
             return
         n = cc.name(p)
         self.look_chk.config(text=f"Let {n} look at the picture too  (much better at finding "
@@ -794,7 +797,8 @@ class App(tk.Tk):
                 text=f"{n} gets the words that are said, plus still pictures from the video (one "
                      f"every 2 seconds, small), never the sound. It looks through them all, checks "
                      f"each scene the other checks found, and reviews everything. This uses more "
-                     f"of your {n} plan: roughly a long chat's worth per episode.")
+                     f"of your {n} {'allowance' if p == 'gemini' else 'plan'}: roughly a long "
+                     f"chat's worth per episode.")
         else:
             self.cloud_note.config(
                 text=f"Only the words that are said are sent to {n}, never the video or sound. "
@@ -986,7 +990,7 @@ class App(tk.Tk):
     def start(self):
         o = self._current_opts()
         p = o.get("reader")
-        if p in ("claude", "chatgpt") and getattr(self, "ai_state", {}).get(p, "ready") != "ready":
+        if p in cc.NAMES and getattr(self, "ai_state", {}).get(p, "ready") != "ready":
             if not messagebox.askyesno("CleanView", f"{cc.name(p)} isn't set up yet, so the AI on "
                                        "this PC will read the dialogue this time.\n\nGo ahead?"):
                 return
@@ -1244,7 +1248,7 @@ class App(tk.Tk):
 
     # ---------- page 3: review ----------
     def _pick_review_ai(self, good):
-        """Claude or ChatGPT for this review page: the one that did the review,
+        """Claude, ChatGPT or Gemini for this review page: the one that did the review,
         else the one picked on the start page, else any that's ready, else None."""
         by_name = {v: k for k, v in cc.NAMES.items()}
         for j in good:
@@ -1312,7 +1316,7 @@ class App(tk.Tk):
         t_chat = tk.Frame(nb, bg=BG)
         nb.add(t_found, text="  Found  ")
         nb.add(t_dlg, text="  All dialogue  ")
-        nb.add(t_chat, text=f"  Ask {AI_NAME if self.review_ai else 'Claude or ChatGPT'}  ")
+        nb.add(t_chat, text=f"  Ask {AI_NAME if self.review_ai else 'Claude, ChatGPT or Gemini'}  ")
 
         # Found
         add = tk.Frame(t_found, bg=BG)
@@ -1640,8 +1644,9 @@ class App(tk.Tk):
         n = cc.name(p)
         state = (getattr(self, "ai_state", {}).get(p) or cc.status(p)) if p else "none"
         if state != "ready":
-            msg = {"none": "This needs Claude or ChatGPT. If you have either one, pick it under "
-                           "\u201cWho reads the dialogue\u201d on the start page and set it up. "
+            msg = {"none": "This needs Claude, ChatGPT or Gemini. If you have one of them, "
+                           "pick it under \u201cWho reads the dialogue\u201d on the start page "
+                           "and set it up. "
                            "Everything else works without them.",
                    "missing": f"{n} isn't set up yet. Go back to the start page and use "
                               f"\u201cSet up {n}\u201d under AI helper, then run this again."}.get(
@@ -1694,7 +1699,7 @@ class App(tk.Tk):
             open_path(str(learn.CSV_PATH))
         else:
             messagebox.showinfo("CleanView", "Nothing saved yet. Findings are saved each time "
-                                "Claude or ChatGPT reviews an episode.")
+                                "Claude, ChatGPT or Gemini reviews an episode.")
 
     def _sync_job(self, job):
         """Copy the ticks on screen (and anything added) back into the analysis,

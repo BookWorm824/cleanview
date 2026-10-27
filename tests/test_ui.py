@@ -295,6 +295,14 @@ class Window(unittest.TestCase):
         self.assertTrue(all(ui.PRESETS[p]["gestures"] for p in ui.PRESETS))
         self.assertEqual(ui.chip_color("Rude or sexual gesture"), ui.CHIP["Rude"])
 
+    def test_gemini_can_be_picked(self):
+        app = self.app
+        app.show_setup()
+        app.opts["reader"].set("gemini")
+        self.assertEqual(app._cloud(), "gemini")
+        app.opts["reader"].set("local")
+        self.assertIsNone(app._cloud())
+
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()
         self.assertIn("loudmusic", self.app.opts)

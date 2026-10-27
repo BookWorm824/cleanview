@@ -43,7 +43,7 @@ VISUAL_FPS = 2.0
 # ---------------------------------------------------------------------------
 # Options and one-time tools
 # ---------------------------------------------------------------------------
-CLOUD = ("claude", "chatgpt")      # readers that use your Claude or ChatGPT plan
+CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGPT or Google account
 HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")   # heard and seen
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "religion") + HOLIDAYS
 WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS    # the lines between go too (fill_conversations)

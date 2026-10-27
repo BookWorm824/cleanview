@@ -1,12 +1,14 @@
 """
-Claude (or ChatGPT) inside CleanView.
+Claude (or ChatGPT, or Gemini) inside CleanView.
 
 Claude goes through Claude Code, Anthropic's own program: signed in with your
 Claude account it uses your Claude plan. ChatGPT goes through Codex, OpenAI's
-own program, the same way (see cleanview_gpt.py). No API keys, nothing extra
-to pay. Only the episode's dialogue is sent, as text, never video or sound.
+own program, the same way (see cleanview_gpt.py), and Gemini through Google's
+Gemini CLI (cleanview_gemini.py). No API keys, nothing extra to pay. Only the
+episode's dialogue is sent, as text, never video or sound.
 
-use("claude") / use("chatgpt") picks which one the functions below talk to.
+use("claude") / use("chatgpt") / use("gemini") picks which one the functions
+below talk to.
 """
 import hashlib
 import json
@@ -26,9 +28,12 @@ class ClaudeError(Exception):
 
 
 import cleanview_gpt as gpt  # noqa: E402
+import cleanview_gemini as gem  # noqa: E402
 
 PROVIDER = "claude"
-NAMES = {"claude": "Claude", "chatgpt": "ChatGPT"}
+NAMES = {"claude": "Claude", "chatgpt": "ChatGPT", "gemini": "Gemini"}
+OTHERS = {"chatgpt": gpt, "gemini": gem}       # the ones that aren't Claude Code
+OTHER_ERRORS = (gpt.GptError, gem.GeminiError)
 
 
 def use(provider):
@@ -105,32 +110,36 @@ def open_sign_in():
 
 def status(provider=None):
     """'missing', 'signed_out' or 'ready'."""
-    if (provider or PROVIDER) == "chatgpt":
-        return gpt.status()
+    if (provider or PROVIDER) in OTHERS:
+        return OTHERS[provider or PROVIDER].status()
     if not find_claude():
         return "missing"
     return "ready" if signed_in() else "signed_out"
 
 
 def is_installed(provider=None):
-    return bool(gpt.find() if (provider or PROVIDER) == "chatgpt" else find_claude())
+    p = provider or PROVIDER
+    return bool(OTHERS[p].find() if p in OTHERS else find_claude())
 
 
 def is_signed_in(provider=None):
-    return gpt.signed_in() if (provider or PROVIDER) == "chatgpt" else signed_in()
+    p = provider or PROVIDER
+    return OTHERS[p].signed_in() if p in OTHERS else signed_in()
 
 
 def install(provider=None):
+    p = provider or PROVIDER
     try:
-        gpt.install() if (provider or PROVIDER) == "chatgpt" else install_claude()
-    except gpt.GptError as ex:
+        OTHERS[p].install() if p in OTHERS else install_claude()
+    except OTHER_ERRORS as ex:
         raise ClaudeError(str(ex))
 
 
 def sign_in(provider=None):
+    p = provider or PROVIDER
     try:
-        gpt.open_sign_in() if (provider or PROVIDER) == "chatgpt" else open_sign_in()
-    except gpt.GptError as ex:
+        OTHERS[p].open_sign_in() if p in OTHERS else open_sign_in()
+    except OTHER_ERRORS as ex:
         raise ClaudeError(str(ex))
 
 
@@ -141,7 +150,7 @@ KEEP_ANSWERS = 3000          # the newest this many are kept (a few MB)
 def _answer_key(prompt, schema, stdin_text, system, images):
     """The same question to the same AI: same words, settings, pictures and model."""
     h = hashlib.sha256()
-    for part in (PROVIDER, MODEL if PROVIDER == "claude" else gpt.MODEL, prompt,
+    for part in (PROVIDER, OTHERS[PROVIDER].MODEL if PROVIDER in OTHERS else MODEL, prompt,
                  stdin_text or "", system or "", json.dumps(schema, sort_keys=True)):
         h.update(part.encode("utf8") + b"\0")
     for label, path in images or []:
@@ -189,10 +198,11 @@ def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, ti
 
 def _ask_now(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600,
              images=None):
-    if PROVIDER == "chatgpt":
+    if PROVIDER in OTHERS:
         try:
-            return gpt.ask(prompt, schema, stdin_text, system, session, keep, timeout, images)
-        except gpt.GptError as ex:
+            return OTHERS[PROVIDER].ask(prompt, schema, stdin_text, system, session, keep,
+                                        timeout, images)
+        except OTHER_ERRORS as ex:
             raise ClaudeError(str(ex))
     if images:
         return _ask_images(prompt, schema, images, system, timeout)
