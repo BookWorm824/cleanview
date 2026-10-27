@@ -76,6 +76,7 @@ MODERATE = [
     r"nice|cool|pretty|ugly|old|cute|great|bitch)ass(es|ed)?",
     r"bastard.*", r"piss.*", r"dicks?", r"dickhead.*", r"pricks?", r"bollocks",
     r"bugger.*", r"wanker.*", r"twats?", r"sluts?", r"slutty", r"whores?",
+    r"cojones", r"(ball|nut)sacks?", r"ballsy",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
 ]
 MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
@@ -100,6 +101,32 @@ DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"oh?m[iy]god", r"goddamn.
                r"godd?amm?it"]
 # "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
 # these isn't counted when one of NOT_RUDE_NEXT comes straight after it.
+# Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
+# own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
+# count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
+# The whole phrase is muted, with the swearing group.
+_PARTS = r"(stones|balls|nuts|cojones|family jewels)"
+_GROW = r"(grow|grows|grew|grown|growing)( yourself| himself| herself| themselves| you| me)?"
+BODY_SLANG = [re.compile(p) for p in (
+    _GROW + r" (some|any|real|big|bigger|your own|his own|a pair of|a set of) " + _PARTS,
+    _GROW + r" (a pair|a set)\b",
+    r"(have|has|had|got|having|gotta have)( got)? (the|enough) " + _PARTS + r" to\b",
+    r"(you've|you|he's|he|she's|she|they've|they|i've) got (some|real|big) " + _PARTS + r"\b",
+    r"(kick|kicks|kicked|kicking|knee|kneed|kneeing|hit|hits|punch|punched|punches|smack|"
+    r"smacked)( \w+)? in the " + _PARTS + r"\b",
+)]
+
+
+def body_slang(words, i):
+    """How many words from words[i] are one of the BODY_SLANG phrases (0 if none)."""
+    text = " ".join(words[i:i + 8])
+    for p in BODY_SLANG:
+        m = p.match(text)
+        if m and (m.end() == len(text) or text[m.end()] == " "):
+            return len(text[:m.end()].split())
+    return 0
+
+
 PHRASE_OBJECTS = {"it", "them", "that", "this", "him", "her", "me"}
 NOT_RUDE_NEXT = {"down", "off", "in", "into", "on", "onto", "up", "out", "together", "tight",
                  "tightly", "shut", "back", "open", "closed", "loose", "tighter", "away"}
@@ -207,6 +234,8 @@ def listed_word(word):
     for ph in DEITY_PHRASES + CRUDE_PHRASES + RUDE_PHRASES:     # "shut up", "screw you"
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
+    if any(body_slang(parts, k) for k in range(len(parts))):     # "grow some stones"
+        return True
     for c in [w] + parts:
         c = _base(c)
         if c in ("god", "gods", "lord", "lords"):
@@ -233,6 +262,11 @@ def find_language(words, cats):
                 hits.append((i, i + len(ph), "deity"))
                 i += len(ph)
                 continue
+        k = body_slang(words, i) if "moderate" in cats else 0
+        if k:
+            hits.append((i, i + k, "moderate"))
+            i += k
+            continue
         if (("mild" in cats or "moderate" in cats) and words[i] == "screw"
                 and (i == 0 or words[i - 1] not in ("the", "a", "that", "this", "loose", "one",
                                                      "each", "every", "of", "tighten"))):

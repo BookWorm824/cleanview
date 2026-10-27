@@ -90,6 +90,36 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
 
 
+class SlangForPrivateParts(unittest.TestCase):
+    """"Grow some stones": stones, balls and nuts are only slang in these phrases."""
+
+    def test_whole_phrase_muted(self):
+        for text, phrase in [("Grow some stones, Castle.", "grow some stones"),
+                             ("You need to grow a pair.", "grow a pair"),
+                             ("He finally grew some balls", "grew some balls"),
+                             ("Nobody has the balls to say it", "has the balls to"),
+                             ("She kicked him in the nuts", "kicked him in the nuts"),
+                             ("You've got some stones, kid", "you've got some stones"),
+                             ("That's ballsy", "ballsy"), ("Show some cojones", "cojones")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["moderate"]), [(phrase, "moderate")])
+
+    def test_everyday_stones_balls_and_nuts_left_alone(self):
+        for text in ("I got some stones for the garden", "Grab the tennis balls",
+                     "a bag of mixed nuts", "Kidney stones hurt", "We grow some tomatoes",
+                     "the stones in the wall", "He's nuts", "Rolling Stones concert",
+                     "a pair of shoes", "grow up"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_ai_may_mute_the_phrase_but_not_the_plain_word(self):
+        self.assertTrue(cl.listed_word("grow some stones"))
+        self.assertFalse(cl.listed_word("stones"))
+
+    def test_reviewer_is_told(self):
+        self.assertIn("grow some stones", engine.wanted_text({}, ["swearing"]))
+
+
 class SubtitleWordsNearOtherMutes(unittest.TestCase):
     """'what the hell, damn it': listening caught "damn", the subtitles add "hell"
     half a second earlier. That's another word, not the same one twice."""

@@ -1049,7 +1049,9 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
              "halloween": "Halloween", "birthday": "Birthday", "valentine": "Valentine's Day"}
 
 
-GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
+GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
+                          "private parts such as 'grow some stones', 'grow a pair', 'has the "
+                          "balls to' (the whole phrase, not ordinary stones or balls)",
               "mild": "mild language such as crap, screw you, damn, hell",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck",
