@@ -303,6 +303,38 @@ class Window(unittest.TestCase):
         app.opts["reader"].set("local")
         self.assertIsNone(app._cloud())
 
+    def test_own_account_shown_with_switch_and_sign_out(self):
+        app, cc = self.app, ui.cc
+        saved = {k: getattr(cc, k) for k in ("status", "who", "own_account", "sign_out")}
+        out = []
+        cc.status = lambda p=None: "ready"
+        cc.who = lambda p=None: "sister@example.com"
+        cc.own_account = lambda p=None: not out
+        cc.sign_out = lambda p=None: out.append(p)
+        try:
+            app.show_setup()
+            app.ai_state, app.ai_who = {"claude": "ready", "chatgpt": "ready"}, {
+                "claude": "sister@example.com", "chatgpt": "sister@example.com"}
+            for p in ("claude", "chatgpt"):
+                app.opts["reader"].set(p)
+                app.update()
+                self.assertIn("signed in as sister@example.com", app.claude_lbl.cget("text"))
+                self.assertTrue(app.switch_btn.winfo_ismapped(), p)
+                self.assertTrue(app.signout_btn.winfo_ismapped(), p)
+            self.answer["yes"] = True
+            app.sign_out_account()
+            self.assertEqual(out, ["chatgpt"])
+            self.assertIn("sister@example.com", self.said[-1][1])
+            app.update()
+            self.assertFalse(app.signout_btn.winfo_ismapped(), "only her own sign-in to sign out")
+            app.opts["reader"].set("gemini")
+            app.update()
+            self.assertFalse(app.switch_btn.winfo_ismapped(), "Gemini has no switching yet")
+        finally:
+            for k, f in saved.items():
+                setattr(cc, k, f)
+            app.opts["reader"].set("local")
+
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()
         self.assertIn("loudmusic", self.app.opts)

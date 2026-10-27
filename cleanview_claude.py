@@ -27,6 +27,7 @@ class ClaudeError(Exception):
     pass
 
 
+import cleanview_accounts as accounts  # noqa: E402
 import cleanview_gpt as gpt  # noqa: E402
 import cleanview_gemini as gem  # noqa: E402
 
@@ -71,30 +72,41 @@ def install_claude(progress=None):
     say(1.0, "Claude Code is installed.")
 
 
-def _env():
+def _env(folder=None):
+    """folder: a sign-in folder of CleanView's own (cleanview_accounts); else the one in use."""
     env = dict(os.environ)
     env.pop("ANTHROPIC_API_KEY", None)   # always use the Claude plan, never a paid key
-    return env
+    return accounts.env("claude", env, folder)
 
 
-def signed_in():
+def _auth(folder=None):
+    """Claude Code's "auth status" ({} if it can't tell)."""
     exe = find_claude()
     if not exe:
-        return False
+        return {}
     try:
         r = subprocess.run([exe, "auth", "status"], capture_output=True, text=True, timeout=30,
-                           env=_env(), **_NOWIN)
+                           env=_env(folder), **_NOWIN)
     except Exception:
-        return False
+        return {}
     if r.returncode != 0:
-        return False
+        return {}
     try:
-        return json.loads(r.stdout).get("authMethod", "none") != "none"
+        return json.loads(r.stdout)
     except ValueError:
-        return True
+        return {"authMethod": "unknown"}
 
 
-def open_sign_in():
+def signed_in(folder=None):
+    return _auth(folder).get("authMethod", "none") != "none"
+
+
+def account_name(folder=None):
+    """The email of the Claude account signed in ("" if it can't tell)."""
+    return _auth(folder).get("email") or ""
+
+
+def open_sign_in(folder=None):
     """Open a window that walks through signing in with the browser."""
     exe = find_claude()
     if not exe:
@@ -103,9 +115,9 @@ def open_sign_in():
         subprocess.Popen(["cmd", "/c", "start", "Sign in to Claude", "cmd", "/k",
                           f'echo Sign in to Claude in the browser window that opens. & echo When '
                           f'it says you are signed in, close this window and go back to '
-                          f'CleanView. & echo. & "{exe}" auth login'], env=_env())
+                          f'CleanView. & echo. & "{exe}" auth login'], env=_env(folder))
     else:
-        subprocess.Popen([exe, "auth", "login"], env=_env())
+        subprocess.Popen([exe, "auth", "login"], env=_env(folder))
 
 
 def status(provider=None):
@@ -135,12 +147,59 @@ def install(provider=None):
         raise ClaudeError(str(ex))
 
 
-def sign_in(provider=None):
+def sign_in(provider=None, folder=None):
     p = provider or PROVIDER
     try:
-        OTHERS[p].open_sign_in() if p in OTHERS else open_sign_in()
+        if folder:
+            OTHERS[p].open_sign_in(folder) if p in OTHERS else open_sign_in(folder)
+        else:
+            OTHERS[p].open_sign_in() if p in OTHERS else open_sign_in()
     except OTHER_ERRORS as ex:
         raise ClaudeError(str(ex))
+
+
+# Someone else's own account on the same PC (cleanview_accounts): Claude and ChatGPT.
+def can_switch(provider=None):
+    return (provider or PROVIDER) in accounts.HOME_VAR
+
+
+def who(provider=None):
+    """The email of the account in use ("" if it can't tell)."""
+    p = provider or PROVIDER
+    if not can_switch(p):
+        return ""
+    try:
+        return OTHERS[p].account_name() if p in OTHERS else account_name()
+    except Exception:
+        return ""
+
+
+def own_account(provider=None):
+    """True when CleanView uses an account signed in inside CleanView, not the PC's."""
+    return accounts.home(provider or PROVIDER) is not None
+
+
+def start_other_account(provider=None):
+    """Open the sign-in for another account; returns its folder, for other_account_ready()
+    and keep_account(). Nothing changes until keep_account()."""
+    p = provider or PROVIDER
+    folder = accounts.new_folder(p)
+    sign_in(p, folder)
+    return folder
+
+
+def other_account_ready(folder, provider=None):
+    p = provider or PROVIDER
+    return OTHERS[p].signed_in(folder) if p in OTHERS else signed_in(folder)
+
+
+def keep_account(folder, provider=None):
+    accounts.keep(provider or PROVIDER, folder)
+
+
+def sign_out(provider=None):
+    """Sign out of the account signed in inside CleanView (back to the PC's own)."""
+    accounts.forget(provider or PROVIDER)
 
 
 ANSWERS = APP_DATA / "answers"

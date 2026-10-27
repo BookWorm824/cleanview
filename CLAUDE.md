@@ -69,6 +69,7 @@ them in. Rules that follow from this:
 | `cleanview_claude.py` | Claude through the **Claude Code CLI** (`claude -p --json-schema ...`, uses the user's Claude plan, no API key). Dialogue reading, the final "review everything" pass, the chat, picture review from contact sheets. Also the provider switch (`use("claude"/"chatgpt")`). |
 | `cleanview_gpt.py` | ChatGPT through the **Codex CLI** (`codex exec ... --output-schema`), same interface as the Claude path. Strict JSON schemas (all properties required). |
 | `cleanview_gemini.py` | Gemini through Google's **Gemini CLI** (`gemini -p ... -o json`, signed in with a Google account, no API key), same interface. Installed with npm (needs Node.js 20+). The CLI can't take a schema, so the shape is described in the prompt and the reply is checked (asked again once). The prompt goes in through stdin; pictures are copied into an empty work folder and named with `@picture1.jpg` on the command line. Chats are kept by CleanView (`APP_DATA\gemini\chats`), not the CLI. Provider key `"gemini"` (`cc.OTHERS`). |
+| `cleanview_accounts.py` | Each person's own Claude or ChatGPT sign-in inside CleanView ("Use a different account" / "Sign out" on the start page). Claude Code and Codex keep their sign-in in a folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`); CleanView's own is `APP_DATA\accounts\<ai>\<n>`, so the PC's own sign-in is never signed out or changed. A new sign-in goes in a new folder and is only used once it worked (`keep()`). With none, the PC's sign-in is used. Gemini isn't switchable yet. |
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
 | `shared_learned.json` | Built-in knowledge merged from users' exports; shipped with every update. Merged with `tools/merge_learned.py`. |
 | `launcher.pyw`, `update.json` | Auto-updater (above). |
@@ -104,6 +105,7 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (a .ts whose clock starts at 10 s, an MKV whose sound starts 1 s late), and checks
   `snap_edges` on made-up sound. Uses the installed app's ffmpeg if none is on PATH;
   skips if there's none.
+- `test_accounts.py`: signing in to another Claude/ChatGPT account (a fake `claude`), and that the PC's own sign-in is used again after signing out.
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every

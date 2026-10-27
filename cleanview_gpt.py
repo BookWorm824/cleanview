@@ -6,6 +6,7 @@ your ChatGPT plan (Plus, Pro, Business...; no API key, nothing extra to pay).
 CleanView sends it only the episode's dialogue as text, never video or sound,
 and runs it in an empty folder with read-only access so it only answers.
 """
+import base64
 import copy
 import json
 import os
@@ -13,6 +14,8 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+
+import cleanview_accounts as accounts
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
@@ -53,27 +56,42 @@ def install(progress=None):
     say(1.0, "Codex is installed.")
 
 
-def _env():
+def _env(folder=None):
+    """folder: a sign-in folder of CleanView's own (cleanview_accounts); else the one in use."""
     env = dict(os.environ)
     for k in ("OPENAI_API_KEY", "CODEX_API_KEY"):   # always use the ChatGPT plan, never a paid key
         env.pop(k, None)
-    return env
+    return accounts.env("chatgpt", env, folder)
 
 
-def signed_in():
+def signed_in(folder=None):
     exe = find()
     if not exe:
         return False
     try:
         r = subprocess.run([exe, "login", "status"], capture_output=True, text=True, timeout=30,
-                           env=_env(), **_NOWIN)
+                           env=_env(folder), **_NOWIN)
     except Exception:
         return False
     out = (r.stdout + r.stderr).lower()
     return r.returncode == 0 and "not logged in" not in out
 
 
-def open_sign_in():
+def account_name(folder=None):
+    """The email of the ChatGPT account signed in, from the sign-in Codex keeps in
+    auth.json ("" if it can't tell)."""
+    home = Path(folder or accounts.home("chatgpt") or os.environ.get("CODEX_HOME")
+                or Path.home() / ".codex")
+    try:
+        token = json.loads((home / "auth.json").read_text(encoding="utf8"))["tokens"]["id_token"]
+        part = token.split(".")[1]
+        claims = json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+        return claims.get("email") or ""
+    except Exception:
+        return ""
+
+
+def open_sign_in(folder=None):
     exe = find()
     if not exe:
         raise GptError("Codex isn't installed yet.")
@@ -81,9 +99,9 @@ def open_sign_in():
         subprocess.Popen(["cmd", "/c", "start", "Sign in to ChatGPT", "cmd", "/k",
                           f'echo Sign in with your ChatGPT account in the browser window that '
                           f'opens. & echo When it says you are signed in, close this window and go '
-                          f'back to CleanView. & echo. & "{exe}" login'], env=_env())
+                          f'back to CleanView. & echo. & "{exe}" login'], env=_env(folder))
     else:
-        subprocess.Popen([exe, "login"], env=_env())
+        subprocess.Popen([exe, "login"], env=_env(folder))
 
 
 def status():

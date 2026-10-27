@@ -122,6 +122,13 @@ def open_path(p):
 ERROR_FILE = APP_DATA / "cleanview_last_error.txt"
 
 
+def _ai_status(p):
+    """(provider, 'missing'/'signed_out'/'ready', whose account) for the start page.
+    Slow (runs the AI's program), so called in a thread."""
+    st = cc.status(p)
+    return p, st, (cc.who(p) if st == "ready" else "")
+
+
 def plain_error(ex):
     """What went wrong, in everyday words. The technical part is kept out of
     sight, in cleanview_last_error.txt (save_details)."""
@@ -702,6 +709,12 @@ class App(tk.Tk):
         self.claude_lbl.pack(side="left")
         self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
                                      command=self.setup_claude)
+        arow = tk.Frame(b25, bg=CARD)          # someone else's own account (Claude, ChatGPT)
+        arow.pack(fill="x", padx=(22, 0))
+        self.switch_btn = ttk.Button(arow, text="Use a different account", style="Small.TButton",
+                                     command=self.use_other_account)
+        self.signout_btn = ttk.Button(arow, text="Sign out", style="Small.TButton",
+                                      command=self.sign_out_account)
         lv = tk.BooleanVar(value=saved.get("look", True))
         self.opts["look"] = lv
         self.look_chk = ttk.Checkbutton(b25, text="", variable=lv)
@@ -784,6 +797,7 @@ class App(tk.Tk):
         if not p:
             lbl.config(text="")
             self.claude_btn.pack_forget()
+            self._account_buttons(None, "")
             self.look_chk.pack_forget()
             self.cloud_note.config(text="Want it more accurate? Pick Claude, ChatGPT or Gemini if you "
                                    "have one of them. Everything works without them too.")
@@ -809,6 +823,7 @@ class App(tk.Tk):
         else:
             lbl.config(text=f"Checking {n}\u2026", fg=MUTED)
             self.claude_btn.pack_forget()
+            self._account_buttons(p, "checking")
             self.check_claude(p)
 
     def check_claude(self, provider=None):
@@ -817,20 +832,25 @@ class App(tk.Tk):
             return
 
         def go():
-            self.q.put(("claude_status", (p, cc.status(p))))
+            self.q.put(("claude_status", _ai_status(p)))
         threading.Thread(target=go, daemon=True).start()
 
     def _show_claude_status(self, msg):
-        p, st = msg if isinstance(msg, tuple) else ("claude", msg)
+        p, st, *rest = msg if isinstance(msg, tuple) else ("claude", msg)
         self.ai_state = getattr(self, "ai_state", {})
+        self.ai_who = getattr(self, "ai_who", {})
         self.ai_state[p] = st
+        if rest:
+            self.ai_who[p] = rest[0]
         if p == "claude":
             self.claude_state = st
         lbl = getattr(self, "claude_lbl", None)
         if lbl is None or not lbl.winfo_exists() or self._cloud() != p:
             return
         n = cc.name(p)
-        text = {"ready": f"\u2713 {n} is set up and signed in.",
+        who = self.ai_who.get(p) if st == "ready" else ""
+        text = {"ready": f"\u2713 {n} is signed in as {who}." if who else
+                         f"\u2713 {n} is set up and signed in.",
                 "signed_out": f"{n} is installed but not signed in yet.",
                 "missing": f"{n} isn't set up on this PC yet (one time, a few minutes)."}[st]
         lbl.config(text=text, fg=ACCENT_DK if st == "ready" else MUTED)
@@ -840,6 +860,60 @@ class App(tk.Tk):
             self.claude_btn.config(text=f"Sign in to {n}" if st == "signed_out" else f"Set up {n}",
                                    state="normal")
             self.claude_btn.pack(side="left", padx=(10, 0))
+        self._account_buttons(p, st)
+
+    def _account_buttons(self, p, st):
+        """"Use a different account" (and "Sign out" of one signed in inside CleanView),
+        so each person can use their own Claude or ChatGPT plan on the same PC."""
+        self.switch_btn.pack_forget()
+        self.signout_btn.pack_forget()
+        if not p or not cc.can_switch(p) or st == "missing":
+            return
+        own = cc.own_account(p)
+        if st == "ready" or own:
+            self.switch_btn.config(state="normal")
+            self.switch_btn.pack(side="left", pady=(4, 0))
+        if own:
+            self.signout_btn.config(state="normal")
+            self.signout_btn.pack(side="left", padx=(8, 0), pady=(4, 0))
+
+    def use_other_account(self):
+        p = self._cloud()
+        if not p:
+            return
+        n = cc.name(p)
+        self.switch_btn.config(state="disabled")
+        self.signout_btn.config(state="disabled")
+
+        def go():
+            import time
+            try:
+                folder = cc.start_other_account(p)
+                self.q.put(("claude_wait", n))
+                for _ in range(180):              # wait up to 6 minutes for the sign-in
+                    time.sleep(2)
+                    if cc.other_account_ready(folder, p):
+                        cc.keep_account(folder, p)
+                        break
+            except Exception as ex:
+                self.q.put(("warn", f"Couldn't sign in to another {n} account. {plain_error(ex)}"))
+            self.q.put(("claude_status", _ai_status(p)))
+        threading.Thread(target=go, daemon=True).start()
+
+    def sign_out_account(self):
+        p = self._cloud()
+        if not p:
+            return
+        n = cc.name(p)
+        who = getattr(self, "ai_who", {}).get(p) or "this account"
+        if not messagebox.askyesno(
+                "Sign out", f"Sign {who} out of {n} in CleanView?\n\nCleanView will go back to the "
+                            f"{n} sign-in this PC had before, if there is one.", parent=self):
+            return
+        cc.sign_out(p)
+        self._account_buttons(p, "checking")
+        self.claude_lbl.config(text=f"Checking {n}\u2026", fg=MUTED)
+        self.check_claude(p)
 
     def setup_claude(self):
         p = self._cloud()
@@ -861,10 +935,10 @@ class App(tk.Tk):
                         time.sleep(2)
                         if cc.is_signed_in(p):
                             break
-                self.q.put(("claude_status", (p, cc.status(p))))
+                self.q.put(("claude_status", _ai_status(p)))
             except Exception as ex:
                 self.q.put(("warn", f"{n} couldn't be set up. {plain_error(ex)}"))
-                self.q.put(("claude_status", (p, cc.status(p))))
+                self.q.put(("claude_status", _ai_status(p)))
         threading.Thread(target=go, daemon=True).start()
 
     def _load_settings(self):
