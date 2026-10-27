@@ -1,6 +1,5 @@
-"""Rude and sexual gestures (the middle finger, crude motions): found in the picture, by
-the AI on this
-PC and by Claude/ChatGPT, and cut."""
+"""Rude and sexual gestures (the middle finger, crude motions): found in the picture,
+by the AI on this PC and by Claude/ChatGPT, and cut."""
 import unittest
 
 import support  # noqa: F401  (sets up the sandbox first)
