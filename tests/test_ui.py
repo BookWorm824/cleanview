@@ -250,6 +250,45 @@ class Window(unittest.TestCase):
             self.assertFalse(ui.PRESETS["teens"][k] or ui.PRESETS["adults"][k])
         self.assertEqual(ui.chip_color("Valentine's Day"), ui.CHIP["Valentine's"])
 
+    def test_own_words_box_remembered(self):
+        app = self.app
+        app.show_setup()
+        app.mywords_box.delete("1.0", "end")
+        app.mywords_box.insert("1.0", "grow some stones\n\n  nimrod \nNimrod\n")
+        self.assertEqual(app._current_opts()["mywords"], ["grow some stones", "nimrod"])
+        app._save_settings()
+        app.show_setup()
+        self.assertEqual(app.mywords_box.get("1.0", "end").split(), ["grow", "some", "stones",
+                                                                     "nimrod"])
+
+    def test_nothing_to_remove_is_caught(self):
+        """It used to count settings like "who reads the dialogue", so it never showed."""
+        app = self.app
+        app.show_setup()
+        for k, v in app.opts.items():
+            if k in ui.FILTER_KEYS:
+                v.set("Keep" if k in ("kiss_os", "kiss_ss") else False)
+        app.mywords_box.delete("1.0", "end")
+        app.start()
+        self.assertEqual(self.said[-1][0], "info")
+        self.assertIn("Tick at least one thing", self.said[-1][1])
+        # her own words alone are something to remove
+        video = support.SANDBOX / "Episode 9.mp4"
+        video.write_bytes(b"")
+        app.videos = [str(video)]
+        app.mywords_box.insert("1.0", "nimrod")
+        started = []
+        saved = app.show_working
+        app.show_working = lambda *a, **k: started.append(True) or (_ for _ in ()).throw(
+            KeyboardInterrupt)
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                app.start()
+        finally:
+            app.show_working = saved
+            app.jobs = []
+        self.assertEqual(started, [True])
+
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()
         self.assertIn("loudmusic", self.app.opts)

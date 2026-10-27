@@ -53,7 +53,7 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
-            "birthday": False, "valentine": False, "ai": True, "autosubs": True,
+            "birthday": False, "valentine": False, "mywords": (), "ai": True, "autosubs": True,
             "reader": "local", "look": True}
 
 
@@ -1100,6 +1100,9 @@ def sound_cues(cues, limit=150):
 def wanted_text(o, groups):
     o = full_opts(o)
     out = [GROUP_TEXT[g] for g in groups if g in GROUP_TEXT]
+    if my_words(o):
+        out.append("these words and phrases from their own list: " +
+                   ", ".join(f"'{' '.join(w)}'" for w in my_words(o)))
     out += [t for k, t in OPT_TEXT.items() if o.get(k)]
     for k, who in (("kiss_os", "between a man and a woman"), ("kiss_ss", "between two men or two women")):
         if o.get(k) in KISS_TEXT:
@@ -1120,9 +1123,20 @@ UNLISTED = (" (not a word on any list, so left unticked: it may be a name the sp
             "recognition misheard. Tick it if it really is a bad word.)")
 
 
-def _words_listed(word):
+def _words_listed(word, mine=()):
     ws = [w.strip() for w in re.split(r"[|,]", word or "") if w.strip()]
-    return bool(ws) and all(cl.listed_word(w) for w in ws)
+    return bool(ws) and all(cl.listed_word(w, mine) for w in ws)
+
+
+def my_words(o):
+    """Her own words and phrases to mute (typed on the start page, one per line), as
+    tuples of normalised words: "Grow some STONES!" -> ("grow", "some", "stones")."""
+    out = []
+    for line in (o or {}).get("mywords") or ():
+        words = tuple(w for w in (cl.norm(t) for t in re.split(r"[\s\-]+", str(line))) if w)
+        if words and words not in out:
+            out.append(words)
+    return out
 
 
 def word_mute(st, line, word, why):
@@ -1185,6 +1199,7 @@ def apply_review(st, result):
     and add what it found missing. Never changes what she set herself."""
     items, decisions, missed, missed_scenes, summary = result
     lines = st.get("dialogue", [])
+    own_words = my_words(st.get("opts"))   # her own list counts as listed
     n_drop = n_add = n_word = 0
     for i, (kind, it) in items.items():
         if not (it.get("claude") or {}).get("seen"):
@@ -1198,7 +1213,7 @@ def apply_review(st, result):
         if word and dec == "just the word":
             it["claude"]["word"] = word
         mine = it.get("by_you") or it.get("learned")
-        if dec == "just the word" and not _words_listed(word):
+        if dec == "just the word" and not _words_listed(word, own_words):
             # not a word on any list: often a name the speech recognition misheard
             # ("Grafi" for Gruffi). Offer it unticked; the line stays as it was.
             for w in re.split(r"[|,]", word):
@@ -1240,7 +1255,7 @@ def apply_review(st, result):
         l = lines[k]
         ms = [word_mute(st, l, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
         if ms and None not in ms:
-            ok = _words_listed(word)
+            ok = _words_listed(word, own_words)
             for m in ms:
                 if m.get("by_you") or m.get("learned"):
                     continue
@@ -1253,7 +1268,7 @@ def apply_review(st, result):
             if ok:
                 n_add += 1
             continue
-        if word and not _words_listed(word):
+        if word and not _words_listed(word, own_words):
             continue                      # couldn't even place an unlisted word: skip it
         st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
                             "types": ["claude"], "mute": True, "idx": k,
@@ -1893,7 +1908,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
         l = lines[i]
         toks = l["text"].split()
         normed = [cl.norm(t) for t in toks]
-        for a_, b_, _ in cl.find_language(normed, list(cl.CATS)):
+        for a_, b_, _ in cl.find_language(normed, list(cl.CATS), my_words(o)):
             for q in range(a_, b_):
                 toks[q] = cl.mask(toks[q])
         out.append({"id": len(out) + 1, "s": round(l["s"], 2), "e": round(l["e"], 2),
@@ -1941,6 +1956,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     info = probe(path)
     dur = info["duration"] or 1.0
     cats = [c for g in groups for c in cl.GROUPS[g]]
+    mine = my_words(o)            # her own words and phrases: always muted
     t_start = time.time()
     use_clip = bool(nd["clip"]) and ai.clip_ready()
     have_ai = nd["ai"] and ai.start_ollama(wait=20) and ai.choose_models()
@@ -2065,8 +2081,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
               "word": " ".join(cl.mask(asr[k]["t"]) for k in range(i, j)),
               "raw": " ".join(asr[k]["n"] for k in range(i, j)),
               "ctx": " ".join(asr[k]["t"] for k in range(max(0, i - 6), i))}
-             for i, j, cat in cl.find_language(asr_n, cats)]
-    if cues and cats:
+             for i, j, cat in cl.find_language(asr_n, cats, mine)]
+    if cues and (cats or mine):
         sw, sw_cue = [], []
         for ci, c in enumerate(cues):
             for w in spoken_words(c["text"]):
@@ -2076,7 +2092,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         sn = [cl.norm(w) for w in sw]
         mapping = cl.align(sn, asr_n) if asr_n else [None] * len(sn)
         added = 0
-        for i, j, cat in cl.find_language(sn, cats):
+        for i, j, cat in cl.find_language(sn, cats, mine):
             t = cl.est_time(i, mapping, asr) if asr else None
             if t:
                 s, e, exact = t[0], t[1], t[2]
@@ -2103,7 +2119,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             added += 1
         sub_note = f"Checked against {sub_note}: caught {added} extra word(s)."
         log(sub_note)
-    elif cats:
+    elif cats or mine:
         sub_note = "No subtitles found, so language was found by listening only."
     mutes.sort(key=lambda m: m["s"])
     for m in mutes:
@@ -2414,7 +2430,7 @@ def _shift(t, cuts):
     return max(0.0, t - removed)
 
 
-def clean_cues(cues, cats, mutes, cuts, line_rs=()):
+def clean_cues(cues, cats, mutes, cuts, line_rs=(), mine=()):
     """Subtitles for the clean copy: language blanked, muted lines and cut
     scenes dropped, times moved up to match."""
     out = []
@@ -2434,11 +2450,11 @@ def clean_cues(cues, cats, mutes, cuts, line_rs=()):
         if e - s < 0.3:
             continue
         text = c["text"]
-        if cats:
+        if cats or mine:
             toks = re.split(r"(\s+)", text)
             idx = [k for k, tk in enumerate(toks) if tk.strip()]
             normed = [cl.norm(toks[k]) for k in idx]
-            for i, j, _ in cl.find_language(normed, cats):
+            for i, j, _ in cl.find_language(normed, cats, mine):
                 for q in range(i, j):
                     tk = toks[idx[q]]
                     lead = re.match(r"^\W*", tk).group(0)
@@ -2492,7 +2508,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     dst = out / f"{src.stem} (Clean){'.mp4' if mp4 else '.mkv'}"
 
     cats = [c for g in st["groups"] for c in cl.GROUPS[g]]
-    subs = clean_cues(st["cues"], cats, mute_rs, cut_rs, line_rs) if st["cues"] else []
+    subs = clean_cues(st["cues"], cats, mute_rs, cut_rs, line_rs,
+                      my_words(st.get("opts"))) if st["cues"] else []
     srt = None
     if subs:
         srt = work / "clean.srt"

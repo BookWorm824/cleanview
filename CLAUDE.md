@@ -153,6 +153,12 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (e.g. bullying filtered for kids, not for herself).
 - Language groups: swearing, mild, God's name, minced oaths, same-sex words, rude words kids
   copy (stupid, dumb, idiot, shut up...). "screw you" and "crap" count as language.
+- Her own words and phrases (start page box, one per line, every age; `opts["mywords"]`,
+  read by `my_words()`): whole words and whole phrases, always muted, category "mine";
+  passed as `mine` to `cvcore.find_language`/`listed_word` everywhere the lists are used
+  (listening, subtitles, flagged-line masking, `apply_review`, the clean copy's subtitles).
+- Slang that's only slang in a phrase ("grow some stones", "has the balls to") is matched
+  as phrases (`cvcore.BODY_SLANG`), never the plain word.
 - Violence follows **VidAngel's levels**: Violence (non-graphic fighting, including cartoon
   slapstick); Graphic (blood and wounds, crime-scene bodies with blood); Gore (insides on the
   outside); Disturbing (violence outside combat: torture, execution, cruelty to the helpless).

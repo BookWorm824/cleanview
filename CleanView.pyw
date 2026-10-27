@@ -617,6 +617,17 @@ class App(tk.Tk):
             ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False),
             ("religion", "Religious conversations  (prayer, church, faith, the Bible\u2026)",
              False)])
+        tk.Label(b2, text="Your own words and phrases to mute  (one per line, for every age)",
+                 bg=CARD, fg=INK, font=(FONT, 10)).pack(anchor="w", pady=(10, 2))
+        self.mywords_box = tk.Text(b2, height=4, font=(FONT, 10), wrap="none", relief="solid",
+                                   borderwidth=1, highlightthickness=0, padx=6, pady=4)
+        self.mywords_box.insert("1.0", "\n".join(saved.get("mywords") or []))
+        self.mywords_box.pack(anchor="w", fill="x")
+        tk.Label(b2, text="Muted wherever they're said, the whole phrase: for example \u201cgrow "
+                 "some stones\u201d. Whole words only, so \u201cstones\u201d on its own wouldn't "
+                 "touch \u201cmilestones\u201d. Put other forms on their own lines (dork, dorks).",
+                 bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640),
+                 justify="left").pack(anchor="w", pady=(2, 0))
         checks(section("Sex and nudity"), [
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
@@ -891,7 +902,21 @@ class App(tk.Tk):
             val = v.get()
             o[k] = self.level_values.get(val, val) if isinstance(val, str) else bool(val)
         o["profile"] = getattr(self, "profile", "adults")
+        o["mywords"] = self._my_words_typed()
         return o
+
+    def _my_words_typed(self):
+        """Her own words and phrases from the start page: one per line, no blanks or
+        repeats (at most 300 of them, each up to 80 characters)."""
+        box = getattr(self, "mywords_box", None)
+        if box is None or not box.winfo_exists():
+            return self._load_settings().get("mywords") or []
+        out = []
+        for line in box.get("1.0", "end").splitlines():
+            line = " ".join(line.split())[:80]
+            if line and line.lower() not in (x.lower() for x in out):
+                out.append(line)
+        return out[:300]
 
     def _lengths(self, videos, then):
         """Add up how long the videos are without freezing the window (reading each
@@ -966,9 +991,11 @@ class App(tk.Tk):
         word_groups = ("swearing", "mild", "deity", "minced", "samesexwords", "rude")
         self.groups = [g for g in word_groups if o.get(g)]
         self.scan_opts = {k: v for k, v in o.items() if k not in word_groups}
-        if not self.groups and not any(v not in (False, "off") for k, v in self.scan_opts.items()
-                                       if k != "ai"):
-            messagebox.showinfo("CleanView", "Tick at least one thing to remove.")
+        # (only what's to be removed counts: not "who reads the dialogue" and the like)
+        if not any(o.get(k) not in (False, "off", None) for k in FILTER_KEYS) and \
+                not o.get("mywords"):
+            messagebox.showinfo("CleanView", "Tick at least one thing to remove, or type your "
+                                "own words to mute.")
             return
         self._save_settings()
         if not self.outdir:

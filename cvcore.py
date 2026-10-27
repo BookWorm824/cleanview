@@ -225,12 +225,16 @@ def _base(w):
     return w[:-2] if w.endswith("'s") and len(w) > 3 else w
 
 
-def listed_word(word):
+def listed_word(word, mine=()):
     """True if a word (or phrase like 'sweet-ass', 'fool's') is on any of the
     word lists: swearing, mild, minced, God's name, rude, sex words, same-sex
-    words. Used so an AI can't mute a misheard name ('Grafi') on its own."""
+    words, or her own list (mine: word tuples). Used so an AI can't mute a misheard
+    name ('Grafi') on its own."""
     w = norm(word.replace(" ", "").replace("-", ""))
     parts = [norm(p) for p in re.split(r"[\s\-]+", word) if norm(p)]
+    for ph in mine:
+        if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
+            return True
     for ph in DEITY_PHRASES + CRUDE_PHRASES + RUDE_PHRASES:     # "shut up", "screw you"
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
@@ -247,14 +251,21 @@ def listed_word(word):
     return False
 
 
-def find_language(words, cats):
-    """Return (i, j, category) spans of words[i:j] to mute."""
+def find_language(words, cats, mine=()):
+    """Return (i, j, category) spans of words[i:j] to mute. mine: her own words and
+    phrases (tuples of normalised words), always muted, as category "mine"."""
     hits, n, i = [], len(words), 0
+    mine = sorted(set(mine), key=len, reverse=True)       # longest phrase first
 
     def rude_use(p):        # "shut it" yes, "shut it down" no
         nxt = words[i + len(p)] if i + len(p) < n else ""
         return p[-1] not in PHRASE_OBJECTS or nxt not in NOT_RUDE_NEXT
     while i < n:
+        ph = next((p for p in mine if tuple(words[i:i + len(p)]) == p), None)
+        if ph:
+            hits.append((i, i + len(ph), "mine"))
+            i += len(ph)
+            continue
         if "deity" in cats:
             ph = next((p for p in sorted(DEITY_PHRASES, key=len, reverse=True)
                        if tuple(words[i:i + len(p)]) == p), None)
