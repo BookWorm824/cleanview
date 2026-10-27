@@ -14,6 +14,7 @@ closing the browser half way leaves things as they were.
 import json
 import os
 import shutil
+import subprocess
 import time
 from pathlib import Path
 
@@ -71,6 +72,28 @@ def keep(ai, folder):
     d[ai] = Path(folder).name
     _write(d)
     _tidy(ai)
+
+
+def sign_in_script(ai, title, lines, cmd):
+    """A little .cmd file that shows lines, then runs cmd (the AI's own sign-in). A file,
+    because a quoted program path passed inside "cmd /k ..." comes out as \\"C:\\...\\"
+    (Python's quoting, not cmd's), which cmd can't run: the sign-in never started and the
+    window only said the program "is not recognized" (1.13.x)."""
+    d = APP_DATA / "signin"
+    d.mkdir(parents=True, exist_ok=True)
+    bat = d / f"{ai}.cmd"
+    text = ["@echo off", "chcp 65001 >nul", f"title {title}"]
+    text += [f"echo {line}" if line else "echo." for line in lines]
+    text += ["echo.", " ".join(f'"{c}"' for c in cmd)]
+    bat.write_text("\r\n".join(text) + "\r\n", encoding="utf8")
+    return bat
+
+
+def sign_in_window(ai, title, lines, cmd, env):
+    """Open a black window (Windows) running sign_in_script(), with env."""
+    bat = sign_in_script(ai, title, lines, cmd)
+    subprocess.Popen(["cmd", "/c", "start", title, "cmd", "/k", str(bat)], env=env)
+    return bat
 
 
 def forget(ai):

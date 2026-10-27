@@ -112,10 +112,12 @@ def open_sign_in(folder=None):
     if not exe:
         raise ClaudeError("Claude Code isn't installed yet.")
     if os.name == "nt":
-        subprocess.Popen(["cmd", "/c", "start", "Sign in to Claude", "cmd", "/k",
-                          f'echo Sign in to Claude in the browser window that opens. & echo When '
-                          f'it says you are signed in, close this window and go back to '
-                          f'CleanView. & echo. & "{exe}" auth login'], env=_env(folder))
+        accounts.sign_in_window(
+            "claude", "Sign in to Claude",
+            ["Sign in to Claude in the web page that opens.",
+             "When it says you are signed in, close this window and go back to CleanView.",
+             "If no web page opens, hold Ctrl and click the link below."],
+            [exe, "auth", "login"], _env(folder))
     else:
         subprocess.Popen([exe, "auth", "login"], env=_env(folder))
 

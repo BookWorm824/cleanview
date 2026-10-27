@@ -124,12 +124,13 @@ def open_sign_in(folder=None):
     cmd = find()
     if not cmd:
         raise GeminiError("The Gemini CLI isn't installed yet.")
-    run = " ".join(f'"{c}"' for c in cmd)
     if os.name == "nt":
-        subprocess.Popen(["cmd", "/c", "start", "Sign in to Gemini", "cmd", "/k",
-                          "echo Choose Sign in with Google, then sign in in the browser window "
-                          "that opens. & echo When Gemini is ready for a question, close this "
-                          f"window and go back to CleanView. & echo. & {run}"], env=_env(folder))
+        accounts.sign_in_window(
+            "gemini", "Sign in to Gemini",
+            ["Choose Sign in with Google (arrow keys, then Enter), then sign in in the web page",
+             "that opens. When Gemini is ready for a question, close this window and go back",
+             "to CleanView."],
+            cmd, _env(folder))
     else:
         subprocess.Popen(cmd, env=_env(folder))
 

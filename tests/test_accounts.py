@@ -5,6 +5,7 @@ sign-in folder (CLAUDE_CONFIG_DIR) someone has signed in to."""
 import base64
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -156,6 +157,54 @@ class GeminiAccounts(unittest.TestCase):
         cc.sign_out("gemini")
         self.assertEqual(cc.who("gemini"), "owner@example.com")
         self.assertNotIn("GEMINI_CLI_HOME", gem._env())
+
+
+@unittest.skipUnless(os.name == "nt", "the sign-in window is for Windows")
+class SignInWindow(unittest.TestCase):
+    """1.13.x passed the program's path inside "cmd /k ...", quoted the Python way
+    (\\"C:\\...\\"): cmd couldn't run it, so the black window opened and nothing else."""
+
+    def test_the_program_really_runs(self):
+        folder = support.SANDBOX / "a folder with spaces"
+        folder.mkdir(exist_ok=True)
+        script = folder / "pretend sign-in.py"
+        script.write_text("import sys; print('SIGNED-IN', sys.argv[1:])", encoding="utf8")
+        bat = accounts.sign_in_script("claude", "Sign in to Claude",
+                                      ["Sign in to Claude in the web page that opens.", ""],
+                                      [sys.executable, "-I", str(script), "auth", "login"])
+        r = subprocess.run(["cmd", "/c", str(bat)], capture_output=True, text=True,
+                           encoding="utf8", errors="replace", timeout=60)
+        self.assertIn("Sign in to Claude in the web page that opens.", r.stdout)
+        self.assertIn("SIGNED-IN ['auth', 'login']", r.stdout)
+        self.assertNotIn("not recognized", r.stdout + r.stderr)
+
+    def test_each_ai_opens_its_window_with_its_own_sign_in(self):
+        opened = []
+        saved = accounts.subprocess.Popen
+        accounts.subprocess.Popen = lambda args, **kw: opened.append((args, kw.get("env")))
+        saved_find, gem_find = cc.find_claude, gem.find
+        cc.find_claude = lambda: r"C:\Users\Jason Smith\.local\bin\claude.exe"
+        gem.find = lambda: [r"C:\Program Files\nodejs\node.exe", r"C:\npm\gemini\index.js"]
+        saved_gpt = gpt.find
+        gpt.find = lambda: r"C:\Users\Jason Smith\codex.exe"
+        try:
+            cc.open_sign_in()
+            gpt.open_sign_in()
+            gem.open_sign_in()
+        finally:
+            accounts.subprocess.Popen = saved
+            cc.find_claude, gem.find, gpt.find = saved_find, gem_find, saved_gpt
+        self.assertEqual(len(opened), 3)
+        for (args, env), ai, line in zip(opened, ("claude", "chatgpt", "gemini"), (
+                r'"C:\Users\Jason Smith\.local\bin\claude.exe" "auth" "login"',
+                r'"C:\Users\Jason Smith\codex.exe" "login"',
+                r'"C:\Program Files\nodejs\node.exe" "C:\npm\gemini\index.js"')):
+            self.assertEqual(args[:3] + args[4:6], ["cmd", "/c", "start", "cmd", "/k"])
+            self.assertFalse(any('\\"' in a for a in args), "no Python-style quotes for cmd")
+            bat = Path(args[-1])
+            self.assertEqual(bat.name, f"{ai}.cmd")
+            self.assertIn(line, bat.read_text(encoding="utf8"))
+            self.assertNotIn("ANTHROPIC_API_KEY", env)
 
 
 class ChatGptAccountName(unittest.TestCase):

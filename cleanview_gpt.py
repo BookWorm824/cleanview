@@ -96,10 +96,12 @@ def open_sign_in(folder=None):
     if not exe:
         raise GptError("Codex isn't installed yet.")
     if os.name == "nt":
-        subprocess.Popen(["cmd", "/c", "start", "Sign in to ChatGPT", "cmd", "/k",
-                          f'echo Sign in with your ChatGPT account in the browser window that '
-                          f'opens. & echo When it says you are signed in, close this window and go '
-                          f'back to CleanView. & echo. & "{exe}" login'], env=_env(folder))
+        accounts.sign_in_window(
+            "chatgpt", "Sign in to ChatGPT",
+            ["Sign in with your ChatGPT account in the web page that opens.",
+             "When it says you are signed in, close this window and go back to CleanView.",
+             "If no web page opens, hold Ctrl and click the link below."],
+            [exe, "login"], _env(folder))
     else:
         subprocess.Popen([exe, "login"], env=_env(folder))
 
