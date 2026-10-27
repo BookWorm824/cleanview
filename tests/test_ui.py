@@ -304,6 +304,33 @@ class Window(unittest.TestCase):
         app.opts["reader"].set("local")
         self.assertIsNone(app._cloud())
 
+    def test_start_offers_to_set_up_and_sign_in(self):
+        """A PC without Claude: the start page says to sign in with your own account, and
+        Start offers to set it up there and then, not only to go on without it."""
+        app, mb = self.app, ui.messagebox
+        saved_ask, saved_setup = mb.askyesnocancel, ui.App.setup_claude
+        asked, setups, answer = [], [], {"v": True}
+        mb.askyesnocancel = lambda t, m, **k: asked.append(m) or answer["v"]
+        ui.App.setup_claude = lambda self: setups.append(self._cloud())
+        try:
+            app.show_setup()
+            app.ai_state = {"claude": "missing"}
+            app.opts["reader"].set("claude")
+            app.update()
+            self.assertIn("sign in with your own Claude account", app.claude_lbl.cget("text"))
+            self.assertEqual(app.claude_btn.cget("text"), "Set up and sign in")
+            app.start()
+            self.assertIn("set it up and sign in with your own Claude account", asked[-1])
+            self.assertEqual(setups, ["claude"])
+            self.assertEqual(app.page_name, "setup", "nothing starts yet")
+            answer["v"] = None                     # Cancel: nothing happens
+            app.start()
+            self.assertEqual((setups, app.page_name), (["claude"], "setup"))
+        finally:
+            mb.askyesnocancel, ui.App.setup_claude = saved_ask, saved_setup
+            app.ai_state = {}
+            app.opts["reader"].set("local")
+
     def test_own_account_shown_with_switch_and_sign_out(self):
         app, cc = self.app, ui.cc
         saved = {k: getattr(cc, k) for k in ("status", "who", "own_account", "sign_out")}

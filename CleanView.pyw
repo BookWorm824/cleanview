@@ -439,6 +439,19 @@ class App(tk.Tk):
                      wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(2, 12))
         return self.page
 
+    def _scroll_to(self, w):
+        """Scroll the page w is on (a _scroll_area) so w can be seen."""
+        inner = w
+        while inner.master is not None and not isinstance(inner.master, tk.Canvas):
+            inner = inner.master
+        canvas = inner.master
+        if canvas is None:
+            return
+        self.update_idletasks()
+        h = inner.winfo_height()
+        if h > 0:
+            canvas.yview_moveto(max(0.0, (w.winfo_rooty() - inner.winfo_rooty() - 120) / h))
+
     def _scroll_area(self, parent):
         wrap = tk.Frame(parent, bg=BG)
         wrap.pack(fill="both", expand=True)
@@ -851,14 +864,16 @@ class App(tk.Tk):
         who = self.ai_who.get(p) if st == "ready" else ""
         text = {"ready": f"\u2713 {n} is signed in as {who}." if who else
                          f"\u2713 {n} is set up and signed in.",
-                "signed_out": f"{n} is installed but not signed in yet.",
-                "missing": f"{n} isn't set up on this PC yet (one time, a few minutes)."}[st]
+                "signed_out": f"{n} is installed, but nobody is signed in yet. Sign in with "
+                              f"your own {n} account.",
+                "missing": f"{n} isn't set up on this PC yet. Set it up (one time, a few "
+                           f"minutes), then sign in with your own {n} account."}[st]
         lbl.config(text=text, fg=ACCENT_DK if st == "ready" else MUTED)
         if st == "ready":
             self.claude_btn.pack_forget()
         else:
-            self.claude_btn.config(text=f"Sign in to {n}" if st == "signed_out" else f"Set up {n}",
-                                   state="normal")
+            self.claude_btn.config(text=f"Sign in to {n}" if st == "signed_out" else
+                                   "Set up and sign in", state="normal")
             self.claude_btn.pack(side="left", padx=(10, 0))
         self._account_buttons(p, st)
 
@@ -937,7 +952,10 @@ class App(tk.Tk):
                             break
                 self.q.put(("claude_status", _ai_status(p)))
             except Exception as ex:
-                self.q.put(("warn", f"{n} couldn't be set up. {plain_error(ex)}"))
+                import traceback
+                plain, details = f"{n} couldn't be set up. {plain_error(ex)}", (
+                    f"Setting up {n}\n\n{ex}\n\n{traceback.format_exc()}")
+                self.q.put(("call", lambda: self._problem(plain, details)))
                 self.q.put(("claude_status", _ai_status(p)))
         threading.Thread(target=go, daemon=True).start()
 
@@ -1064,9 +1082,20 @@ class App(tk.Tk):
     def start(self):
         o = self._current_opts()
         p = o.get("reader")
-        if p in cc.NAMES and getattr(self, "ai_state", {}).get(p, "ready") != "ready":
-            if not messagebox.askyesno("CleanView", f"{cc.name(p)} isn't set up yet, so the AI on "
-                                       "this PC will read the dialogue this time.\n\nGo ahead?"):
+        state = getattr(self, "ai_state", {}).get(p, "ready") if p in cc.NAMES else "ready"
+        if state != "ready":
+            n = cc.name(p)
+            what = "set up on this PC" if state == "missing" else "signed in"
+            ans = messagebox.askyesnocancel(
+                "CleanView", f"{n} isn't {what} yet.\n\nPress Yes to "
+                f"{'set it up and ' if state == 'missing' else ''}sign in with your own {n} "
+                f"account now (then press Start cleaning again).\n\nPress No to let the AI on this "
+                f"PC read the dialogue this time instead.", parent=self)
+            if ans is None:
+                return
+            if ans:
+                self._scroll_to(self.claude_lbl)
+                self.setup_claude()
                 return
             o["reader"] = "local"
         word_groups = ("swearing", "mild", "deity", "minced", "samesexwords", "rude")
