@@ -44,13 +44,16 @@ VISUAL_FPS = 2.0
 # Options and one-time tools
 # ---------------------------------------------------------------------------
 CLOUD = ("claude", "chatgpt")      # readers that use your Claude or ChatGPT plan
-LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "religion")
+HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")   # heard and seen
+LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "religion") + HOLIDAYS
+WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS    # the lines between go too (fill_conversations)
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "graphic": True, "disturbing": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
-            "religion": False, "loudmusic": False, "ai": True, "autosubs": True,
+            "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
+            "birthday": False, "valentine": False, "ai": True, "autosubs": True,
             "reader": "local", "look": True}
 
 
@@ -72,7 +75,7 @@ def needs(opts):
         clip_cats.append("gore")
     if o["violence"] or o["disturbing"]:
         clip_cats.append("fight")
-    for k in ("smoking", "drinking", "drugs", "immodest"):
+    for k in ("smoking", "drinking", "drugs", "immodest") + HOLIDAYS:
         if o[k]:
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
@@ -1023,8 +1026,18 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"bapti[sz](e|ed|m)|church(es)?|synagogues?|mosques?|pastor|priests?|"
                            r"rabbis?|imams?|the lord|god bless|our father|holy spirit|"
                            r"born again|sunday school|bible study)\b", re.I),
+    # not "elves", "stockings" or "make a wish": too often something else
+    "christmas": re.compile(r"\b(christmas|x-?mas|santa( claus)?|saint nick|north pole|"
+                            r"reindeer|rudolph|mistletoe|yuletide|jingle bells)\b", re.I),
+    "halloween": re.compile(r"\b(hallowe'?en|trick[- ]or[- ]treat\w*|jack[- ]?o[-' ]*lanterns?|"
+                            r"all hallows)\b", re.I),
+    "birthday": re.compile(r"\b(birthdays?|b-?day|blow out (the|your|my|his|her) candles)\b",
+                           re.I),
+    "valentine": re.compile(r"\b(valentines?|valentine's|cupid)\b", re.I),
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
+              "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday",
+              "valentine": "Valentine's Day",
               "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
               "shared": "CleanView learned", "chat": "You asked in the chat",
@@ -1032,7 +1045,8 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
-             "drugs": "Drugs", "immodest": "Immodest clothing"}
+             "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
+             "halloween": "Halloween", "birthday": "Birthday", "valentine": "Valentine's Day"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
@@ -1056,7 +1070,16 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "bullying": "bullying",
             "religion": "all religious conversations: talk about God, faith, prayer, church, the "
                         "Bible, heaven, or any religion's beliefs and practices, including "
-                        "sincere prayer (God's name said as a swear is a separate choice)"}
+                        "sincere prayer (God's name said as a swear is a separate choice)",
+            "christmas": "Christmas, in talk or on screen: Santa, Christmas trees, decorations, "
+                         "presents, carols, the holiday itself",
+            "halloween": "Halloween, in talk or on screen: trick-or-treating, Halloween "
+                         "costumes, jack-o'-lanterns, Halloween parties and decorations",
+            "birthday": "birthday celebrations, in talk or on screen: birthday cakes and "
+                        "candles, blowing out candles, singing Happy Birthday, birthday parties "
+                        "and presents",
+            "valentine": "Valentine's Day, in talk or on screen: valentines, Valentine cards, "
+                         "hearts and Cupid decorations"}
 KISS_TEXT = {"passionate": "passionate kissing (light kisses are fine)", "all": "all kissing"}
 
 
@@ -1411,8 +1434,16 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
                        "back or shoulders, shower from the shoulders up)",
             "sex": "sex scenes or a couple in bed", "immodest": "immodest clothing",
-            "smoking": "smoking", "drinking": "drinking alcohol", "drugs": "drug use"}
-PIC_LABEL = {"violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
+            "smoking": "smoking", "drinking": "drinking alcohol", "drugs": "drug use",
+            "christmas": "christmas (Santa, a Christmas tree, Christmas decorations or presents)",
+            "halloween": "halloween (trick-or-treating, Halloween costumes, jack-o'-lanterns, "
+                         "Halloween decorations)",
+            "birthday": "birthday (a birthday cake, birthday candles or blowing them out, a "
+                        "birthday party)",
+            "valentine": "valentine (Valentine's Day cards, hearts or Cupid decorations)"}
+PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday",
+             "valentine": "Valentine's Day",
+             "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
              "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
              "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
@@ -1852,8 +1883,9 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
         for k in wanted:
             if LINE_WORDS[k].search(l["text"]):
                 found.setdefault(i, set()).add(k)
-    if "religion" in wanted:
-        fill_conversations(found, lines, "religion")
+    for k in WHOLE_CONVERSATIONS:
+        if k in wanted:
+            fill_conversations(found, lines, k)
     out = []
     for i in sorted(found):
         l = lines[i]
@@ -1977,6 +2009,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             vis = json.loads(vfile.read_text())
             if vis.get("version", 1) < PICTURE_VERSION or (use_clip and not vis.get("clip")):
                 vis = None
+            elif use_clip and not all(c in ((vis["clip"].get("scores") or [{}])[0])
+                                      for c in nd["clip"]):
+                vis = None           # saved before CleanView looked for these (holidays): again
         if vis is None:
             what = "Watching the picture" + (" with the picture AI" if use_clip else " for nudity")
             say(at("vis", 0), what + "…")

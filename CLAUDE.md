@@ -161,6 +161,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
 - When one word is the only problem in a line, mute just the word, not the whole line. But
   jokes or innuendo mean the whole line goes.
+- Holidays and birthdays: Christmas, Halloween, birthdays (cakes, candles, parties) and
+  Valentine's Day, each its own tick box, ticked for Young kids and Kids, not Teens or Adults.
+  Each is both a dialogue filter (whole conversations, whole lines) and a picture category
+  (CLIP descriptions + local vision check in cleanview_ai.py, `PIC_KINDS`/`PIC_TEXT`/
+  `PIC_LABEL` for Claude's picture review). A picture category needs `CLIP_CATS`, `THRESH`,
+  `MIN_FRAMES` and `LOOK` (cleanview_ai.py), `CAT_LABEL` and the list in `needs()`
+  (cleanview.py); old saved picture scans without it are redone once when it's ticked.
 - Religious conversations (off for every age unless ticked): any talk about God, faith,
   prayer, church, the Bible or any religion, including sincere prayer; whole conversations
   (`fill_conversations` joins lines found close together) and always whole lines

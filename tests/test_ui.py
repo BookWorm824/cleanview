@@ -241,6 +241,15 @@ class Window(unittest.TestCase):
         self.assertTrue(settings["profiles"][settings["profile"]]["religion"])
         self.assertEqual(ui.chip_color("Religious talk"), ui.CHIP["Religious"])
 
+    def test_holidays_ticked_for_the_kids_only(self):
+        app = self.app
+        app.show_setup()
+        for k in ui.HOLIDAYS:
+            self.assertIn(k, app.opts)
+            self.assertTrue(ui.PRESETS["young"][k] and ui.PRESETS["kids"][k])
+            self.assertFalse(ui.PRESETS["teens"][k] or ui.PRESETS["adults"][k])
+        self.assertEqual(ui.chip_color("Valentine's Day"), ui.CHIP["Valentine's"])
+
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()
         self.assertIn("loudmusic", self.app.opts)

@@ -302,6 +302,15 @@ TYPE_TEXT = {
                 "practices, clergy or holidays of any religion; the whole conversation, not just "
                 "the line that names it. Not: God's or Jesus' name said as a swear or "
                 "exclamation, 'bless you' after a sneeze, a character's name",
+    "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents or "
+                 "carols; the whole conversation. Not: winter or snow alone",
+    "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
+                 "or jack-o'-lanterns; the whole conversation. Not: a story's own witches, "
+                 "ghosts or monsters",
+    "birthday": "birthdays: any talk about a birthday or birthday celebration (cake, candles, "
+                "party, presents, singing Happy Birthday); the whole conversation",
+    "valentine": "Valentine's Day: any talk about Valentine's Day, valentines or Cupid; the "
+                 "whole conversation. Not: someone named Valentine",
 }
 
 
@@ -521,8 +530,9 @@ WORD_REASON = re.compile(r"\b(contains?|word|language|swear\w*|profan\w*|curse\w
 
 MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w*|romanc\w*|"
                             r"affair|bull\w*|mock\w*|crude humor|gross|relig\w*|faith|pray\w*|"
-                            r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*)\b", re.I)
-WHOLE_LINE_TYPES = {"religion"}       # the whole line goes, never just one word in it
+                            r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*|christmas|"
+                            r"santa|halloween|trick.or.treat\w*|birthday\w*|valentine\w*)\b", re.I)
+WHOLE_LINE_TYPES = {"religion", "christmas", "halloween", "birthday", "valentine"}   # never just a word
 
 
 def _only_word(line, why, mutes):
@@ -631,7 +641,8 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
 # look at each scene the picture checkers found
 # ---------------------------------------------------------------------------
 PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
-             "sex", "kissing", "immodest", "smoking", "drinking", "drugs"]
+             "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
+             "halloween", "birthday", "valentine"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
@@ -654,7 +665,10 @@ PIC_RULES = (
     "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
     "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
     "neither. For kissing, say who (man & woman, two "
-    "men, two women) and whether it's light or passionate.")
+    "men, two women) and whether it's light or passionate. For holidays, only what is "
+    "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
+    "story's own witches or monsters, a cake with no candles at an ordinary meal, or a single "
+    "red heart are NOT.")
 
 
 def picture_review(sheets, wanted, per_request=12, progress=None):

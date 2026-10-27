@@ -72,6 +72,14 @@ CLIP_CATS = {
     "drugs": ["a person using drugs", "a person snorting cocaine", "a person injecting drugs"],
     "immodest": ["a woman in a bikini", "a person in revealing underwear",
                  "a woman in a revealing low-cut outfit"],
+    "christmas": ["a decorated christmas tree", "santa claus", "christmas presents under a tree",
+                  "christmas decorations and lights"],
+    "halloween": ["a carved jack-o'-lantern pumpkin", "children trick-or-treating in halloween "
+                  "costumes", "halloween decorations"],
+    "birthday": ["a birthday cake with lit candles", "blowing out birthday candles",
+                 "a birthday party with balloons and party hats"],
+    "valentine": ["valentine's day cards and red hearts", "a heart-shaped box of chocolates",
+                  "valentine decorations with cupid"],
 }
 # kiss_mf / kiss_mm / kiss_ff only decide *who*, never whether there is a kiss
 WHO = ("kiss_mf", "kiss_mm", "kiss_ff")
@@ -255,9 +263,11 @@ class Clip:
 # Turning CLIP scores into candidate scenes
 # ---------------------------------------------------------------------------
 THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
-          "drinking": 0.7, "drugs": 0.6, "immodest": 0.65}
+          "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
+          "halloween": 0.65, "birthday": 0.65, "valentine": 0.7}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
-              "drugs": 2, "immodest": 3}   # seconds of hits a scene needs
+              "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
+              "valentine": 3}   # seconds of hits a scene needs
 
 
 def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0, lum=None, fps=2.0):
@@ -491,6 +501,8 @@ PREFACE = ("These are a few frames from one moment of a TV show or movie. First 
            "one short sentence what you can actually see. If the frames are dark, blurry or "
            "unclear, say so. Then answer the question. Answer yes only if you can clearly see "
            "it in the frames; if you are not sure, answer no. ")
+_YES = {"type": "object", "properties": {"see": {"type": "string"}, "yes": {"type": "boolean"}},
+        "required": ["see", "yes"]}
 LOOK = {
     "kiss": ("Question: are two people kissing on the lips? If yes, who is kissing (a man and a "
              "woman, two men, two women), and is it a light kiss (a short peck) or a passionate "
@@ -558,6 +570,17 @@ LOOK = {
                  {"type": "object", "properties": {"see": {"type": "string"},
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),
+    "christmas": ("Question: is something about Christmas shown: Santa Claus, a decorated "
+                  "Christmas tree, Christmas presents, stockings or Christmas decorations? Snow "
+                  "or an ordinary winter scene is NOT.", _YES),
+    "halloween": ("Question: is something about Halloween shown: children trick-or-treating, "
+                  "Halloween costumes, a carved jack-o'-lantern or Halloween decorations? A "
+                  "plain pumpkin, or a fantasy story's own witches or monsters, is NOT.", _YES),
+    "birthday": ("Question: is a birthday being celebrated: a birthday cake, birthday candles "
+                 "(or someone blowing them out), or a birthday party? A cake at an ordinary "
+                 "meal with no candles is NOT.", _YES),
+    "valentine": ("Question: is something about Valentine's Day shown: valentine cards, "
+                  "Cupid, or hearts used as Valentine decorations?", _YES),
 }
 CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are too dark, blurry "
              "or unclear to judge (dark hair, dark clothes or a dark room you can still see "
@@ -649,11 +672,23 @@ LINE_TYPES = {
                  "clergy or holidays of any religion. NOT: 'oh my God' or 'Jesus' said as a "
                  "swear or exclamation, 'bless you' after a sneeze, 'thank heavens', a "
                  "character's name"),
+    "christmas": ("talks about Christmas: Santa, Christmas trees, presents, carols, Christmas "
+                  "Eve or Day, 'Merry Christmas'. NOT: winter or snow alone, the word "
+                  "'present' meaning now or here"),
+    "halloween": ("talks about Halloween: trick-or-treating, Halloween costumes or parties, "
+                  "jack-o'-lanterns. NOT: a story's own witches, ghosts or monsters, costumes "
+                  "for a play"),
+    "birthday": ("talks about a birthday or a birthday celebration: birthday cake, candles, "
+                 "party or presents, singing Happy Birthday, how old someone is turning"),
+    "valentine": ("talks about Valentine's Day: valentines, Valentine cards or dates, Cupid. "
+                  "NOT: a character or person named Valentine"),
 }
 LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around",
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
                                                          "together",
-              "crude": "crude humor", "bullying": "bullying", "religion": "religious talk"}
+              "crude": "crude humor", "bullying": "bullying", "religion": "religious talk",
+              "christmas": "talk about Christmas", "halloween": "talk about Halloween",
+              "birthday": "talk about a birthday", "valentine": "talk about Valentine's Day"}
 
 
 def _letters(t):

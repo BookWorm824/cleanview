@@ -26,7 +26,9 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
-        "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560"}
+        "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
+        "Christmas": "#2E6B45", "Halloween": "#B4621E", "Birthday": "#8C5AA8",
+        "Valentine's": "#B23A5A"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
@@ -37,21 +39,24 @@ PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adu
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
-               "drinking", "drugs", "religion", "loudmusic"]
+               "drinking", "drugs", "religion", "loudmusic", "christmas", "halloween",
+               "birthday", "valentine"]
+HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")
 _ALL = {k: True for k in FILTER_KEYS}
 _ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
             loudmusic=False)
+NO_HOLIDAYS = dict.fromkeys(HOLIDAYS, False)    # holidays are taken out for the kids' ages only
 PRESETS = {
     "young": dict(_ALL),
     "kids": dict(_ALL, kiss_os="passionate"),
     "teens": dict(_ALL, rude=False, minced=False, crude=False, kiss_os="passionate",
-                  implied=False),
+                  implied=False, **NO_HOLIDAYS),
     "adults": dict(swearing=True, mild=True, deity=True, minced=False, samesexwords=True,
                    rude=False, sexref=True, crude=False, bullying=False, nudity=True,
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
                    graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
-                   drugs=True, religion=False, loudmusic=False),
+                   drugs=True, religion=False, loudmusic=False, **NO_HOLIDAYS),
 }
 
 
@@ -642,6 +647,11 @@ class App(tk.Tk):
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
             ("drugs", "Drug use", True)], cols=3)
+        checks(section("Holidays and birthdays"), [
+            ("christmas", "Christmas  (Santa, trees, presents)", False),
+            ("halloween", "Halloween  (costumes, jack-o'-lanterns, trick-or-treating)", False),
+            ("birthday", "Birthdays  (cakes, candles, parties)", False),
+            ("valentine", "Valentine's Day  (cards, hearts, Cupid)", False)])
         checks(section("Music"), [
             ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
              False)], cols=1)
