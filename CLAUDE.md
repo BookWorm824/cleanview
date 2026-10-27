@@ -116,7 +116,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
    `subliminal` (hearing-impaired first, title parsed from file/folder names by
    `guess_title()`), then re-time them to the heard words (`sync_cues`). Subtitles add names,
    missed words and sound descriptions.
-3. **Sound**: audio tagger for gunfire, explosions, screams, blows.
+3. **Sound**: audio tagger (CED mini, AudioSet labels) for gunfire, explosions, screams,
+   blows, and, if "Turn down hard rock, metal and rap" is ticked, those music styles.
+   `loud_music()` turns them into stretches with nobody talking (`st["quiet"]`), which
+   `render()` plays at a quarter volume (`MUSIC_LEVEL`) with half-second fades. The tagger
+   is unsure of music styles in a TV mix (a real rock song at the end of Castle S01E01
+   scored 0.1-0.2), hence the low `ROCK_MIN`/`RAP_MIN` and needing 3+ windows to agree.
+   Words heard while the tagger hardly hears speech are lyrics, not talking.
 4. **Picture**: NudeNet twice a second, CLIP once a second for kissing, gore, fights, weapons,
    smoking, drinking, drugs, revealing clothes. Hits become scenes (several seconds of strong
    hits, dark frames ignored), then the local vision model double-checks each scene.

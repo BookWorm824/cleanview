@@ -241,6 +241,33 @@ class Window(unittest.TestCase):
         self.assertTrue(settings["profiles"][settings["profile"]]["religion"])
         self.assertEqual(ui.chip_color("Religious talk"), ui.CHIP["Religious"])
 
+    def test_loud_music_box_off_to_start(self):
+        self.app.show_setup()
+        self.assertIn("loudmusic", self.app.opts)
+        self.assertFalse(any(ui.PRESETS[p]["loudmusic"] for p in ui.PRESETS))
+
+    def test_loud_music_card(self):
+        """Listed with the rest, ticked to turn down; unticking keeps it at full volume."""
+        app = self.app
+        job = next(j for j in app.jobs if j["analysis"])
+        job["analysis"]["quiet"] = [{"id": 1, "s": 50.0, "e": 70.0, "kind": "Rap music",
+                                     "why": "", "lower": True}]
+        app.show_review()
+        app.update()
+        self.assertIn("1 loud song", app.page.winfo_children()[1].cget("text"))
+        self.assertEqual(len(app.quiet_vars), 1)
+        app.quiet_vars[0][0].set(False)
+        app._sync_job(job)
+        q = job["analysis"]["quiet"][0]
+        self.assertFalse(q["lower"])
+        self.assertTrue(q["by_you"])
+        saved, app.save = app.save, lambda: None       # don't really start saving
+        try:
+            app._save_from_review()
+        finally:
+            app.save = saved
+        self.assertEqual(job["quiet"], [])
+
     def test_closing_the_start_page_keeps_its_ticks(self):
         app = self.app
         app.show_setup()

@@ -26,7 +26,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
-        "Bullying": "#8A4B2E", "Religious": "#3F5F7F"}
+        "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = "#C2581F"
@@ -37,9 +37,10 @@ PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adu
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
-               "drinking", "drugs", "religion"]
+               "drinking", "drugs", "religion", "loudmusic"]
 _ALL = {k: True for k in FILTER_KEYS}
-_ALL.update(kiss_os="all", kiss_ss="all", religion=False)    # religion: only if she ticks it
+_ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
+            loudmusic=False)
 PRESETS = {
     "young": dict(_ALL),
     "kids": dict(_ALL, kiss_os="passionate"),
@@ -50,7 +51,7 @@ PRESETS = {
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
                    graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
-                   drugs=True, religion=False),
+                   drugs=True, religion=False, loudmusic=False),
 }
 
 
@@ -641,6 +642,9 @@ class App(tk.Tk):
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
             ("drugs", "Drug use", True)], cols=3)
+        checks(section("Music"), [
+            ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
+             False)], cols=1)
         tk.Label(b2, text="Swear words are muted automatically. Everything else is listed for "
                  "you to check before anything is muted or cut.", bg=CARD, fg=MUTED,
                  font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(10, 0))
@@ -1092,7 +1096,8 @@ class App(tk.Tk):
                 self.q.put(("job", k, "now"))
                 try:
                     results.append(engine.render(
-                        j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []), words=j.get("words"),
+                        j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []),
+                        words=j.get("words"), quiet=j.get("quiet"),
                         progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / len(todo), m, "")),
                         log=lambda m: None, cancel=lambda: self.cancel_flag))
                     self.q.put(("job", k, "done"))
@@ -1236,6 +1241,7 @@ class App(tk.Tk):
         n = sum(len(vis[id(j)][0]) for j in good)
         nl = sum(len(vis[id(j)][1]) for j in good)
         nw = sum(len(vis[id(j)][2]) for j in good)
+        nq = sum(len(j["analysis"].get("quiet") or []) for j in good)
         n_fine = sum(vis[id(j)][3] for j in good)
         parts = []
         if n:
@@ -1244,6 +1250,8 @@ class App(tk.Tk):
             parts.append(f"{nl} line{'s' if nl != 1 else ''}")
         if nw:
             parts.append(f"{nw} word{'s' if nw != 1 else ''}")
+        if nq:
+            parts.append(f"{nq} loud song{'s' if nq != 1 else ''}")
         title = (", ".join(parts[:-1]) + " and " + parts[-1] if len(parts) > 1 else
                  parts[0] if parts else "Nothing found") + (" to check" if parts else "")
         p = self._new_page(title,
@@ -1251,7 +1259,7 @@ class App(tk.Tk):
                            "anything you want to keep, and use \u201cAll dialogue\u201d" +
                            (f" or \u201cAsk {AI_NAME}\u201d" if self.review_ai else "") +
                            " to add anything it missed.")
-        self.scene_vars, self.line_vars, self.word_vars = [], [], []
+        self.scene_vars, self.line_vars, self.word_vars, self.quiet_vars = [], [], [], []
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
         self.found_frames = {}
         multi = len(good) > 1
@@ -1332,6 +1340,8 @@ class App(tk.Tk):
                 self._lines_card(inner, j, lns)
             if wds:
                 self._words_card(inner, j, wds)
+            if st.get("quiet"):
+                self._music_card(inner, j, st["quiet"])
 
         self._dialogue_tab(t_dlg, good)
         if keep:
@@ -1670,6 +1680,11 @@ class App(tk.Tk):
                 m["keep"] = not v.get()
                 if v.get() != m.get("_shown", v.get()):
                     m["by_you"] = True
+        for v, j, q in getattr(self, "quiet_vars", []):
+            if j is job:
+                q["lower"] = v.get()
+                if v.get() != q.get("_shown", v.get()):
+                    q["by_you"] = True
         have = {l.get("idx") for l in st["lines"]}
         d = st.get("dialogue", [])
         for (ji, i), v in self.dlg_vars.items():
@@ -2017,6 +2032,31 @@ class App(tk.Tk):
             line.pack(side="left", fill="x", expand=True, padx=(6, 0))
             self._answer_box(wrap, m)
 
+    def _music_card(self, parent, job, quiet):
+        """Loud hard rock, metal or rap with nobody talking: ticked ones are turned down."""
+        card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
+                        highlightthickness=1)
+        card.pack(fill="x", padx=8, pady=6)
+        tk.Label(card, text="Loud music to turn down", bg=CARD, fg=INK,
+                 font=(FONT, 11, "bold")).pack(anchor="w")
+        tk.Label(card, text="Ticked music plays at a quarter of its volume, only where nobody is "
+                 "talking. Use Preview to listen, and untick anything that's fine.", bg=CARD,
+                 fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(
+            anchor="w", pady=(0, 4))
+        for q in quiet:
+            row = tk.Frame(card, bg=CARD)
+            row.pack(fill="x", pady=2)
+            v = tk.BooleanVar(value=q.get("lower", True))
+            q["_shown"] = v.get()
+            self.quiet_vars.append((v, job, q))
+            ttk.Checkbutton(row, text=f"Turn down   ·   {engine.cl.fmt_t(q['s'])}   ·   "
+                            f"{q['e'] - q['s']:.0f} sec", variable=v).pack(side="left")
+            kind = q.get("kind", "Loud music")
+            tk.Label(row, text=kind, bg=chip_color(kind), fg="white", font=(FONT, 8, "bold"),
+                     padx=6).pack(side="left", padx=(10, 0))
+            ttk.Button(row, text="Preview ▸", style="Small.TButton",
+                       command=lambda q=q: self.preview(job, q)).pack(side="right")
+
     def _lines_card(self, parent, job, lines):
         card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
                         highlightthickness=1)
@@ -2108,10 +2148,13 @@ class App(tk.Tk):
 
     def _save_from_review(self):
         for j in self.jobs:
-            j["cuts"], j["lines"], j["words"] = [], [], []
+            j["cuts"], j["lines"], j["words"], j["quiet"] = [], [], [], []
         for v, j, m in self.word_vars:
             if v.get():
                 j["words"].append(m)
+        for v, j, q in self.quiet_vars:
+            if v.get():
+                j["quiet"].append(q)
         for v, j, sc in self.scene_vars:
             if v.get():
                 j["cuts"].append(sc)

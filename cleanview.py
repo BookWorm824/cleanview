@@ -50,7 +50,8 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
-            "religion": False, "ai": True, "autosubs": True, "reader": "local", "look": True}
+            "religion": False, "loudmusic": False, "ai": True, "autosubs": True,
+            "reader": "local", "look": True}
 
 
 def full_opts(opts=None):
@@ -75,7 +76,7 @@ def needs(opts):
         if o[k]:
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
-    return {"sound": o["violence"] or o["sex"],
+    return {"sound": o["violence"] or o["sex"] or o["loudmusic"],
             "voices": (o["ai"] or o.get("reader") in CLOUD) and bool(lines),
             "subs": o.get("autosubs", True),
             "nudenet": o["nudity"] or o["sex"] or o["implied"],
@@ -650,7 +651,12 @@ SOUND_WORDS = {"Gunshot, gunfire": "gunshot-like bangs", "Machine gun": "gunfire
                "Fusillade": "gunfire-like bursts", "Artillery fire": "heavy bangs",
                "Explosion": "an explosion", "Screaming": "screaming", "Battle cry": "shouting",
                "Slap, smack": "hitting", "Whack, thwack": "hitting", "Smash, crash": "crashing"}
-TRACKED = list(VIOLENCE_SOUNDS) + [k for k in INTIMATE_SOUNDS if k not in VIOLENCE_SOUNDS]
+# Loud music she'd rather have turned down: hard rock and metal, and rap
+ROCK_SOUNDS = ("Rock music", "Heavy metal", "Punk rock", "Grunge")
+RAP_SOUNDS = ("Hip hop music", "Rapping")
+LYRIC_SOUNDS = ("Singing", "Rapping")       # words heard over these are lyrics, not talk
+MUSIC_SOUNDS = tuple(dict.fromkeys(ROCK_SOUNDS + RAP_SOUNDS + LYRIC_SOUNDS + ("Speech", "Music")))
+TRACKED = list(dict.fromkeys(list(VIOLENCE_SOUNDS) + list(INTIMATE_SOUNDS) + list(MUSIC_SOUNDS)))
 SOUND_WIN, SOUND_HOP = 3.0, 1.5
 
 
@@ -907,6 +913,75 @@ def sex_scenes(snd, cues, asr_n, asr, skin, nude):
         else:
             scenes.append({"s": max(0.0, s - 1.0), "e": e + 1.0, "kind": ["Sex scene"], "why": w})
     return scenes
+
+
+# The sound checker is unsure of music styles in a TV mix: a real rock song at the end of a
+# Castle episode scored only 0.1-0.2 (and never above 0.21 in two whole episodes), so the
+# lines are low, and a stretch only counts when 3+ overlapping windows agree.
+ROCK_MIN, RAP_MIN = 0.12, 0.15
+MUSIC_SURE = 0.4       # ...and it must be sure it's music at all
+MUSIC_WINDOWS = 3
+SPEECH_MIN = 0.3       # words heard while it's this unsure it's speech are sung: lyrics
+MUSIC_SHORTEST = 4.0   # shorter bits of music aren't worth turning down
+MUSIC_TAGS = re.compile(r"\b(rock|metal|punk|grunge|rap|hip[- ]?hop)\b", re.I)
+
+
+def loud_music(snd, asr, cues, dur):
+    """Stretches of hard rock, metal or rap music with nobody talking, to turn down:
+    [{"s", "e", "kind", "why", "lower": True}]. Talking is what the speech recognition
+    heard, except where the sound checker hears singing or hardly hears speech (that's
+    the lyrics: in the Castle song the words came through with speech at 0.05-0.12), and
+    subtitle lines that are said rather than sung (sung ones have a note sign). Subtitles
+    that describe the music ("[heavy metal playing]") count as music too."""
+    music, sung = [], []        # music: (start, end, "rock"/"rap", how many windows)
+    if snd and snd.get("t") and all(k in snd["labels"] for k in MUSIC_SOUNDS):
+        lab = snd["labels"]
+        rock = [lab.index(k) for k in ROCK_SOUNDS]
+        rap = [lab.index(k) for k in RAP_SOUNDS]
+        sing = [lab.index(k) for k in LYRIC_SOUNDS]
+        speech, mus = lab.index("Speech"), lab.index("Music")
+        for t, row in zip(snd["t"], snd["p"]):
+            r_, p_ = max(row[i] for i in rock), max(row[i] for i in rap)
+            if (r_ >= ROCK_MIN or p_ >= RAP_MIN) and row[mus] >= MUSIC_SURE:
+                music.append((t, t + SOUND_WIN, "rap" if p_ >= RAP_MIN and p_ > r_ else "rock", 1))
+            sung.append((t, t + SOUND_WIN,
+                         row[speech] < SPEECH_MIN or max(row[i] for i in sing) >= SPEECH_MIN))
+    talk = []
+    for c in cues or []:
+        tags = " ".join(a or b for a, b in re.findall(r"\[([^\]]*)\]|\(([^)]*)\)", c["text"]))
+        about_music = any(w in tags.lower() for w in ("music", "playing", "song"))
+        m = MUSIC_TAGS.search(tags) if about_music else None
+        if m:
+            music.append((c["s"], c["e"], "rap" if m.group(1).lower().startswith(("rap", "hip"))
+                          else "rock", MUSIC_WINDOWS))
+        if spoken_words(c["text"]) and "♪" not in c["text"]:
+            talk.append((c["s"] - 0.2, c["e"] + 0.2))
+    for w in asr or []:
+        s, e = (w["s"], w["e"]) if isinstance(w, dict) else (float(w[1]), float(w[2]))
+        over = [lyric for a, b, lyric in sung if a <= s < b]    # windows overlap: all must agree
+        if not (over and all(over)):
+            talk.append((s - 0.4, e + 0.4))
+    out = []
+    for s, e in _merge((a, b + 1.5) for a, b, _, _ in music):    # join music a moment apart
+        e = min(e - 1.5, dur)
+        inside = [x for x in music if x[0] < e and x[1] > s]
+        if sum(x[3] for x in inside) < MUSIC_WINDOWS:
+            continue                      # one or two windows: not sure enough
+        pieces, at = [], s
+        for a, b in _merge((a, b) for a, b in talk if b > s and a < e):
+            if a > at:
+                pieces.append((at, a))
+            at = max(at, b)
+        if at < e:
+            pieces.append((at, e))
+        rap_secs = sum(min(e, y) - max(s, x) for x, y, k, _ in inside if k == "rap")
+        all_secs = sum(min(e, y) - max(s, x) for x, y, _, _ in inside)
+        kind = "Rap music" if rap_secs > all_secs / 2 else "Rock or metal music"
+        for a, b in pieces:
+            if b - a >= MUSIC_SHORTEST:
+                out.append({"id": len(out) + 1, "s": round(a, 2), "e": round(b, 2), "kind": kind,
+                            "why": "loud " + kind.lower() + " with nobody talking", "lower": True})
+    return out
 
 
 def merge_scenes(scenes):
@@ -1883,7 +1958,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         sfile = work / "sounds.json"
         if sfile.exists():
             snd = json.loads(sfile.read_text())
-        else:
+            if o["loudmusic"] and not all(k in snd.get("labels", []) for k in MUSIC_SOUNDS):
+                snd = None           # saved before CleanView listened for music: again
+        if snd is None:
             say(at("snd", 0), "Listening for fights, gunfire and other sounds…")
             tagger = load_tagger()
 
@@ -2171,8 +2248,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     line_mutes.sort(key=lambda l: l["s"])
     notes += learned_notes
 
+    quiet = loud_music(snd, asr, cues, dur) if o["loudmusic"] else []
+    if o["loudmusic"]:
+        notes.append(f"Loud music: {len(quiet)} stretch(es) of hard rock, metal or rap with "
+                     "nobody talking will be turned down." if quiet else
+                     "Loud music: no hard rock, metal or rap with nobody talking was found.")
     st = {"path": path, "info": info, "groups": list(groups), "mutes": mutes, "scenes": scenes,
-          "lines": line_mutes, "cues": cues, "show": key,
+          "lines": line_mutes, "cues": cues, "show": key, "quiet": quiet,
           "dialogue": [{"s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
                         "who": l.get("who", "")} for l in lines],
           "voices": genders, "reader": who if claude_found is not None else line_how,
@@ -2270,6 +2352,16 @@ def _remove(path):
         pass
 
 
+MUSIC_LEVEL = 0.25    # turned-down music plays at a quarter of its volume (12 dB quieter)
+
+
+def _quieter(rs, level=MUSIC_LEVEL, ramp=0.5):
+    """A volume expression: `level` inside each range, easing down and back up over
+    `ramp` seconds at its edges so it doesn't jump. The ranges don't overlap (merged)."""
+    inside = "+".join(f"clip(min((t-{s:.3f})/{ramp},({e:.3f}-t)/{ramp}),0,1)" for s, e in rs)
+    return f"1-{1 - level:.3f}*({inside})"
+
+
 def _merge(rs):
     out = []
     for s, e in sorted(rs):
@@ -2331,7 +2423,7 @@ def write_srt(cues, dst):
 
 
 def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, encoders=None,
-           lines=None, words=None):
+           lines=None, words=None, quiet=None):
     """Write the clean copy. cuts: list of {"s","e"} (default: scenes with cut=True).
     lines: dialogue lines to mute (default: lines with mute=True)."""
     work = Path(workdir)
@@ -2353,6 +2445,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         lines = [l for l in st.get("lines", []) if l.get("mute")]
     if words is not None:          # the swear words left ticked on the review page
         st["mutes"] = list(words)
+    if quiet is None:              # loud music to turn down (default: what's ticked)
+        quiet = [q for q in st.get("quiet", []) if q.get("lower", True)]
     cut_rs = _merge((max(0.0, c["s"]), min(dur, c["e"])) for c in cuts)
     line_rs = _merge((l["s"], l["e"]) for l in lines)
     mute_rs = _merge([(m["s"], m["e"]) for m in st["mutes"]] + line_rs)
@@ -2369,6 +2463,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
 
     a = info["audio"]
     afilt = ["aresample"]   # copes with files whose speaker layout changes mid-stream
+    quiet_rs = _merge((max(0.0, q["s"]), min(dur, q["e"])) for q in quiet if q["e"] > q["s"])
+    if quiet_rs:
+        afilt.append(f"volume=volume='{_quieter(quiet_rs)}':eval=frame")
     if mute_rs:
         afilt.append(f"volume=volume=0:enable='{_ranges(mute_rs, off)}'")
     if cut_rs:
@@ -2488,6 +2585,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
               for m in st["mutes"]]
     events += [(l["s"], "muted line  (" + ", ".join(LINE_LABEL.get(t, t) for t in l["types"]) + ")")
                for l in lines]
+    events += [(q["s"], f"turned down  {q.get('kind', 'loud music').lower()} for "
+                        f"{q['e'] - q['s']:.0f} seconds") for q in quiet]
     events += [(c["s"], f"CUT {c['e'] - c['s']:.0f} seconds  {' + '.join(c.get('kind') or ['scene'])}"
                         f"  ({c.get('why', '')})") for c in cuts]
 
