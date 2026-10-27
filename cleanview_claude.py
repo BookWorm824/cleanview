@@ -158,7 +158,7 @@ def sign_in(provider=None, folder=None):
         raise ClaudeError(str(ex))
 
 
-# Someone else's own account on the same PC (cleanview_accounts): Claude and ChatGPT.
+# Someone else's own account on the same PC (cleanview_accounts).
 def can_switch(provider=None):
     return (provider or PROVIDER) in accounts.HOME_VAR
 

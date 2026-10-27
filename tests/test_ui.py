@@ -5,6 +5,7 @@ import importlib.machinery
 import importlib.util
 import json
 import tkinter as tk
+import time
 import types
 import unittest
 
@@ -313,9 +314,10 @@ class Window(unittest.TestCase):
         cc.sign_out = lambda p=None: out.append(p)
         try:
             app.show_setup()
-            app.ai_state, app.ai_who = {"claude": "ready", "chatgpt": "ready"}, {
-                "claude": "sister@example.com", "chatgpt": "sister@example.com"}
-            for p in ("claude", "chatgpt"):
+            ais = ("claude", "chatgpt", "gemini")
+            app.ai_state = {p: "ready" for p in ais}
+            app.ai_who = {p: "sister@example.com" for p in ais}
+            for p in ais:
                 app.opts["reader"].set(p)
                 app.update()
                 self.assertIn("signed in as sister@example.com", app.claude_lbl.cget("text"))
@@ -323,13 +325,15 @@ class Window(unittest.TestCase):
                 self.assertTrue(app.signout_btn.winfo_ismapped(), p)
             self.answer["yes"] = True
             app.sign_out_account()
-            self.assertEqual(out, ["chatgpt"])
+            self.assertEqual(out, ["gemini"])
             self.assertIn("sister@example.com", self.said[-1][1])
-            app.update()
+            for _ in range(100):                 # the start page checks the account again
+                app.update()
+                if app.switch_btn.winfo_ismapped():
+                    break
+                time.sleep(0.05)
             self.assertFalse(app.signout_btn.winfo_ismapped(), "only her own sign-in to sign out")
-            app.opts["reader"].set("gemini")
-            app.update()
-            self.assertFalse(app.switch_btn.winfo_ismapped(), "Gemini has no switching yet")
+            self.assertTrue(app.switch_btn.winfo_ismapped(), "can still switch")
         finally:
             for k, f in saved.items():
                 setattr(cc, k, f)

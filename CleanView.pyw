@@ -709,7 +709,7 @@ class App(tk.Tk):
         self.claude_lbl.pack(side="left")
         self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
                                      command=self.setup_claude)
-        arow = tk.Frame(b25, bg=CARD)          # someone else's own account (Claude, ChatGPT)
+        arow = tk.Frame(b25, bg=CARD)          # someone else's own account
         arow.pack(fill="x", padx=(22, 0))
         self.switch_btn = ttk.Button(arow, text="Use a different account", style="Small.TButton",
                                      command=self.use_other_account)
@@ -864,7 +864,7 @@ class App(tk.Tk):
 
     def _account_buttons(self, p, st):
         """"Use a different account" (and "Sign out" of one signed in inside CleanView),
-        so each person can use their own Claude or ChatGPT plan on the same PC."""
+        so each person can use their own Claude, ChatGPT or Gemini account on the same PC."""
         self.switch_btn.pack_forget()
         self.signout_btn.pack_forget()
         if not p or not cc.can_switch(p) or st == "missing":

@@ -21,6 +21,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
+import cleanview_accounts as accounts
+
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
 MODEL = os.environ.get("CLEANVIEW_GEMINI_MODEL", "")       # empty: the CLI's own choice
@@ -89,19 +91,35 @@ def install(progress=None):
     say(1.0, "The Gemini CLI is installed.")
 
 
-def _env():
+def _env(folder=None):
+    """folder: a sign-in folder of CleanView's own (cleanview_accounts); else the one in use."""
     env = dict(os.environ, NO_COLOR="1")
     for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):   # always your Google account, never a paid key
         env.pop(k, None)
-    return env
+    return accounts.env("gemini", env, folder)
 
 
-def signed_in():
-    """Signed in with Google: the CLI keeps that sign-in in .gemini in your user folder."""
-    return find() is not None and (Path.home() / ".gemini" / "oauth_creds.json").exists()
+def _home(folder=None):
+    """The folder the CLI keeps .gemini in (GEMINI_CLI_HOME, else your user folder)."""
+    return Path(folder or accounts.home("gemini") or os.environ.get("GEMINI_CLI_HOME")
+                or Path.home())
 
 
-def open_sign_in():
+def signed_in(folder=None):
+    """Signed in with Google: the CLI keeps that sign-in in .gemini in its home folder."""
+    return find() is not None and (_home(folder) / ".gemini" / "oauth_creds.json").exists()
+
+
+def account_name(folder=None):
+    """The email of the Google account signed in ("" if it can't tell)."""
+    try:
+        d = json.loads((_home(folder) / ".gemini" / "google_accounts.json").read_text("utf8"))
+        return d.get("active") or ""
+    except Exception:
+        return ""
+
+
+def open_sign_in(folder=None):
     """Open the CLI in a window, where it asks how to sign in: Sign in with Google."""
     cmd = find()
     if not cmd:
@@ -111,9 +129,9 @@ def open_sign_in():
         subprocess.Popen(["cmd", "/c", "start", "Sign in to Gemini", "cmd", "/k",
                           "echo Choose Sign in with Google, then sign in in the browser window "
                           "that opens. & echo When Gemini is ready for a question, close this "
-                          f"window and go back to CleanView. & echo. & {run}"], env=_env())
+                          f"window and go back to CleanView. & echo. & {run}"], env=_env(folder))
     else:
-        subprocess.Popen(cmd, env=_env())
+        subprocess.Popen(cmd, env=_env(folder))
 
 
 def status():

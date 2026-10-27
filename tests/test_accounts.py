@@ -1,4 +1,4 @@
-"""Each person signing in to their own Claude or ChatGPT inside CleanView
+"""Each person signing in to their own Claude, ChatGPT or Gemini inside CleanView
 (cleanview_accounts.py). A fake `claude` stands in for Claude Code: it reports the
 PC owner's account normally, and another person's when pointed at a CleanView
 sign-in folder (CLAUDE_CONFIG_DIR) someone has signed in to."""
@@ -13,6 +13,7 @@ from pathlib import Path
 import support
 import cleanview_accounts as accounts
 import cleanview_claude as cc
+import cleanview_gemini as gem
 import cleanview_gpt as gpt
 
 FAKE = r'''
@@ -114,9 +115,47 @@ class ClaudeAccounts(unittest.TestCase):
         self.assertEqual(cc.who("claude"), "owner@example.com")
         self.assertNotIn("CLAUDE_CONFIG_DIR", cc._env())
 
-    def test_gemini_not_switched(self):
-        self.assertFalse(cc.can_switch("gemini"))
-        self.assertEqual(cc.who("gemini"), "")
+
+class GeminiAccounts(unittest.TestCase):
+    """The Gemini CLI keeps its Google sign-in in .gemini under GEMINI_CLI_HOME."""
+
+    def setUp(self):
+        fresh()
+        self.saved = gem.find, gem.open_sign_in
+        gem.find = lambda: ["gemini"]
+        self.opened = []
+        gem.open_sign_in = lambda folder=None: self.opened.append(folder)
+        self.home, Path.home = Path.home, classmethod(
+            lambda cls: support.SANDBOX / "pc-home")
+        (support.SANDBOX / "pc-home" / ".gemini").mkdir(parents=True, exist_ok=True)
+        self.sign_in(support.SANDBOX / "pc-home", "owner@example.com")
+        os.environ.pop("GEMINI_CLI_HOME", None)
+
+    def tearDown(self):
+        gem.find, gem.open_sign_in = self.saved
+        Path.home = self.home
+
+    @staticmethod
+    def sign_in(home, email):
+        (home / ".gemini").mkdir(parents=True, exist_ok=True)
+        (home / ".gemini" / "oauth_creds.json").write_text("{}")
+        (home / ".gemini" / "google_accounts.json").write_text(
+            json.dumps({"active": email, "old": []}))
+
+    def test_someone_else_signs_in(self):
+        self.assertTrue(cc.can_switch("gemini"))
+        self.assertEqual(cc.who("gemini"), "owner@example.com")
+        folder = cc.start_other_account("gemini")
+        self.assertEqual(self.opened, [folder])
+        self.assertFalse(cc.other_account_ready(folder, "gemini"))
+        self.sign_in(folder, "sister@example.com")
+        cc.keep_account(folder, "gemini")
+        self.assertEqual(cc.who("gemini"), "sister@example.com")
+        self.assertEqual(cc.status("gemini"), "ready")
+        self.assertEqual(gem._env()["GEMINI_CLI_HOME"], str(folder), "questions use hers")
+        cc.sign_out("gemini")
+        self.assertEqual(cc.who("gemini"), "owner@example.com")
+        self.assertNotIn("GEMINI_CLI_HOME", gem._env())
 
 
 class ChatGptAccountName(unittest.TestCase):

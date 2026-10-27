@@ -1,7 +1,8 @@
 """
-Each person's own Claude or ChatGPT account, signed in inside CleanView.
+Each person's own Claude, ChatGPT or Gemini account, signed in inside CleanView.
 
-Claude Code and Codex keep their sign-in in a folder (CLAUDE_CONFIG_DIR, CODEX_HOME).
+Claude Code, Codex and the Gemini CLI keep their sign-in in a folder (CLAUDE_CONFIG_DIR,
+CODEX_HOME, GEMINI_CLI_HOME).
 Signing in to a different account from CleanView uses a folder of CleanView's own
 (APP_DATA\\accounts\\<ai>\\<n>), so a family member can use their own plan on the same PC
 without signing anyone out, and the sign-in Claude Code or Codex has for the PC's owner is
@@ -18,7 +19,7 @@ from pathlib import Path
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 ACCOUNTS = APP_DATA / "accounts"
-HOME_VAR = {"claude": "CLAUDE_CONFIG_DIR", "chatgpt": "CODEX_HOME"}
+HOME_VAR = {"claude": "CLAUDE_CONFIG_DIR", "chatgpt": "CODEX_HOME", "gemini": "GEMINI_CLI_HOME"}
 
 
 def _read():
