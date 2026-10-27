@@ -1115,16 +1115,17 @@ class App(tk.Tk):
             key = hashlib.sha1(f"{v}:{os.path.getsize(v)}".encode()).hexdigest()[:16]
             self.jobs.append({"video": v, "work": APP_DATA / "views" / key, "analysis": None,
                               "error": None})
-        self.cancel_flag = False
-        self.show_working("Watching and listening…")
+        self.cancel_flag = self.stop_after = False
+        self.show_working("Watching and listening…", can_stop=True)
         threading.Thread(target=self._analyze_thread, daemon=True).start()
 
     JOB_LOOK = {"wait": ("○", MUTED), "now": ("▶", ACCENT), "done": ("✓", ACCENT_DK),
-                "failed": ("!", "#B5523B")}
+                "failed": ("!", "#B5523B"), "skipped": ("–", MUTED)}
 
-    def show_working(self, title, videos=None):
+    def show_working(self, title, videos=None, can_stop=False):
         """The progress page. videos: the files being worked on, listed with how each
-        is going when there are several."""
+        is going when there are several. can_stop: offer "Stop after this video" (finish
+        the one being worked on, skip the rest, and go on to the review)."""
         self.page_name = "working"
         videos = videos or [j["video"] for j in self.jobs]
         n = len(videos)
@@ -1147,7 +1148,8 @@ class App(tk.Tk):
         self.overall = tk.Label(box, text="", bg=BG, fg=ACCENT_DK, font=(FONT, 11, "bold"))
         self.overall.pack(anchor="w", pady=(4, 0))
         self._work_n, self._work_t0 = n, None
-        self.job_rows = []
+        self.stop_after = False
+        self.job_rows, self.job_frames = [], []
         if n > 1:                       # each video, ticked off as it's done
             tk.Label(p, text="Videos", bg=BG, fg=INK, font=(FONT, 11, "bold")).pack(
                 anchor="w", pady=(22, 4))
@@ -1160,14 +1162,35 @@ class App(tk.Tk):
                 icon.pack(side="left")
                 name = tk.Label(row, text=short(Path(v).name, 90), bg=BG, fg=MUTED, font=(FONT, 10),
                                 anchor="w")
-                name.pack(side="left", fill="x")
+                name.pack(side="left")
                 self.job_rows.append((icon, name))
+                self.job_frames.append(row)
         self.cancel_btn = ttk.Button(self.footer, text="Cancel", style="Plain.TButton",
                                      command=self.cancel)
         self.cancel_btn.pack(side="right")
+        self.stop_btn = None
+        if n > 1 and can_stop:
+            self.stop_btn = ttk.Button(self.footer, text="Stop after this video",
+                                       style="Plain.TButton", command=self.toggle_stop_after)
+            self.stop_btn.pack(side="right", padx=(0, 8))
 
-    def _job_state(self, k, state):
-        """One video in the list: waiting, being worked on, done, or couldn't be done."""
+    def toggle_stop_after(self):
+        """Finish the video being worked on, then skip the rest and go on to the review
+        (pressed again: keep going with all of them)."""
+        self.stop_after = not getattr(self, "stop_after", False)
+        if self.stop_btn is not None and self.stop_btn.winfo_exists():
+            self.stop_btn.config(text="Keep going with all of them" if self.stop_after
+                                 else "Stop after this video")
+        if self.stop_after and getattr(self, "overall", None) is not None and \
+                self.overall.winfo_exists():
+            self.overall.config(text="Stopping after this video, then on to the review. The "
+                                     "rest are skipped; start them again later.")
+        elif getattr(self, "overall", None) is not None and self.overall.winfo_exists():
+            self.overall.config(text="")
+
+    def _job_state(self, k, state, why=None, details=None):
+        """One video in the list: waiting, being worked on, done, couldn't be done (with a
+        "What went wrong?" link when there's a reason), or skipped."""
         if state == "now" and self._work_t0 is None:
             self._work_t0 = time.time()          # time left counts from the first video
         rows = getattr(self, "job_rows", [])
@@ -1176,11 +1199,17 @@ class App(tk.Tk):
             rows[k][0].config(text=sym, fg=col)
             rows[k][1].config(fg=INK if state == "now" else col if state == "failed" else MUTED,
                               font=(FONT, 10, "bold") if state == "now" else (FONT, 10))
+            if state == "failed" and why:
+                link = tk.Label(self.job_frames[k], text="What went wrong?", bg=BG, fg=ACCENT,
+                                font=(FONT, 10, "underline"), cursor="hand2")
+                link.pack(side="left", padx=(12, 0))
+                link.bind("<Button-1>", lambda e: self._problem(why, details))
 
     def _time_left_for_all(self, frac):
         """"About 1 hr 20 min left for all 13", once there's enough to go on."""
         lbl = getattr(self, "overall", None)
-        if self._work_n < 2 or self._work_t0 is None or lbl is None or not lbl.winfo_exists():
+        if self._work_n < 2 or self._work_t0 is None or lbl is None or not lbl.winfo_exists() \
+                or getattr(self, "stop_after", False):     # it says it's stopping instead
             return
         el = time.time() - self._work_t0
         if frac < 0.02 or el < 30:
@@ -1207,6 +1236,10 @@ class App(tk.Tk):
                                 "run uses the ones that are ready.\n\n" + plain_error(ex)))
             n = len(self.jobs)
             for k, j in enumerate(self.jobs):
+                if getattr(self, "stop_after", False):     # "Stop after this video"
+                    j["skipped"] = True
+                    self.q.put(("job", k, "skipped"))
+                    continue
                 self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
                             short(Path(j["video"]).name, 80)))
                 self.q.put(("job", k, "now"))
@@ -1218,11 +1251,13 @@ class App(tk.Tk):
                     self.q.put(("job", k, "done"))
                 except engine.VideoError as ex:
                     j["error"] = str(ex)
-                    self.q.put(("job", k, "failed"))
+                    j["details"] = f"{j['video']}\n\n{ex}\n\n{traceback.format_exc()}"
+                    self.q.put(("job", k, "failed", j["error"], j["details"]))
                 except Exception as ex:     # one episode going wrong mustn't stop the rest
-                    save_details(traceback.format_exc())
+                    j["details"] = f"{j['video']}\n\n{traceback.format_exc()}"
+                    save_details(j["details"])
                     j["error"] = f"{Path(j['video']).name}: {plain_error(ex)}"
-                    self.q.put(("job", k, "failed"))
+                    self.q.put(("job", k, "failed", j["error"], j["details"]))
             self.q.put(("analyzed",))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
@@ -1249,9 +1284,10 @@ class App(tk.Tk):
                         log=lambda m: None, cancel=lambda: self.cancel_flag))
                     self.q.put(("job", k, "done"))
                 except Exception as ex:     # carry on with the other episodes
-                    save_details(traceback.format_exc())
+                    details = f"{j['video']}\n\n{traceback.format_exc()}"
+                    save_details(details)
                     failed.append(f"{Path(j['video']).name}: {plain_error(ex)}")
-                    self.q.put(("job", k, "failed"))
+                    self.q.put(("job", k, "failed", failed[-1], details))
             self.q.put(("rendered", results, failed))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
@@ -1282,7 +1318,7 @@ class App(tk.Tk):
         elif kind == "which" and alive:
             self.which.config(text=msg[1])
         elif kind == "job" and alive:
-            self._job_state(msg[1], msg[2])
+            self._job_state(*msg[1:])
         elif kind == "call":
             msg[1]()
         elif kind == "analyzed":
@@ -1340,8 +1376,9 @@ class App(tk.Tk):
     def after_analyze(self):
         bad = [j for j in self.jobs if j["error"]]
         if bad:
-            messagebox.showwarning("CleanView", "These couldn't be cleaned and will be skipped:\n\n" +
-                                   "\n\n".join(j["error"] for j in bad))
+            details = "\n\n----------\n\n".join(j.get("details") or j["error"] for j in bad)
+            self._problem("These couldn't be cleaned and will be skipped:\n\n" +
+                          "\n\n".join(j["error"] for j in bad), details)
         good = [j for j in self.jobs if j["analysis"]]
         if not good:
             self.show_setup()

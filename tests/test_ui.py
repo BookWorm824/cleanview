@@ -8,6 +8,7 @@ import tkinter as tk
 import time
 import types
 import unittest
+from pathlib import Path
 
 import support
 
@@ -453,6 +454,57 @@ class Window(unittest.TestCase):
         app._handle(("job", 1, "now"))
         app._handle(("job", 2, "failed"))
         self.assertEqual(icons(), ["✓", "▶", "!"])
+
+    def test_what_went_wrong_link(self):
+        app = self.app
+        app.show_working("Watching and listening…", [f"Episode {k}.mp4" for k in (1, 2, 3)])
+        app._handle(("job", 1, "failed", "Episode 2.mp4: Couldn't read the sound.",
+                     "Traceback: the technical part"))
+        app.update()
+        links = [w for w in app.job_frames[1].winfo_children()
+                 if w.cget("text") == "What went wrong?"]
+        self.assertEqual(len(links), 1)
+        links[0].event_generate("<Button-1>")
+        app.update()
+        self.assertIn("Couldn't read the sound", self.said[-1][1])
+        self.assertIn("the technical part", ui.ERROR_FILE.read_text(encoding="utf8"))
+
+    def test_stop_after_this_video(self):
+        """Pressed while video 1 of 3 is being checked: video 1 finishes, 2 and 3 are
+        skipped, and the review opens with video 1."""
+        app = self.app
+        sample = app.jobs[0]["analysis"]
+        saved = ui.engine.tools_missing, ui.engine.analyze
+        done = []
+
+        def analyze(video, work, **kw):
+            app.toggle_stop_after()              # she presses it while this one runs
+            done.append(Path(video).name)
+            return sample
+        ui.engine.tools_missing, ui.engine.analyze = (lambda o: False), analyze
+        try:
+            app.jobs = [{"video": str(support.SANDBOX / f"Episode {k}.mp4"),
+                         "work": support.SANDBOX / f"w{k}", "analysis": None, "error": None}
+                        for k in (1, 2, 3)]
+            app.groups, app.scan_opts, app.stop_after = [], {}, False
+            app.show_working("Watching and listening…", can_stop=True)
+            app.update()
+            self.assertTrue(app.stop_btn.winfo_ismapped())
+            app._analyze_thread()                # (on this thread, for the test)
+            self.assertEqual(app.stop_btn.cget("text"), "Keep going with all of them")
+            self.assertIn("Stopping after this video", app.overall.cget("text"))
+            while not app.q.empty():
+                app._handle(app.q.get())
+            self.assertEqual(done, ["Episode 1.mp4"])
+            self.assertEqual([j.get("skipped", False) for j in app.jobs], [False, True, True])
+            self.assertEqual(app.page_name, "review")
+            self.assertFalse(any(m for k, m in self.said if "couldn't be cleaned" in m))
+        finally:
+            ui.engine.tools_missing, ui.engine.analyze = saved
+
+    def test_saving_has_no_stop_button(self):
+        self.app.show_working("Saving the clean copies…", ["Episode 1.mp4", "Episode 2.mp4"])
+        self.assertIsNone(self.app.stop_btn)
 
     def test_time_left_for_all(self):
         app = self.app
