@@ -76,7 +76,7 @@ MODERATE = [
     r"nice|cool|pretty|ugly|old|cute|great|bitch)ass(es|ed)?",
     r"bastard.*", r"piss.*", r"dicks?", r"dickhead.*", r"pricks?", r"bollocks",
     r"bugger.*", r"wanker.*", r"twats?", r"sluts?", r"slutty", r"whores?",
-    r"cojones", r"(ball|nut)sacks?", r"ballsy",
+    r"cojones", r"(ball|nut)sacks?", r"ballsy", r"balls?bust(er|ers|ing)",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
 ]
 MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
@@ -114,6 +114,10 @@ BODY_SLANG = [re.compile(p) for p in (
     r"(you've|you|he's|he|she's|she|they've|they|i've) got (some|real|big) " + _PARTS + r"\b",
     r"(kick|kicks|kicked|kicking|knee|kneed|kneeing|hit|hits|punch|punched|punches|smack|"
     r"smacked)( \w+)? in the " + _PARTS + r"\b",
+    r"balls? (buster|busters|busting)\b",                      # "ball buster" (as two words)
+    r"(bust|busts|busted|busting) (my|his|your|her|our|their) (balls|nuts|stones)\b",
+    r"(d|dee) (bag|bags)\b",                                   # "D-bag" heard as "d bag"
+    r"s o b\b",                                                # "S.O.B." spelled out
 )]
 
 
@@ -204,8 +208,25 @@ def unbleep(w):
     return w
 
 
+# Short forms of swears on the lists. "sob" is also a real word (to cry, a sob story), so
+# it only counts written as an abbreviation: capitals ("SOB") or dots ("S.O.B.").
+ABBREVIATIONS = [(re.compile(r"[Ss]\.[Oo]\.[Bb]\.?('?s)?|SOB('?S|'?s)?|S-O-B"), "sonofabitch"),
+                 (re.compile(r"[Dd][-.]?[Bb][Aa][Gg][Ss]?"), "douchebag")]
+
+
+def unabbreviate(w):
+    """'S.O.B.' / 'SOB' -> 'sonofabitch', 'D-bag' -> 'douchebag'; else as it was."""
+    core = w.strip(".,!?;:\"()[]").replace("’", "'")
+    if core.endswith(".") and core.count(".") == 1:
+        core = core[:-1]
+    for pat, full in ABBREVIATIONS:
+        if pat.fullmatch(core) or pat.fullmatch(core.rstrip(".")):
+            return full
+    return w
+
+
 def norm(w):
-    w = unbleep(w).lower().replace("’", "'").replace("‘", "'")
+    w = unbleep(unabbreviate(w)).lower().replace("’", "'").replace("‘", "'")
     w = re.sub(r"[^a-z0-9']", "", w)
     return w.strip("'")
 

@@ -120,6 +120,37 @@ class SlangForPrivateParts(unittest.TestCase):
         self.assertIn("grow some stones", engine.wanted_text({}, ["swearing"]))
 
 
+class ShortForms(unittest.TestCase):
+    """D-bag, SOB and ball buster. "sob" is also a real word, so it only counts written
+    as an abbreviation (capitals or dots) or spelled out."""
+
+    def test_caught(self):
+        for text, phrase in [("You SOB!", "sonofabitch"), ("You S.O.B.", "sonofabitch"),
+                             ("those SOBs", "sonofabitch"), ("you s o b", "s o b"),
+                             ("What a D-bag.", "douchebag"), ("Those d-bags", "douchebag"),
+                             ("Total dbag", "douchebag"), ("You d bag", "d bag"),
+                             ("She's a ball buster", "ball buster"),
+                             ("ball-buster", "ballbuster"), ("ballbusting boss", "ballbusting"),
+                             ("Quit busting my balls", "busting my balls")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["moderate"]), [(phrase, "moderate")])
+
+    def test_everyday_words_left_alone(self):
+        for text in ("She let out a sob.", "It's a sob story", "He sobbed", "a bag of chips",
+                     "D. Bagwell", "the ball bounced", "bust a move"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_ai_may_mute_them(self):
+        for word in ("D-bag", "SOB", "ball buster"):
+            self.assertTrue(cl.listed_word(word))
+        self.assertFalse(cl.listed_word("sob"))
+
+    def test_shown_masked(self):
+        self.assertEqual(cl.mask("S.O.B."), "S**")
+        self.assertEqual(cl.mask("D-bag"), "D***")
+
+
 class SubtitleWordsNearOtherMutes(unittest.TestCase):
     """'what the hell, damn it': listening caught "damn", the subtitles add "hell"
     half a second earlier. That's another word, not the same one twice."""
