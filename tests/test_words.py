@@ -151,6 +151,45 @@ class ShortForms(unittest.TestCase):
         self.assertEqual(cl.mask("D-bag"), "D***")
 
 
+class MoreCrudeSlang(unittest.TestCase):
+    """Crude slang heard in TV and films, and the everyday uses of the same words."""
+
+    def test_caught(self):
+        for text, word, cat in [
+                ("You A-hole", "ahole", "moderate"), ("What the f-ing hell", "fing", "strong"),
+                ("WTF is this", "wtf", "strong"), ("eff you", "eff you", "moderate"),
+                ("you mofo", "mofo", "strong"), ("Don't be a pussy", "pussy", "moderate"),
+                ("He got a boner", "boner", "moderate"), ("nice boobs", "boobs", "moderate"),
+                ("huge knockers", "knockers", "moderate"), ("She's horny", "horny", "moderate"),
+                ("a couple of hookers", "hookers", "moderate"), ("total MILF", "milf", "moderate"),
+                ("you cockblocked me", "cockblocked", "moderate"),
+                ("what a dickwad", "dickwad", "moderate"), ("numbnuts", "numbnuts", "moderate"),
+                ("you tosser", "tosser", "moderate"), ("feckin' eejit", "feckin", "moderate"),
+                ("that's retarded", "retarded", "moderate"), ("biatch", "biatch", "moderate"),
+                ("shat himself", "shat", "moderate"), ("in the crapper", "crapper", "mild"),
+                ("you turd", "turd", "mild"), ("brazen hussy", "hussy", "mild"),
+                ("frakking toasters", "frakking", "minced"),
+                ("Jesus H. Christ", "jesus h christ", "deity"),
+                ("Mother of God", "mother of god", "deity")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, [cat]), [(word, cat)])
+
+    def test_slurs(self):
+        for word in ("wetback", "towelhead", "raghead"):
+            with self.subTest(word=word):
+                self.assertEqual(found(f"you {word}", ["strong"]), [(word, "strong")])
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("a pussy cat", "Pussy willow", "Dick Grayson", "Moby Dick",
+                     "summa cum laude", "General Hooker", "the dickens", "Charles Dickens",
+                     "a hole in the wall", "fire retardant", "retard the spread",
+                     "keep your pecker up", "the boob tube", "a horny toad",
+                     "brass door knockers", "fudging the numbers", "Holy cow", "shatter",
+                     "hellas", "turducken", "a pecking order"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+
 class SubtitleWordsNearOtherMutes(unittest.TestCase):
     """'what the hell, damn it': listening caught "damn", the subtitles add "hell"
     half a second earlier. That's another word, not the same one twice."""

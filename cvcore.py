@@ -64,7 +64,12 @@ def probe_duration(path):
 # ---------------------------------------------------------------------------
 # Word lists
 # ---------------------------------------------------------------------------
-STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing"]
+STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing", r"effin'?", r"f'?ing",
+          r"mofos?", r"wtf", r"stfu", r"omfg",
+          # racial slurs (the unmistakable ones; "cracker", "coon", "chink" etc. have
+          # everyday meanings too, so they're left to the AI review)
+          r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
+          r"ragheads?", r"beaners?"]
 MODERATE = [
     r".*shit.*", r"bitch.*", r"son(of|ofa|uva|na)?bitch.*", r"sumbitch.*", r"ass", r"asses",
     r"ass(holes?|wipes?|hats?|clowns?|face|faces|heads?|kick(s|ed|er|ers|ing)?|"
@@ -78,19 +83,30 @@ MODERATE = [
     r"bugger.*", r"wanker.*", r"twats?", r"sluts?", r"slutty", r"whores?",
     r"cojones", r"(ball|nut)sacks?", r"ballsy", r"balls?bust(er|ers|ing)",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
+    # more crude slang heard in TV and films
+    r"a-?holes?", r"lardass(es)?", r"bia?y?o?tch(es)?", r"beyotch", r"shat",
+    r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts", r"knobheads?", r"tossers?",
+    r"bellends?", r"feck(ing|in|er|ers)?", r"retard(s|ed)?",
+    r"pussy", r"pussies", r"boners?", r"boobs", r"boobies", r"knockers", r"titty",
+    r"nads", r"peckers?", r"peen", r"jizz", r"cum", r"horny", r"hookers?", r"hoochies?",
+    r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
+    r"skeez(e|y|ier)", r"skeevy",
 ]
 MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
-        r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody"]
+        r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody",
+        r"crapper", r"turds?", r"hella", r"hussy", r"hussies"]
 MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
           r"geeze?", r"gosh", r"gosh(darn|dang).*", r"darn.*", r"heck", r"dang", r"dang(it|ed)",
-          r"dagnabb?it"]
+          r"dagnabb?it", r"frak(s|ked|king|kin)?"]
 DEITY_PHRASES = [
     ("oh", "my", "god"), ("my", "god"), ("oh", "god"), ("good", "god"),
     ("dear", "god"), ("god", "almighty"), ("for", "god's", "sake"),
     ("for", "gods", "sake"), ("god", "knows"), ("thank", "god"), ("god", "damn"),
     ("god", "dammit"), ("oh", "lord"), ("good", "lord"), ("dear", "lord"),
     ("lord", "almighty"), ("sweet", "jesus"), ("jesus", "christ"),
-    ("for", "christ's", "sake"), ("for", "christs", "sake"),
+    ("for", "christ's", "sake"), ("for", "christs", "sake"), ("jesus", "h", "christ"),
+    ("christ", "almighty"), ("mother", "of", "god"), ("holy", "mother", "of", "god"),
+    ("good", "god", "almighty"),
 ]
 CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
     ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
@@ -99,8 +115,17 @@ CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, sc
 ]
 DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"oh?m[iy]god", r"goddamn.*",
                r"godd?amm?it"]
-# "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
-# these isn't counted when one of NOT_RUDE_NEXT comes straight after it.
+# Words that are innocent next to these: "pussy cat", "Dick Grayson", "Moby Dick", "summa
+# cum laude", "General Hooker". (The word before or after, normalised.)
+INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"},
+                 "dick": {"grayson", "tracy", "van", "whittington", "cheney", "clark", "york",
+                          "turpin", "dastardly", "smith", "jones", "johnson", "and"},
+                 "cum": {"laude"},
+                 "peckers": {"up"}, "pecker": {"up"}, "horny": {"toad", "toads"},
+                 "retard": {"the", "its", "their", "growth"}}
+INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
+                 "hooker": {"general", "john", "joe"}, "hookers": {"general"},
+                 "knockers": {"door"}}
 # Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
 # own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
@@ -118,6 +143,7 @@ BODY_SLANG = [re.compile(p) for p in (
     r"(bust|busts|busted|busting) (my|his|your|her|our|their) (balls|nuts|stones)\b",
     r"(d|dee) (bag|bags)\b",                                   # "D-bag" heard as "d bag"
     r"s o b\b",                                                # "S.O.B." spelled out
+    r"eff (you|off|me|him|her|them|it|that|this)\b",           # "eff you"
 )]
 
 
@@ -131,6 +157,8 @@ def body_slang(words, i):
     return 0
 
 
+# "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
+# these isn't counted when one of NOT_RUDE_NEXT comes straight after it.
 PHRASE_OBJECTS = {"it", "them", "that", "this", "him", "her", "me"}
 NOT_RUDE_NEXT = {"down", "off", "in", "into", "on", "onto", "up", "out", "together", "tight",
                  "tightly", "shut", "back", "open", "closed", "loose", "tighter", "away"}
@@ -317,10 +345,13 @@ def find_language(words, cats, mine=()):
                 continue
         w = words[i]
         wb = _base(w)
+        nxt, prev = (words[i + 1] if i + 1 < n else ""), (words[i - 1] if i else "")
         for cat in cats:
             if any(p.match(w) or p.match(wb) for p in CATS[cat]):
-                if w == "bloody" and (words[i + 1] if i + 1 < n else "") not in BLOODY_SWEAR_NEXT:
+                if w == "bloody" and nxt not in BLOODY_SWEAR_NEXT:
                     break
+                if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()):
+                    break                     # "pussy cat", "Moby Dick", "summa cum laude"
                 hits.append((i, i + 1, cat))
                 break
         i += 1

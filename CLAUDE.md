@@ -158,7 +158,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   passed as `mine` to `cvcore.find_language`/`listed_word` everywhere the lists are used
   (listening, subtitles, flagged-line masking, `apply_review`, the clean copy's subtitles).
 - Slang that's only slang in a phrase ("grow some stones", "has the balls to") is matched
-  as phrases (`cvcore.BODY_SLANG`), never the plain word.
+  as phrases (`cvcore.BODY_SLANG`), never the plain word. A listed word that's innocent next
+  to a certain word ("pussy cat", "Moby Dick", "summa cum laude") is guarded with
+  `INNOCENT_NEXT`/`INNOCENT_PREV`. Abbreviations that are also real words only count written
+  as abbreviations (`ABBREVIATIONS`: "SOB"/"S.O.B." yes, a crying "sob" no). When adding a
+  word, add its everyday uses to the tests too.
 - Violence follows **VidAngel's levels**: Violence (non-graphic fighting, including cartoon
   slapstick); Graphic (blood and wounds, crime-scene bodies with blood); Gore (insides on the
   outside); Disturbing (violence outside combat: torture, execution, cruelty to the helpless).
