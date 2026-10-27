@@ -90,6 +90,33 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
 
 
+class ChainAndSheesh(unittest.TestCase):
+    """"Yanked your chain" is mild language; "sheesh" is a minced "Jesus"."""
+
+    def test_chain_phrase_muted(self):
+        for text, phrase in [("Relax, I yanked your chain", "yanked your chain"),
+                             ("He's just yanking my chain.", "yanking my chain"),
+                             ("Quit pulling her chain", "pulling her chain"),
+                             ("she jerked his chain again", "jerked his chain")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["mild"]), [(phrase, "mild")])
+        self.assertEqual(found("I yanked your chain", ["moderate"]),
+                         [("yanked your chain", "moderate")])
+
+    def test_everyday_chains_left_alone(self):
+        for text in ("Yank the chain to flush", "He pulled the chain on the light",
+                     "my bike chain broke", "a chain of stores", "the dog's chain",
+                     "yanked the door open"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_sheesh(self):
+        self.assertEqual(found("Sheesh, what a day", ["minced"]), [("sheesh", "minced")])
+        self.assertTrue(cl.listed_word("sheesh"))
+        self.assertTrue(cl.listed_word("yanking your chain"))
+        self.assertFalse(cl.listed_word("chain"))
+
+
 class SlangForPrivateParts(unittest.TestCase):
     """"Grow some stones": stones, balls and nuts are only slang in these phrases."""
 

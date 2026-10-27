@@ -97,7 +97,7 @@ MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", 
         r"crapper", r"turds?", r"hella", r"hussy", r"hussies"]
 MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
           r"geeze?", r"gosh", r"gosh(darn|dang).*", r"darn.*", r"heck", r"dang", r"dang(it|ed)",
-          r"dagnabb?it", r"frak(s|ked|king|kin)?"]
+          r"dagnabb?it", r"frak(s|ked|king|kin)?", r"shee+sh"]
 DEITY_PHRASES = [
     ("oh", "my", "god"), ("my", "god"), ("oh", "god"), ("good", "god"),
     ("dear", "god"), ("god", "almighty"), ("for", "god's", "sake"),
@@ -147,10 +147,18 @@ BODY_SLANG = [re.compile(p) for p in (
 )]
 
 
-def body_slang(words, i):
-    """How many words from words[i] are one of the BODY_SLANG phrases (0 if none)."""
+# Crude sayings muted with the mild group (like "screw you"): "yanking your chain".
+# "Yanked the chain" (a toilet, a bike) has no "my/your/his..." so isn't counted.
+MILD_SLANG = [re.compile(p) for p in (
+    r"(yank|yanks|yanked|yanking|yankin|jerk|jerks|jerked|jerking|jerkin|pull|pulls|pulled|"
+    r"pulling|pullin) (my|your|ya|yer|his|her|our|their|someone's|somebody's) chains?\b",
+)]
+
+
+def body_slang(words, i, pats=BODY_SLANG):
+    """How many words from words[i] are one of the BODY_SLANG phrases (or pats) (0 if none)."""
     text = " ".join(words[i:i + 8])
-    for p in BODY_SLANG:
+    for p in pats:
         m = p.match(text)
         if m and (m.end() == len(text) or text[m.end()] == " "):
             return len(text[:m.end()].split())
@@ -287,7 +295,8 @@ def listed_word(word, mine=()):
     for ph in DEITY_PHRASES + CRUDE_PHRASES + RUDE_PHRASES:     # "shut up", "screw you"
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
-    if any(body_slang(parts, k) for k in range(len(parts))):     # "grow some stones"
+    if any(body_slang(parts, k) or body_slang(parts, k, MILD_SLANG)  # "grow some stones"
+           for k in range(len(parts))):
         return True
     for c in [w] + parts:
         c = _base(c)
@@ -325,6 +334,11 @@ def find_language(words, cats, mine=()):
         k = body_slang(words, i) if "moderate" in cats else 0
         if k:
             hits.append((i, i + k, "moderate"))
+            i += k
+            continue
+        k = body_slang(words, i, MILD_SLANG) if ("mild" in cats or "moderate" in cats) else 0
+        if k:                                             # "yanking your chain"
+            hits.append((i, i + k, "mild" if "mild" in cats else "moderate"))
             i += k
             continue
         if (("mild" in cats or "moderate" in cats) and words[i] == "screw"
