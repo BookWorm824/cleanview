@@ -668,9 +668,10 @@ PIC_RULES = (
     "men, two women) and whether it's light or passionate. For holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
     "story's own witches or monsters, a cake with no candles at an ordinary meal, or a single "
-    "red heart are NOT. A rude gesture is someone raising the middle finger at someone, or "
-    "another obscene hand or body gesture; it's often over in a second, so look closely at "
-    "hands. Waving, pointing, a thumbs up or a peace sign are NOT.")
+    "red heart are NOT. A rude gesture is someone raising the middle finger at someone, or a "
+    "crude sexual gesture (a hand gesture mimicking sex or oral sex, thrusting the hips, "
+    "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "
+    "Waving, pointing, a thumbs up, a peace sign or dancing are NOT.")
 
 
 def picture_review(sheets, wanted, per_request=12, progress=None):

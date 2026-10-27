@@ -293,7 +293,7 @@ class Window(unittest.TestCase):
         self.app.show_setup()
         self.assertIn("gestures", self.app.opts)
         self.assertTrue(all(ui.PRESETS[p]["gestures"] for p in ui.PRESETS))
-        self.assertEqual(ui.chip_color("Rude gesture"), ui.CHIP["Rude"])
+        self.assertEqual(ui.chip_color("Rude or sexual gesture"), ui.CHIP["Rude"])
 
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()

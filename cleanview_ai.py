@@ -81,7 +81,10 @@ CLIP_CATS = {
     "valentine": ["valentine's day cards and red hearts", "a heart-shaped box of chocolates",
                   "valentine decorations with cupid"],
     "gestures": ["a person giving the middle finger", "a person flipping someone off with "
-                 "their middle finger", "a person making an obscene hand gesture"],
+                 "their middle finger", "a person making an obscene hand gesture",
+                 "a person making a crude sexual gesture with their hands",
+                 "a person thrusting their hips in a crude sexual way",
+                 "a person grabbing their own crotch"],
 }
 # kiss_mf / kiss_mm / kiss_ff only decide *who*, never whether there is a kiss
 WHO = ("kiss_mf", "kiss_mm", "kiss_ff")
@@ -97,6 +100,14 @@ def clip_prompts():
             names.append(cat)
             texts.append(f"a movie still of {t}")
     return names, texts
+
+
+def clip_signature():
+    """A short fingerprint of what the picture AI looks for. Saved with each picture scan,
+    so a scan made before the descriptions changed is done again."""
+    import hashlib
+    names, texts = clip_prompts()
+    return hashlib.sha1("|".join(f"{n}:{t}" for n, t in zip(names, texts)).encode()).hexdigest()[:12]
 
 
 def clip_ready():
@@ -584,10 +595,11 @@ LOOK = {
                  "meal with no candles is NOT.", _YES),
     "valentine": ("Question: is something about Valentine's Day shown: valentine cards, "
                   "Cupid, or hearts used as Valentine decorations?", _YES),
-    "gestures": ("Question: is someone making a rude or obscene gesture, such as raising the "
-                 "middle finger at someone (flipping them off) or another vulgar hand or body "
-                 "gesture? Waving, pointing, a thumbs up, a peace sign or counting on fingers "
-                 "is NOT.", _YES),
+    "gestures": ("Question: is someone making a rude or sexual gesture? That means raising "
+                 "the middle finger at someone (flipping them off), or a crude sexual motion: "
+                 "a hand or finger gesture that mimics sex or oral sex, thrusting the hips "
+                 "suggestively, or grabbing their own crotch. Waving, pointing, a thumbs up, a "
+                 "peace sign, counting on fingers, dancing or ordinary exercise is NOT.", _YES),
 }
 CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are too dark, blurry "
              "or unclear to judge (dark hair, dark clothes or a dark room you can still see "

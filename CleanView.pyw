@@ -659,7 +659,8 @@ class App(tk.Tk):
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
             ("drugs", "Drug use", True),
-            ("gestures", "Rude hand gestures  (the middle finger…)", True)], cols=2)
+            ("gestures", "Rude and sexual gestures  (the middle finger, crude motions)",
+             True)], cols=2)
         checks(section("Holidays and birthdays"), [
             ("christmas", "Christmas  (Santa, trees, presents)", False),
             ("halloween", "Halloween  (costumes, jack-o'-lanterns, trick-or-treating)", False),

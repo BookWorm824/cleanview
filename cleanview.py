@@ -765,7 +765,7 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
         proc.wait()
     Path(out_json).write_text(json.dumps({
         "version": PICTURE_VERSION, "fps": fps, "classes": KEEP, "scores": out, "lum": lum,
-        "clip": {"t": ct, "scores": cs} if clip is not None else None}))
+        "clip": {"t": ct, "scores": cs, "sig": ai.clip_signature()} if clip is not None else None}))
 
 
 def visual_scan(path, out_json, use_clip=False, progress=None, cancel=None):
@@ -1048,7 +1048,7 @@ WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
              "halloween": "Halloween", "birthday": "Birthday", "valentine": "Valentine's Day",
-             "gestures": "Rude gesture"}
+             "gestures": "Rude or sexual gesture"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
@@ -1084,8 +1084,9 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                         "and presents",
             "valentine": "Valentine's Day, in talk or on screen: valentines, Valentine cards, "
                          "hearts and Cupid decorations",
-            "gestures": "rude hand gestures: raising the middle finger at someone or another "
-                        "obscene gesture"}
+            "gestures": "rude or sexual gestures: raising the middle finger at someone, or a "
+                        "crude sexual motion (a hand gesture mimicking sex, thrusting the hips, "
+                        "grabbing the crotch)"}
 KISS_TEXT = {"passionate": "passionate kissing (light kisses are fine)", "all": "all kissing"}
 
 
@@ -1462,10 +1463,11 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "birthday": "birthday (a birthday cake, birthday candles or blowing them out, a "
                         "birthday party)",
             "valentine": "valentine (Valentine's Day cards, hearts or Cupid decorations)",
-            "gestures": "rude gesture (someone raising the middle finger, or another obscene "
-                        "hand or body gesture)"}
+            "gestures": "rude gesture (someone raising the middle finger, or a crude sexual "
+                        "gesture: a hand gesture mimicking sex or oral sex, thrusting the hips, "
+                        "grabbing the crotch)"}
 PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday",
-             "valentine": "Valentine's Day", "rude gesture": "Rude gesture",
+             "valentine": "Valentine's Day", "rude gesture": "Rude or sexual gesture",
              "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
              "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
@@ -1509,7 +1511,7 @@ def _pic_wanted(f, o):
     if w == "gore":                      # gore is graphic too
         return "Gore" if o.get("gore") else "Graphic violence" if o.get("graphic") else None
     if w == "rude gesture":              # the tick box is "gestures"
-        return "Rude gesture" if o.get("gestures") else None
+        return "Rude or sexual gesture" if o.get("gestures") else None
     if w in PIC_LABEL and (w == "sex" or o.get(w)):
         return PIC_LABEL[w]
     return None
@@ -2035,9 +2037,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             vis = json.loads(vfile.read_text())
             if vis.get("version", 1) < PICTURE_VERSION or (use_clip and not vis.get("clip")):
                 vis = None
-            elif use_clip and not all(c in ((vis["clip"].get("scores") or [{}])[0])
-                                      for c in nd["clip"]):
-                vis = None           # saved before CleanView looked for these (holidays): again
+            elif use_clip and vis["clip"].get("sig") != ai.clip_signature():
+                vis = None           # saved before the picture AI's descriptions changed: again
         if vis is None:
             what = "Watching the picture" + (" with the picture AI" if use_clip else " for nudity")
             say(at("vis", 0), what + "…")
