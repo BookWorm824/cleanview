@@ -123,6 +123,25 @@ class FromCleanListen(unittest.TestCase):
         self.assertEqual(found("he's a jerk", ["rude"]), [("jerk", "rude")])
 
 
+class FromCleanListenToo(unittest.TestCase):
+    """Two false alarms CleanListen found in CleanView's lists."""
+
+    def test_got_some_nuts_in_my_bag(self):
+        for text in ("I've got some nuts in my bag.", "You got some stones for the garden?",
+                     "She's got some balls from the gym"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+        self.assertEqual(found("You've got some stones, kid", ["moderate"]),
+                         [("you've got some stones", "moderate")])
+
+    def test_stars_alone_arent_a_word(self):
+        for token in ("***", "****", "$$$", "@@@", "* * *"):
+            with self.subTest(token=token):
+                self.assertEqual(cl.norm(token), "")
+        self.assertEqual(cl.norm("#@$%"), "fuck", "a grawlix still is")
+        self.assertEqual(cl.norm("f***ing"), "fucking")
+
+
 class Retarded(unittest.TestCase):
     """"Retarded" was already muted; these other forms got through."""
 

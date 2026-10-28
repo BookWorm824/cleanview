@@ -25,12 +25,9 @@ CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such t
 CV_ONLY = {"thank god"}  # CleanView mutes it as God's name (an AI can rule it sincere);
 #                         CleanListen leaves it to its strict religion filter
 
-# Things CleanView has that CleanListen still needs (asked on 2026-10-28). When one is
-# fixed there, the test says so: take it off this list.
-WAITING_ON_CLEANLISTEN = {
-    "Quit pulling her chain", "pulling her chain", "jerked his chain",
-    "she jerked his chain again", "You've got some stones, kid", "you've got some stones",
-    "a horny toad", "the boob tube"}
+# Things CleanView has that CleanListen still needs. When one is fixed there, the test
+# says so: take it off this list. (Empty: CleanListen took the last ones, 2026-10-28.)
+WAITING_ON_CLEANLISTEN = set()
 
 
 def load_cleanlisten():

@@ -164,7 +164,8 @@ BODY_SLANG = [re.compile(p) for p in (
     r"(?!(?: \w+){0,4} (kidneys?|gall|gallbladder|bladder)\b)",       # not kidney stones
     _GROW + r" (a pair|a set)\b(?! of)",                                 # not "a pair of shoes"
     r"(have|has|had|got|having|gotta have)( got)? (the|enough) " + _PARTS + r" to\b",
-    r"(you've|you|he's|he|she's|she|they've|they|i've) got (some|real|big) " + _PARTS + r"\b",
+    r"(you've|you|he's|he|she's|she|they've|they|i've) got (some|real|big) " + _PARTS + r"\b"
+    r"(?! (in|on|for|from|at|to|left|that|the|a|here|there|and|of|with|out|into|inside)\b)",   # not "got some nuts in my bag"
     r"(kick|kicks|kicked|kicking|knee|kneed|kneeing|hit|hits|hitting|punch|punched|punches|"
     r"punching|smack|smacked|whack|whacked)( \w+){0,3} in the " + _PARTS + r"\b",
     r"(freeze|freezes|freezing|froze|frozen|work|works|working|worked|cut|cuts|cutting|chop|"
@@ -278,8 +279,8 @@ def unbleep(w):
     t = w.lower().strip(".,!?;:\"'()[]")
     if not _BLEEP.search(t):
         return w
-    if not re.sub(r"[*#@$%&!-]", "", t) and len(t) < 3:
-        return w                                  # a lone "*" or "**": not a word
+    if not re.sub(r"[*#@$%&!-]", "", t) and (len(t) < 3 or len(set(t) & set("#@$%&")) < 2):
+        return w      # "*", "***" (a scene break), "$$$": no letters to say which word it was
     parts = re.split(r"([*#@$%&!-]+)", t)
     for exact in (True, False):
         pat = "".join(re.escape(p) if not re.fullmatch(r"[*#@$%&!-]+", p) else
