@@ -271,13 +271,13 @@ class Window(unittest.TestCase):
             if k in ui.FILTER_KEYS:
                 v.set("Keep" if k in ("kiss_os", "kiss_ss") else False)
         app.mywords_box.delete("1.0", "end")
+        video = support.SANDBOX / "Episode 9.mp4"
+        video.write_bytes(b"")
+        app.videos = [str(video)]
         app.start()
         self.assertEqual(self.said[-1][0], "info")
         self.assertIn("Tick at least one thing", self.said[-1][1])
         # her own words alone are something to remove
-        video = support.SANDBOX / "Episode 9.mp4"
-        video.write_bytes(b"")
-        app.videos = [str(video)]
         app.mywords_box.insert("1.0", "nimrod")
         started = []
         saved = app.show_working
@@ -305,6 +305,39 @@ class Window(unittest.TestCase):
         app.opts["reader"].set("local")
         self.assertIsNone(app._cloud())
 
+    def test_main_buttons_stand_out(self):
+        """Jason: "Clean another" was hard to notice, the same colour as the rest. Each
+        page's main step is the big green button; first steps are green too."""
+        app = self.app
+        app.show_done([{"cut_minutes": 1.0, "mutes": 3, "cuts": 1,
+                        "folder": str(support.SANDBOX), "out": str(support.SANDBOX)}])
+        app.update()
+        self.assertEqual(app.again_btn.cget("style"), "Accent.TButton")
+        app.show_setup()
+        app.update()
+        styles = {}
+        todo = [app]
+        while todo:
+            w = todo.pop()
+            todo += w.winfo_children()
+            if isinstance(w, ui.ttk.Button):
+                styles[w.cget("text")] = w.cget("style")
+        self.assertEqual(styles["Start cleaning"], "Accent.TButton")
+        for text in ("Choose files…", "Choose a folder of episodes…"):
+            self.assertEqual(styles[text], "Go.TButton", text)
+        s = ui.ttk.Style(app)
+        self.assertEqual(s.lookup("Plain.TButton", "borderwidth"), 1, "grey ones have an edge")
+
+    def test_start_without_a_video_says_what_to_do(self):
+        app = self.app
+        app.show_setup()
+        app.videos = []
+        self.assertEqual(str(app.start_btn.cget("state")), "normal", "never looks broken")
+        app.start()
+        self.assertEqual(self.said[-1][0], "info")
+        self.assertIn("First choose the movie or episodes", self.said[-1][1])
+        self.assertEqual(app.page_name, "setup")
+
     def test_start_offers_to_set_up_and_sign_in(self):
         """A PC without Claude: the start page says to sign in with your own account, and
         Start offers to set it up there and then, not only to go on without it."""
@@ -315,6 +348,7 @@ class Window(unittest.TestCase):
         ui.App.setup_claude = lambda self: setups.append(self._cloud())
         try:
             app.show_setup()
+            app.videos = [str(support.SANDBOX / "Episode 9.mp4")]
             app.ai_state = {"claude": "missing"}
             app.opts["reader"].set("claude")
             app.update()

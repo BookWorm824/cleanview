@@ -22,6 +22,7 @@ import cleanview_learn as learn  # noqa: E402
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
     "#F6F3EE", "#FFFFFF", "#23211F", "#6D6862", "#2F6F62", "#24574D", "#E3DED6")
+BUTTON_EDGE = "#B9AFA2"
 CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Disturbing": "#5E3A6E", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
@@ -383,11 +384,18 @@ class App(tk.Tk):
         s.configure("Accent.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 12, "bold"), padding=(22, 10), borderwidth=0)
         s.map("Accent.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
+        # Each page's main step is the big green button, bottom right (Start cleaning, Save
+        # clean copy, Clean another); a first step is a smaller green one (Choose files…).
+        # Grey ones have an edge, so they read as buttons, not part of the page.
+        s.configure("Go.TButton", background=ACCENT, foreground="white",
+                    font=(FONT, 11, "bold"), padding=(16, 7), borderwidth=0)
+        s.map("Go.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
+        edge = {"bordercolor": BUTTON_EDGE, "lightcolor": "#ECE7E0", "darkcolor": "#ECE7E0"}
         s.configure("Plain.TButton", background="#ECE7E0", foreground=INK, padding=(14, 6),
-                    borderwidth=0, font=(FONT, 10))
+                    borderwidth=1, font=(FONT, 10), **edge)
         s.map("Plain.TButton", background=[("active", "#E0D9CF")])
         s.configure("Small.TButton", background="#ECE7E0", foreground=INK, padding=(10, 3),
-                    borderwidth=0, font=(FONT, 9))
+                    borderwidth=1, font=(FONT, 9), **edge)
         s.map("Small.TButton", background=[("active", "#E0D9CF")])
         s.configure("Green.Horizontal.TProgressbar", troughcolor="#E6E1DA",
                     background=ACCENT, bordercolor="#E6E1DA", lightcolor=ACCENT, darkcolor=ACCENT)
@@ -529,7 +537,7 @@ class App(tk.Tk):
                     self._forget_session()
                     self.show_setup()
 
-            ttk.Button(box, text="Pick up where I left off", style="Small.TButton",
+            ttk.Button(box, text="Pick up where I left off", style="Go.TButton",
                        command=pick_up).pack(side="right", padx=8, pady=4)
             ttk.Button(box, text="Discard", style="Small.TButton",
                        command=lambda: (self._forget_session(), box.destroy())).pack(
@@ -540,7 +548,7 @@ class App(tk.Tk):
         except Exception:
             pass
         self.start_btn = ttk.Button(self.footer, text="Start cleaning", style="Accent.TButton",
-                                    command=self.start, state="disabled")
+                                    command=self.start)
         self.start_btn.pack(side="right")
         ttk.Button(self.footer, text="Send what CleanView learned\u2026", style="Plain.TButton",
                    command=self.share_learned).pack(side="left")
@@ -567,9 +575,9 @@ class App(tk.Tk):
         b1 = self._card(body, "1", "Movie or episodes")
         row = tk.Frame(b1, bg=CARD)
         row.pack(fill="x")
-        ttk.Button(row, text="Choose files…", style="Plain.TButton",
+        ttk.Button(row, text="Choose files…", style="Go.TButton",
                    command=self.pick_files).pack(side="left")
-        ttk.Button(row, text="Choose a folder of episodes…", style="Plain.TButton",
+        ttk.Button(row, text="Choose a folder of episodes…", style="Go.TButton",
                    command=self.pick_folder).pack(side="left", padx=(8, 0))
         self.vid_lbl = tk.Label(b1, text="Nothing chosen yet", bg=CARD, fg=MUTED,
                                 font=(FONT, 10), wraplength=wrap_width(640), justify="left")
@@ -720,7 +728,7 @@ class App(tk.Tk):
         self.claude_lbl = tk.Label(crow, text="", bg=CARD, fg=MUTED,
                                    font=(FONT, 9), wraplength=wrap_width(430), justify="left")
         self.claude_lbl.pack(side="left")
-        self.claude_btn = ttk.Button(crow, text="Set up", style="Small.TButton",
+        self.claude_btn = ttk.Button(crow, text="Set up", style="Go.TButton",
                                      command=self.setup_claude)
         arow = tk.Frame(b25, bg=CARD)          # someone else's own account
         arow.pack(fill="x", padx=(22, 0))
@@ -1080,6 +1088,13 @@ class App(tk.Tk):
 
     # ---------- page 2: working ----------
     def start(self):
+        if not self.videos:          # the button is always on, so it never looks broken
+            messagebox.showinfo("CleanView", "First choose the movie or episodes to clean, "
+                                "with the green buttons in step 1 at the top.", parent=self)
+            lbl = getattr(self, "vid_lbl", None)
+            if lbl is not None and lbl.winfo_exists():
+                self._scroll_to(lbl)
+            return
         o = self._current_opts()
         p = o.get("reader")
         state = getattr(self, "ai_state", {}).get(p, "ready") if p in cc.NAMES else "ready"
@@ -2406,13 +2421,14 @@ class App(tk.Tk):
                  font=(FONT, 10), wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(0, 16))
         row = tk.Frame(p, bg=BG)
         row.pack(anchor="w")
-        ttk.Button(row, text="Open folder", style="Accent.TButton",
+        ttk.Button(row, text="Open folder", style="Go.TButton",
                    command=lambda: open_path(results[0]["folder"])).pack(side="left")
         if not multi:
             ttk.Button(row, text="Play it", style="Plain.TButton",
                        command=lambda: open_path(results[0]["out"])).pack(side="left", padx=12)
-        ttk.Button(self.footer, text="Clean another", style="Plain.TButton",
-                   command=self.reset).pack(side="right")
+        self.again_btn = ttk.Button(self.footer, text="Clean another", style="Accent.TButton",
+                                    command=self.reset)
+        self.again_btn.pack(side="right")
 
         # what we refined, to send in so CleanView's built-in knowledge improves
         box = tk.Frame(p, bg="#FFF4EC", highlightbackground="#E9C9B3", highlightthickness=1)

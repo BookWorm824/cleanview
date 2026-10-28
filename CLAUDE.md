@@ -24,6 +24,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   box `wrap` in a function calling `wrap()`, and the review page failed to open);
   `test_ui.NoHiddenNames` checks for this. Tick boxes
   are drawn images (`_tick_boxes`), since the theme's own show an ✗.
+- Buttons: each page's main step is the big green `Accent.TButton`, bottom right (Start
+  cleaning, Save clean copy, Clean another); first steps are the smaller green
+  `Go.TButton` (Choose files…, Pick up where I left off, Set up and sign in); the grey
+  `Plain`/`Small` ones have an edge so they read as buttons. Main buttons are never
+  greyed out: pressed too early they say what to do first (Jason missed a grey "Clean
+  another").
 - Slow things (reading video lengths, Claude) run in a thread and come back to the
   window through `self.q` (`("call", fn)` runs fn on the window's thread).
 
