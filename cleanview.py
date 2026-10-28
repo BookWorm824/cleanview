@@ -1058,7 +1058,8 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang fo
                           "melons', 'pop her cherry', 'kicked him in the plums', 'a banana "
                           "in your pocket' (not real fruit), and "
                           "slurs such as 'retarded' (even said as a description)",
-              "mild": "mild language such as crap, screw you, damn, hell",
+              "mild": "mild language such as crap, screw you, damn, hell, 'that's bull' "
+                      "(short for bullshit, not the animal)",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck",
               "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)",

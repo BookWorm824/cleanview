@@ -31,9 +31,12 @@ CV_ONLY = {"thank god"}  # CleanView mutes it as God's name (an AI can rule it s
 #                         CleanListen leaves it to its strict religion filter
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
-# says so: take it off this list. (Empty: CleanListen 1.8.5 took the fruit and vegetable
-# slang, 2026-10-28.)
-WAITING_ON_CLEANLISTEN = set()
+# says so: take it off this list.
+WAITING_ON_CLEANLISTEN = {   # "that's bull", sent 2026-10-28
+    "Cut the bull, Castle", "It's all bull", "That is bull and you know it", "That's bull",
+    "That's bull!", "That's complete bull", "This is total bull", "What a load of bull",
+    "You're full of bull", "a bunch of bull", "no more bull", "that's bull", "that's bull shit",
+    "thats bull", "total bull crap"}
 
 
 def load_cleanlisten():

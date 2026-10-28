@@ -225,6 +225,31 @@ MINCED_SLANG = [re.compile(r"what the (fudge|flip|fork|frack|fuh)\b")]
 SHUT_UP_SAFE_NEXT = {"in", "inside", "shop", "house", "the", "his", "her", "my", "their", "our",
                      "with", "within", "together", "tight", "tightly", "alone", "for", "here",
                      "there", "like"}
+# "That's bull", "what a load of bull", "cut the bull": short for bullshit, muted with the
+# mild group. Only the word "bull", only after these words (or just before "crap"/"shit", as
+# speech recognition splits "bullshit"), and not "that's bull riding" or "a bull market".
+BULL_BEFORE = re.compile(r"(^| )(that's|thats|that is|that was|this is|this was|it's|it is|"
+                         r"it was|all|such|total|complete|utter|absolute|pure|load of|bunch of|"
+                         r"pile of|full of|cut the|cut out the|enough of the|enough with the|"
+                         r"no more)$")
+BULL_SWEAR_NEXT = {"crap", "crapping", "shit", "shits", "shitting", "shitter"}
+BULL_NOT_NEXT = {"riding", "rider", "riders", "ride", "rides", "market", "markets", "terrier",
+                 "terriers", "shark", "sharks", "frog", "frogs", "elephant", "elephants", "seal",
+                 "seals", "moose", "dog", "dogs", "run", "runs", "ring", "rings", "fight",
+                 "fights", "fighter", "fighters", "fighting", "pen", "pens", "horn", "horns",
+                 "whip", "whips", "dozer", "dozers", "session", "sessions", "calf", "calves",
+                 "breed", "breeds", "semen", "snake", "snakes", "mastiff", "mastiffs", "nose",
+                 "neck", "pup", "pups", "elk", "whale", "whales", "pit", "pits"}
+
+
+def bull_swear(words, i):
+    """True if words[i] is "bull" said for bullshit ("that's bull")."""
+    if words[i] != "bull":
+        return False
+    nxt = words[i + 1] if i + 1 < len(words) else ""
+    if nxt in BULL_SWEAR_NEXT:
+        return True
+    return nxt not in BULL_NOT_NEXT and bool(BULL_BEFORE.search(" ".join(words[max(0, i - 3):i])))
 
 
 def body_slang(words, i, pats=BODY_SLANG):
@@ -368,7 +393,7 @@ def listed_word(word, mine=()):
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
     if any(body_slang(parts, k) or body_slang(parts, k, MILD_SLANG)  # "grow some stones"
-           or body_slang(parts, k, MINCED_SLANG)
+           or body_slang(parts, k, MINCED_SLANG) or bull_swear(parts, k)   # "that's bull"
            for k in range(len(parts))):
         return True
     for c in [w] + parts:
@@ -430,6 +455,10 @@ def find_language(words, cats, mine=()):
                 hits.append((i, i + len(ph), "mild" if "mild" in cats else "moderate"))
                 i += len(ph)
                 continue
+        if ("mild" in cats or "moderate" in cats) and bull_swear(words, i):   # "that's bull"
+            hits.append((i, i + 1, "mild" if "mild" in cats else "moderate"))
+            i += 1
+            continue
         if "rude" in cats:
             ph = next((p for p in sorted(RUDE_PHRASES, key=len, reverse=True)
                        if tuple(words[i:i + len(p)]) == p and rude_use(p)), None)

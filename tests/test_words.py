@@ -254,6 +254,37 @@ class SlangForPrivateParts(unittest.TestCase):
         self.assertIn("grow some stones", engine.wanted_text({}, ["swearing"]))
 
 
+class Bull(unittest.TestCase):
+    """"That's bull" is short for bullshit (mild language); a real bull is left alone."""
+
+    def test_bull_muted(self):
+        for text in ("That's bull!", "That is bull and you know it", "What a load of bull",
+                     "This is total bull", "Cut the bull, Castle", "It's all bull",
+                     "You're full of bull", "a bunch of bull", "That's complete bull",
+                     "no more bull", "thats bull"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["mild"]), [("bull", "mild")])
+        self.assertEqual(found("That's bull", ["moderate"]), [("bull", "moderate")])
+
+    def test_bullshit_heard_as_two_words(self):
+        self.assertEqual(found("that's bull shit", ["mild", "moderate"]),
+                         [("bull", "mild"), ("shit", "moderate")])
+        self.assertEqual(found("total bull crap", ["mild"]), [("bull", "mild"), ("crap", "mild")])
+
+    def test_real_bulls_left_alone(self):
+        for text in ("The bull charged at him", "That's bull riding for you",
+                     "That's a bull, not a cow", "a bull market", "It's a pit bull",
+                     "like a bull in a china shop", "take the bull by the horns",
+                     "the Chicago Bulls", "That's bull terrier hair", "a bull's eye",
+                     "is that bull dangerous", "Sitting Bull", "a red bull"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_ai_may_mute_it_said_that_way(self):
+        self.assertTrue(cl.listed_word("that's bull"))
+        self.assertFalse(cl.listed_word("bull"))
+
+
 class FruitAndVegetables(unittest.TestCase):
     """Fruit and vegetables used for body parts ("check out those melons"), only in these
     phrases: real melons, cherries and bananas are left alone."""
