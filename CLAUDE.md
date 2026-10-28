@@ -247,6 +247,20 @@ These are where results have been wrong in real use. Improvements here matter mo
 8. **CleanListen parity.** Features added here (age profiles, rude words, word-only mutes,
    live chat edits, exports) are wanted in CleanListen too.
 
+## Words and filters in every app (Lauren's rule, 2026-10-28)
+
+Every change to words, phrases, guards or filters goes into all three apps: CleanView
+(this repo, `cvcore.py` + `web/words.js`), CleanListen and CleanRead (both in
+`BookWorm824/cleanlisten`, on this PC at `Downloads\cleanlisten`; CleanRead uses
+CleanListen's lists through `import cleanlisten`, but some things are off for it, e.g. the
+"what the" lead-in, so check it too). Make the change here, then pass it to the CleanListen
+session (or do it there) with the exact patterns, guards and everyday uses to test.
+`tests/test_cleanlisten_words.py` runs every quoted phrase in both repos' tests through both
+word finders and fails on any difference that isn't listed as on purpose (`SLANG_WORDS`,
+`CL_ONLY_SEXUAL`, `CV_ONLY`) or as waiting for CleanListen (`WAITING_ON_CLEANLISTEN`; it
+fails again when one is fixed there, so the list stays true). New filter tick boxes count
+too: a filter added here is wanted in CleanListen and CleanRead.
+
 ## Releasing
 
 1. Make the change, run the tests, bump `version` in `version.json` (and add any new file to

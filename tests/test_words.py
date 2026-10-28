@@ -90,6 +90,39 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
 
 
+class FromCleanListen(unittest.TestCase):
+    """Words and guards CleanListen had that CleanView didn't (tests/test_cleanlisten_words.py
+    keeps the two in step)."""
+
+    def test_caught(self):
+        for text, phrase, cat in [
+                ("He was jerking off.", "jerking off", "moderate"),
+                ("Go rub one out.", "rub one out", "moderate"),
+                ("Stop wanking.", "wanking", "moderate"), ("What a jerkoff.", "jerkoff", "moderate"),
+                ("What the eff, man.", "what the eff", "moderate"),
+                ("What the fudge!", "what the fudge", "minced"),
+                ("It's cold enough to freeze my nuts off.", "freeze my nuts off", "moderate"),
+                ("That took brass balls.", "brass balls", "moderate"),
+                ("They found the body, cut his balls off.", "cut his balls off", "moderate"),
+                ("She kicked him right in the nuts.", "kicked him right in the nuts", "moderate")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, [cat]), [(phrase, cat)])
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("He grew some stones in his kidney.", "She grew a pair of tomato plants.",
+                     "He jerked off the road.", "He was deaf and dumb.", "a dumb waiter",
+                     "It was a crash test dummy.", "Don't fool around.", "an April fool",
+                     "She was shut up in the attic.", "Cigarette butts were everywhere.",
+                     "He jerks the door open.", "Her damning evidence and his damnation."):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_still_rude_or_swearing(self):
+        self.assertEqual(found("Shut up, you fool", ["rude"]), [("shut up", "rude"), ("fool", "rude")])
+        self.assertEqual(found("damn it", ["mild"]), [("damn", "mild")])
+        self.assertEqual(found("he's a jerk", ["rude"]), [("jerk", "rude")])
+
+
 class Retarded(unittest.TestCase):
     """"Retarded" was already muted; these other forms got through."""
 

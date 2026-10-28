@@ -94,7 +94,7 @@ MODERATE = [
     r"lame|weird|broke|punk|wuss|bad|dumb|smart|jack|whole|cold|hot|mean|tough|fine|"
     r"nice|cool|pretty|ugly|old|cute|great|bitch)ass(es|ed)?",
     r"bastard.*", r"piss.*", r"dicks?", r"dickhead.*", r"pricks?", r"bollocks",
-    r"bugger.*", r"wanker.*", r"twats?", r"sluts?", r"slutty", r"whores?",
+    r"bugger.*", r"wanker.*", r"wank(s|ed|ing|in)?", r"(jerk|jack)offs?", r"twats?", r"sluts?", r"slutty", r"whores?",
     r"cojones", r"(ball|nut)sacks?", r"ballsy", r"balls?bust(er|ers|ing)",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
     # more crude slang heard in TV and films
@@ -107,7 +107,8 @@ MODERATE = [
     r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
     r"skeez(e|y|ier)", r"skeevy",
 ]
-MILD = [r"damn.*", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
+# ("damning" = incriminating, and "damnation", are left alone)
+MILD = [r"damn", r"damn(s|ed|edest|it)", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
         r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody",
         r"crapper", r"turds?", r"hella", r"hussy", r"hussies"]
 MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
@@ -137,10 +138,21 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                           "turpin", "dastardly", "smith", "jones", "johnson", "and"},
                  "cum": {"laude"},
                  "peckers": {"up"}, "pecker": {"up"}, "horny": {"toad", "toads"},
-                 "retard": {"the", "its", "their", "growth"}}
+                 "retard": {"the", "its", "their", "growth"},
+                 # rude words box (as CleanListen): "jerks her up", "fool around", "butt in"
+                 **{w: {"her", "him", "me", "them", "it", "us", "up", "away", "back", "open",
+                        "out", "forward", "free", "awake", "his", "my", "your", "their", "our",
+                        "the"} for w in ("jerk", "jerks")},
+                 "fool": {"around", "with", "proof"}, "fools": {"gold", "around", "rush"},
+                 "butt": {"in", "heads"}, "butts": {"in", "heads"},
+                 "dumb": {"waiter", "waiters", "luck", "founded", "show"}}
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
                  "hooker": {"general", "john", "joe"}, "hookers": {"general"},
-                 "knockers": {"door"}}
+                 "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
+                 "butt": {"cigarette", "cigar", "rifle", "gun"},
+                 "butts": {"cigarette", "cigar", "rifle", "gun"},
+                 "dumb": {"deaf", "struck"}, "dummy": {"test", "ventriloquist", "ventriloquist's"},
+                 "dummies": {"test", "crash"}}
 # Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
 # own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
@@ -148,12 +160,23 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
 _PARTS = r"(stones|balls|nuts|cojones|family jewels)"
 _GROW = r"(grow|grows|grew|grown|growing)( yourself| himself| herself| themselves| you| me)?"
 BODY_SLANG = [re.compile(p) for p in (
-    _GROW + r" (some|any|real|big|bigger|your own|his own|a pair of|a set of) " + _PARTS,
-    _GROW + r" (a pair|a set)\b",
+    _GROW + r" (some|any|real|big|bigger|your own|his own|a pair of|a set of) " + _PARTS +
+    r"(?!(?: \w+){0,4} (kidneys?|gall|gallbladder|bladder)\b)",       # not kidney stones
+    _GROW + r" (a pair|a set)\b(?! of)",                                 # not "a pair of shoes"
     r"(have|has|had|got|having|gotta have)( got)? (the|enough) " + _PARTS + r" to\b",
     r"(you've|you|he's|he|she's|she|they've|they|i've) got (some|real|big) " + _PARTS + r"\b",
-    r"(kick|kicks|kicked|kicking|knee|kneed|kneeing|hit|hits|punch|punched|punches|smack|"
-    r"smacked)( \w+)? in the " + _PARTS + r"\b",
+    r"(kick|kicks|kicked|kicking|knee|kneed|kneeing|hit|hits|hitting|punch|punched|punches|"
+    r"punching|smack|smacked|whack|whacked)( \w+){0,3} in the " + _PARTS + r"\b",
+    r"(freeze|freezes|freezing|froze|frozen|work|works|working|worked|cut|cuts|cutting|chop|"
+    r"chops|chopped|rip|rips|ripped|tear|tore|torn|bite|bit|bitten|shoot|shot|blow|blew|blown) "
+    r"(my|his|your|her|our|their) (balls|nuts|stones) off\b",               # freeze my nuts off
+    r"(brass|blue) balls\b", r"balls of steel\b",
+    # touching yourself (as CleanListen); "jerked off the road" is left alone
+    r"(jerk|jerks|jerked|jerking|jerkin|jack|jacks|jacked|jacking|jackin) off\b"
+    r"(?! (the|a|an|his|her|its|their|my|your|our|of|to|into|onto|from|at|toward|towards|"
+    r"course|balance|guard|track|road|path|ground|floor|table|shelf|wall|hook)\b)",
+    r"(rub|rubs|rubbed|rubbing|rubbin) one out\b",
+    r"what the (eff|effing|effin|f)\b",                                 # "what the f..."
     r"balls? (buster|busters|busting)\b",                      # "ball buster" (as two words)
     r"(bust|busts|busted|busting) (my|his|your|her|our|their) (balls|nuts|stones)\b",
     r"(d|dee) (bag|bags)\b",                                   # "D-bag" heard as "d bag"
@@ -169,6 +192,14 @@ MILD_SLANG = [re.compile(p) for p in (
     r"(yank|yanks|yanked|yanking|yankin|jerk|jerks|jerked|jerking|jerkin|pull|pulls|pulled|"
     r"pulling|pullin) (my|your|ya|yer|his|her|our|their|someone's|somebody's) chains?\b",
 )]
+
+
+# "What the fudge", "what the flip": stand-ins for the f-word, muted with the minced oaths.
+MINCED_SLANG = [re.compile(r"what the (fudge|flip|fork|frack|fuh)\b")]
+# "Shut up shop", "shut up in the attic", "shut up the house": shut away, not rude.
+SHUT_UP_SAFE_NEXT = {"in", "inside", "shop", "house", "the", "his", "her", "my", "their", "our",
+                     "with", "within", "together", "tight", "tightly", "alone", "for", "here",
+                     "there", "like"}
 
 
 def body_slang(words, i, pats=BODY_SLANG):
@@ -312,6 +343,7 @@ def listed_word(word, mine=()):
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
     if any(body_slang(parts, k) or body_slang(parts, k, MILD_SLANG)  # "grow some stones"
+           or body_slang(parts, k, MINCED_SLANG)
            for k in range(len(parts))):
         return True
     for c in [w] + parts:
@@ -331,8 +363,10 @@ def find_language(words, cats, mine=()):
     hits, n, i = [], len(words), 0
     mine = sorted(set(mine), key=len, reverse=True)       # longest phrase first
 
-    def rude_use(p):        # "shut it" yes, "shut it down" no
+    def rude_use(p):        # "shut it" yes, "shut it down" no, "shut up in the attic" no
         nxt = words[i + len(p)] if i + len(p) < n else ""
+        if p == ("shut", "up") and nxt in SHUT_UP_SAFE_NEXT:
+            return False
         return p[-1] not in PHRASE_OBJECTS or nxt not in NOT_RUDE_NEXT
     while i < n:
         ph = next((p for p in mine if tuple(words[i:i + len(p)]) == p), None)
@@ -350,6 +384,11 @@ def find_language(words, cats, mine=()):
         k = body_slang(words, i) if "moderate" in cats else 0
         if k:
             hits.append((i, i + k, "moderate"))
+            i += k
+            continue
+        k = body_slang(words, i, MINCED_SLANG) if "minced" in cats else 0
+        if k:                                             # "what the fudge"
+            hits.append((i, i + k, "minced"))
             i += k
             continue
         k = body_slang(words, i, MILD_SLANG) if ("mild" in cats or "moderate" in cats) else 0
@@ -380,8 +419,9 @@ def find_language(words, cats, mine=()):
             if any(p.match(w) or p.match(wb) for p in CATS[cat]):
                 if w == "bloody" and nxt not in BLOODY_SWEAR_NEXT:
                     break
-                if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()):
-                    break                     # "pussy cat", "Moby Dick", "summa cum laude"
+                if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()) or (
+                        wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]):
+                    break        # "pussy cat", "Moby Dick", "summa cum laude", "deaf and dumb"
                 hits.append((i, i + 1, cat))
                 break
         i += 1
