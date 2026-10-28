@@ -20,6 +20,8 @@ What CleanView learns from your choices on the review page, kept per show
   merged into shared_learned.json, which ships with CleanView updates and
   gives every copy (people without Claude or ChatGPT too) the same head start.
   Your own choices always beat the shared ones.
+- send() sends such a file to the CleanView inbox (tools/cleanview_inbox.gs, a
+  Google script in the owner's Drive), so nobody has to attach it anywhere.
 """
 import csv
 import json
@@ -27,11 +29,38 @@ from datetime import date
 import os
 import re
 import shutil
+import urllib.request
 from pathlib import Path
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 DIR = APP_DATA / "learned"
 MAX_LINES = 400
+# The CleanView inbox's web app address (tools/README-inbox.txt); empty: not set up yet,
+# so the file is only saved and the person is told where.
+SEND_URL = ""
+MAX_SEND = 2_000_000        # the inbox refuses more
+
+
+def send_url():
+    return os.environ.get("CLEANVIEW_INBOX") or SEND_URL
+
+
+def send(path, kind):
+    """Send an exported file (kind "learned" or "refined") to the CleanView inbox.
+    Raises if it couldn't: no inbox yet, no internet, or the inbox said no."""
+    url = send_url()
+    if not url:
+        raise RuntimeError("CleanView's inbox isn't set up yet")
+    path = Path(path)
+    body = json.dumps({"app": "CleanView", "kind": kind, "name": path.name,
+                       "data": json.loads(path.read_text(encoding="utf8"))}).encode("utf8")
+    if len(body) > MAX_SEND:
+        raise RuntimeError("the file is too big to send")
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        answer = json.loads(r.read().decode("utf8") or "{}")
+    if not answer.get("ok"):
+        raise RuntimeError(f"the inbox didn't take it ({answer.get('why') or 'no reason given'})")
 
 
 HERE = Path(__file__).resolve().parent

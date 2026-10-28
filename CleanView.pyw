@@ -766,16 +766,47 @@ class App(tk.Tk):
         except Exception as ex:
             messagebox.showerror("CleanView", f"Couldn't save the file. {plain_error(ex)}")
             return
+        self._send_in(path, "learned")
+
+    def _send_in(self, path, kind):
+        """After saving a "what CleanView learned" file: send it to the CleanView inbox (in
+        the background) if she says so. Not set up yet, not now, or it didn't go: say where
+        it's saved, to attach in a chat with Claude instead."""
+        if not learn.send_url():
+            self._send_by_hand(path)
+            return
+        if not messagebox.askyesno(
+                "CleanView", "Send it in now?\n\nIt has the lines and words you and the AI "
+                "muted or kept, and its notes. No video or sound. Once it's added, every copy "
+                "of CleanView gets what it learned with an update.", parent=self):
+            self._send_by_hand(path)
+            return
+
+        def go():
+            try:
+                learn.send(path, kind)
+                self.q.put(("call", lambda: messagebox.showinfo(
+                    "CleanView", "Sent. Thank you! It'll be in every copy of CleanView with an "
+                                 "update soon.", parent=self)))
+            except Exception as ex:
+                save_details(f"Sending {path}\n\n{traceback.format_exc()}")
+                why = plain_error(ex)
+                self.q.put(("call", lambda: self._send_by_hand(
+                    path, f"Couldn't send it ({why[:1].lower() + why[1:].rstrip('.')}). "
+                          f"Check the internet connection.\n\n")))
+        threading.Thread(target=go, daemon=True).start()
+
+    def _send_by_hand(self, path, first=""):
         if os.name == "nt":
             subprocess.Popen(["explorer", "/select,", str(path)])
         messagebox.showinfo(
             "CleanView",
-            f"Saved as \u201c{path.name}\u201d in {path.parent}.\n\n"
+            f"{first}Saved as \u201c{path.name}\u201d in {path.parent}.\n\n"
             "Attach that file in your chat with Claude and ask for it to be added to CleanView. "
             "Once it's added, every copy of CleanView (yours, and anyone you've shared it with) "
             "gets what it learned with the next update.\n\n"
             "It has the lines and words you and the AI muted or kept, and its notes. No video "
-            "or sound.")
+            "or sound.", parent=self)
 
     # ---------- who you're filtering for ----------
     def _filter_values(self):
@@ -2435,12 +2466,12 @@ class App(tk.Tk):
         box.pack(fill="x", pady=(22, 0))
         tk.Label(box, text="Help CleanView get better", bg="#FFF4EC", fg="#C2581F",
                  font=(FONT, 10, "bold"), padx=12, pady=(8)).pack(anchor="w")
-        tk.Label(box, text="Save what was refined on this one (what was found, what the AI said, "
-                 "what you changed and what you kept) as one file, and send it in. It's added to "
-                 "the knowledge every copy of CleanView starts with. No video or sound is in it.",
+        tk.Label(box, text="Send in what was refined on this one (what was found, what the AI "
+                 "said, what you changed and what you kept). It's added to the knowledge every "
+                 "copy of CleanView starts with. No video or sound is in it.",
                  bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=wrap_width(700), justify="left",
                  padx=12).pack(anchor="w")
-        ttk.Button(box, text="Save what we refined\u2026", style="Small.TButton",
+        ttk.Button(box, text="Send what we refined\u2026", style="Small.TButton",
                    command=self.export_refined).pack(anchor="w", padx=12, pady=(6, 10))
         self._done_jobs = [j for j in self.jobs if j["analysis"]]
 
@@ -2451,11 +2482,7 @@ class App(tk.Tk):
         except Exception as ex:
             messagebox.showerror("CleanView", f"Couldn't save the file. {plain_error(ex)}")
             return
-        if os.name == "nt":
-            subprocess.Popen(["explorer", "/select,", str(path)])
-        messagebox.showinfo("CleanView", f"Saved as \u201c{path.name}\u201d in {path.parent}.\n\n"
-                            "Attach it in your chat with Claude and ask for it to be added to "
-                            "CleanView.")
+        self._send_in(path, "refined")
 
     def reset(self):
         self.videos, self.outdir, self.jobs = [], None, []

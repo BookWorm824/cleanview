@@ -4,6 +4,7 @@ up for a moment while these run. Skipped where there's no screen to draw on."""
 import importlib.machinery
 import importlib.util
 import json
+import os
 import tkinter as tk
 import time
 import types
@@ -327,6 +328,49 @@ class Window(unittest.TestCase):
             self.assertEqual(styles[text], "Go.TButton", text)
         s = ui.ttk.Style(app)
         self.assertEqual(s.lookup("Plain.TButton", "borderwidth"), 1, "grey ones have an edge")
+
+    def test_send_what_it_learned(self):
+        """Jason: it only saved a file and said to send it to Claude. Now it's sent to the
+        CleanView inbox; if that can't happen, it says where the file is, as before."""
+        import test_inbox
+        app = self.app
+        server, url = test_inbox.start_inbox()
+        test_inbox.Inbox.got.clear()
+        test_inbox.Inbox.answer = {"ok": True}
+        path = support.SANDBOX / "CleanView refined 2026-10-28.json"
+        path.write_text('{"videos": []}', encoding="utf8")
+        opened, saved_popen = [], ui.subprocess.Popen
+        ui.subprocess.Popen = lambda args, **k: opened.append(args)      # no Explorer window
+
+        def wait_for(word):
+            for _ in range(200):
+                app.update()
+                if self.said and word in self.said[-1][1]:
+                    return
+                time.sleep(0.03)
+            self.fail(f"never said {word!r}: {self.said}")
+        try:
+            os.environ["CLEANVIEW_INBOX"] = url
+            self.answer["yes"] = True
+            app._send_in(path, "refined")
+            wait_for("Sent. Thank you")
+            self.assertIn("No video or sound", self.said[-2][1], "asked first, saying what's in it")
+            self.assertEqual(test_inbox.Inbox.got[0][1]["kind"], "refined")
+            self.assertEqual(opened, [])
+            os.environ["CLEANVIEW_INBOX"] = "http://127.0.0.1:9/exec"   # no internet
+            app._send_in(path, "refined")
+            wait_for("Attach that file")
+            self.assertIn("Couldn't send it", self.said[-1][1])
+            self.assertIn(path.name, self.said[-1][1])
+            self.assertEqual(opened[-1][:2], ["explorer", "/select,"])
+            self.answer["yes"] = False                                 # "not now"
+            app._send_in(path, "refined")
+            self.assertIn("Attach that file", self.said[-1][1])
+        finally:
+            os.environ.pop("CLEANVIEW_INBOX", None)
+            ui.subprocess.Popen = saved_popen
+            server.shutdown()
+            server.server_close()
 
     def test_start_without_a_video_says_what_to_do(self):
         app = self.app
