@@ -90,6 +90,26 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
 
 
+class Retarded(unittest.TestCase):
+    """"Retarded" was already muted; these other forms got through."""
+
+    def test_every_form_muted(self):
+        for text, word in [("you're so retarded", "retarded"), ("what a retard", "retard"),
+                           ("bunch of retards", "retards"), ("hey retardo", "retardo"),
+                           ("that's so retarted", "retarted"), ("he's a tard", "tard"),
+                           ("stupid libtards", "libtards"),
+                           ("that's re tarded", "re tarded")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["moderate"]), [(word, "moderate")])
+
+    def test_everyday_words_left_alone(self):
+        for text in ("don't be tardy", "a pink leotard", "hot dog with mustard",
+                     "vanilla custard", "fire retardant", "retard the spread",
+                     "it slows the retardation of", "re the tax form"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+
 class WhatThe(unittest.TestCase):
     """"What the ****": muting only the swear still says what it was, so "what the" goes too."""
 

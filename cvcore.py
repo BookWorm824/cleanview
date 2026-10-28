@@ -86,7 +86,8 @@ MODERATE = [
     # more crude slang heard in TV and films
     r"a-?holes?", r"lardass(es)?", r"bia?y?o?tch(es)?", r"beyotch", r"shat",
     r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts", r"knobheads?", r"tossers?",
-    r"bellends?", r"feck(ing|in|er|ers)?", r"retard(s|ed)?",
+    r"bellends?", r"feck(ing|in|er|ers)?", r"retard(s|ed|os?)?", r"retart(s|ed)?",
+    r"tards?", r"libtards?",
     r"pussy", r"pussies", r"boners?", r"boobs", r"boobies", r"knockers", r"titty",
     r"nads", r"peckers?", r"peen", r"jizz", r"cum", r"horny", r"hookers?", r"hoochies?",
     r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
@@ -142,6 +143,7 @@ BODY_SLANG = [re.compile(p) for p in (
     r"balls? (buster|busters|busting)\b",                      # "ball buster" (as two words)
     r"(bust|busts|busted|busting) (my|his|your|her|our|their) (balls|nuts|stones)\b",
     r"(d|dee) (bag|bags)\b",                                   # "D-bag" heard as "d bag"
+    r"re (tard|tards|tarded)\b",                               # "retarded" heard as two words
     r"s o b\b",                                                # "S.O.B." spelled out
     r"eff (you|off|me|him|her|them|it|that|this)\b",           # "eff you"
 )]
