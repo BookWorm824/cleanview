@@ -203,6 +203,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - An AI may only mute a single word on its own if it is on a word list (`cvcore.listed_word`);
   otherwise it is offered unticked. Speech recognition mishears character names ("Grafi" for
   Gruffi) and those must never be muted.
+- Slurs (`cvcore.NEVER_FINE`: "retarded" and its forms, racial slurs) are never "fine
+  here": an AI's "not an issue" on one is ignored (`apply_review`), and it's never
+  learned or shared as fine. The review is also told where each word came from ("heard
+  in the sound" is really said, even when the subtitles leave it out). From Radio, where
+  Claude unticked "severely retarded" and swears missing from the subtitles.
 - No captions on clean copies (the subtitle track is included but not default; no sidecar
   .srt).
 - She always reviews before anything is cut, and her own ticks are never undone by an AI.

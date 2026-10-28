@@ -181,6 +181,21 @@
     "oh i thought cops and feds hated each other"
    ],
    "ok_words": []
+  },
+  "_movies": {
+   "muted": [
+    "i mean my tv guide interview was six paragraphs about my boobs",
+    "and how they fit into my suit",
+    "you know guys i had a late night with a kreemorian fangor beast",
+    "self control that's funny coming from a guy",
+    "who slept with every terrakian slave girl and moon princess on the show",
+    "hey get a room guys okay",
+    "sexy lady"
+   ],
+   "kept": [
+    "no one even bothered to ask me what i do on the show"
+   ],
+   "ok_words": []
   }
  },
  "general": {
@@ -188,7 +203,15 @@
   "kept": [],
   "ok_words": [
    "this says hell",
-   "with i'm gay"
+   "with i'm gay",
+   "records no thank god",
+   "we're screwed",
+   "oh we're screwed",
+   "got me thank god",
+   "them anna thank god",
+   "third christmas thank god",
+   "you sister oh god",
+   "hands are jesus"
   ]
  }
 }

@@ -589,7 +589,9 @@ def candidates(st, with_review=False):
     for k, m in enumerate(st.get("mutes", []), 1):
         i = f"W{k}"
         items[i] = ("word", m)
-        out.append(f"{i} word {_t(m['s'])} [{m.get('cat', '')}] \"{m.get('raw') or m['word']}\" "
+        heard = HEARD.get(m.get("src", ""), "")
+        out.append(f"{i} word {_t(m['s'])} [{m.get('cat', '')}{heard}] "
+                   f"\"{m.get('raw') or m['word']}\" "
                    f"after: \"{m.get('ctx', '')}\"; currently "
                    f"{'kept' if m.get('keep') else 'MUTED'}{_yours(m)}" + _said(m, with_review))
     return items, "\n".join(out)
@@ -604,6 +606,10 @@ MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w
                             r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*|christmas|"
                             r"santa|halloween|trick.or.treat\w*|birthday\w*|valentine\w*)\b", re.I)
 WHOLE_LINE_TYPES = {"religion", "christmas", "halloween", "birthday", "valentine"}   # never just a word
+# Where a single word was found, for the review. Heard by listening means it really is said:
+# Radio's review unticked "hell", "damn", "shit" heard there for not being in the subtitles.
+HEARD = {"audio": ", heard in the sound", "subtitles": ", in the subtitles",
+         "subtitles-estimated": ", in the subtitles"}
 
 
 def _only_word(line, why, mutes):
@@ -661,7 +667,11 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
         "tick then stays as it is). You can't see the picture, so for scenes found in the "
         "picture or the sound (nudity, kissing, violence, smoking...) say \"can't tell\" "
         "unless the dialogue clearly confirms it (\"remove\") or clearly shows it's a false "
-        "alarm (\"not an issue\", e.g. the 'gunshots' are fireworks at a party). Scenes "
+        "alarm (\"not an issue\", e.g. the 'gunshots' are fireworks at a party). A word "
+        "\"heard in the sound\" really is said, even when the dialogue line doesn't have it: "
+        "subtitles often leave swear words out or soften them, so never call it a false alarm "
+        "for not being in the subtitles. Slurs such as 'retarded' or 'retard' are always "
+        "\"remove\", even said as a plain description of someone. Scenes "
         "already checked by looking at the picture are settled: answer \"remove\" or \"not an "
         "issue\" to match, and leave them out of the summary.\n"
         "2. List dialogue lines that fit what they want removed but are NOT in the list "

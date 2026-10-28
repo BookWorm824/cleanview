@@ -70,6 +70,20 @@ STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing", r"effin'?", r"
           # everyday meanings too, so they're left to the AI review)
           r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
           r"ragheads?", r"beaners?"]
+# Never "fine in context", whatever an AI says: slurs, and "retarded" even said as a plain
+# description ("a severely retarded boy", Radio). An AI's "not an issue" on these is ignored.
+NEVER_FINE = [re.compile(p) for p in (
+    r"retard(s|ed|os?)?", r"retart(s|ed)?", r"tards?", r"libtards?", r"re tard(s|ed)?",
+    r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
+    r"ragheads?", r"beaners?")]       # not "fag", "dyke": cigarettes, sea walls
+
+
+def never_fine(text):
+    """True if text (a word or a short phrase) has a word no AI may call fine."""
+    words = [norm(w) for w in str(text).split()]
+    words = [w for w in words if w]
+    return any(p.fullmatch(w) for p in NEVER_FINE for w in words) or \
+        any(p.fullmatch(" ".join(words[k:k + 2])) for p in NEVER_FINE for k in range(len(words)))
 MODERATE = [
     r".*shit.*", r"bitch.*", r"son(of|ofa|uva|na)?bitch.*", r"sumbitch.*", r"ass", r"asses",
     r"ass(holes?|wipes?|hats?|clowns?|face|faces|heads?|kick(s|ed|er|ers|ing)?|"

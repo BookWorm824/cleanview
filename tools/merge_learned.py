@@ -10,6 +10,10 @@ muted them). Phrases where a word was fine ("dinner at hell") go to
 """
 import json
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import cvcore  # noqa: E402  (never_fine: slurs are never "fine here")
 
 MAX = 400
 
@@ -64,8 +68,14 @@ def from_refined(ref):
                 continue
             (d["muted"] if l["final"] == "muted" else d["kept"]).append(n)
         for w in v.get("words", []):
-            if w["final"] == "kept" and (w.get("changed_by_you") or
-                                         (w.get("ai") or {}).get("decision") == "not an issue"):
+            if w["final"] != "kept" or cvcore.never_fine(w["word"]):
+                continue
+            # The AI's "fine here" only for God's name (sincere prayer) and words it found
+            # itself: a swear heard in the sound that it ruled out (Radio: "not in the
+            # subtitles") would start unticked for everyone.
+            ai_ok = (w.get("ai") or {}).get("decision") == "not an issue" and \
+                w.get("category") in ("deity", "claude", "minced")
+            if w.get("changed_by_you") or ai_ok:
                 ctx = _norm(w.get("before") or "").split()[-2:]
                 d["claude_ok_words"].append(" ".join(ctx + [_norm(w["word"])]))
     return {"shows": shows}

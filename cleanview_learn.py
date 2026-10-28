@@ -32,6 +32,8 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+import cvcore
+
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 DIR = APP_DATA / "learned"
 MAX_LINES = 400
@@ -254,7 +256,8 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
             m["keep"] = True
             m["learned"] = "you usually keep this word"
             n_w += 1
-        elif _phrase(m) in ok_words and not (s and s["muted"]):
+        elif _phrase(m) in ok_words and not (s and s["muted"]) and \
+                not cvcore.never_fine(m.get("raw") or m.get("word", "")):
             m["keep"] = True
             m["hint"] = ("Claude said this was fine here before"
                          if _phrase(m) in d["claude_ok_words"] else
@@ -351,7 +354,7 @@ def record_claude(st):
         c = m.get("claude")
         if not c:
             continue
-        if c["decision"] == "not an issue":
+        if c["decision"] == "not an issue" and not cvcore.never_fine(m.get("raw") or m["word"]):
             p = _phrase(m)
             if p and p not in d["claude_ok_words"]:
                 d["claude_ok_words"].append(p)

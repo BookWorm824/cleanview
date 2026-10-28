@@ -1053,7 +1053,8 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
                           "private parts such as 'grow some stones', 'grow a pair', 'has the "
-                          "balls to' (the whole phrase, not ordinary stones or balls)",
+                          "balls to' (the whole phrase, not ordinary stones or balls), and "
+                          "slurs such as 'retarded' (even said as a description)",
               "mild": "mild language such as crap, screw you, damn, hell",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck",
@@ -1126,6 +1127,7 @@ def _set_on(kind, it, on):
 
 UNLISTED = (" (not a word on any list, so left unticked: it may be a name the speech "
             "recognition misheard. Tick it if it really is a bad word.)")
+NEVER_FINE_WHY = "a slur: always muted, even said as a description"
 
 
 def _words_listed(word, mine=()):
@@ -1247,6 +1249,9 @@ def apply_review(st, result):
                 n_word += 1
         elif mine:
             continue
+        elif dec == "not an issue" and kind == "word" and cl.never_fine(it.get("raw", "")):
+            it["claude"] = {"decision": "remove", "why": NEVER_FINE_WHY}     # stays muted
+            _set_on(kind, it, True)
         elif dec == "not an issue":
             n_drop += 1
             _set_on(kind, it, False)
