@@ -1803,6 +1803,39 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     return scenes, note
 
 
+def check_nudity(nude, o, look, notes):
+    """The AI on this PC takes a closer look at each nudity scene: really shown, only
+    implied, or a false alarm. look(cands) runs the second look. Returns the scenes to
+    keep, following the settings. (Its own list: up to 1.14.2 this reused the name of
+    analyze()'s picture-AI list, which crashed on "nudity" and lost the other finds.)"""
+    checks = [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
+               "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
+              for sc in nude]
+    look(checks)
+    kept, n_impl, n_none = [], 0, 0
+    for sc, c in zip(nude, checks):
+        v = c.get("verdict") or {}
+        if v.get("error"):
+            kept.append(sc)
+            continue
+        sure = not v.get("unclear")     # hard to see: offered, but unticked
+        if v.get("level") == "implied":
+            n_impl += 1
+            if o["implied"]:
+                kept.append(dict(sc, kind=["Implied nudity"], sure=sure,
+                                 why=f"implied nudity — {v.get('what', '')}"))
+        elif v.get("level") == "shown":
+            if o["nudity"]:
+                kept.append(dict(sc, sure=sure, why=f"{sc['why']} — {v.get('what', '')}"))
+        else:
+            n_none += 1
+    if n_impl or n_none:
+        notes.append(f"Nudity check: {n_none} false alarm(s) dropped, {n_impl} scene(s) "
+                     "only implied nudity" + (" (listed as implied)" if o["implied"] else
+                                               " (dropped; implied nudity isn't ticked)") + ".")
+    return kept
+
+
 def decide_picture_scenes(cands, o, have_ai):
     """Turn picture-AI candidates (after the second look) into scenes,
     following the chosen settings."""
@@ -2230,34 +2263,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if (o["nudity"] or o["implied"]) and nude:
         if have_ai:                     # the AI on this PC: really shown, or only implied?
             say(at("end", 0.65), "Taking a closer look at the nudity found…")
-            cands = [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
-                      "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
-                     for sc in nude]
             ff = cl._tool("ffmpeg")
-            ai.second_look(cands, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
-                           None, cancel)
-            kept, n_impl, n_none = [], 0, 0
-            for sc, c in zip(nude, cands):
-                v = c.get("verdict") or {}
-                if v.get("error"):
-                    kept.append(sc)
-                    continue
-                sure = not v.get("unclear")     # hard to see: offered, but unticked
-                if v.get("level") == "implied":
-                    n_impl += 1
-                    if o["implied"]:
-                        kept.append(dict(sc, kind=["Implied nudity"], sure=sure,
-                                         why=f"implied nudity — {v.get('what', '')}"))
-                elif v.get("level") == "shown":
-                    if o["nudity"]:
-                        kept.append(dict(sc, sure=sure, why=f"{sc['why']} — {v.get('what', '')}"))
-                else:
-                    n_none += 1
-            if n_impl or n_none:
-                notes.append(f"Nudity check: {n_none} false alarm(s) dropped, {n_impl} scene(s) "
-                             "only implied nudity" + (" (listed as implied)" if o["implied"] else
-                                                       " (dropped; implied nudity isn't ticked)") + ".")
-            nude = kept
+            nude = check_nudity(nude, o, lambda checks: ai.second_look(
+                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run), None, cancel),
+                notes)
         elif not o["nudity"]:
             nude = []
         scenes += nude

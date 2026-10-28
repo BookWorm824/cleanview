@@ -22,6 +22,54 @@ def look(cat, *answers):
         ai.chat = saved
 
 
+class NudityCheck(unittest.TestCase):
+    """The AI on this PC's closer look at nudity. Up to 1.14.2 analyze() built this list
+    under the same name as the picture AI's finds, so an episode with possible nudity
+    crashed with KeyError: 'nudity' (The Resident S01E07) and lost its other finds."""
+
+    nude = [{"s": 10.0 * n, "e": 10.0 * n + 5, "kind": ["Nudity"], "why": "skin seen",
+             "sure": True} for n in range(4)]
+
+    def check(self, implied=True):
+        verdicts = [{"level": "shown", "what": "bare back and bottom"},
+                    {"level": "implied", "what": "under a sheet"},
+                    {"level": "none"}, {"error": "model not running"}]
+
+        def look(checks):
+            self.assertEqual([c["cat"] for c in checks], ["nudity"] * 4)
+            for c, v in zip(checks, verdicts):
+                c["verdict"] = v
+        notes = []
+        kept = engine.check_nudity(self.nude, engine.full_opts({"nudity": True,
+                                                                "implied": implied}),
+                                   look, notes)
+        return kept, notes
+
+    def test_shown_implied_and_false_alarms(self):
+        kept, notes = self.check()
+        self.assertEqual([k["kind"] for k in kept], [["Nudity"], ["Implied nudity"], ["Nudity"]])
+        self.assertIn("bare back and bottom", kept[0]["why"])
+        self.assertIn("1 false alarm(s) dropped, 1 scene(s) only implied nudity", notes[0])
+
+    def test_implied_dropped_when_not_ticked(self):
+        kept, notes = self.check(implied=False)
+        self.assertEqual(len(kept), 2, "shown, and the one that couldn't be checked")
+        self.assertIn("implied nudity isn't ticked", notes[0])
+
+    def test_picture_ai_finds_are_never_replaced(self):
+        import ast
+        import inspect
+        tree = ast.parse(inspect.getsource(engine.analyze))
+        made = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
+                for t in n.targets if isinstance(t, ast.Name) and t.id == "cands"]
+        self.assertEqual(len(made), 2, "only the picture AI's own two (empty, then found)")
+
+    def test_picture_scenes_skip_nothing_known(self):
+        cands = [{"cat": "fight", "s": 1.0, "e": 5.0, "verdict": {"keep": True, "level": "fight"}}]
+        scenes = engine.decide_picture_scenes(cands, engine.full_opts(SETTINGS), True)
+        self.assertEqual(scenes[0]["kind"], ["Violence"])
+
+
 class UnclearCheck(unittest.TestCase):
 
     def test_dark_things_in_the_picture_are_fine(self):
