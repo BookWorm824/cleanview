@@ -156,6 +156,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (e.g. bullying filtered for kids, not for herself).
 - Language groups: swearing, mild, God's name, minced oaths, same-sex words, rude words kids
   copy (stupid, dumb, idiot, shut up...). "screw you" and "crap" count as language.
+- "What the" / "who the" / "what in the" just before a muted word is muted with it
+  ("what the hell" goes whole; `cvcore.with_lead_in`), since it says what the word was.
 - Her own words and phrases (start page box, one per line, every age; `opts["mywords"]`,
   read by `my_words()`): whole words and whole phrases, always muted, category "mine";
   passed as `mine` to `cvcore.find_language`/`listed_word` everywhere the lists are used

@@ -369,7 +369,27 @@ def find_language(words, cats, mine=()):
                 hits.append((i, i + 1, cat))
                 break
         i += 1
-    return hits
+    return with_lead_in(words, hits)
+
+
+# "What the hell", "who the f***", "what in the heck": the words before the swear say what
+# it was even with the swear muted, so they're muted with it.
+LEAD_IN = {"what", "who", "where", "why", "how", "when"}
+
+
+def with_lead_in(words, hits):
+    """hits with each one's "what the" / "what in the" (just before it) added."""
+    out, last = [], 0
+    for a, b, cat in hits:
+        for k in (2, 3):
+            lead = words[a - k:a] if a >= k else []
+            if (len(lead) == k and lead[0] in LEAD_IN and lead[-1] == "the"
+                    and (k == 2 or lead[1] == "in") and a - k >= last):
+                a -= k
+                break
+        out.append((a, b, cat))
+        last = b
+    return out
 
 
 def sex_score(words):

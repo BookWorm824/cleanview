@@ -57,7 +57,7 @@ class BleepedSubtitles(unittest.TestCase):
                 self.assertEqual(cl.norm(text), same)
 
     def test_found_in_a_subtitle_line(self):
-        self.assertEqual(found("What the f*** is that?", ["strong"]), [("fuck", "strong")])
+        self.assertEqual(found("What the f*** is that?", ["strong"]), [("what the fuck", "strong")])
         self.assertEqual(found("That's bulls**t.", ["moderate"]), [("bullshit", "moderate")])
 
 
@@ -88,6 +88,41 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("just shut it", ["rude"]), [("shut it", "rude")])
         self.assertEqual(found("shut up", ["rude"]), [("shut up", "rude")])
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
+
+
+class WhatThe(unittest.TestCase):
+    """"What the ****": muting only the swear still says what it was, so "what the" goes too."""
+
+    def test_lead_in_muted_with_the_swear(self):
+        for text, cats, phrase, cat in [
+                ("What the hell is that?", ["mild"], "what the hell", "mild"),
+                ("What the f*** is that?", ["strong"], "what the fuck", "strong"),
+                ("what the heck", ["minced"], "what the heck", "minced"),
+                ("Who the hell are you", ["mild"], "who the hell", "mild"),
+                ("Where the hell were you", ["mild"], "where the hell", "mild"),
+                ("why the hell not", ["mild"], "why the hell", "mild"),
+                ("How the hell did he", ["mild"], "how the hell", "mild"),
+                ("What in the hell", ["mild"], "what in the hell", "mild")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, cats), [(phrase, cat)])
+        self.assertEqual(found("what the bloody hell", ["mild"]),        # all four words
+                         [("what the bloody", "mild"), ("hell", "mild")])
+
+    def test_only_with_a_swear(self):
+        for text in ("What the doctor said", "who the man is", "what the heck",
+                     "What in the world"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["mild"]), [])
+
+    def test_other_swears_keep_their_own_words(self):
+        self.assertEqual(found("get the hell out", ["mild"]), [("hell", "mild")])
+        self.assertEqual(found("go to hell", ["mild"]), [("hell", "mild")])
+        self.assertEqual(found("damn what the hell", ["mild"]),
+                         [("damn", "mild"), ("what the hell", "mild")])
+
+    def test_her_own_words_too(self):
+        words = ["what", "the", "frak"]
+        self.assertEqual(cl.find_language(words, [], mine=[("frak",)]), [(0, 3, "mine")])
 
 
 class ChainAndSheesh(unittest.TestCase):
@@ -183,7 +218,7 @@ class MoreCrudeSlang(unittest.TestCase):
 
     def test_caught(self):
         for text, word, cat in [
-                ("You A-hole", "ahole", "moderate"), ("What the f-ing hell", "fing", "strong"),
+                ("You A-hole", "ahole", "moderate"), ("What the f-ing hell", "what the fing", "strong"),
                 ("WTF is this", "wtf", "strong"), ("eff you", "eff you", "moderate"),
                 ("you mofo", "mofo", "strong"), ("Don't be a pussy", "pussy", "moderate"),
                 ("He got a boner", "boner", "moderate"), ("nice boobs", "boobs", "moderate"),
