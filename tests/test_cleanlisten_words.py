@@ -31,18 +31,9 @@ CV_ONLY = {"thank god"}  # CleanView mutes it as God's name (an AI can rule it s
 #                         CleanListen leaves it to its strict religion filter
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
-# says so: take it off this list.
-WAITING_ON_CLEANLISTEN = {   # fruit and vegetables for body parts, sent 2026-10-28
-    "Check out those melons!", "He was staring at her coconuts", "He zipped his franks and beans",
-    "Her huge melons", "I lost my cherry at prom", "Is that a banana in your pocket?",
-    "Kicked me right in the plums", "Look at her tight buns", "Look at them big melons",
-    "Nice pair of cantaloupes", "She kneed him in the grapes", "You popped her cherry?",
-    "a cucumber in his pants", "check out those melons", "cucumber in his pants",
-    "freezing my grapes off", "freezing my grapes off out here", "her huge melons",
-    "her tight buns", "his juicy peach", "hit him in the franks and beans",
-    "is that a banana in your pocket", "kicked me right in the plums", "kneed him in the grapes",
-    "look at them big melons", "lost my cherry", "nice pair of cantaloupes", "popped her cherry",
-    "staring at her coconuts", "zipped his franks and beans"}
+# says so: take it off this list. (Empty: CleanListen 1.8.5 took the fruit and vegetable
+# slang, 2026-10-28.)
+WAITING_ON_CLEANLISTEN = set()
 
 
 def load_cleanlisten():
