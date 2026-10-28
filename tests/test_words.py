@@ -254,6 +254,52 @@ class SlangForPrivateParts(unittest.TestCase):
         self.assertIn("grow some stones", engine.wanted_text({}, ["swearing"]))
 
 
+class FruitAndVegetables(unittest.TestCase):
+    """Fruit and vegetables used for body parts ("check out those melons"), only in these
+    phrases: real melons, cherries and bananas are left alone."""
+
+    def test_whole_phrase_muted(self):
+        for text, phrase in [
+                ("Check out those melons!", "check out those melons"),
+                ("Nice pair of cantaloupes", "nice pair of cantaloupes"),
+                ("He was staring at her coconuts", "staring at her coconuts"),
+                ("Look at them big melons", "look at them big melons"),
+                ("Her huge melons", "her huge melons"),
+                ("You popped her cherry?", "popped her cherry"),
+                ("I lost my cherry at prom", "lost my cherry"),
+                ("She kneed him in the grapes", "kneed him in the grapes"),
+                ("Kicked me right in the plums", "kicked me right in the plums"),
+                ("hit him in the franks and beans", "hit him in the franks and beans"),
+                ("He zipped his franks and beans", "zipped his franks and beans"),
+                ("freezing my grapes off out here", "freezing my grapes off"),
+                ("Is that a banana in your pocket?", "is that a banana in your pocket"),
+                ("a cucumber in his pants", "cucumber in his pants"),
+                ("Look at her tight buns", "her tight buns"),
+                ("his juicy peach", "his juicy peach")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["moderate"]), [(phrase, "moderate")])
+
+    def test_real_fruit_left_alone(self):
+        for text in ("These melons are ripe", "Check out these melons, only a dollar",
+                     "a slice of watermelon", "grapefruit for breakfast", "cherry pie",
+                     "She lost her cherry pie recipe", "the cherry on top", "a bunch of grapes",
+                     "We grew plums and beans", "pass the franks and beans",
+                     "meat and two veg for dinner", "I kept a carrot in my pocket for the horse",
+                     "a banana in my lunchbox", "a juicy peach", "hot cross buns",
+                     "She wore her hair in buns", "climbing for coconuts",
+                     "popped a cherry tomato in her mouth", "a big pair of shoes"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_ai_may_mute_the_phrase_but_not_the_fruit(self):
+        self.assertTrue(cl.listed_word("check out those melons"))
+        for word in ("melons", "cherry", "banana", "plums"):
+            self.assertFalse(cl.listed_word(word))
+
+    def test_reviewer_is_told(self):
+        self.assertIn("those melons", engine.wanted_text({}, ["swearing"]))
+
+
 class ShortForms(unittest.TestCase):
     """D-bag, SOB and ball buster. "sob" is also a real word, so it only counts written
     as an abbreviation (capitals or dots) or spelled out."""

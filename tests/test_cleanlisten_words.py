@@ -18,7 +18,12 @@ import cvcore as cv
 CL_REPO = Path(os.environ.get("CLEANLISTEN_REPO") or support.ROOT.parents[1] / "cleanlisten")
 
 # Different on purpose, and why.
-SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "jewels"}
+SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "jewels",
+               # fruit and vegetables for body parts ("check out those melons")
+               "melons", "cantaloupes", "watermelons", "grapefruits", "coconuts", "honeydews",
+               "cherry", "grapes", "plums", "berries", "beans", "walnuts", "franks", "frank",
+               "veg", "banana", "cucumber", "zucchini", "eggplant", "carrot", "pickle", "peach",
+               "buns"}
 CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such talk as lines
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
     "orgasm"}
@@ -26,8 +31,18 @@ CV_ONLY = {"thank god"}  # CleanView mutes it as God's name (an AI can rule it s
 #                         CleanListen leaves it to its strict religion filter
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
-# says so: take it off this list. (Empty: CleanListen took the last ones, 2026-10-28.)
-WAITING_ON_CLEANLISTEN = set()
+# says so: take it off this list.
+WAITING_ON_CLEANLISTEN = {   # fruit and vegetables for body parts, sent 2026-10-28
+    "Check out those melons!", "He was staring at her coconuts", "He zipped his franks and beans",
+    "Her huge melons", "I lost my cherry at prom", "Is that a banana in your pocket?",
+    "Kicked me right in the plums", "Look at her tight buns", "Look at them big melons",
+    "Nice pair of cantaloupes", "She kneed him in the grapes", "You popped her cherry?",
+    "a cucumber in his pants", "check out those melons", "cucumber in his pants",
+    "freezing my grapes off", "freezing my grapes off out here", "her huge melons",
+    "her tight buns", "his juicy peach", "hit him in the franks and beans",
+    "is that a banana in your pocket", "kicked me right in the plums", "kneed him in the grapes",
+    "look at them big melons", "lost my cherry", "nice pair of cantaloupes", "popped her cherry",
+    "staring at her coconuts", "zipped his franks and beans"}
 
 
 def load_cleanlisten():

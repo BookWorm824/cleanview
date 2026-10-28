@@ -156,9 +156,15 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
 # Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
 # own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
-# The whole phrase is muted, with the swearing group.
+# The whole phrase is muted, with the swearing group. Fruit and vegetables for body parts
+# ("check out those melons", "pop her cherry") work the same way.
 _PARTS = r"(stones|balls|nuts|cojones|family jewels)"
 _GROW = r"(grow|grows|grew|grown|growing)( yourself| himself| herself| themselves| you| me)?"
+_CHEST = r"(melons|cantaloupes|watermelons|grapefruits|coconuts|honeydews)"   # breasts
+_BIG = r"((big|huge|giant|great|massive|enormous|perky|nice|lovely) )?"
+_LOW = r"(grapes|plums|berries|beans|walnuts|franks and beans|frank and beans|meat and two veg)"
+_NOT_FRUIT = (r"(?! (pie|pies|tree|trees|tomato|tomatoes|blossom|blossoms|cola|coke|juice|jam|"
+              r"stem|stems|pit|pits|lipstick|chapstick|red|wood|bomb|bombs|on top)\b)")
 BODY_SLANG = [re.compile(p) for p in (
     _GROW + r" (some|any|real|big|bigger|your own|his own|a pair of|a set of) " + _PARTS +
     r"(?!(?: \w+){0,4} (kidneys?|gall|gallbladder|bladder)\b)",       # not kidney stones
@@ -170,8 +176,26 @@ BODY_SLANG = [re.compile(p) for p in (
     r"punching|smack|smacked|whack|whacked)( \w+){0,3} in the " + _PARTS + r"\b",
     r"(freeze|freezes|freezing|froze|frozen|work|works|working|worked|cut|cuts|cutting|chop|"
     r"chops|chopped|rip|rips|ripped|tear|tore|torn|bite|bit|bitten|shoot|shot|blow|blew|blown) "
-    r"(my|his|your|her|our|their) (balls|nuts|stones) off\b",               # freeze my nuts off
+    r"(my|his|your|her|our|their) (balls|nuts|stones|grapes|plums) off\b",  # freeze my nuts off
     r"(brass|blue) balls\b", r"balls of steel\b",
+    # Fruit and vegetables for body parts: only these phrases, never "a melon" or "cherry pie"
+    r"(nice|big|huge|giant|great|massive|enormous|perky|lovely) (pair|set) of " + _CHEST + r"\b",
+    r"(check|checks|checking|checked|checkin) out (those|them|her|your) " + _BIG + _CHEST + r"\b",
+    r"(stare|stares|staring|stared|ogle|ogles|ogling|ogled|gawk|gawking|gawked|look|looks|"
+    r"looking|looked|lookin) at (her|them) " + _BIG + _CHEST + r"\b",
+    r"(her|your) (big|huge|giant|massive|enormous|perky|nice|lovely) " + _CHEST + r"\b",
+    r"(pop|pops|popped|popping|poppin|bust|busts|busted|busting|lose|loses|lost|losing|take|"
+    r"took|taking|taken|break|broke|broken) (her|his|my|your|their|our) cherry\b" + _NOT_FRUIT,
+    r"cherry (popper|poppers|popping)\b",
+    r"(kick|kicks|kicked|kicking|knee|kneed|kneeing|hit|hits|hitting|punch|punched|punches|"
+    r"punching|smack|smacked|whack|whacked)( \w+){0,3} in the " + _LOW + r"\b",
+    r"(zip|zips|zipped|zipping|caught|catch|catching|snag|snagged) (his|my|your) "
+    r"(franks?|frank) and beans\b",
+    r"(is that|that's|that is|was that) an? (banana|cucumber|zucchini|eggplant|carrot|pickle) in "
+    r"(your|his|my) (pants|pocket|trousers|shorts|jeans|underwear)\b",
+    r"(banana|cucumber|zucchini|eggplant|pickle) in (your|his|my) "
+    r"(pants|trousers|shorts|jeans|underwear)\b",
+    r"(her|his|your) (tight|juicy|round|perfect) (peach|buns)\b",
     # touching yourself (as CleanListen); "jerked off the road" is left alone
     r"(jerk|jerks|jerked|jerking|jerkin|jack|jacks|jacked|jacking|jackin) off\b"
     r"(?! (the|a|an|his|her|its|their|my|your|our|of|to|into|onto|from|at|toward|towards|"

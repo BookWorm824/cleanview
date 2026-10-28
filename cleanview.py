@@ -1053,7 +1053,10 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
                           "private parts such as 'grow some stones', 'grow a pair', 'has the "
-                          "balls to' (the whole phrase, not ordinary stones or balls), and "
+                          "balls to' (the whole phrase, not ordinary stones or balls), fruit "
+                          "and vegetables used for body parts such as 'check out those "
+                          "melons', 'pop her cherry', 'kicked him in the plums', 'a banana "
+                          "in your pocket' (not real fruit), and "
                           "slurs such as 'retarded' (even said as a description)",
               "mild": "mild language such as crap, screw you, damn, hell",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
