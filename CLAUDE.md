@@ -43,6 +43,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
 - User data lives in `%LOCALAPPDATA%\CleanView` (`APP_DATA` in the code): settings, learned
   choices, Claude findings, saved Claude/ChatGPT answers (`answers\`), the saved
   in-progress review.
+- Sending what it learned: "Send what CleanView learned…" and "Send what we refined…"
+  post the file to the CleanView inbox, a Google Apps Script web app in the owner's Google
+  account (`tools/cleanview_inbox.gs`, setup in `tools/README-inbox.txt`; its address is
+  `cleanview_learn.SEND_URL`, and CleanListen uses the same one). Files land in the Drive
+  folder "CleanView learned"; merge them with `tools/merge_learned.py`. No internet or "not
+  now": the old "saved here, attach it" message. Tests point `CLEANVIEW_INBOX` at nothing
+  (`support.NO_INBOX`) so they never send to the real one.
 - Times: everything counts from 0 = the start of the file, the clock ffmpeg's filters use in
   `render()` (not the file's own start time, which can be 10 s or more on .ts/.vob rips).
   Sound is always read through `_mono()` (or `snap_edges(audio=...)`), which pads a late

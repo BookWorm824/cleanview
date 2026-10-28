@@ -23,6 +23,10 @@ if not shutil.which("ffmpeg") and (_installed_bin / "ffmpeg.exe").exists():
 FFMPEG = shutil.which("ffmpeg")
 os.environ["LOCALAPPDATA"] = str(SANDBOX)
 os.environ.pop("CLEANVIEW_RESUME", None)
+# Never send to the real CleanView inbox (the owner's Drive): a test that sends points it
+# at its own little server; anything else goes nowhere.
+NO_INBOX = "http://127.0.0.1:9/exec"
+os.environ["CLEANVIEW_INBOX"] = NO_INBOX
 APP_DATA = SANDBOX / "CleanView"
 (APP_DATA / "learned").mkdir(parents=True)
 sys.path.insert(0, str(ROOT))

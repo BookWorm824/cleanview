@@ -367,7 +367,7 @@ class Window(unittest.TestCase):
             app._send_in(path, "refined")
             self.assertIn("Attach that file", self.said[-1][1])
         finally:
-            os.environ.pop("CLEANVIEW_INBOX", None)
+            os.environ["CLEANVIEW_INBOX"] = support.NO_INBOX
             ui.subprocess.Popen = saved_popen
             server.shutdown()
             server.server_close()

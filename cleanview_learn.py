@@ -35,9 +35,10 @@ from pathlib import Path
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 DIR = APP_DATA / "learned"
 MAX_LINES = 400
-# The CleanView inbox's web app address (tools/README-inbox.txt); empty: not set up yet,
-# so the file is only saved and the person is told where.
-SEND_URL = ""
+# The CleanView inbox's web app address (tools/README-inbox.txt; set up 2026-10-28 in the
+# owner's Google account). Empty: the file is only saved and the person is told where.
+SEND_URL = ("https://script.google.com/macros/s/"
+            "AKfycbxfh9Cv3ctELA3352GTuVA1lshmGZKbwwPDsd39DEImZ-bRjFYml78iYKYZ5a2RGt8/exec")
 MAX_SEND = 2_000_000        # the inbox refuses more
 
 

@@ -59,7 +59,7 @@ class Send(unittest.TestCase):
         os.environ["CLEANVIEW_INBOX"] = self.url
 
     def tearDown(self):
-        os.environ.pop("CLEANVIEW_INBOX", None)
+        os.environ["CLEANVIEW_INBOX"] = support.NO_INBOX
 
     def test_sent_as_the_inbox_expects(self):
         learn.send(self.file, "learned")
@@ -75,16 +75,21 @@ class Send(unittest.TestCase):
             learn.send(self.file, "learned")
 
     def test_no_inbox_yet(self):
+        saved, learn.SEND_URL = learn.SEND_URL, ""
         os.environ.pop("CLEANVIEW_INBOX")
-        if learn.SEND_URL:
-            self.skipTest("the inbox's address is built in")
+        self.addCleanup(setattr, learn, "SEND_URL", saved)
         with self.assertRaisesRegex(RuntimeError, "isn't set up yet"):
             learn.send(self.file, "learned")
 
     def test_no_internet(self):
-        os.environ["CLEANVIEW_INBOX"] = "http://127.0.0.1:9/exec"     # nothing listens there
+        os.environ["CLEANVIEW_INBOX"] = support.NO_INBOX     # nothing listens there
         with self.assertRaises(OSError):
             learn.send(self.file, "learned")
+
+    def test_tests_never_reach_the_real_inbox(self):
+        self.assertTrue(learn.SEND_URL.startswith("https://script.google.com/macros/s/"))
+        self.assertTrue(learn.SEND_URL.endswith("/exec"))
+        self.assertEqual(support.NO_INBOX, "http://127.0.0.1:9/exec")
 
     def test_too_big_is_not_sent(self):
         self.file.write_text(json.dumps({"x": "a" * learn.MAX_SEND}), encoding="utf8")
