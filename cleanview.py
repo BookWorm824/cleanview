@@ -2390,6 +2390,12 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         except cc.ClaudeError as ex:
             claude_found = None
             notes.append(f"{who} couldn't read the dialogue this time: {ex}")
+    if look_job and have_ai and claude_found is None:
+        # the AI on this PC reads it instead: let it finish its closer look at the picture
+        # first, so the two never share the graphics card
+        wait_for(look_job, lambda f: say(at("look", f), "Finishing the closer look at the "
+                                                        f"scenes found · {eta(at('look', f))}"),
+                 cancel)
     line_mutes, line_how = find_lines(
         lines, o, have_ai and claude_found is None,
         lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
