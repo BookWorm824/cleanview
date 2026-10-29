@@ -706,6 +706,8 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
         "(blood in surgery when violence isn't on their list, a 'sex scene' that turns out to "
         "be someone running or crying), it's \"not an issue\".\n"
         "2. List dialogue lines that fit what they want removed but are NOT in the list "
+        "(only for what is said: things they only want cut from the picture, such as "
+        "drinking or smoking, don't make a line to mute) "
         "(\"missed_lines\", by line number; if only one word in it is the problem, also give "
         "that word in \"word\" so only the word is muted), and stretches of conversation that should be cut "
         "as a whole, such as flirting or romance they asked to remove (\"missed_scenes\", "

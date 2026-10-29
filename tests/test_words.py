@@ -500,14 +500,19 @@ class FromTheReports(unittest.TestCase):
                                   ("Praise the Lord!", "praise the lord", "deity"),
                                   ("Holy Lord!", "holy lord", "deity"),
                                   ("What the devil?", "what the devil", "minced"),
-                                  ("What the dickens is that?", "what the dickens", "minced")]:
+                                  ("What the dickens is that?", "what the dickens", "minced"),
+                                  ("For God's sakes!", "for god's sakes", "deity"),
+                                  ("For Christ's sakes", "for christ's sakes", "deity"),
+                                  ("Morning, dum-dum.", "dumdum", "rude"),
+                                  ("Fathead.", "fathead", "rude")]:
             with self.subTest(text=text):
                 self.assertEqual(found(text, [cat]), [(phrase, cat)])
 
     def test_everyday_uses_left_alone(self):
         for text in ("The lid got screwed on tight", "It got screwed to the wall",
                      "Get screwed in properly", "The devil is in the details",
-                     "Holy water", "the dickens novel", "He played the devil"):
+                     "Holy water", "the dickens novel", "He played the devil",
+                     "loaded with dum-dum bullets"):
             with self.subTest(text=text):
                 self.assertEqual(found(text), [])
 

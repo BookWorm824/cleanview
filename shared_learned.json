@@ -240,7 +240,18 @@
   },
   "_movies@teens": {
    "muted": [
-    "l wined her and dined her and then l reclined her"
+    "l wined her and dined her and then l reclined her",
+    "he looks like a weirdy",
+    "so have fun playing with your baby keys little baby monkey",
+    "maybe tomorrow night i'll bring you a little baby diapy so you can go poo poo with it",
+    "well you cry all night long about how uncle larry fooled you huh",
+    "i ain't working with togo boy",
+    "covered in sweat everybody clothes wet so you know what everyone is craving",
+    "no your name dum dum",
+    "oh you in trouble dum dum",
+    "morning dum dum",
+    "you dum dum",
+    "hey how's that come treating you dumb dumb"
    ],
    "kept": [
     "l thought he came down here for a quickie divorce",
@@ -255,11 +266,25 @@
     "l'm gonna put you on the rail you piece of shit",
     "get off of me how do you like that you son of a bitch",
     "you're gonna drop me man",
-    "the two horses are flying down you like the rail"
+    "the two horses are flying down you like the rail",
+    "don't be a bitch",
+    "nod your hand show me sipping on a pina colada getting down low in a full suita brother she a king all that she got from",
+    "her mother the club isn't fire never no need for water everybody's raving girls on the dance floor misbehaving"
    ],
    "ok_words": [],
    "muted_for": {
-    "l wined her and dined her and then l reclined her": "sexref"
+    "l wined her and dined her and then l reclined her": "sexref",
+    "he looks like a weirdy": "bullying",
+    "so have fun playing with your baby keys little baby monkey": "bullying",
+    "maybe tomorrow night i'll bring you a little baby diapy so you can go poo poo with it": "bullying",
+    "well you cry all night long about how uncle larry fooled you huh": "bullying",
+    "i ain't working with togo boy": "bullying",
+    "covered in sweat everybody clothes wet so you know what everyone is craving": "sexref",
+    "no your name dum dum": "bullying",
+    "oh you in trouble dum dum": "bullying",
+    "morning dum dum": "bullying",
+    "you dum dum": "bullying",
+    "hey how's that come treating you dumb dumb": "bullying"
    }
   },
   "the-resident": {

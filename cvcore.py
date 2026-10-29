@@ -137,7 +137,8 @@ DEITY_PHRASES = [
     ("lord", "help", "me"), ("god", "forbid"), ("swear", "to", "god"), ("thank", "the", "lord"),
     ("in", "god's", "name"), ("in", "gods", "name"), ("for", "the", "love", "of", "god"),
     ("christ", "on", "a", "bike"), ("god", "in", "heaven"), ("so", "help", "me", "god"),
-    ("praise", "the", "lord"), ("holy", "lord"),
+    ("praise", "the", "lord"), ("holy", "lord"), ("for", "god's", "sakes"),
+    ("for", "gods", "sakes"), ("for", "christ's", "sakes"), ("for", "christs", "sakes"),
 ]
 CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
     ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
@@ -162,7 +163,8 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  "butt": {"in", "heads"}, "butts": {"in", "heads"},
                  "dumb": {"waiter", "waiters", "luck", "founded", "show"},
                  # "gee up" to a horse; the letter G ("a gee string", "gee major")
-                 "gee": {"up", "string", "strings", "major", "minor", "sharp", "flat", "clef"}}
+                 "gee": {"up", "string", "strings", "major", "minor", "sharp", "flat", "clef"},
+                 "dumdum": {"bullet", "bullets"}, "dumdums": {"bullet", "bullets"}}
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
                  "hooker": {"general", "john", "joe"}, "hookers": {"general"},
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
@@ -342,7 +344,7 @@ RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?"
         r"meatheads?", r"lamebrains?", r"birdbrains?", r"dunces?", r"wimps?",   # not Wimpy
         r"wuss(es)?", r"wussy", r"sissy", r"sissies", r"crybab(y|ies)", r"scaredy(cats?)?",
         r"weirdos?", r"fatsos?", r"putz(es)?", r"schmucks?", r"ignoramus(es)?", r"brats?",
-        r"dumbdumbs?"]
+        r"dumbdumbs?", r"dumdums?", r"fatheads?"]
 RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
                 ("shut", "your", "face"), ("shut", "it"), ("you", "suck"), ("it", "sucks"),
                 ("this", "sucks"), ("that", "sucks"), ("shut", "your", "pie", "hole"),

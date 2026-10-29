@@ -18,7 +18,7 @@ import cvcore as cv
 CL_REPO = Path(os.environ.get("CLEANLISTEN_REPO") or support.ROOT.parents[1] / "cleanlisten")
 
 # Different on purpose, and why.
-SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "jewels",
+SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "cajones", "cahones", "jewels",
                # fruit and vegetables for body parts ("check out those melons")
                "melons", "cantaloupes", "watermelons", "grapefruits", "coconuts", "honeydews",
                "cherry", "grapes", "plums", "berries", "beans", "walnuts", "franks", "frank",
@@ -30,18 +30,15 @@ SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "jewels",
 CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such talk as lines
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
     "orgasm"}
-CV_ONLY = {"thank god", "thank the lord"}   # CleanView mutes these as God's name (an AI can
+CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes these as God's name (an AI can
 #                         rule them sincere); CleanListen leaves them to its strict religion filter
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
 # says so: take it off this list.
 # (Empty: CleanListen took CleanView 1.17.0-1.17.1's words, 2026-10-29.)
-WAITING_ON_CLEANLISTEN = {   # CleanView 1.17.4 words (from the reports), sent 2026-10-29
-    'Grow some cajones', "He's got cahones", 'Holy Lord!', 'Merde!', 'Praise the Lord!',
-    'So help me God', 'Verdammt!', 'We got screwed!', 'What the devil?',
-    'What the dickens is that?', 'You still get screwed', 'cahones', 'get screwed',
-    'got screwed', 'grow some cajones', 'holy lord', 'merde', 'praise the lord',
-    'so help me god', 'verdammt', 'what the devil', 'what the dickens'}
+WAITING_ON_CLEANLISTEN = {   # CleanView 1.17.5 words (Night at the Museum), sent 2026-10-29
+    'Fathead.', "For Christ's sakes", "For God's sakes!", 'Morning, dum-dum.', 'dumdum',
+    'fathead', "for christ's sakes", "for god's sakes"}
 
 
 def load_cleanlisten():
