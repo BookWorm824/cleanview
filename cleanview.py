@@ -1037,13 +1037,16 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"bapti[sz](e|ed|m)|church(es)?|synagogues?|mosques?|pastor|priests?|"
                            r"rabbis?|imams?|the lord|god bless|our father|holy spirit|"
                            r"born again|sunday school|bible study)\b", re.I),
-    # not "elves", "stockings" or "make a wish": too often something else
+    # not "elves", "stockings" or "make a wish": too often something else; not "Rudolph" alone
+    # (a character "Rudolph Hill" in Lauren's sentences), only the reindeer
     "christmas": re.compile(r"\b(christmas|x-?mas|santa( claus)?|saint nick|north pole|"
-                            r"reindeer|rudolph|mistletoe|yuletide|jingle bells)\b", re.I),
+                            r"reindeer|rudolph the|rudolph's( red)? nose|mistletoe|yuletide|"
+                            r"jingle bells)\b", re.I),
     "halloween": re.compile(r"\b(hallowe'?en|trick[- ]or[- ]treat\w*|jack[- ]?o[-' ]*lanterns?|"
                             r"all hallows)\b", re.I),
     # only the candles: "happy birthday" and birthday parties are fine
-    "birthday": re.compile(r"\b(blow(s|ing)? out (the|your|my|his|her|their|all the|all your) "
+    "birthday": re.compile(r"\b(blow(s|ing|n)? out (the|your|my|his|her|their|all the|all your) "
+                           r"candles|blew out (the|your|my|his|her|their|all the|all your) "
                            r"candles|birthday candles?|candles on (the|your|my|his|her|a|that) "
                            r"(birthday )?cake)\b", re.I),
     "valentine": re.compile(r"\b(valentines?|valentine's|cupid)\b", re.I),

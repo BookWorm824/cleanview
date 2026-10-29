@@ -36,6 +36,8 @@ class Heard(unittest.TestCase):
                            ("Look at my jack-o'-lantern.", "halloween"),
                            ("Now blow out the candles.", "birthday"),
                            ("Look at all the birthday candles!", "birthday"),
+                           ("She blew out the candles.", "birthday"),
+                           ("Rudolph the red-nosed reindeer", "christmas"),
                            ("Put the candles on the cake.", "birthday"),
                            ("Will you be my valentine?", "valentine"),
                            ("Who's ready for the Easter egg hunt?", "easter"),
@@ -51,7 +53,8 @@ class Heard(unittest.TestCase):
                      "for you.", "Pumpkin pie for dinner.", "The witch cast a spell.",
                      "Make a wish on that star.", "Easter Island has huge statues.",
                      "Scrambled eggs for breakfast.", "Mass at St. Patrick's Cathedral.",
-                     "Happy Thanksgiving!", "Pass the turkey, it's Thanksgiving."):
+                     "Happy Thanksgiving!", "Pass the turkey, it's Thanksgiving.",
+                     "Rudolph Hill called the office."):
             with self.subTest(text=text):
                 self.assertEqual(flagged(dialogue(text)), {})
 
