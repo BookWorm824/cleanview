@@ -190,12 +190,181 @@
     "self control that's funny coming from a guy",
     "who slept with every terrakian slave girl and moon princess on the show",
     "hey get a room guys okay",
-    "sexy lady"
+    "sexy lady",
+    "i may be twice your age child but i'm well endowed",
+    "i have now principally in view those objects which are only to be obtained through intercourse"
    ],
    "kept": [
-    "no one even bothered to ask me what i do on the show"
+    "no one even bothered to ask me what i do on the show",
+    "hmm you dismiss her beauty and good nature yet i would be very much mistaken if your sex in general does not think those claims the",
+    "why it's almost as absurd as a prince who spends his days with a servant who sleeps with pigs",
+    "are you so severe on your own sex",
+    "collins is the sort of man who makes you despair of the entire sex"
    ],
-   "ok_words": []
+   "ok_words": [],
+   "muted_for": {
+    "i may be twice your age child but i'm well endowed": "sexref",
+    "i have now principally in view those objects which are only to be obtained through intercourse": "sexref"
+   }
+  },
+  "_movies@kids": {
+   "muted": [
+    "who baldy"
+   ],
+   "kept": [
+    "six generations of fools chasing after fool's gold",
+    "she really can't shut her mouth can she",
+    "is she pregnant",
+    "well if she is",
+    "are you gonna leave the woman carrying your grandchild standing out in the cold",
+    "i look pregnant",
+    "so you show up at your father's door and say you're in trouble",
+    "and the first thing he assumes is i'm pregnant",
+    "is there a question in there",
+    "i think there's an interesting story in there",
+    "well my father thinks i've been a little too cavalier",
+    "in my personal life",
+    "let me ask you something",
+    "have you ever told someone not a relative i love you",
+    "more than one someone",
+    "oh well then my father would say",
+    "you've been a little too cavalier in your personal life too",
+    "so you get your sense of absolute certainty from him do you",
+    "well i'm sure i don't know what you mean",
+    "it was in 1846 on george washington's birthday"
+   ],
+   "ok_words": [],
+   "muted_for": {
+    "who baldy": "bullying"
+   }
+  },
+  "_movies@teens": {
+   "muted": [
+    "l wined her and dined her and then l reclined her"
+   ],
+   "kept": [
+    "l thought he came down here for a quickie divorce",
+    "nothing quick about that",
+    "ah shit what rhymes with siam",
+    "that's great you make that up",
+    "pretty obvious huh",
+    "that's beautiful no you're beautiful",
+    "hook you up to a plow pull me around for a little while come on",
+    "you goddamn sack of crap old plater",
+    "probably the fastest you're gonna run in your entire life you piece of shit old glue pot",
+    "l'm gonna put you on the rail you piece of shit",
+    "get off of me how do you like that you son of a bitch",
+    "you're gonna drop me man",
+    "the two horses are flying down you like the rail"
+   ],
+   "ok_words": [],
+   "muted_for": {
+    "l wined her and dined her and then l reclined her": "sexref"
+   }
+  },
+  "the-resident": {
+   "muted": [
+    "i'm not trying to be a preacher i was never a reverend",
+    "but i can take your ass to church and show you glimpses of heaven",
+    "run from the devil",
+    "and then there was light and he saw that it was good",
+    "god gave me one last chance",
+    "you're under arrest for solicitation",
+    "if you're convicted for solicitation",
+    "turns out your hooker cop was wired",
+    "by law you now have to self report your conviction for solicitation",
+    "he cheated on me when we were dating",
+    "i have a crazy itch down there",
+    "that's not an std is it",
+    "john's getting a chest ct and a little test for stds",
+    "syphilis or chlamydia could explain his symptoms",
+    "john's std test came back",
+    "angels and demons",
+    "kicked from heaven",
+    "so i showed you mine you show me yours",
+    "uh the hospital server blocks porn",
+    "i'm the ceo of the hospital i don't look at porn",
+    "everyone looks at porn",
+    "i'm not watching porn",
+    "i'm up on it like we grinding",
+    "high end prostitute",
+    "making love with each other ah ha"
+   ],
+   "kept": [
+    "mine or yours",
+    "5920 monitor urine output we need him peeing like a champ",
+    "you better run run in some type of direction",
+    "'cause the people going nowhere are the ones that are flexing",
+    "what happened in the elevator stays in the elevator",
+    "not something i'd want to advertise",
+    "previously on the resident you may not realize but we're a thing",
+    "what do you think",
+    "this isn't working",
+    "i see what's going on",
+    "so do you",
+    "we may be a thing but we're a brand new thing",
+    "this is not what you signed up for",
+    "i can't be a burden",
+    "he feels guilty",
+    "and i left him",
+    "we weren't together anymore when i was diagnosed with liver disease",
+    "and yet he still volunteered to be your organ donor",
+    "it was the worst time in my life",
+    "i don't know where i'd be if he hadn't been there",
+    "all right let me see",
+    "you have a rash",
+    "since we share all our symptoms why don't i have a rash",
+    "we were on our honeymoon we did everything together",
+    "let's not jump to any conclusions",
+    "brianna will be relieved",
+    "maybe he did change",
+    "but we'll give him the benefit of the doubt",
+    "still it can't be easy for her",
+    "she never forgot how their relationship ended the first time",
+    "been living on a prayer",
+    "to want you",
+    "what pray tell is the point you're a gifted surgeon",
+    "excuse me i've seen you swiping right all day",
+    "i can find you a smoking hot date tonight",
+    "have you lost your mind just hear me out",
+    "i match people together okay it's a thing i do",
+    "i have no skills in life whatsoever",
+    "except for my ability to put man and woman together",
+    "all types last minute short term long term whatever",
+    "she'll come around",
+    "i will be once i find jessie she's mia",
+    "you uh want to make it even better",
+    "i'm gonna save them for later okay",
+    "if you're going to hurl best to not do it"
+   ],
+   "ok_words": [],
+   "muted_for": {
+    "i'm not trying to be a preacher i was never a reverend": "religion",
+    "but i can take your ass to church and show you glimpses of heaven": "religion",
+    "run from the devil": "religion",
+    "and then there was light and he saw that it was good": "religion",
+    "god gave me one last chance": "religion",
+    "you're under arrest for solicitation": "sexref",
+    "if you're convicted for solicitation": "sexref",
+    "turns out your hooker cop was wired": "sexref",
+    "by law you now have to self report your conviction for solicitation": "sexref",
+    "he cheated on me when we were dating": "casual",
+    "i have a crazy itch down there": "sexref",
+    "that's not an std is it": "sexref",
+    "john's getting a chest ct and a little test for stds": "sexref",
+    "syphilis or chlamydia could explain his symptoms": "sexref",
+    "john's std test came back": "sexref",
+    "angels and demons": "religion",
+    "kicked from heaven": "religion",
+    "so i showed you mine you show me yours": "sexref",
+    "uh the hospital server blocks porn": "sexref",
+    "i'm the ceo of the hospital i don't look at porn": "sexref",
+    "everyone looks at porn": "sexref",
+    "i'm not watching porn": "sexref",
+    "i'm up on it like we grinding": "sexref",
+    "high end prostitute": "sexref",
+    "making love with each other ah ha": "sexref"
+   }
   }
  },
  "general": {
@@ -211,7 +380,12 @@
    "them anna thank god",
    "third christmas thank god",
    "you sister oh god",
-   "hands are jesus"
+   "hands are jesus",
+   "be done dear lord",
+   "chasing after fool's",
+   "original silent stupid",
+   "meal horse pussy",
+   "alright parshal pecker's"
   ]
  }
 }

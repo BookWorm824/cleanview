@@ -180,5 +180,54 @@ class MutedBeforeStaysMuted(unittest.TestCase):
         self.assertFalse(line["mute"])
 
 
+class ShortLearnedLines(unittest.TestCase):
+    """A muted conversation is learned line by line: its short everyday lines ("What do you
+    think?") aren't muted in every later episode (The Resident)."""
+
+    def test_only_longer_lines_come_back(self):
+        d = learn.load("shortlines")
+        d["muted"] = ["what do you think", "meet me in the on call room tonight"]
+        learn.save("shortlines", d)
+        dialogue = [{"s": 1, "e": 2, "text": "What do you think?"},
+                    {"s": 4, "e": 6, "text": "Meet me in the on-call room tonight."}]
+        lines, _ = learn.apply("shortlines", dialogue, [], [], [])
+        self.assertEqual([l["text"] for l in lines], ["Meet me in the on-call room tonight."])
+
+
+class SharedLinesFollowHerFilters(unittest.TestCase):
+    """A line CleanView learned to mute for one filter (from the reports sent in) is
+    only muted, or shown to the readers as an example, when that filter is ticked."""
+
+    def setUp(self):
+        self.saved = learn._shared
+        learn._shared = {"general": {}, "shows": {"filtershow": {
+            "muted": ["run from the devil tonight", "an old shared line from before"], "kept": [], "ok_words": [],
+            "muted_for": {"run from the devil tonight": "religion"}}}}
+        self.dialogue = [{"s": 1, "e": 2, "text": "Run from the devil tonight"},
+                         {"s": 4, "e": 5, "text": "An old shared line from before"}]
+
+    def tearDown(self):
+        learn._shared = self.saved
+
+    def added(self, on):
+        lines, _ = learn.apply("filtershow", self.dialogue, [], [], [], on=on)
+        return [l["text"] for l in lines]
+
+    def test_only_with_its_filter_ticked(self):
+        self.assertEqual(self.added({"religion"}), ["Run from the devil tonight", "An old shared line from before"])
+        self.assertEqual(self.added({"sexref"}), ["An old shared line from before"])
+        self.assertEqual(self.added(None), ["Run from the devil tonight", "An old shared line from before"])
+
+    def test_examples_too(self):
+        self.assertNotIn("run from the devil tonight", learn.examples("filtershow", {"sexref"})["muted"])
+        self.assertIn("run from the devil tonight", learn.examples("filtershow", {"religion"})["muted"])
+
+    def test_ticked_kinds(self):
+        on = engine.on_kinds({"religion": True, "holidays": True})
+        self.assertIn("religion", on)
+        self.assertIn("easter", on)
+        self.assertNotIn("sexref", on)
+
+
 if __name__ == "__main__":
     unittest.main()

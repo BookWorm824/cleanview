@@ -37,6 +37,10 @@ import cvcore
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 DIR = APP_DATA / "learned"
 MAX_LINES = 400
+# A muted conversation is learned line by line, so short everyday lines in it ("What do
+# you think?", "Right.") would be muted in every later episode (The Resident). Lines this
+# short are never muted again just because they were learned.
+LEARNED_SHORTEST = 5
 # The CleanView inbox's web app address (tools/README-inbox.txt; set up 2026-10-28 in the
 # owner's Google account). Empty: the file is only saved and the person is told where.
 SEND_URL = ("https://script.google.com/macros/s/"
@@ -88,6 +92,16 @@ def shared():
 def _sh(key, k):
     s = shared()
     return list(s["shows"].get(key, {}).get(k, [])) + list(s["general"].get(k, []))
+
+
+def _for_filters(key, lines, on):
+    """Shared lines to mute, without those learned for a filter that isn't ticked now
+    ("muted_for": line -> dialogue kind; lines without one count for every filter)."""
+    if on is None:
+        return list(lines)
+    s = shared()
+    kinds = {**s["general"].get("muted_for", {}), **s["shows"].get(key, {}).get("muted_for", {})}
+    return [t for t in lines if t not in kinds or kinds[t] in on]
 
 
 def show_key(title):
@@ -204,9 +218,9 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
     save(key, d)
 
 
-def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
+def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=None):
     """Use what was learned. Changes line_flags / scenes / mutes in place and
-    returns (added_lines, notes)."""
+    returns (added_lines, notes). on: the dialogue kinds ticked now (None: all)."""
     d = load(key)
     notes = []
     muted, mine_kept = set(d["muted"]), set(d["kept"])
@@ -214,7 +228,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
     # but only as a hint ("hint", not "learned"): a new review may still say to remove them.
     # Only your own choices ("learned") are never undone.
     hint_kept = (set(d["claude_kept"]) | set(d["old_kept"])) - muted
-    shared_muted = set(_sh(key, "muted")) - mine_kept - hint_kept
+    shared_muted = set(_for_filters(key, _sh(key, "muted"), on)) - mine_kept - hint_kept
     hint_kept |= set(_sh(key, "kept")) - muted - shared_muted
     hint_kept -= mine_kept
     muted |= shared_muted
@@ -237,7 +251,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned"):
         if (round(l["s"], 2), round(l["e"], 2)) in flagged_at:
             continue
         n = norm(l["text"])
-        if n in muted:
+        if n in muted and len(n.split()) >= LEARNED_SHORTEST:
             added.append(dict(l, learned_from="you" if n in mine_muted else "shared"))
     n_sc = 0
     for sc in scenes:
@@ -283,15 +297,18 @@ def _phrase(m):
     return " ".join(ctx + [norm(m.get("raw") or m.get("word", ""))])
 
 
-def examples(key):
+def examples(key, on=None):
     """Some of your past choices, and Claude's, for the dialogue readers.
-    Yours come first; Claude's fill the rest."""
+    Yours come first; Claude's fill the rest. on: the dialogue kinds ticked now."""
     d = load(key)
     out = {}
     for k in ("muted", "kept"):
         mine = d[k][-15:]
         theirs = [t for t in d["claude_" + k][::-1] if t not in mine][:15 - len(mine)]
-        built_in = [t for t in _sh(key, k)[::-1] if t not in mine + theirs]
+        sh = _sh(key, k)
+        if k == "muted":
+            sh = _for_filters(key, sh, on)
+        built_in = [t for t in sh[::-1] if t not in mine + theirs]
         out[k] = (mine + theirs + built_in)[:15]
     return out
 

@@ -43,6 +43,14 @@ def merge(shared, export):
         sh["muted"] = [t for t in sh["muted"] if t not in kept]
         add(sh["muted"], muted)
         add(sh["kept"], kept)
+        # Which filter a line was muted for (reviewed reports), so it's only muted when
+        # that filter is ticked.
+        kinds = {**sh.get("muted_for", {}), **d.get("muted_for", {})}
+        kinds = {t: k for t, k in kinds.items() if t in sh["muted"]}
+        if kinds:
+            sh["muted_for"] = kinds
+        else:
+            sh.pop("muted_for", None)
         add(gen["ok_words"], d.get("claude_ok_words", []))
         n += len(muted) + len(kept)
     shows = {k: v for k, v in shows.items() if any(v.values())}

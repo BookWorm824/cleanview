@@ -95,8 +95,10 @@ MODERATE = [
     r"nice|cool|pretty|ugly|old|cute|great|bitch)ass(es|ed)?",
     r"bastard.*", r"piss.*", r"dicks?", r"dickhead.*", r"pricks?", r"bollocks",
     r"bugger.*", r"wanker.*", r"wank(s|ed|ing|in)?", r"(jerk|jack)offs?", r"twats?", r"sluts?", r"slutty", r"whores?",
-    r"cojones", r"(ball|nut)sacks?", r"ballsy", r"balls?bust(er|ers|ing)",
+    r"cojones", r"ca[jh]ones", r"(ball|nut)sacks?", r"ballsy", r"balls?bust(er|ers|ing)",
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
+    # German, French and Spanish ones said in English films (National Treasure: "Merde")
+    r"merde", r"scheisse", r"mierda",
     # more crude slang heard in TV and films
     r"a-?holes?", r"lardass(es)?", r"bia?y?o?tch(es)?", r"beyotch", r"shat",
     r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts", r"knobheads?", r"tossers?",
@@ -108,7 +110,7 @@ MODERATE = [
     r"skeez(e|y|ier)", r"skeevy", r"schlongs?", r"todgers?", r"dildos?", r"arsed", r"arses",
 ]
 # ("damning" = incriminating, and "damnation", are left alone)
-MILD = [r"damn", r"damn(s|ed|edest|it)", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
+MILD = [r"damn", r"verdammt", r"damn(s|ed|edest|it)", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
         r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody",
         r"crapper", r"turds?", r"hella", r"hussy", r"hussies",
         r"crap(pier|piest|ped|ping|pers|holes|loads?|tastic|ola)", r"day+um+n?",   # "dayum"
@@ -134,7 +136,8 @@ DEITY_PHRASES = [
     ("lord", "knows"), ("god", "help", "us"), ("god", "help", "me"), ("lord", "help", "us"),
     ("lord", "help", "me"), ("god", "forbid"), ("swear", "to", "god"), ("thank", "the", "lord"),
     ("in", "god's", "name"), ("in", "gods", "name"), ("for", "the", "love", "of", "god"),
-    ("christ", "on", "a", "bike"), ("god", "in", "heaven"),
+    ("christ", "on", "a", "bike"), ("god", "in", "heaven"), ("so", "help", "me", "god"),
+    ("praise", "the", "lord"), ("holy", "lord"),
 ]
 CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
     ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
@@ -173,7 +176,7 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
 # The whole phrase is muted, with the swearing group. Fruit and vegetables for body parts
 # ("check out those melons", "pop her cherry") work the same way.
-_PARTS = r"(stones|balls|nuts|cojones|family jewels)"
+_PARTS = r"(stones|balls|nuts|cojones|cajones|cahones|family jewels)"
 _GROW = r"(grow|grows|grew|grown|growing)( yourself| himself| herself| themselves| you| me)?"
 _CHEST = (r"(melons|cantaloupes|watermelons|grapefruits|coconuts|honeydews|"     # breasts
           r"jugs|hooters|knockers|bazongas|bazooms|bazoombas)")
@@ -242,7 +245,7 @@ MILD_SLANG = [re.compile(p) for p in (
     r"up yours\b",
     # "we're screwed", not "screwed to the wall" or "screwed up"
     r"(i'm|we're|you're|he's|she's|they're|it's|we are|i am|you are|totally|completely|"
-    r"royally|so|really|just) screwed\b(?! (in|into|on|onto|down|together|shut|tight|tightly|to|"
+    r"royally|so|really|just|get|gets|got|getting|gotten) screwed\b(?! (in|into|on|onto|down|together|shut|tight|tightly|to|"
     r"the|it|that|this|back|off|up)\b)",
 )]
 
@@ -250,7 +253,7 @@ MILD_SLANG = [re.compile(p) for p in (
 # "What the fudge", "what the flip": stand-ins for the f-word, muted with the minced oaths.
 # And the same for God's name, Jesus and son of a bitch: "good grief", "for Pete's sake".
 MINCED_SLANG = [re.compile(p) for p in (
-    r"what the (fudge|flip|fork|frack|fuh)\b",
+    r"what the (fudge|flip|fork|frack|fuh|devil|dickens|deuce|blazes)\b",
     r"(oh|aw|ah|ahh|aww) (fudge|shoot|sugar)\b",
     r"gee (whiz|whizz|willikers|whillikers|wilikers)\b", r"jeepers creepers\b",
     r"(diddly|diddley|diddlee|doodly|jack) squat\b",          # "jack squat" = "jack shit"
@@ -366,6 +369,13 @@ SEX_TERMS = {
         r"tongue", r"sheets", r"bed", r"bedroom", r"skin", r"shirt", r"blouse",
         r"gasp(ed)?", r"desire", r"body", r"bodies", r"touch(ed|ing)?", r"lips",
         r"stroked?", r"breath(less)?", r"shiver(ed)?", r"zipper", r"husky", r"hungrily"],
+}
+# Polite "a pleasure", and "sex" meaning men or women ("your sex", "the fair sex"), aren't
+# sex talk. (The word before.)
+NOT_SEX_BEFORE = {
+    "pleasure": {"a", "my", "the", "our", "great", "such", "real", "your", "true"},
+    "sex": {"your", "our", "her", "his", "their", "fair", "fairer", "weaker", "gentle",
+            "gentler", "opposite", "same", "other", "either", "each", "whose"},
 }
 SEX_WINDOW_SCORE = 9   # a stretch of ~3 paragraphs (or ~60s) scoring this much gets flagged
 SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score this to be cut
@@ -585,7 +595,9 @@ def sex_score(words):
     words count at all: kissing, beds and sheets alone never flag a scene
     (romance without explicit content is left alone)."""
     s, explicit = 0, 0
-    for w in words:
+    for k, w in enumerate(words):
+        if k and words[k - 1] in NOT_SEX_BEFORE.get(w, ()):
+            continue                    # "it's a pleasure", "the fair sex" (Pride and Prejudice)
         for weight, pats in SEX_C.items():
             if any(p.match(w) for p in pats):
                 s += weight

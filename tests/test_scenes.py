@@ -132,5 +132,42 @@ class MergeScenes(unittest.TestCase):
         self.assertEqual((len(m), m[0]["s"], m[0]["e"]), (1, 0.0, 29.0))
 
 
+class SexScenesFromSubtitles(unittest.TestCase):
+    """[panting] and [moaning] are also running, fear and pain (The Resident: a woman
+    fleeing, a patient held down, a scared boy were cut as sex scenes)."""
+
+    def scenes(self, tag, skin=()):
+        cues = [{"s": 100.0, "e": 102.0, "text": f"[{tag}]"}]
+        return engine.sex_scenes(None, cues, [], [], list(skin), [])
+
+    def test_clear_descriptions_count(self):
+        for tag in ("sexual moaning", "bed creaking", "orgasmic cry", "making love"):
+            with self.subTest(tag=tag):
+                self.assertEqual(len(self.scenes(tag)), 1)
+
+    def test_panting_and_moaning_need_bare_skin(self):
+        for tag in ("panting", "moaning", "both panting"):
+            with self.subTest(tag=tag):
+                self.assertEqual(self.scenes(tag), [])
+                self.assertEqual(len(self.scenes(tag, skin=[104.0])), 1)
+
+    def test_pain_and_fear_never(self):
+        for tag in ("moaning in pain", "panting, running", "groaning", "scared panting"):
+            with self.subTest(tag=tag):
+                self.assertEqual(self.scenes(tag, skin=[101.0]), [])
+
+
+class SexTalk(unittest.TestCase):
+    """The dialogue scorer for sex scenes (Pride and Prejudice: three polite "it's a
+    pleasure" made a sex scene)."""
+
+    def test_polite_and_gender_uses_dont_count(self):
+        words = "it is a pleasure such a pleasure my pleasure the fair sex your sex".split()
+        self.assertEqual(engine.cl.sex_score(words), 0)
+
+    def test_explicit_talk_still_does(self):
+        self.assertGreater(engine.cl.sex_score("naked sex pleasure".split()), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

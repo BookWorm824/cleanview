@@ -50,6 +50,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   folder "CleanView learned"; merge them with `tools/merge_learned.py`. No internet or "not
   now": the old "saved here, attach it" message. Tests point `CLEANVIEW_INBOX` at nothing
   (`support.NO_INBOX`) so they never send to the real one.
+- Reports sent in are checked before anything is learned from them (Lauren, 2026-10-29):
+  every flag is judged against the filters that were on, and the dialogue is read for
+  anything missed. Her own unticks of things that do fit a filter are her choice, not a
+  wrong flag, and are never taught as fine. Only the checked results are merged into
+  `shared_learned.json` (a "CleanView reviewed" file through `merge_learned.py`): lines
+  that are a problem on their own, with the filter they're for (`muted_for`, so they're only
+  muted, or shown as examples, when that filter is ticked: `learn.apply(on=...)`), flagged
+  lines that fit no filter, and listed words that were fine in context. Short everyday lines
+  that were only muted as part of a conversation are never taught. Reports gone over are
+  then deleted from the Drive folder, so they aren't gone over twice.
+- Learned lines under 5 words (`learn.LEARNED_SHORTEST`) are never muted again just
+  because they were learned: a muted conversation is learned line by line, and "What do
+  you think?" was then muted in every later episode (The Resident).
 - Times: everything counts from 0 = the start of the file, the clock ffmpeg's filters use in
   `render()` (not the file's own start time, which can be 10 s or more on .ts/.vob rips).
   Sound is always read through `_mono()` (or `snap_edges(audio=...)`), which pads a late

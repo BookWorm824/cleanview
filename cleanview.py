@@ -73,6 +73,13 @@ def full_opts(opts=None):
     return o
 
 
+def on_kinds(opts):
+    """The dialogue kinds ticked in opts: lines CleanView learned for a filter that's off
+    aren't muted or shown to the readers as examples."""
+    o = full_opts(opts)
+    return {k for k in LINE_KINDS if o.get(k)}
+
+
 def needs(opts):
     """Which scanners these options need."""
     o = full_opts(opts)
@@ -576,7 +583,14 @@ def sync_cues(cues, asr, min_match=0.25):
 SPOKEN_STRIP = re.compile(r"\[[^\]]*\]|\([^)]*\)|^[A-Z][A-Z .'-]{1,20}:|^\s*-\s*|♪", re.M)
 SDH_VIOLENCE = re.compile(r"gun|shot|scream|explo|punch|stab|groan|grunt|gasp|shriek|thud|"
                           r"fight|struggl|body falls|bones? crack|blood|machine gun", re.I)
-SDH_SEX = re.compile(r"moan|pant|sexual|climax|orgasm|kissing passionately|bed creak", re.I)
+SDH_SEX = re.compile(r"sexual|climax|orgasm|kissing passionately|bed creak|making love|"
+                     r"love ?making|having sex|moans? (with|in) pleasure|ecstasy", re.I)
+# Panting and moaning are also running, fear and pain (The Resident: a woman fleeing, a
+# patient held down, a scared boy were all cut as sex scenes), so they only count with
+# bare skin on screen close by.
+SDH_MAYBE_SEX = re.compile(r"moan|pant", re.I)
+SDH_NOT_SEX = re.compile(r"pain|groan|scream|cr(y|ies|ying)|sob|run|struggl|fear|scared|"
+                         r"exert|cough|gasp|choke|wheez", re.I)
 
 
 def spoken_words(text):
@@ -890,14 +904,14 @@ def violence_scenes(snd, cues):
 def sex_scenes(snd, cues, asr_n, asr, skin, nude):
     """Sex scenes without visible nudity: intimate sounds together with bare
     skin on screen, SDH tags like [moaning], or explicit dialogue."""
+    import bisect
     marks = []
+    skin_set = sorted(skin + [s["s"] for s in nude])
     if snd and snd["t"]:
         labels = snd["labels"]
         ii = [(labels.index(k), w) for k, w in INTIMATE_SOUNDS.items()]
         intimate = [t for t, row in zip(snd["t"], snd["p"])
                     if sum(row[i] * w for i, w in ii) >= 0.5]
-        skin_set = sorted(skin + [s["s"] for s in nude])
-        import bisect
         for run_ in _group(intimate, 4.5):
             if run_[-1] - run_[0] < 6:
                 continue
@@ -905,8 +919,13 @@ def sex_scenes(snd, cues, asr_n, asr, skin, nude):
             if k < len(skin_set) and skin_set[k] <= run_[-1] + 10:
                 marks.append((run_[0], run_[-1] + SOUND_WIN, "intimate sounds with bare skin"))
     for c in cues:
-        if any(SDH_SEX.search(t) for t in re.findall(r"\[([^\]]*)\]", c["text"])):
+        tags = re.findall(r"\[([^\]]*)\]", c["text"])
+        if any(SDH_SEX.search(t) for t in tags):
             marks.append((c["s"], c["e"], "subtitles describe it"))
+        elif any(SDH_MAYBE_SEX.search(t) and not SDH_NOT_SEX.search(t) for t in tags):
+            k = bisect.bisect_left(skin_set, c["s"] - 10)
+            if k < len(skin_set) and skin_set[k] <= c["e"] + 10:
+                marks.append((c["s"], c["e"], "subtitles describe it, with bare skin"))
     # explicit dialogue (same scoring CleanListen uses for books)
     k = 0
     while k < len(asr):
@@ -1017,7 +1036,9 @@ def merge_scenes(scenes):
 # Analyze
 # ---------------------------------------------------------------------------
 LINE_WORDS = {   # only phrases that are hard to mistake
-    "sexref": re.compile(r"\b(sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
+    # not "sex" meaning men or women: "your sex", "the fair sex" (Pride and Prejudice)
+    "sexref": re.compile(r"\b((?<!your )(?<!our )(?<!her )(?<!his )(?<!fair )(?<!fairer )"
+                         r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
                          r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
                          r"have sex|had sex|having sex)\b", re.I),
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
@@ -1472,7 +1493,7 @@ def fetch_review(st, fresh=False):
     "Review everything again" asks with fresh=True, so it really looks again instead of
     giving the saved answer, and asks about a copy so she can keep ticking meanwhile."""
     return cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
-                     learn.examples(st.get("show", "_movies")), sound_cues(st.get("cues")),
+                     learn.examples(st.get("show", "_movies"), on_kinds(st.get("opts"))), sound_cues(st.get("cues")),
                      fresh=fresh)
 
 
@@ -2280,7 +2301,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     key = learn.show_key(title)
     if o.get("profile") and o["profile"] != "adults":
         key += "@" + o["profile"]       # what you choose for the kids is learned separately
-    examples = learn.examples(key)
+    examples = learn.examples(key, on_kinds(o))
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
     who = cc.name()
@@ -2398,7 +2419,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         for sc in scenes:               # no AI looking: at least start and end on a shot change
             if not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", [])):
                 snap_to_shots(path, sc, dur=dur)
-    learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes)
+    learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes,
+                                                 on=on_kinds(o))
     for l in learned_lines:
         yours = l.get("learned_from") == "you"
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),

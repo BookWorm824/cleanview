@@ -486,6 +486,32 @@ class MoreCrudeSlang(unittest.TestCase):
                 self.assertEqual(found(text), [])
 
 
+class FromTheReports(unittest.TestCase):
+    """Words missed in the reports sent in (The Resident, Seabiscuit, Ever After, Pride and
+    Prejudice, National Treasure; 2026-10-29)."""
+
+    def test_now_found(self):
+        for text, phrase, cat in [("Grow some cajones", "grow some cajones", "moderate"),
+                                  ("He's got cahones", "cahones", "moderate"),
+                                  ("You still get screwed", "get screwed", "mild"),
+                                  ("We got screwed!", "got screwed", "mild"),
+                                  ("Verdammt!", "verdammt", "mild"), ("Merde!", "merde", "moderate"),
+                                  ("So help me God", "so help me god", "deity"),
+                                  ("Praise the Lord!", "praise the lord", "deity"),
+                                  ("Holy Lord!", "holy lord", "deity"),
+                                  ("What the devil?", "what the devil", "minced"),
+                                  ("What the dickens is that?", "what the dickens", "minced")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, [cat]), [(phrase, cat)])
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("The lid got screwed on tight", "It got screwed to the wall",
+                     "Get screwed in properly", "The devil is in the details",
+                     "Holy water", "the dickens novel", "He played the devil"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+
 class SubtitleWordsNearOtherMutes(unittest.TestCase):
     """'what the hell, damn it': listening caught "damn", the subtitles add "hell"
     half a second earlier. That's another word, not the same one twice."""

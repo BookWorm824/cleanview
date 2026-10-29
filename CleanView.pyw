@@ -1178,6 +1178,9 @@ class App(tk.Tk):
         if not self.outdir:
             self.outdir = str(Path(self.videos[0]).parent / "Clean")
         self.jobs = []
+        # A new batch starts a new chat, so what was said about the last video isn't sent
+        # in with this one's report (Emma's report had Pride and Prejudice's chat).
+        self.chat_sessions, self.chat_history = {}, []
         for v in self.videos:
             key = hashlib.sha1(f"{v}:{os.path.getsize(v)}".encode()).hexdigest()[:16]
             self.jobs.append({"video": v, "work": APP_DATA / "views" / key, "analysis": None,

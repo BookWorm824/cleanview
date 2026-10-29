@@ -709,11 +709,14 @@ def second_look(cands, frames_for, progress=None, cancel=None):
 LINE_TYPES = {
     "sexref": ("talks about sex or sexual body parts, or makes a sexual joke or sexual double "
                "meaning. NOT: swearing, insults, lying, drinking, drugs, violence, crime, threats, "
-               "compliments, or ordinary love and affection"),
+               "compliments, ordinary love and affection, pregnancy or babies, 'sex' meaning men or "
+               "women ('the fair sex'), a polite 'it's a pleasure', a body part in a threat, "
+               "'sleeps with the pigs' meaning where someone sleeps"),
     "casual": ("says or clearly implies someone had, or wants, sex outside a committed "
                "relationship: hooking up, a one-night stand, an affair, cheating, sleeping with "
-               "someone, sleeping around. NOT: dating, going out, being in love, marriage, family, "
-               "drinking together"),
+               "someone, sleeping around; also talk of cheating on a partner, even with nothing sexual "
+               "said (an engaged or married person kissing someone else). NOT: dating, going out, "
+               "setting people up, dating apps, being in love, marriage, family, drinking together"),
     "samesex": ("clearly refers to romance, dating, attraction or a sexual relationship between "
                 "two men or two women (for example a man saying 'my boyfriend', 'her wife', "
                 "'he's gay'). NOT: friends, coworkers, police or business partners, family"),

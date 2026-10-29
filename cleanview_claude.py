@@ -361,8 +361,13 @@ SYSTEM = ("You help a family make movies and TV shows fit their standards by mut
           "lecture or add opinions about their choices.")
 
 TYPE_TEXT = {
-    "sexref": "sexual references, sexual jokes or innuendo",
-    "casual": "sleeping around: casual sex, hooking up, affairs, cheating",
+    "sexref": "sexual references, sexual jokes or innuendo. Not: pregnancy or babies, 'sex' "
+              "meaning men or women ('the fair sex'), a polite 'it's a pleasure', a body part "
+              "in a threat; read the lines around it first (a line that sounds suggestive alone "
+              "may be about a pager or a phobia)",
+    "casual": "sleeping around: casual sex, hooking up, affairs, cheating, including talk "
+              "of cheating with nothing sexual said (an engaged or married person kissing "
+              "someone else). Not: dating, setting people up, dating apps, being in love",
     "samesex": "same-sex romance or relationships, including flirting or romantic interest "
                "between two men or two women",
     "oppsex": "an unmarried man and woman living or sleeping together",
@@ -371,8 +376,9 @@ TYPE_TEXT = {
     "religion": "religious conversations: any talk about God, Jesus, faith, prayer or praying, "
                 "church, the Bible, heaven or hell as places, angels, sin, or the beliefs, "
                 "practices, clergy or holidays of any religion; the whole conversation, not just "
-                "the line that names it. Not: God's or Jesus' name said as a swear or "
-                "exclamation, 'bless you' after a sneeze, a character's name",
+                "the line that names it; in a song, only the lines that are about it. Not: God's or "
+                "Jesus' name said as a swear or exclamation, 'bless you' after a sneeze, a "
+                "character's name",
     "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents or "
                  "carols; the whole conversation. Not: winter or snow alone",
     "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
@@ -695,7 +701,10 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
         "for not being in the subtitles. Slurs such as 'retarded' or 'retard' are always "
         "\"remove\", even said as a plain description of someone. Scenes "
         "already checked by looking at the picture are settled: answer \"remove\" or \"not an "
-        "issue\" to match, and leave them out of the summary.\n"
+        "issue\" to match, and leave them out of the summary. \"remove\" a scene only for "
+        "something they want removed: if what it shows is something they didn't ask about "
+        "(blood in surgery when violence isn't on their list, a 'sex scene' that turns out to "
+        "be someone running or crying), it's \"not an issue\".\n"
         "2. List dialogue lines that fit what they want removed but are NOT in the list "
         "(\"missed_lines\", by line number; if only one word in it is the problem, also give "
         "that word in \"word\" so only the word is muted), and stretches of conversation that should be cut "
@@ -753,8 +762,12 @@ PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
               "is clearly shown, not what might happen off screen.")
 PIC_RULES = (
-    "Be accurate. Police or soldiers simply carrying guns, a hug, a peck on the cheek, a "
-    "hospital or crime-scene photo with no visible wounds, or a glass of water are NOT matches. "
+    "Be accurate. Police or soldiers simply carrying guns, a gun only held or handled (not "
+    "aimed at someone or fired), a hug, a peck on the cheek or forehead (a family goodbye), "
+    "a hospital or crime-scene photo with no visible wounds, a foot chase, or a glass of "
+    "water are NOT matches. An evening gown or a formal dress is not immodest; rule the same "
+    "outfit the same way all through the video. Nudity in a statue or painting is nudity in "
+    "art: call it that in \"why\". "
     "Violence levels (pick the highest that's shown): \"violence\" = fighting, hitting, "
     "shooting, threatening with a weapon, without much blood; \"graphic violence\" = blood "
     "and wounds shown: bloody injuries, a bloody body, a crime-scene body with visible blood; "
@@ -770,7 +783,9 @@ PIC_RULES = (
     "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
     "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
     "neither. For kissing, say who (man & woman, two "
-    "men, two women) and whether it's light or passionate. For holidays, only what is "
+    "men, two women) and whether it's light or passionate (passionate only when it clearly "
+    "is: long, open-mouthed, embracing). For holidays, Christmas needs clear signs (a "
+    "Christmas tree, ornaments, Santa, stockings); for all holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
     "story's own witches or monsters, an ordinary egg or rabbit, ordinary green clothes, a "
     "clover field or a rainbow alone, or a single red heart are NOT. Thanksgiving is fine. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
