@@ -157,9 +157,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
    Words heard while the tagger hardly hears speech are lyrics, not talking.
 4. **Picture**: NudeNet twice a second, CLIP once a second for kissing, gore, fights, weapons,
    smoking, drinking, drugs, revealing clothes. Hits become scenes (several seconds of strong
-   hits, dark frames ignored), then the local vision model double-checks each scene, but
-   not when Claude/ChatGPT/Gemini looks at the picture (step 7), which checks every scene
-   itself: both was the same slow work twice (`closer_looks`, Jason 2026-10-29).
+   hits, dark frames ignored), then the local vision model double-checks each scene. With
+   Claude/ChatGPT/Gemini it does that in the background while they read the dialogue
+   (`closer_looks`, `in_background`/`wait_for`), so both AIs look but it doesn't take
+   twice as long (Lauren 2026-10-29; one after the other looked like the same slow step
+   twice to Jason). The local text model isn't used then, so the two never share the GPU.
 5. **Voices**: speaker separation and a man/woman/child guess for each line.
 6. **Dialogue filters** (sexual references, sleeping around, same-sex relationships and
    flirting, crude humor, bullying, religious conversations, rude words...): read by the

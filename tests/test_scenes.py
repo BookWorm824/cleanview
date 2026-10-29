@@ -169,18 +169,49 @@ class SexTalk(unittest.TestCase):
         self.assertGreater(engine.cl.sex_score("naked sex pleasure".split()), 0)
 
 
-class OneCloserLook(unittest.TestCase):
-    """With Claude looking at the picture, the AI on this PC doesn't take a closer look at
-    the same scenes first ("taking a closer look" seemed to run twice, as slowly: Jason)."""
+class BothLookAtOnce(unittest.TestCase):
+    """With Claude, ChatGPT or Gemini, the AI on this PC takes its closer look at the scenes
+    found in the background while they read the dialogue: both look, and it doesn't take
+    twice as long ("taking a closer look" seemed to run twice, as slowly: Jason)."""
 
-    def test_only_one_closer_look(self):
-        claude = engine.full_opts({"reader": "claude", "look": True})
-        self.assertEqual(engine.closer_looks(claude, True, True), (False, True))
+    def test_both_look_together_with_any_cloud_ai(self):
+        for reader in ("claude", "chatgpt", "gemini"):
+            with self.subTest(reader=reader):
+                o = engine.full_opts({"reader": reader, "look": True})
+                self.assertEqual(engine.closer_looks(o, True, True), (True, True, True))
         local = engine.full_opts({"reader": "local"})
-        self.assertEqual(engine.closer_looks(local, True, True), (True, False))
+        self.assertEqual(engine.closer_looks(local, True, True), (True, False, False))
         no_pictures = engine.full_opts({"reader": "claude", "look": False})
-        self.assertEqual(engine.closer_looks(no_pictures, True, True), (True, False))
-        self.assertEqual(engine.closer_looks(local, False, True), (False, False))
+        self.assertEqual(engine.closer_looks(no_pictures, True, True), (True, False, False))
+        self.assertEqual(engine.closer_looks(local, False, True), (False, False, False))
+
+    def test_background_job_finishes_and_reports(self):
+        import threading
+        go = threading.Event()
+        seen = []
+
+        def work(progress):
+            progress(0.5)
+            go.wait(2)
+            seen.append("done")
+        job = engine.in_background(work)
+        waited = []
+        threading.Timer(0.2, go.set).start()
+        engine.wait_for(job, waited.append)
+        self.assertEqual(seen, ["done"])
+        self.assertIn(0.5, waited)
+
+    def test_background_problem_or_stop_reaches_the_caller(self):
+        def broken(progress):
+            raise ValueError("model went away")
+        job = engine.in_background(broken)
+        with self.assertRaises(ValueError):
+            engine.wait_for(job)
+
+        def stopped(progress):
+            raise KeyboardInterrupt
+        with self.assertRaises(KeyboardInterrupt):
+            engine.wait_for(engine.in_background(stopped))
 
     def test_unchecked_scenes_start_unticked(self):
         cands = [{"cat": "smoking", "s": 10.0, "e": 15.0}]

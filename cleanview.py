@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 import urllib.request
 from pathlib import Path
@@ -1952,12 +1953,40 @@ def check_nudity(nude, o, look, notes):
 
 def closer_looks(o, have_ai, use_clip):
     """(the AI on this PC takes a closer look at the scenes found, Claude/ChatGPT/Gemini
-    looks at the picture). When Claude looks, it checks every scene found with sharper
-    stills, so the AI on this PC doesn't take its own closer look first: that was the same
-    work twice, and just as slow (Jason). If Claude can't look this time, those scenes stay
-    unticked for her to decide, as on a PC without the AI helper."""
-    cloud = o.get("reader") in CLOUD and o.get("look", True)
-    return bool(have_ai and use_clip and not cloud), bool(cloud)
+    looks at the picture, the two at the same time). With Claude, ChatGPT or Gemini, both
+    look (Lauren: "so we get both but it doesn't take twice as long"): they read the
+    dialogue, so the AI on this PC takes its closer look meanwhile, in the background,
+    instead of first (one after the other looked like the same slow step twice: Jason)."""
+    cloud = bool(o.get("reader") in CLOUD and o.get("look", True))
+    local = bool(have_ai and use_clip)
+    return local, cloud, local and cloud
+
+
+def in_background(work):
+    """Run work(progress) in a thread. Returns a dict that keeps how far it got ("frac"),
+    the thread, and anything it raised ("error"), for wait_for()."""
+    job = {"frac": 0.0}
+
+    def run():
+        try:
+            work(lambda f: job.__setitem__("frac", f))
+        except BaseException as ex:     # stopping (KeyboardInterrupt) too: raised in wait_for
+            job["error"] = ex
+    job["thread"] = threading.Thread(target=run, daemon=True)
+    job["thread"].start()
+    return job
+
+
+def wait_for(job, waiting=None, cancel=None):
+    """Wait for an in_background() job, calling waiting(frac) about once a second."""
+    while job["thread"].is_alive():
+        if cancel and cancel():
+            raise KeyboardInterrupt
+        if waiting:
+            waiting(job["frac"])
+        job["thread"].join(1.0)
+    if "error" in job:
+        raise job["error"]
 
 
 def decide_picture_scenes(cands, o, have_ai):
@@ -2135,12 +2164,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             return "estimating time…"
         return f"about {max(1, el / frac_done * (1 - frac_done) / 60):.0f} min left"
 
-    local_look, cloud_look = closer_looks(o, have_ai, use_clip)
+    local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
     # how much of the progress bar each step gets
+    look_step = ("look", 0.08 if local_look else 0)
     steps = [("asr", 0.35), ("snd", 0.08 if nd["sound"] else 0),
-             ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0),
-             ("look", 0.08 if local_look else 0),
-             ("lines", 0.12 if (have_ai and nd["lines"]) else 0),
+             ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0)] + \
+        ([] if together else [look_step]) + [
+             ("lines", 0.12 if (have_ai and nd["lines"]) else 0)] + \
+        ([look_step] if together else []) + [
              ("pics", 0.15 if cloud_look else 0),
              ("end", 0.03)]
     tot = sum(w for _, w in steps)
@@ -2295,15 +2326,22 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
+    look_job = None
     if use_clip and vis and vis.get("clip"):
         cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"])
         if local_look and cands:
-            say(at("look", 0), "Taking a closer look at the scenes found…")
             todo = sorted(cands, key=lambda c: -c["peak"])[:150]
             ff = cl._tool("ffmpeg")
-            ai.second_look(todo, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
-                           lambda f: say(at("look", f), f"Taking a closer look at the scenes found · "
-                                                        f"{eta(at('look', f))}"), cancel)
+
+            def look(progress):
+                ai.second_look(todo, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
+                               progress, cancel)
+            if together:                # while Claude reads the dialogue (see closer_looks)
+                look_job = in_background(look)
+            else:
+                say(at("look", 0), "Taking a closer look at the scenes found…")
+                look(lambda f: say(at("look", f), f"Taking a closer look at the scenes found · "
+                                                  f"{eta(at('look', f))}"))
 
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
@@ -2382,6 +2420,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if have_ai:
         used.append("AI helper")
     notes.insert(0, "Checked with: " + ", ".join(used) + ".")
+    if look_job:                        # the closer look taken while Claude read the dialogue
+        wait_for(look_job, lambda f: say(at("look", f), "Finishing the closer look at the "
+                                                        f"scenes found · {eta(at('look', f))}"),
+                 cancel)
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
     scenes = []
