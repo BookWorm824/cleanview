@@ -36,9 +36,7 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
 # says so: take it off this list.
 # (Empty: CleanListen took CleanView 1.17.0-1.17.1's words, 2026-10-29.)
-WAITING_ON_CLEANLISTEN = {   # CleanView 1.17.5 words (Night at the Museum), sent 2026-10-29
-    'Fathead.', "For Christ's sakes", "For God's sakes!", 'Morning, dum-dum.', 'dumdum',
-    'fathead', "for christ's sakes", "for god's sakes"}
+WAITING_ON_CLEANLISTEN = set()
 
 
 def load_cleanlisten():
