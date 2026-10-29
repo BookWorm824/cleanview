@@ -300,6 +300,27 @@ SQUAT_BEFORE = {"know", "knows", "knew", "mean", "means", "meant", "do", "does",
 SQUAT_NOT_NEXT = {"down", "jump", "jumps", "thrust", "thrusts", "rack", "racks", "position",
                   "toilet", "toilets", "lift", "lifts", "press", "exercise", "exercises", "low",
                   "lower", "deep", "deeper", "squat", "squats", "reps", "sets", "and", "with"}
+# "Suck" for "is bad" ("that really sucks", "he sucks at math", "life sucks"), muted with the
+# rude words kids copy. Sucking something (a lollipop, a thumb, air, "sucks up dirt", "suck
+# it up") always has something after it, so those are left alone.
+SUCK_WORDS = {"suck", "sucks", "sucked"}
+SUCK_NOT_NEXT = {"up", "in", "on", "out", "into", "through", "from", "down", "off", "away",
+                 "back", "the", "a", "an", "my", "his", "her", "your", "their", "its", "our",
+                 "all", "it", "them", "him", "me", "us", "blood", "air", "juice", "water",
+                 "poison", "venom", "thumb", "thumbs", "milk", "dry", "every", "some", "those",
+                 "these", "straws", "straw", "candy", "lollipops", "lollipop", "face", "faces",
+                 "teeth", "breath", "cock", "cocks", "dick"}
+SUCK_NOT_BEFORE = {"vacuum", "vacuums", "straw", "straws", "pump", "pumps", "hose", "fan",
+                   "drain", "leech", "leeches", "mosquito", "mosquitoes", "vampire", "vampires",
+                   "octopus", "baby", "babies", "calf", "calves", "piglet", "piglets", "whirlpool",
+                   "quicksand", "mud", "plant", "roots", "sponge", "lamprey", "lampreys"}
+
+
+def suck_swear(words, i):
+    """True if words[i] is "suck(s)" said for "is bad" ("that really sucks")."""
+    if words[i] not in SUCK_WORDS or (i and words[i - 1] in SUCK_NOT_BEFORE):
+        return False
+    return (words[i + 1] if i + 1 < len(words) else "") not in SUCK_NOT_NEXT
 
 
 def squat_swear(words, i):
@@ -344,6 +365,7 @@ RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?"
         r"meatheads?", r"lamebrains?", r"birdbrains?", r"dunces?", r"wimps?",   # not Wimpy
         r"wuss(es)?", r"wussy", r"sissy", r"sissies", r"crybab(y|ies)", r"scaredy(cats?)?",
         r"weirdos?", r"fatsos?", r"putz(es)?", r"schmucks?", r"ignoramus(es)?", r"brats?",
+        r"sucky", r"suckage", r"sucktastic",
         r"dumbdumbs?", r"dumdums?", r"fatheads?"]
 RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
                 ("shut", "your", "face"), ("shut", "it"), ("you", "suck"), ("it", "sucks"),
@@ -352,7 +374,8 @@ RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "tra
                 ("shut", "your", "cakehole"), ("shut", "your", "yap"),
                 ("shut", "your", "big", "mouth"), ("shut", "your", "big", "fat", "mouth"),
                 ("buzz", "off"), ("i", "hate", "you"), ("talk", "to", "the", "hand"),
-                ("eat", "my", "shorts"), ("suck", "it"), ("sucks", "to", "be", "you")]
+                ("eat", "my", "shorts"), ("suck", "it"), ("sucks", "to", "be", "you"),
+                ("you", "sucker"), ("you", "suckers")]
 BLOODY_SWEAR_NEXT = {
     "hell", "well", "idiot", "fool", "fools", "stupid", "ridiculous", "nuisance",
     "nonsense", "cheek", "marvellous", "marvelous", "brilliant", "awful", "good",
@@ -480,6 +503,7 @@ def listed_word(word, mine=()):
     if any(body_slang(parts, k) or body_slang(parts, k, MILD_SLANG)  # "grow some stones"
            or body_slang(parts, k, MINCED_SLANG) or bull_swear(parts, k)   # "that's bull"
            or squat_swear(parts, k)                                         # "know squat"
+           or suck_swear(parts, k)                                     # "that really sucks"
            for k in range(len(parts))):
         return True
     for c in [w] + parts:
@@ -502,6 +526,8 @@ def find_language(words, cats, mine=()):
     def rude_use(p):        # "shut it" yes, "shut it down" no, "shut up in the attic" no
         nxt = words[i + len(p)] if i + len(p) < n else ""
         if p == ("shut", "up") and nxt in SHUT_UP_SAFE_NEXT:
+            return False
+        if p[-1] in SUCK_WORDS and nxt in SUCK_NOT_NEXT:      # "it sucks the juice out"
             return False
         return p[-1] not in PHRASE_OBJECTS or nxt not in NOT_RUDE_NEXT
     while i < n:
@@ -555,6 +581,10 @@ def find_language(words, cats, mine=()):
             if ph:
                 hits.append((i, i + len(ph), "rude"))
                 i += len(ph)
+                continue
+            if suck_swear(words, i):                                    # "that really sucks"
+                hits.append((i, i + 1, "rude"))
+                i += 1
                 continue
         w = words[i]
         wb = _base(w)

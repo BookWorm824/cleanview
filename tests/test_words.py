@@ -517,6 +517,29 @@ class FromTheReports(unittest.TestCase):
                 self.assertEqual(found(text), [])
 
 
+class Suck(unittest.TestCase):
+    """"Suck" meaning "is bad" is a rude word kids copy (Lauren, 2026-10-29); sucking
+    something is left alone."""
+
+    def test_found(self):
+        for text, phrase in [("That really sucks", "sucks"), ("Life sucks", "sucks"),
+                             ("He sucks at math", "sucks"), ("That sucked", "sucked"),
+                             ("What a sucky day", "sucky"), ("You sucker!", "you sucker"),
+                             ("You suck", "you suck"), ("This sucks big time", "this sucks"),
+                             ("Man, that sucks.", "that sucks"), ("Sucks to be you", "sucks to be you")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["rude"]), [(phrase, "rude")])
+        self.assertTrue(cl.listed_word("sucks"))
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("Suck it up", "Suck on a lollipop", "The vacuum sucks up dirt",
+                     "Sucking his thumb", "The baby sucked", "Sucked into the whirlpool",
+                     "A lollipop sucker", "Sucker punch", "He is a sucker for romance",
+                     "It sucks the juice out", "The straw sucks"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+
 class SubtitleWordsNearOtherMutes(unittest.TestCase):
     """'what the hell, damn it': listening caught "damn", the subtitles add "hell"
     half a second earlier. That's another word, not the same one twice."""

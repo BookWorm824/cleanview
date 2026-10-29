@@ -181,7 +181,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   ticks (`PRESETS` in `CleanView.pyw`), remembers her own changes, and learns separately
   (e.g. bullying filtered for kids, not for herself).
 - Language groups: swearing, mild, God's name, minced oaths, same-sex words, rude words kids
-  copy (stupid, dumb, idiot, shut up...). "screw you" and "crap" count as language.
+  copy (stupid, dumb, idiot, shut up, "that sucks"...). "screw you" and "crap" count as
+  language. "Suck" meaning "is bad" counts wherever it's said (`cvcore.suck_swear`,
+  Lauren 2026-10-29); sucking something (a lollipop, a thumb, "suck it up") doesn't.
 - "What the" / "who the" / "what in the" just before a muted word is muted with it
   ("what the hell" goes whole; `cvcore.with_lead_in`), since it says what the word was.
 - Her own words and phrases (start page box, one per line, every age; `opts["mywords"]`,
