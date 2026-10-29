@@ -88,6 +88,8 @@ CLIP_CATS = {
                   "valentine decorations with cupid"],
     "easter": ["the easter bunny", "children hunting for easter eggs",
                "a basket of decorated easter eggs"],
+    "stpatricks": ["a leprechaun", "st. patrick's day decorations with green shamrocks",
+                   "a st. patrick's day parade", "a leprechaun's pot of gold"],
     "darkmagic": ["a witch casting an evil spell", "a dark occult ritual with a pentagram",
                   "a person summoning a demon", "a voodoo doll", "a fortune teller with a crystal "
                   "ball", "a seance with a ouija board"],
@@ -292,10 +294,10 @@ class Clip:
 THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
           "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
           "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65,
-          "easter": 0.65, "darkmagic": 0.65, "magic": 0.65}
+          "easter": 0.65, "darkmagic": 0.65, "magic": 0.65, "stpatricks": 0.65}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
               "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
-              "valentine": 3, "easter": 3, "darkmagic": 2,
+              "valentine": 3, "easter": 3, "stpatricks": 3, "darkmagic": 2,
               "magic": 2,      # a spell's flash can be over in a couple of seconds
               "gestures": 1}   # seconds of hits a scene needs (a rude gesture is over in a second)
 
@@ -614,6 +616,10 @@ LOOK = {
     "easter": ("Question: is something about Easter shown: the Easter bunny, an Easter egg "
                "hunt, decorated Easter eggs or Easter baskets? An ordinary rabbit or egg is NOT.",
                _YES),
+    "stpatricks": ("Question: is something about St. Patrick's Day shown: a leprechaun, a pot of "
+                   "gold, shamrock decorations, or people dressed up in green for St. Patrick's "
+                   "Day or its parade? Ordinary green clothes, a clover field or a rainbow alone "
+                   "is NOT.", _YES),
     "darkmagic": ("Question: is dark magic or the occult shown: witchcraft, a curse or evil "
                   "spell being cast, an occult ritual (a pentagram, summoning a demon or the "
                   "dead, a seance, a Ouija board), a voodoo doll, or fortune telling (a crystal "
@@ -732,6 +738,9 @@ LINE_TYPES = {
                   "NOT: a character or person named Valentine"),
     "easter": ("talks about Easter: the Easter bunny, Easter eggs or egg hunts, Easter baskets, "
                "Easter Sunday. NOT: ordinary eggs or rabbits, Easter Island"),
+    "stpatricks": ("talks about St. Patrick's Day: leprechauns, a pot of gold, wearing green or "
+                   "shamrocks for the day, its parades. NOT: Ireland or Irish people in "
+                   "general, a church or school named St. Patrick's"),
     "darkmagic": ("talks about or uses dark magic or the occult: witchcraft, sorcery, curses and "
                   "hexes, black magic, voodoo, summoning demons or spirits, talking to the dead, "
                   "seances, Ouija boards, fortune telling, tarot, psychics, devil worship. NOT: "
@@ -748,6 +757,7 @@ LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around
               "christmas": "talk about Christmas", "halloween": "talk about Halloween",
               "birthday": "talk about the candles on a birthday cake",
               "valentine": "talk about Valentine's Day", "easter": "talk about Easter",
+              "stpatricks": "talk about St. Patrick's Day",
               "darkmagic": "talk about dark magic or the occult", "magic": "talk about magic"}
 
 

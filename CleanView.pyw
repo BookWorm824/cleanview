@@ -30,7 +30,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
         "Christmas": "#2E6B45", "Halloween": "#B4621E", "Birthday": "#8C5AA8",
         "Valentine's": "#B23A5A", "Rude": "#8A4B2E", "Easter": "#6E8B2E",
-        "Dark": "#4A2E5E", "Magic": "#5A4FA0"}
+        "Dark": "#4A2E5E", "Magic": "#5A4FA0", "St.": "#2E7D4F"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
@@ -41,9 +41,12 @@ PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adu
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
-               "drinking", "drugs", "religion", "loudmusic", "christmas", "halloween",
-               "birthday", "valentine", "gestures", "easter", "darkmagic", "magic"]
-HOLIDAYS = ("christmas", "halloween", "birthday", "valentine", "easter")
+               "drinking", "drugs", "religion", "loudmusic", "holidays", "birthday",
+               "gestures", "darkmagic", "magic"]
+# "holidays" is one box for Christmas, Halloween, Valentine's, Easter and St. Patrick's Day
+# (cleanview.HOLIDAYS); these were separate boxes before 1.17.1
+HOLIDAYS = ("holidays", "birthday")
+OLD_HOLIDAY_BOXES = ("christmas", "halloween", "valentine", "easter")
 MAGIC = ("darkmagic", "magic")
 _ALL = {k: True for k in FILTER_KEYS}
 _ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
@@ -63,6 +66,15 @@ PRESETS = {
                    drugs=True, religion=False, loudmusic=False, gestures=True,
                    **NO_HOLIDAYS),
 }
+
+
+def one_holidays_box(ticks):
+    """Saved ticks from before the holidays were one box: ticked if any of them was."""
+    ticks = dict(ticks)
+    old = [ticks.pop(k) for k in OLD_HOLIDAY_BOXES if k in ticks]
+    if old and "holidays" not in ticks:
+        ticks["holidays"] = any(old)
+    return ticks
 
 
 def chip_color(label):
@@ -604,7 +616,8 @@ class App(tk.Tk):
         if profiles is None:            # first time: your old ticks become your "Adults" ticks
             old = {k: saved[k] for k in FILTER_KEYS if k in saved}
             profiles = {"adults": old} if old else {}
-        self.profiles = {p: dict(PRESETS[p], **profiles.get(p, {})) for p, _ in PROFILES}
+        self.profiles = {p: dict(PRESETS[p], **one_holidays_box(profiles.get(p, {})))
+                         for p, _ in PROFILES}
         self.profile = saved.get("profile") or ("adults" if profiles.get("adults") else "young")
         cur = self.profiles[self.profile]
         prow = tk.Frame(b2, bg=CARD)
@@ -694,11 +707,10 @@ class App(tk.Tk):
             ("gestures", "Rude and sexual gestures  (the middle finger, crude motions)",
              True)], cols=2)
         checks(section("Holidays and birthdays"), [
-            ("christmas", "Christmas  (Santa, trees, presents)", False),
-            ("halloween", "Halloween  (costumes, jack-o'-lanterns, trick-or-treating)", False),
-            ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False),
-            ("valentine", "Valentine's Day  (cards, hearts, Cupid)", False),
-            ("easter", "Easter  (the Easter bunny, egg hunts)", False)])
+            ("holidays", "Holidays  (Christmas, Halloween, Easter, Valentine's Day, "
+                         "St. Patrick's Day)", False),
+            ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False)],
+               cols=1)
         checks(section("Magic"), [
             ("darkmagic", "Dark magic  (witchcraft, curses, the occult, fortune telling)", False),
             ("magic", "Magic  (spells, wands, wizards, potions)", False)])

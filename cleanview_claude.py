@@ -385,6 +385,9 @@ TYPE_TEXT = {
                  "whole conversation. Not: someone named Valentine",
     "easter": "Easter: any talk about Easter, the Easter bunny, Easter eggs or egg hunts; the "
               "whole conversation. Not: ordinary eggs or rabbits, Easter Island",
+    "stpatricks": "St. Patrick's Day: any talk about St. Patrick's Day, leprechauns, a pot of "
+                  "gold or wearing green for the day; the whole conversation. Not: Ireland or "
+                  "Irish people in general, a church or school named St. Patrick's",
     "darkmagic": "dark magic and the occult: any talk about or use of witchcraft, sorcery, "
                  "curses or hexes, black magic, voodoo, summoning demons or spirits, talking to "
                  "the dead, seances, Ouija boards, fortune telling, tarot, psychics or devil "
@@ -616,10 +619,11 @@ MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w
                             r"affair|bull\w*|mock\w*|crude humor|gross|relig\w*|faith|pray\w*|"
                             r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*|christmas|"
                             r"santa|halloween|trick.or.treat\w*|birthday\w*|candles?|"
-                            r"valentine\w*|easter|magic\w*|spells?|witch\w*|wizard\w*|"
+                            r"valentine\w*|easter|patrick\w*|leprechaun\w*|magic\w*|spells?|"
+                            r"witch\w*|wizard\w*|"
                             r"sorcer\w*|occult|demon\w*|hex\w*|potions?|enchant\w*)\b", re.I)
 WHOLE_LINE_TYPES = {"religion", "christmas", "halloween", "birthday", "valentine", "easter",
-                    "darkmagic", "magic"}   # never just a word
+                    "stpatricks", "darkmagic", "magic"}   # never just a word
 # Where a single word was found, for the review. Heard by listening means it really is said:
 # Radio's review unticked "hell", "damn", "shit" heard there for not being in the subtitles.
 HEARD = {"audio": ", heard in the sound", "subtitles": ", in the subtitles",
@@ -737,7 +741,8 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
 # ---------------------------------------------------------------------------
 PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
-             "halloween", "birthday", "valentine", "easter", "dark magic", "magic",
+             "halloween", "birthday", "valentine", "easter", "st patrick's day", "dark magic",
+             "magic",
              "rude gesture"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
@@ -763,8 +768,8 @@ PIC_RULES = (
     "neither. For kissing, say who (man & woman, two "
     "men, two women) and whether it's light or passionate. For holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
-    "story's own witches or monsters, an ordinary egg or rabbit, or a single red heart are "
-    "NOT. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
+    "story's own witches or monsters, an ordinary egg or rabbit, ordinary green clothes, a "
+    "clover field or a rainbow alone, or a single red heart are NOT. Thanksgiving is fine. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
     "presents or a cake with no candles are fine. \"dark magic\" is witchcraft, curses, occult "
     "rituals, summoning, seances, Ouija boards, voodoo and fortune telling; \"magic\" is any "
     "other magic being done (spells, wands, glowing magic, potions); a stage magician's trick "

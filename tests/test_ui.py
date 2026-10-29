@@ -255,6 +255,19 @@ class Window(unittest.TestCase):
         self.assertEqual(ui.chip_color("Dark magic"), ui.CHIP["Dark"])
         self.assertEqual(ui.chip_color("Magic"), ui.CHIP["Magic"])
         self.assertEqual(ui.chip_color("Easter"), ui.CHIP["Easter"])
+        self.assertEqual(ui.chip_color("St. Patrick's Day"), ui.CHIP["St."])
+
+    def test_old_holiday_ticks_become_the_one_holidays_box(self):
+        self.assertEqual(ui.one_holidays_box({"christmas": False, "halloween": True,
+                                              "valentine": False, "birthday": True}),
+                         {"holidays": True, "birthday": True})
+        self.assertEqual(ui.one_holidays_box({"christmas": False, "easter": False}),
+                         {"holidays": False})
+        self.assertEqual(ui.one_holidays_box({"holidays": True, "christmas": False}),
+                         {"holidays": True})
+        self.assertEqual(ui.one_holidays_box({"swearing": True}), {"swearing": True})
+        for k in ui.OLD_HOLIDAY_BOXES:
+            self.assertNotIn(k, ui.FILTER_KEYS)
 
     def test_own_words_box_remembered(self):
         app = self.app

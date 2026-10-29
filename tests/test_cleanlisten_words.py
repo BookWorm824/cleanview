@@ -32,29 +32,30 @@ CV_ONLY = {"thank god"}  # CleanView mutes it as God's name (an AI can rule it s
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
 # says so: take it off this list.
-WAITING_ON_CLEANLISTEN = {   # more of the same words, squat and gee, sent 2026-10-29
+WAITING_ON_CLEANLISTEN = {   # CleanView 1.17.0-1.17.1 words, sent 2026-10-29
     'Blimey', 'Buzz off!', "Can't be arsed", 'Check out those jugs', 'Crikey, mate',
     'Cripes almighty', 'Dayum', 'Diddly squat', "Don't be a crybaby", 'Eat my shorts',
     "For Pete's sake", 'For crying out loud!', 'Gee whiz', 'Gee, Mom!', 'Gee, thanks',
     'God forbid', "Golly, that's big", 'Good grief!', 'Good heavens!', 'Goodness gracious me',
-    "He didn't do squat all day", 'I hate you!', 'I swear to God', "It doesn't mean squat",
-    'Jeepers creepers', 'Jeepers!', 'Kicked him in the junk', 'Lord have mercy',
-    'Lord knows I tried', 'Nice rack', 'Oh my Lord, look at that', 'Oh my goodness!',
-    'Oh shoot, I forgot', 'Oh, crud.', 'Oh, fudge.', "She's a floozy", 'Shut your big mouth',
-    'Shut your pie hole', 'Stop it, you brat', 'Talk to the hand', 'Tarnation!',
-    "Thank goodness you're here", 'That was craptastic', "That's not worth squat", 'Up yours!',
-    "We're screwed", 'Well, doggone it', "What in God's name?", 'You big sissy',
-    "You don't know squat", 'You got jack squat', 'You imbecile!', 'You son of a gun!',
-    'You twit', 'You wimp!', 'arsed', 'blimey', 'brat', 'buzz off', 'check out those jugs',
-    'craptastic', 'crikey', 'cripes', 'crud', 'crybaby', 'dayum', 'diddly squat',
-    'diddlysquat', 'doggone', 'eat my shorts', 'floozy', 'for crying out loud',
-    "for pete's sake", 'gee', 'gee whiz', 'god forbid', 'golly', 'good grief', 'good heavens',
-    'goodness gracious', 'i hate you', 'imbecile', "in god's name", 'jack squat', 'jeepers',
-    'jeepers creepers', 'kicked him in the junk', 'lord have mercy', 'lord knows', 'my cock',
-    'nice rack', 'oh fudge', 'oh my goodness', 'oh my lord', 'oh shoot', 'scaredy-cat',
-    'scaredycat', 'shut your big mouth', 'shut your pie hole', 'sissy', 'son of a gun',
-    'suck my cock', 'swear to god', 'talk to the hand', 'tarnation', 'thank goodness', 'twit',
-    'up yours', "we're screwed", 'wimp'}
+    "He didn't do squat all day", 'Holy cow!', 'Holy molly!', 'Holy moly', 'Holy smokes',
+    'I hate you!', 'I swear to God', "It doesn't mean squat", 'Jeepers creepers', 'Jeepers!',
+    'Kicked him in the junk', 'Lord have mercy', 'Lord knows I tried', 'Nice rack',
+    'Oh my Lord, look at that', 'Oh my goodness!', 'Oh shoot, I forgot', 'Oh, crud.',
+    'Oh, fudge.', "She's a floozy", 'Shut your big mouth', 'Shut your pie hole',
+    'Stop it, you brat', 'Talk to the hand', 'Tarnation!', "Thank goodness you're here",
+    'That was craptastic', "That's not worth squat", 'Up yours!', "We're screwed",
+    'Well, doggone it', "What in God's name?", 'You big sissy', "You don't know squat",
+    'You got jack squat', 'You imbecile!', 'You son of a gun!', 'You twit', 'You wimp!',
+    'arsed', 'blimey', 'brat', 'buzz off', 'check out those jugs', 'craptastic', 'crikey',
+    'cripes', 'crud', 'crybaby', 'dayum', 'diddly squat', 'diddlysquat', 'doggone',
+    'eat my shorts', 'floozy', 'for crying out loud', "for pete's sake", 'gee', 'gee whiz',
+    'god forbid', 'golly', 'good grief', 'good heavens', 'goodness gracious', 'holy cow',
+    'holy molly', 'holy moly', 'holy smokes', 'i hate you', 'imbecile', "in god's name",
+    'jack squat', 'jeepers', 'jeepers creepers', 'kicked him in the junk', 'lord have mercy',
+    'lord knows', 'my cock', 'nice rack', 'oh fudge', 'oh my goodness', 'oh my lord',
+    'oh shoot', 'scaredy-cat', 'scaredycat', 'shut your big mouth', 'shut your pie hole',
+    'sissy', 'son of a gun', 'suck my cock', 'swear to god', 'talk to the hand', 'tarnation',
+    'thank goodness', 'twit', 'up yours', "we're screwed", 'wimp'}
 
 
 def load_cleanlisten():

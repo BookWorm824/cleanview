@@ -189,8 +189,12 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
 - When one word is the only problem in a line, mute just the word, not the whole line. But
   jokes or innuendo mean the whole line goes.
-- Holidays and birthdays: Christmas, Halloween, candles on a birthday cake, Valentine's
-  Day and Easter, each its own tick box, ticked for Young kids and Kids, not Teens or Adults.
+- Holidays and birthdays: one "Holidays" tick box (option `holidays`, Lauren 2026-10-29)
+  for Christmas, Halloween, Valentine's Day, Easter and St. Patrick's Day: `full_opts()`
+  turns on each of `cleanview.HOLIDAYS`, which stay separate kinds inside (labels, AI
+  definitions, picture categories). Old saved per-holiday ticks become the one box
+  (`one_holidays_box` in CleanView.pyw). Thanksgiving is fine. Candles on a birthday cake
+  are their own box. Ticked for Young kids and Kids, not Teens or Adults.
   For birthdays only the candles count (Lauren, 2026-10-29: parties, cake and "happy
   birthday" are fine), so it's just the candle lines, not whole conversations. The "Magic"
   section works the same way: Dark magic (witchcraft, curses, the occult, seances, fortune

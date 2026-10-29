@@ -259,7 +259,10 @@ MINCED_SLANG = [re.compile(p) for p in (
     r"(oh )?my goodness\b", r"thank (goodness|heavens?)\b", r"(oh )?heavens to (betsy|murgatroyd)\b",
     r"oh heavens\b",
     r"for (goodness|goodness's|heaven's|heavens|pete's|petes|pete|cripes|mercy's|land's|lands) "
-    r"sakes?\b", r"for crying out loud\b",       # ("holy cow" is left alone, as before)
+    r"sakes?\b", r"for crying out loud\b",
+    # "holy cow", "holy moly" (Lauren, 2026-10-29: not fine)
+    r"holy (cow|cows|moly|molly|moley|mackerel|smokes|smoke|toledo|guacamole|cannoli|schmoley|"
+    r"moses|crud|heck|jeez|geez|cats|socks|jumping|shamoley)\b",
 )]
 # "Shut up shop", "shut up in the attic", "shut up the house": shut away, not rude.
 SHUT_UP_SAFE_NEXT = {"in", "inside", "shop", "house", "the", "his", "her", "my", "their", "our",

@@ -8,7 +8,8 @@ import cleanview as engine
 import cleanview_ai as ai
 import cleanview_claude as cc
 
-HOLIDAYS = ("christmas", "halloween", "birthday", "valentine", "easter")
+HOLIDAYS = ("christmas", "halloween", "valentine", "easter", "stpatricks", "birthday")
+PIC_KIND = {"stpatricks": "st patrick's day"}      # what Claude's picture review calls it
 ALL_ON = engine.full_opts(dict.fromkeys(HOLIDAYS, True))
 
 
@@ -38,7 +39,10 @@ class Heard(unittest.TestCase):
                            ("Put the candles on the cake.", "birthday"),
                            ("Will you be my valentine?", "valentine"),
                            ("Who's ready for the Easter egg hunt?", "easter"),
-                           ("The Easter bunny came!", "easter")]:
+                           ("The Easter bunny came!", "easter"),
+                           ("Happy St. Patrick's Day!", "stpatricks"),
+                           ("A leprechaun stole my shoe!", "stpatricks"),
+                           ("Find the pot of gold.", "stpatricks")]:
             with self.subTest(text=text):
                 self.assertEqual(flagged(dialogue(text)), {0: [kind]})
 
@@ -46,9 +50,20 @@ class Heard(unittest.TestCase):
         for text in ("The snow is falling.", "Light the candles, it's dark.", "We have a present "
                      "for you.", "Pumpkin pie for dinner.", "The witch cast a spell.",
                      "Make a wish on that star.", "Easter Island has huge statues.",
-                     "Scrambled eggs for breakfast."):
+                     "Scrambled eggs for breakfast.", "Mass at St. Patrick's Cathedral.",
+                     "Happy Thanksgiving!", "Pass the turkey, it's Thanksgiving."):
             with self.subTest(text=text):
                 self.assertEqual(flagged(dialogue(text)), {})
+
+    def test_one_holidays_box(self):
+        """Lauren, 2026-10-29: the holidays are one tick box. Birthday candles are their own."""
+        o = engine.full_opts({"holidays": True})
+        for k in engine.HOLIDAYS:
+            self.assertTrue(o[k], k)
+        self.assertFalse(o["birthday"])
+        self.assertEqual(flagged(dialogue("Merry Christmas!", "Happy St. Patrick's Day!"), o),
+                         {0: ["christmas"], 1: ["stpatricks"]})
+        self.assertFalse(engine.full_opts({})["christmas"])
 
     def test_birthdays_are_fine_only_the_candles_count(self):
         for text in ("Happy birthday to you!", "It's my birthday today.",
@@ -112,9 +127,13 @@ class Seen(unittest.TestCase):
 
     def test_claude_looks_for_them_when_ticked(self):
         text = engine.picture_wanted(ALL_ON)
-        for word in HOLIDAYS:
+        for k in HOLIDAYS:
+            word = PIC_KIND.get(k, k)
             self.assertIn(word, text)
             self.assertIn(word, cc.PIC_KINDS)
+        self.assertEqual(engine._pic_wanted({"what": "st patrick's day"}, ALL_ON),
+                         "St. Patrick's Day")
+        self.assertIsNone(engine._pic_wanted({"what": "st patrick's day"}, engine.full_opts()))
         self.assertEqual(engine._pic_wanted({"what": "birthday"}, ALL_ON), "Birthday candles")
         self.assertEqual(engine._pic_wanted({"what": "easter"}, ALL_ON), "Easter")
         self.assertIsNone(engine._pic_wanted({"what": "birthday"}, engine.full_opts()))

@@ -267,6 +267,8 @@ class MoreOfTheSame(unittest.TestCase):
                              ("Thank goodness you're here", "thank goodness"),
                              ("For Pete's sake", "for pete's sake"),
                              ("For crying out loud!", "for crying out loud"),
+                             ("Holy cow!", "holy cow"), ("Holy moly", "holy moly"),
+                             ("Holy molly!", "holy molly"), ("Holy smokes", "holy smokes"),
                              ("Gee whiz", "gee whiz"), ("Jeepers creepers", "jeepers creepers"),
                              ("You son of a gun!", "son of a gun"), ("Oh, fudge.", "oh fudge"),
                              ("Oh shoot, I forgot", "oh shoot"),
@@ -330,7 +332,8 @@ class MoreOfTheSame(unittest.TestCase):
                      "The cock crowed at dawn", "Cock the gun", "a cock and bull story",
                      "Throw it in the junk pile", "Your package arrived",
                      "Army brats move a lot", "The Twits by Roald Dahl", "Wimpy ate a burger",
-                     "Get that bug off me", "Holy water", "Good night", "My goodwill",
+                     "Get that bug off me", "Holy water", "the Holy Bible", "a holy man",
+                     "Good night", "My goodwill",
                      "a big jug of milk", "I hate yogurt", "Golf is fun"):
             with self.subTest(text=text):
                 self.assertEqual(found(text), [])
@@ -477,7 +480,7 @@ class MoreCrudeSlang(unittest.TestCase):
                      "summa cum laude", "General Hooker", "the dickens", "Charles Dickens",
                      "a hole in the wall", "fire retardant", "retard the spread",
                      "keep your pecker up", "the boob tube", "a horny toad",
-                     "brass door knockers", "fudging the numbers", "Holy cow", "shatter",
+                     "brass door knockers", "fudging the numbers", "shatter",
                      "hellas", "turducken", "a pecking order"):
             with self.subTest(text=text):
                 self.assertEqual(found(text), [])

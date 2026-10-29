@@ -44,19 +44,22 @@ VISUAL_FPS = 2.0
 # Options and one-time tools
 # ---------------------------------------------------------------------------
 CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGPT or Google account
-HOLIDAYS = ("christmas", "halloween", "birthday", "valentine", "easter")   # heard and seen
-MAGIC = ("darkmagic", "magic")                                            # heard and seen
+# Heard and seen. One "holidays" tick box turns on all of HOLIDAYS (full_opts); birthday
+# candles and the two magic boxes are their own.
+HOLIDAYS = ("christmas", "halloween", "valentine", "easter", "stpatricks")
+MAGIC = ("darkmagic", "magic")
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying",
-              "religion") + HOLIDAYS + MAGIC
+              "religion") + HOLIDAYS + ("birthday",) + MAGIC
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
-WHOLE_CONVERSATIONS = ("religion",) + tuple(k for k in HOLIDAYS if k != "birthday") + MAGIC
+WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS + MAGIC
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "graphic": True, "disturbing": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
-            "birthday": False, "valentine": False, "easter": False, "darkmagic": False,
+            "birthday": False, "valentine": False, "easter": False, "stpatricks": False,
+            "holidays": False, "darkmagic": False,
             "magic": False, "gestures": False, "mywords": (), "ai": True,
             "autosubs": True,
             "reader": "local", "look": True}
@@ -65,6 +68,8 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
 def full_opts(opts=None):
     o = dict(DEFAULTS)
     o.update(opts or {})
+    if o.get("holidays"):              # the one "Holidays" box: every holiday
+        o.update(dict.fromkeys(HOLIDAYS, True))
     return o
 
 
@@ -80,7 +85,8 @@ def needs(opts):
         clip_cats.append("gore")
     if o["violence"] or o["disturbing"]:
         clip_cats.append("fight")
-    for k in ("smoking", "drinking", "drugs", "immodest", "gestures") + HOLIDAYS + MAGIC:
+    for k in ("smoking", "drinking", "drugs", "immodest", "gestures") + HOLIDAYS + \
+            ("birthday",) + MAGIC:
         if o[k]:
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
@@ -1042,6 +1048,8 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"(birthday )?cake)\b", re.I),
     "valentine": re.compile(r"\b(valentines?|valentine's|cupid)\b", re.I),
     "easter": re.compile(r"\b(easter|egg hunts?)\b(?! island)", re.I),
+    "stpatricks": re.compile(r"\b((st|saint)\.? (patrick|paddy|patty)'?s( day)?|leprechauns?|"
+                             r"pot of gold)\b(?! (cathedral|church|school|hospital))", re.I),
     # not "witch" (an insult too), "curse" (swearing), "spirits" (drinks, cheer), "psychic" or
     # "crystal ball" ("what am I, psychic?")
     "darkmagic": re.compile(r"\b(witchcraft|black magic|dark magic|dark arts|sorcer(y|er|ers|ess|"
@@ -1063,7 +1071,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
               "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
               "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
-              "magic": "Magic",
+              "magic": "Magic", "stpatricks": "St. Patrick's Day",
               "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
               "shared": "CleanView learned", "chat": "You asked in the chat",
@@ -1074,7 +1082,8 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
              "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
-             "magic": "Magic", "gestures": "Rude or sexual gesture"}
+             "magic": "Magic", "stpatricks": "St. Patrick's Day",
+             "gestures": "Rude or sexual gesture"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
@@ -1120,6 +1129,8 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                          "hearts and Cupid decorations",
             "easter": "Easter, in talk or on screen: the Easter bunny, Easter eggs and egg "
                       "hunts, Easter baskets",
+            "stpatricks": "St. Patrick's Day, in talk or on screen: leprechauns, a pot of gold, "
+                          "shamrock decorations, wearing green for the day, its parades",
             "darkmagic": "dark magic and the occult, in talk or on screen: witchcraft, sorcery, "
                          "curses and hexes, black magic, voodoo, summoning demons or spirits, "
                          "talking to the dead, seances, Ouija boards, fortune telling, tarot, "
@@ -1515,6 +1526,8 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "valentine": "valentine (Valentine's Day cards, hearts or Cupid decorations)",
             "easter": "easter (the Easter bunny, Easter egg hunts, decorated Easter eggs or "
                       "baskets)",
+            "stpatricks": "st patrick's day (a leprechaun, a pot of gold, shamrock decorations, "
+                          "a St. Patrick's Day parade)",
             "darkmagic": "dark magic (witchcraft, a curse or evil spell, an occult ritual, a "
                          "pentagram, summoning demons or the dead, a seance or Ouija board, a "
                          "voodoo doll, fortune telling with a crystal ball, tarot or palms)",
@@ -1527,6 +1540,7 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
 PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "rude gesture": "Rude or sexual gesture",
              "easter": "Easter", "dark magic": "Dark magic", "magic": "Magic",
+             "st patrick's day": "St. Patrick's Day",
              "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
              "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
@@ -1573,6 +1587,8 @@ def _pic_wanted(f, o):
         return "Rude or sexual gesture" if o.get("gestures") else None
     if w == "dark magic":                # the tick box is "darkmagic"
         return "Dark magic" if o.get("darkmagic") else None
+    if w == "st patrick's day":          # the tick box is "holidays" ("stpatricks")
+        return "St. Patrick's Day" if o.get("stpatricks") else None
     if w in PIC_LABEL and (w == "sex" or o.get(w)):
         return PIC_LABEL[w]
     return None
