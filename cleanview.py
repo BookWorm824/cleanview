@@ -1950,6 +1950,16 @@ def check_nudity(nude, o, look, notes):
     return kept
 
 
+def closer_looks(o, have_ai, use_clip):
+    """(the AI on this PC takes a closer look at the scenes found, Claude/ChatGPT/Gemini
+    looks at the picture). When Claude looks, it checks every scene found with sharper
+    stills, so the AI on this PC doesn't take its own closer look first: that was the same
+    work twice, and just as slow (Jason). If Claude can't look this time, those scenes stay
+    unticked for her to decide, as on a PC without the AI helper."""
+    cloud = o.get("reader") in CLOUD and o.get("look", True)
+    return bool(have_ai and use_clip and not cloud), bool(cloud)
+
+
 def decide_picture_scenes(cands, o, have_ai):
     """Turn picture-AI candidates (after the second look) into scenes,
     following the chosen settings."""
@@ -2125,12 +2135,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             return "estimating time…"
         return f"about {max(1, el / frac_done * (1 - frac_done) / 60):.0f} min left"
 
+    local_look, cloud_look = closer_looks(o, have_ai, use_clip)
     # how much of the progress bar each step gets
     steps = [("asr", 0.35), ("snd", 0.08 if nd["sound"] else 0),
              ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0),
-             ("look", 0.08 if (have_ai and use_clip) else 0),
+             ("look", 0.08 if local_look else 0),
              ("lines", 0.12 if (have_ai and nd["lines"]) else 0),
-             ("pics", 0.15 if (o.get("reader") in CLOUD and o.get("look", True)) else 0),
+             ("pics", 0.15 if cloud_look else 0),
              ("end", 0.03)]
     tot = sum(w for _, w in steps)
     base, acc = {}, 0.0
@@ -2286,7 +2297,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     cands = []
     if use_clip and vis and vis.get("clip"):
         cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"])
-        if have_ai and cands:
+        if local_look and cands:
             say(at("look", 0), "Taking a closer look at the scenes found…")
             todo = sorted(cands, key=lambda c: -c["peak"])[:150]
             ff = cl._tool("ffmpeg")

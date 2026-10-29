@@ -18,7 +18,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   offline with the local models. Claude/ChatGPT are optional upgrades.
 - All UI text must be plain, short, everyday language. No jargon, no stack traces in the UI.
 - Text size (Normal / Larger / Largest, start page) works through `tk scaling`, which Tk
-  only applies as the window is built, so changing it restarts CleanView. Give fonts in
+  applies as each part of the window is built, so changing it builds the start page again
+  in the same window, redraws the tick boxes and grows the window (`_set_text_size`,
+  `_fit_window`). It used to restart CleanView, which on a slow PC looked like it had shut
+  down (Jason, 2026-10-29). Give fonts in
   points (`(FONT, 10)`) and wrap widths through `wrap_width(px)` so both follow it.
   Never give a local variable the name of a module helper a function calls (1.11.7 named a
   box `wrap` in a function calling `wrap()`, and the review page failed to open);
@@ -44,7 +47,7 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   choices, Claude findings, saved Claude/ChatGPT answers (`answers\`), the saved
   in-progress review.
 - Sending what it learned: "Send what CleanView learned…" and "Send what we refined…"
-  post the file to the CleanView inbox, a Google Apps Script web app in the owner's Google
+  (on the review page, before saving, and on the done page) post the file to the CleanView inbox, a Google Apps Script web app in the owner's Google
   account (`tools/cleanview_inbox.gs`, setup in `tools/README-inbox.txt`; its address is
   `cleanview_learn.SEND_URL`, and CleanListen uses the same one). Files land in the Drive
   folder "CleanView learned"; merge them with `tools/merge_learned.py`. No internet or "not
@@ -154,7 +157,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
    Words heard while the tagger hardly hears speech are lyrics, not talking.
 4. **Picture**: NudeNet twice a second, CLIP once a second for kissing, gore, fights, weapons,
    smoking, drinking, drugs, revealing clothes. Hits become scenes (several seconds of strong
-   hits, dark frames ignored), then the local vision model double-checks each scene.
+   hits, dark frames ignored), then the local vision model double-checks each scene, but
+   not when Claude/ChatGPT/Gemini looks at the picture (step 7), which checks every scene
+   itself: both was the same slow work twice (`closer_looks`, Jason 2026-10-29).
 5. **Voices**: speaker separation and a man/woman/child guess for each line.
 6. **Dialogue filters** (sexual references, sleeping around, same-sex relationships and
    flirting, crude humor, bullying, religious conversations, rude words...): read by the

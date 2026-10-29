@@ -169,5 +169,25 @@ class SexTalk(unittest.TestCase):
         self.assertGreater(engine.cl.sex_score("naked sex pleasure".split()), 0)
 
 
+class OneCloserLook(unittest.TestCase):
+    """With Claude looking at the picture, the AI on this PC doesn't take a closer look at
+    the same scenes first ("taking a closer look" seemed to run twice, as slowly: Jason)."""
+
+    def test_only_one_closer_look(self):
+        claude = engine.full_opts({"reader": "claude", "look": True})
+        self.assertEqual(engine.closer_looks(claude, True, True), (False, True))
+        local = engine.full_opts({"reader": "local"})
+        self.assertEqual(engine.closer_looks(local, True, True), (True, False))
+        no_pictures = engine.full_opts({"reader": "claude", "look": False})
+        self.assertEqual(engine.closer_looks(no_pictures, True, True), (True, False))
+        self.assertEqual(engine.closer_looks(local, False, True), (False, False))
+
+    def test_unchecked_scenes_start_unticked(self):
+        cands = [{"cat": "smoking", "s": 10.0, "e": 15.0}]
+        scenes = engine.decide_picture_scenes(cands, engine.full_opts({"smoking": True}), True)
+        self.assertEqual(len(scenes), 1)
+        self.assertFalse(scenes[0].get("sure", True))
+
+
 if __name__ == "__main__":
     unittest.main()

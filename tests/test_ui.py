@@ -170,6 +170,33 @@ class Window(unittest.TestCase):
         self.click(tv, "1", "#1")
         self.assertEqual(tv.set("1", "mute"), UNTICKED)
 
+    def test_send_what_we_refined_before_saving(self):
+        """The review page can send the report in too, with the ticks as they are now
+        (before, only the page after saving could)."""
+        app = self.app
+        app.show_review()
+        app.update()
+        texts = [w.cget("text") for w in app.footer.winfo_children()
+                 if isinstance(w, ui.ttk.Button)]
+        self.assertIn("Send what we refined…", texts)
+        v, job, m = app.word_vars[0]
+        v.set(not v.get())                       # changed on the page, not yet synced
+        sent, saved = [], (app._send_in, ui.learn.export_refined)
+        app._send_in = lambda path, kind: sent.append((path, kind))
+        real = ui.learn.export_refined                  # saved in the test folder, not the Desktop
+        ui.learn.export_refined = lambda a, chat=None: real(a, chat, dest_dir=support.SANDBOX)
+        try:
+            app._send_report_now()
+        finally:
+            app._send_in, ui.learn.export_refined = saved
+        path, kind = sent[0]
+        self.assertEqual(kind, "refined")
+        data = json.loads(Path(path).read_text(encoding="utf8"))
+        word = data["videos"][0]["words"][0]
+        self.assertEqual(word["final"], "muted" if v.get() else "kept")
+        self.assertTrue(word["changed_by_you"])
+        Path(path).unlink()
+
     def test_review_page_shows_every_card(self):
         """Scenes, lines and words, each with an AI note: the page that failed in 1.11.7."""
         self.said.clear()
@@ -500,33 +527,60 @@ class Window(unittest.TestCase):
         settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
         self.assertFalse(settings["profiles"][settings["profile"]]["swearing"])
 
-    def test_text_size_restarts_keeping_the_chosen_videos(self):
+    def test_text_size_changes_without_restarting(self):
+        """The page is built again at the new size, in the same window. Restarting closed the
+        window for a while on a slow PC and looked like CleanView had shut down (Jason)."""
         app = self.app
         app.show_setup()
         video = support.SANDBOX / "Episode 1.mp4"
         video.write_bytes(b"")
         app.videos = [str(video)]
-        started = []
-        saved = (ui.subprocess.Popen, app.destroy)
-        real = ui.subprocess.Popen
+        app.opts["swearing"].set(not app.opts["swearing"].get())
+        swearing = app.opts["swearing"].get()
+        app.update()
 
-        def popen(cmd, *a, env=None, **k):        # only CleanView restarting itself is faked
-            if str(cmd[-1]).endswith("CleanView.pyw"):
-                return started.append((cmd, env))
-            return real(cmd, *a, env=env, **k)
+        def title_height():
+            return app.page.winfo_children()[1].winfo_reqheight()    # after the footer
+
+        def tick_text_height():         # a tick box's words: their font comes from the theme
+            todo = [app.page]
+            while todo:
+                w = todo.pop()
+                if isinstance(w, ui.ttk.Checkbutton) and w.cget("text"):
+                    return w.winfo_reqheight()
+                todo += w.winfo_children()
+        before, tick_before = title_height(), app._ticks["on"].height()
+        words_before = tick_text_height()
+        started = []
+        saved = real = ui.subprocess.Popen
+
+        def popen(cmd, *a, **k):                  # only CleanView restarting itself is faked
+            if str(cmd[-1]).endswith(("CleanView.pyw", "launcher.pyw")):
+                return started.append(cmd)
+            return real(cmd, *a, **k)
         ui.subprocess.Popen = popen
-        app.destroy = lambda: None
         try:
             app._set_text_size("Normal")              # the size it already is: nothing
-            self.assertEqual(started, [])
             app._set_text_size("Largest")
+            app.update()
+            self.assertEqual(started, [])             # never restarted
+            self.assertTrue(app.winfo_exists())
+            self.assertGreater(title_height(), before)
+            self.assertGreater(app._ticks["on"].height(), tick_before)
+            self.assertGreater(tick_text_height(), words_before)
+            self.assertEqual(app.videos, [str(video)])
+            self.assertEqual(app.opts["swearing"].get(), swearing)
+            self.assertGreater(ui.wrap_width(640), 640)
+            settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
+            self.assertEqual(settings["text_size"], "Largest")
+            app._set_text_size("Normal")
+            app.update()
+            self.assertEqual(title_height(), before)
+            self.assertEqual(app._ticks["on"].height(), tick_before)
         finally:
-            ui.subprocess.Popen, app.destroy = saved
-            app.text_size = "Normal"
-        self.assertEqual(len(started), 1)
-        self.assertEqual(json.loads(started[0][1]["CLEANVIEW_PICKED"])["videos"], [str(video)])
-        settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
-        self.assertEqual(settings["text_size"], "Largest")
+            ui.subprocess.Popen = saved
+            app._set_text_size("Normal")
+            app.opts["swearing"].set(not swearing)
 
     def test_wrap_widths_grow_with_the_text(self):
         self.assertEqual(ui.wrap_width(640), 640)

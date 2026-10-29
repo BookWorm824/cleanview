@@ -181,8 +181,8 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("CleanView")
-        # bigger text if she chose it: Tk only sizes text as the window is built, so this
-        # comes first (and changing it restarts CleanView, see _set_text_size)
+        # bigger text if she chose it: Tk sizes text as each part of the window is built,
+        # so this comes first (and changing it builds the page again, see _set_text_size)
         self._base_scaling = float(self.tk.call("tk", "scaling"))
         self.text_size = self._load_settings().get("text_size")
         if self.text_size not in TEXT_SIZES:
@@ -190,12 +190,7 @@ class App(tk.Tk):
         global _text_scale
         _text_scale = TEXT_SIZES[self.text_size]
         self.tk.call("tk", "scaling", self._base_scaling * _text_scale)
-        scale = max(1.0, self.winfo_fpixels("1i") / 96.0)
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = min(int(860 * scale), sw - 40)
-        h = min(int(800 * scale), sh - 90)
-        self.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 2 - 20)}")
-        self.minsize(min(w, int(660 * scale)), min(h, int(500 * scale)))
+        self._fit_window()
         self.configure(bg=BG)
         try:
             self.iconbitmap(str(Path(__file__).resolve().parent / "cleanview.ico"))
@@ -215,6 +210,20 @@ class App(tk.Tk):
         self.after(100, self._poll)
         self.after(4000, self._check_update)
         self.bind_all("<F5>", lambda e: self._check_update(manual=True))
+
+    def _fit_window(self, grow_only=False):
+        """Size the window for the text size, centred on the screen. grow_only: after a
+        text size change, never smaller than she has made it (and left alone maximised)."""
+        scale = max(1.0, self.winfo_fpixels("1i") / 96.0)
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w = min(int(860 * scale), sw - 40)
+        h = min(int(800 * scale), sh - 90)
+        self.minsize(min(w, int(660 * scale)), min(h, int(500 * scale)))
+        if grow_only:
+            if self.state() == "zoomed":
+                return
+            w, h = max(w, self.winfo_width()), max(h, self.winfo_height())
+        self.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 2 - 20)}")
 
     # ---------- updating without losing your place ----------
     SESSION = APP_DATA / "last_review.json"
@@ -421,8 +430,15 @@ class App(tk.Tk):
         n = max(13, round(self.winfo_fpixels("10p")))      # grows with the text size
         gap = max(5, n // 2)                                # see-through, before the words
 
-        def box(fill, edge, tick=None):
-            img = tk.PhotoImage(width=n + gap, height=n)
+        # Drawn into the same images each time (a new text size redraws them): the theme
+        # can't be given a second "Tick.indicator".
+        first = not hasattr(self, "_ticks")
+        if first:
+            self._ticks = {k: tk.PhotoImage() for k in ("off", "on", "off_dim", "on_dim")}
+
+        def box(img, fill, edge, tick=None):
+            img.blank()
+            img.configure(width=n + gap, height=n)
             img.put(edge, to=(0, 0, n, n))
             img.put(fill, to=(1, 1, n - 1, n - 1))
             if tick:
@@ -433,11 +449,13 @@ class App(tk.Tk):
                         x = round((x0 + (x1 - x0) * k / (2 * n)) * n - w / 2)
                         y = round((y0 + (y1 - y0) * k / (2 * n)) * n - w / 2)
                         img.put(tick, to=(max(0, x), max(0, y), min(n, x + w), min(n, y + w)))
-            return img
-        self._ticks = {"off": box("#FFFFFF", "#8C857C"), "on": box(ACCENT, ACCENT, "#FFFFFF"),
-                       "off_dim": box("#F1EEEA", "#C9C3BB"),
-                       "on_dim": box("#A9C2BC", "#A9C2BC", "#FFFFFF")}
         t = self._ticks
+        box(t["off"], "#FFFFFF", "#8C857C")
+        box(t["on"], ACCENT, ACCENT, "#FFFFFF")
+        box(t["off_dim"], "#F1EEEA", "#C9C3BB")
+        box(t["on_dim"], "#A9C2BC", "#A9C2BC", "#FFFFFF")
+        if not first:
+            return
         s.element_create("Tick.indicator", "image", t["off"],
                          ("selected", "disabled", t["on_dim"]), ("disabled", t["off_dim"]),
                          ("selected", t["on"]), sticky="")
@@ -576,14 +594,6 @@ class App(tk.Tk):
                                 state="readonly", width=8, font=(FONT, 10))
         size_box.pack(side="left")
         size_box.bind("<<ComboboxSelected>>", lambda e: self._set_text_size(size_var.get()))
-        picked = os.environ.pop("CLEANVIEW_PICKED", None)     # back from a text-size change
-        if picked:
-            try:
-                picked = json.loads(picked)
-                self.videos = [v for v in picked.get("videos", []) if os.path.exists(v)]
-                self.outdir = picked.get("outdir")
-            except ValueError:
-                pass
         body = self._scroll_area(p)
 
         self.opts = {}
@@ -1043,17 +1053,20 @@ class App(tk.Tk):
             pass
 
     def _set_text_size(self, name):
-        """Tk sizes text only as the window is built, so restart CleanView with the new
-        size, keeping the start page as it was (the videos chosen and every tick)."""
+        """Tk sizes text as each part of the window is built, so build the start page
+        again at the new size, keeping it as it was (the videos chosen and every tick).
+        It used to restart CleanView, which closed the window for a while on a slow PC
+        and looked like it had shut down (Jason)."""
         if name == self.text_size or name not in TEXT_SIZES:
             return
         self.text_size = name
-        self._save_settings()
-        env = dict(os.environ, CLEANVIEW_PICKED=json.dumps(
-            {"videos": list(self.videos), "outdir": self.outdir}))
-        subprocess.Popen([sys.executable, str(Path(__file__).resolve())], env=env,
-                         cwd=str(Path(__file__).resolve().parent))
-        self.destroy()
+        self._save_settings()               # the ticks, which the page is built from
+        global _text_scale
+        _text_scale = TEXT_SIZES[name]
+        self.tk.call("tk", "scaling", self._base_scaling * _text_scale)
+        self._style()                       # fonts and tick boxes at the new size
+        self._fit_window(grow_only=True)
+        self.show_setup()
 
     def _current_opts(self):
         o = {}
@@ -1618,6 +1631,9 @@ class App(tk.Tk):
         self._chat_tab(t_chat, good)
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
+        # what was refined, sent in before saving too (Lauren): the ticks as they are now
+        ttk.Button(self.footer, text="Send what we refined…", style="Plain.TButton",
+                   command=self._send_report_now).pack(side="left")
 
     # --- hiding what the AI says is fine
     def _visible(self, st):
@@ -2499,9 +2515,18 @@ class App(tk.Tk):
                    command=self.export_refined).pack(anchor="w", padx=12, pady=(6, 10))
         self._done_jobs = [j for j in self.jobs if j["analysis"]]
 
-    def export_refined(self):
+    def _send_report_now(self):
+        """From the review page, before saving: what was found and every tick as it is now."""
+        good = [j for j in self.jobs if j["analysis"]]
+        for j in good:
+            self._sync_job(j)
+        self.export_refined(good)
+
+    def export_refined(self, jobs=None):
+        if jobs is None:
+            jobs = getattr(self, "_done_jobs", [])
         try:
-            path = learn.export_refined([j["analysis"] for j in getattr(self, "_done_jobs", [])],
+            path = learn.export_refined([j["analysis"] for j in jobs],
                                         getattr(self, "chat_history", []))
         except Exception as ex:
             messagebox.showerror("CleanView", f"Couldn't save the file. {plain_error(ex)}")
