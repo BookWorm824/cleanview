@@ -44,16 +44,20 @@ VISUAL_FPS = 2.0
 # Options and one-time tools
 # ---------------------------------------------------------------------------
 CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGPT or Google account
-HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")   # heard and seen
-LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "religion") + HOLIDAYS
-WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS    # the lines between go too (fill_conversations)
+HOLIDAYS = ("christmas", "halloween", "birthday", "valentine", "easter")   # heard and seen
+MAGIC = ("darkmagic", "magic")                                            # heard and seen
+LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying",
+              "religion") + HOLIDAYS + MAGIC
+# the lines between go too (fill_conversations). Not birthdays: only the candles count there.
+WHOLE_CONVERSATIONS = ("religion",) + tuple(k for k in HOLIDAYS if k != "birthday") + MAGIC
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "graphic": True, "disturbing": True,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
-            "birthday": False, "valentine": False, "gestures": False, "mywords": (), "ai": True,
+            "birthday": False, "valentine": False, "easter": False, "darkmagic": False,
+            "magic": False, "gestures": False, "mywords": (), "ai": True,
             "autosubs": True,
             "reader": "local", "look": True}
 
@@ -76,7 +80,7 @@ def needs(opts):
         clip_cats.append("gore")
     if o["violence"] or o["disturbing"]:
         clip_cats.append("fight")
-    for k in ("smoking", "drinking", "drugs", "immodest", "gestures") + HOLIDAYS:
+    for k in ("smoking", "drinking", "drugs", "immodest", "gestures") + HOLIDAYS + MAGIC:
         if o[k]:
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
@@ -1032,13 +1036,34 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                             r"reindeer|rudolph|mistletoe|yuletide|jingle bells)\b", re.I),
     "halloween": re.compile(r"\b(hallowe'?en|trick[- ]or[- ]treat\w*|jack[- ]?o[-' ]*lanterns?|"
                             r"all hallows)\b", re.I),
-    "birthday": re.compile(r"\b(birthdays?|b-?day|blow out (the|your|my|his|her) candles)\b",
-                           re.I),
+    # only the candles: "happy birthday" and birthday parties are fine
+    "birthday": re.compile(r"\b(blow(s|ing)? out (the|your|my|his|her|their|all the|all your) "
+                           r"candles|birthday candles?|candles on (the|your|my|his|her|a|that) "
+                           r"(birthday )?cake)\b", re.I),
     "valentine": re.compile(r"\b(valentines?|valentine's|cupid)\b", re.I),
+    "easter": re.compile(r"\b(easter|egg hunts?)\b(?! island)", re.I),
+    # not "witch" (an insult too), "curse" (swearing), "spirits" (drinks, cheer), "psychic" or
+    # "crystal ball" ("what am I, psychic?")
+    "darkmagic": re.compile(r"\b(witchcraft|black magic|dark magic|dark arts|sorcer(y|er|ers|ess|"
+                            r"esses)|necromanc\w*|voodoo|hoodoo|warlocks?|ouija|s[eé]ances?|"
+                            r"hex(es|ed)? (on|you|him|her|them)|put a curse|cast a curse|"
+                            r"occult|satanic|satanists?|devil worship\w*|pentagrams?|"
+                            r"fortune ?tell(er|ers|ing)|tarot|"
+                            r"summon(s|ed|ing)? (a |the )?(demons?|spirits?|the dead|dead))\b",
+                            re.I),
+    # not "magic" alone ("it was magic", "the magic word") or "spell" (spelling)
+    "magic": re.compile(r"\b(magic (spells?|wands?|potions?|powers?|carpets?|lamps?|beans|"
+                        r"mirrors?|rings?|kingdom|book|dust)|"
+                        r"magical powers?|cast(s|ing)? a spell|put a spell|under (a|the|her|his) "
+                        r"spell|spell (on|to make)|spells?book|wizards?(?! (with|at|of))|"
+                        r"wizardry|enchant(ed|ment|"
+                        r"ments|ress)|abracadabra|hocus pocus|bibbidi|potions?|fairy "
+                        r"godmother|gummiberry juice)\b", re.I),
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
-              "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday",
-              "valentine": "Valentine's Day",
+              "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
+              "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
+              "magic": "Magic",
               "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
               "shared": "CleanView learned", "chat": "You asked in the chat",
@@ -1047,8 +1072,9 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
-             "halloween": "Halloween", "birthday": "Birthday", "valentine": "Valentine's Day",
-             "gestures": "Rude or sexual gesture"}
+             "halloween": "Halloween", "birthday": "Birthday candles",
+             "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
+             "magic": "Magic", "gestures": "Rude or sexual gesture"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
@@ -1061,16 +1087,19 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang fo
               "mild": "mild language such as crap, screw you, damn, hell, 'that's bull' "
                       "(short for bullshit, not the animal)",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
-              "minced": "minced oaths such as gosh, darn, heck",
+              "minced": "minced oaths such as gosh, darn, heck, golly, jeepers, good grief, "
+                        "for Pete's sake, my goodness, good heavens",
               "samesexwords": "words about same-sex relationships (gay, lesbian, homosexual...)",
-              "rude": "rude words kids copy (stupid, dumb, idiot, shut up, fool, loser...)"}
+              "rude": "rude words kids copy (stupid, dumb, idiot, shut up, fool, loser, "
+                      "wimp, weirdo, I hate you, talk to the hand...)"}
 OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)",
             "disturbing": "disturbing violence outside of combat (torture, executions, cruelty)",
             "nudity": "nudity (private parts actually shown)",
             "implied": "implied nudity (undressed but covered by sheets, towels or the camera)",
             "sex": "sex scenes", "violence": "violence",
-            "gore": "gore (insides shown: organs, dismemberment)", "immodest": "immodest clothing",
-            "smoking": "smoking",
+            "gore": "gore (insides shown: organs, dismemberment)",
+            "immodest": "immodest clothing and sexual dancing (stripping, pole dancing)",
+            "smoking": "smoking (vaping too)",
             "drinking": "drinking", "drugs": "drug use",
             "samesex": "same-sex relationships and romance, including flirting",
             "casual": "sleeping around (casual sex, hooking up, affairs)",
@@ -1084,11 +1113,20 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                          "presents, carols, the holiday itself",
             "halloween": "Halloween, in talk or on screen: trick-or-treating, Halloween "
                          "costumes, jack-o'-lanterns, Halloween parties and decorations",
-            "birthday": "birthday celebrations, in talk or on screen: birthday cakes and "
-                        "candles, blowing out candles, singing Happy Birthday, birthday parties "
-                        "and presents",
+            "birthday": "candles on a birthday cake, in talk or on screen: lit candles on a "
+                        "cake, blowing them out, making a wish over them (birthdays, parties, "
+                        "presents, a cake with no candles and singing Happy Birthday are fine)",
             "valentine": "Valentine's Day, in talk or on screen: valentines, Valentine cards, "
                          "hearts and Cupid decorations",
+            "easter": "Easter, in talk or on screen: the Easter bunny, Easter eggs and egg "
+                      "hunts, Easter baskets",
+            "darkmagic": "dark magic and the occult, in talk or on screen: witchcraft, sorcery, "
+                         "curses and hexes, black magic, voodoo, summoning demons or spirits, "
+                         "talking to the dead, seances, Ouija boards, fortune telling, tarot, "
+                         "psychics, devil worship",
+            "magic": "magic, in talk or on screen: spells, magic wands, wizards, witches or "
+                     "fairies doing magic, magic potions, enchantments, magic powers, a genie's "
+                     "wishes (not stage magic tricks, or 'magic' meaning wonderful)",
             "gestures": "rude or sexual gestures: raising the middle finger at someone, or a "
                         "crude sexual motion (a hand gesture mimicking sex, thrusting the hips, "
                         "grabbing the crotch)"}
@@ -1464,19 +1502,31 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "nudity": "nudity (bare breasts, buttocks or genitals actually shown)",
             "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
                        "back or shoulders, shower from the shoulders up)",
-            "sex": "sex scenes or a couple in bed", "immodest": "immodest clothing",
-            "smoking": "smoking", "drinking": "drinking alcohol", "drugs": "drug use",
+            "sex": "sex scenes or a couple in bed",
+            "immodest": "immodest (swimsuits, underwear, very revealing clothes, or sexual "
+                        "dancing: stripping, pole dancing, grinding)",
+            "smoking": "smoking (cigarettes, cigars, pipes, vaping)",
+            "drinking": "drinking alcohol", "drugs": "drug use",
             "christmas": "christmas (Santa, a Christmas tree, Christmas decorations or presents)",
             "halloween": "halloween (trick-or-treating, Halloween costumes, jack-o'-lanterns, "
                          "Halloween decorations)",
-            "birthday": "birthday (a birthday cake, birthday candles or blowing them out, a "
-                        "birthday party)",
+            "birthday": "birthday (only candles on a cake, lit or being blown out; a party, "
+                        "balloons, presents or a cake with no candles are fine)",
             "valentine": "valentine (Valentine's Day cards, hearts or Cupid decorations)",
+            "easter": "easter (the Easter bunny, Easter egg hunts, decorated Easter eggs or "
+                      "baskets)",
+            "darkmagic": "dark magic (witchcraft, a curse or evil spell, an occult ritual, a "
+                         "pentagram, summoning demons or the dead, a seance or Ouija board, a "
+                         "voodoo doll, fortune telling with a crystal ball, tarot or palms)",
+            "magic": "magic (someone casting a spell, a magic wand at work, glowing magic, a "
+                     "magic potion working, a wizard, witch, fairy or genie doing magic; not "
+                     "a stage magician's trick)",
             "gestures": "rude gesture (someone raising the middle finger, or a crude sexual "
                         "gesture: a hand gesture mimicking sex or oral sex, thrusting the hips, "
                         "grabbing the crotch)"}
-PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday",
+PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "rude gesture": "Rude or sexual gesture",
+             "easter": "Easter", "dark magic": "Dark magic", "magic": "Magic",
              "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
              "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
@@ -1521,6 +1571,8 @@ def _pic_wanted(f, o):
         return "Gore" if o.get("gore") else "Graphic violence" if o.get("graphic") else None
     if w == "rude gesture":              # the tick box is "gestures"
         return "Rude or sexual gesture" if o.get("gestures") else None
+    if w == "dark magic":                # the tick box is "darkmagic"
+        return "Dark magic" if o.get("darkmagic") else None
     if w in PIC_LABEL and (w == "sex" or o.get(w)):
         return PIC_LABEL[w]
     return None

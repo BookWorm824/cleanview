@@ -1,5 +1,6 @@
-"""Christmas, Halloween, birthdays and Valentine's Day: heard (lines muted, whole
-conversations) and seen (scenes cut, by the AI on this PC and by Claude/ChatGPT)."""
+"""Christmas, Halloween, birthday candles, Valentine's Day and Easter: heard (lines muted,
+whole conversations) and seen (scenes cut, by the AI on this PC and by Claude/ChatGPT).
+For birthdays only the candles on the cake count: parties, cake and "happy birthday" are fine."""
 import unittest
 
 import support  # noqa: F401  (sets up the sandbox first)
@@ -7,7 +8,7 @@ import cleanview as engine
 import cleanview_ai as ai
 import cleanview_claude as cc
 
-HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")
+HOLIDAYS = ("christmas", "halloween", "birthday", "valentine", "easter")
 ALL_ON = engine.full_opts(dict.fromkeys(HOLIDAYS, True))
 
 
@@ -32,18 +33,36 @@ class Heard(unittest.TestCase):
                            ("Santa Claus is coming tonight.", "christmas"),
                            ("Trick or treat!", "halloween"),
                            ("Look at my jack-o'-lantern.", "halloween"),
-                           ("Happy birthday to you!", "birthday"),
                            ("Now blow out the candles.", "birthday"),
-                           ("Will you be my valentine?", "valentine")]:
+                           ("Look at all the birthday candles!", "birthday"),
+                           ("Put the candles on the cake.", "birthday"),
+                           ("Will you be my valentine?", "valentine"),
+                           ("Who's ready for the Easter egg hunt?", "easter"),
+                           ("The Easter bunny came!", "easter")]:
             with self.subTest(text=text):
                 self.assertEqual(flagged(dialogue(text)), {0: [kind]})
 
     def test_everyday_words_left_alone(self):
         for text in ("The snow is falling.", "Light the candles, it's dark.", "We have a present "
                      "for you.", "Pumpkin pie for dinner.", "The witch cast a spell.",
-                     "Make a wish on that star."):
+                     "Make a wish on that star.", "Easter Island has huge statues.",
+                     "Scrambled eggs for breakfast."):
             with self.subTest(text=text):
                 self.assertEqual(flagged(dialogue(text)), {})
+
+    def test_birthdays_are_fine_only_the_candles_count(self):
+        for text in ("Happy birthday to you!", "It's my birthday today.",
+                     "Are you coming to my birthday party?", "Have some cake.",
+                     "What do you want for your birthday?"):
+            with self.subTest(text=text):
+                self.assertEqual(flagged(dialogue(text)), {})
+        # just the candle lines, not the conversation around them
+        lines = dialogue("Happy birthday, Sam!", "Thanks, Mom.", "Now blow out your candles!",
+                         "Cake for everyone!")
+        self.assertEqual(flagged(lines), {2: ["birthday"]})
+        self.assertNotIn("birthday", engine.WHOLE_CONVERSATIONS)
+        self.assertIn("candles", ai.LOOK["birthday"][0])
+        self.assertNotIn("party", " ".join(ai.CLIP_CATS["birthday"]))
 
     def test_whole_conversation(self):
         lines = dialogue("What do you want for Christmas?", "A bike.", "And a puppy!",
@@ -93,10 +112,11 @@ class Seen(unittest.TestCase):
 
     def test_claude_looks_for_them_when_ticked(self):
         text = engine.picture_wanted(ALL_ON)
-        for word in ("christmas", "halloween", "birthday", "valentine"):
+        for word in HOLIDAYS:
             self.assertIn(word, text)
             self.assertIn(word, cc.PIC_KINDS)
-        self.assertEqual(engine._pic_wanted({"what": "birthday"}, ALL_ON), "Birthday")
+        self.assertEqual(engine._pic_wanted({"what": "birthday"}, ALL_ON), "Birthday candles")
+        self.assertEqual(engine._pic_wanted({"what": "easter"}, ALL_ON), "Easter")
         self.assertIsNone(engine._pic_wanted({"what": "birthday"}, engine.full_opts()))
 
 

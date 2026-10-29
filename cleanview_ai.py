@@ -67,19 +67,33 @@ CLIP_CATS = {
              "a person being stabbed", "a person being shot with blood"],
     "fight": ["people fighting", "a person punching another person",
               "a person pointing a gun at someone", "a violent attack"],
-    "smoking": ["a person smoking a cigarette", "a person smoking"],
-    "drinking": ["a person drinking alcohol", "people drinking beer", "a glass of wine"],
-    "drugs": ["a person using drugs", "a person snorting cocaine", "a person injecting drugs"],
+    "smoking": ["a person smoking a cigarette", "a person smoking",
+                "a person vaping an e-cigarette", "a person smoking a cigar or a pipe"],
+    "drinking": ["a person drinking alcohol", "people drinking beer", "a glass of wine",
+                 "people drinking at a bar"],
+    "drugs": ["a person using drugs", "a person snorting cocaine", "a person injecting drugs",
+              "a person smoking a marijuana joint", "a person smoking from a bong"],
     "immodest": ["a woman in a bikini", "a person in revealing underwear",
-                 "a woman in a revealing low-cut outfit"],
+                 "a woman in a revealing low-cut outfit",
+                 "a woman dancing provocatively in a revealing outfit",
+                 "a stripper dancing on a pole"],
     "christmas": ["a decorated christmas tree", "santa claus", "christmas presents under a tree",
                   "christmas decorations and lights"],
     "halloween": ["a carved jack-o'-lantern pumpkin", "children trick-or-treating in halloween "
                   "costumes", "halloween decorations"],
+    # only the candles: a birthday party, balloons or a cake on its own are fine
     "birthday": ["a birthday cake with lit candles", "blowing out birthday candles",
-                 "a birthday party with balloons and party hats"],
+                 "candles on a cake"],
     "valentine": ["valentine's day cards and red hearts", "a heart-shaped box of chocolates",
                   "valentine decorations with cupid"],
+    "easter": ["the easter bunny", "children hunting for easter eggs",
+               "a basket of decorated easter eggs"],
+    "darkmagic": ["a witch casting an evil spell", "a dark occult ritual with a pentagram",
+                  "a person summoning a demon", "a voodoo doll", "a fortune teller with a crystal "
+                  "ball", "a seance with a ouija board"],
+    "magic": ["a wizard casting a magic spell with a wand", "glowing magic sparkles from a "
+              "magic wand", "a person casting a spell with glowing magic from their hands",
+              "a fairy doing magic"],
     "gestures": ["a person giving the middle finger", "a person flipping someone off with "
                  "their middle finger", "a person making an obscene hand gesture",
                  "a person making a crude sexual gesture with their hands",
@@ -277,10 +291,12 @@ class Clip:
 # ---------------------------------------------------------------------------
 THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
           "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
-          "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65}
+          "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65,
+          "easter": 0.65, "darkmagic": 0.65, "magic": 0.65}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
               "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
-              "valentine": 3,
+              "valentine": 3, "easter": 3, "darkmagic": 2,
+              "magic": 2,      # a spell's flash can be over in a couple of seconds
               "gestures": 1}   # seconds of hits a scene needs (a rude gesture is over in a second)
 
 
@@ -580,7 +596,8 @@ LOOK = {
                    "nudity": {"type": "string", "enum": ["shown", "implied", "none"]}},
                 "required": ["see", "nudity"]}),
     "immodest": ("Question: is someone dressed immodestly (swimsuit, underwear, lingerie, very "
-                 "revealing clothes)?",
+                 "revealing clothes), or dancing in a sexual way (stripping, pole dancing, "
+                 "grinding)?",
                  {"type": "object", "properties": {"see": {"type": "string"},
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),
@@ -590,11 +607,22 @@ LOOK = {
     "halloween": ("Question: is something about Halloween shown: children trick-or-treating, "
                   "Halloween costumes, a carved jack-o'-lantern or Halloween decorations? A "
                   "plain pumpkin, or a fantasy story's own witches or monsters, is NOT.", _YES),
-    "birthday": ("Question: is a birthday being celebrated: a birthday cake, birthday candles "
-                 "(or someone blowing them out), or a birthday party? A cake at an ordinary "
-                 "meal with no candles is NOT.", _YES),
+    "birthday": ("Question: are there candles on a cake (lit, or someone blowing them out)? A "
+                 "birthday party, balloons, presents or a cake with no candles is NOT.", _YES),
     "valentine": ("Question: is something about Valentine's Day shown: valentine cards, "
                   "Cupid, or hearts used as Valentine decorations?", _YES),
+    "easter": ("Question: is something about Easter shown: the Easter bunny, an Easter egg "
+               "hunt, decorated Easter eggs or Easter baskets? An ordinary rabbit or egg is NOT.",
+               _YES),
+    "darkmagic": ("Question: is dark magic or the occult shown: witchcraft, a curse or evil "
+                  "spell being cast, an occult ritual (a pentagram, summoning a demon or the "
+                  "dead, a seance, a Ouija board), a voodoo doll, or fortune telling (a crystal "
+                  "ball, tarot cards, palm reading)? A Halloween costume or decoration is NOT.",
+                  _YES),
+    "magic": ("Question: is magic being done: someone casting a spell, a magic wand at work, "
+              "glowing magic, a magic potion working, a wizard, witch, fairy or genie doing "
+              "magic? A stage magician's trick (cards, a rabbit from a hat) or fireworks is NOT.",
+              _YES),
     "gestures": ("Question: is someone making a rude or sexual gesture? That means raising "
                  "the middle finger at someone (flipping them off), or a crude sexual motion: "
                  "a hand or finger gesture that mimics sex or oral sex, thrusting the hips "
@@ -697,17 +725,30 @@ LINE_TYPES = {
     "halloween": ("talks about Halloween: trick-or-treating, Halloween costumes or parties, "
                   "jack-o'-lanterns. NOT: a story's own witches, ghosts or monsters, costumes "
                   "for a play"),
-    "birthday": ("talks about a birthday or a birthday celebration: birthday cake, candles, "
-                 "party or presents, singing Happy Birthday, how old someone is turning"),
+    "birthday": ("talks about the candles on a birthday cake: blowing out the candles, making "
+                 "a wish over them. NOT: birthdays, birthday parties, cake or presents "
+                 "themselves, other candles"),
     "valentine": ("talks about Valentine's Day: valentines, Valentine cards or dates, Cupid. "
                   "NOT: a character or person named Valentine"),
+    "easter": ("talks about Easter: the Easter bunny, Easter eggs or egg hunts, Easter baskets, "
+               "Easter Sunday. NOT: ordinary eggs or rabbits, Easter Island"),
+    "darkmagic": ("talks about or uses dark magic or the occult: witchcraft, sorcery, curses and "
+                  "hexes, black magic, voodoo, summoning demons or spirits, talking to the dead, "
+                  "seances, Ouija boards, fortune telling, tarot, psychics, devil worship. NOT: "
+                  "'witch' as an insult, stage magic tricks, a Halloween costume"),
+    "magic": ("talks about or uses magic: spells, magic wands, wizards, witches or fairies doing "
+              "magic, magic potions, enchantments, magic powers, a genie's wishes, a magic "
+              "object. NOT: dark magic (a separate choice), stage magic tricks (a card trick, a "
+              "rabbit from a hat), 'magic' meaning wonderful ('it was magic', 'the magic word')"),
 }
 LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around",
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
                                                          "together",
               "crude": "crude humor", "bullying": "bullying", "religion": "religious talk",
               "christmas": "talk about Christmas", "halloween": "talk about Halloween",
-              "birthday": "talk about a birthday", "valentine": "talk about Valentine's Day"}
+              "birthday": "talk about the candles on a birthday cake",
+              "valentine": "talk about Valentine's Day", "easter": "talk about Easter",
+              "darkmagic": "talk about dark magic or the occult", "magic": "talk about magic"}
 
 
 def _letters(t):

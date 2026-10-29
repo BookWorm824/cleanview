@@ -105,15 +105,23 @@ MODERATE = [
     r"pussy", r"pussies", r"boners?", r"boobs", r"boobies", r"knockers", r"titty",
     r"nads", r"peckers?", r"peen", r"jizz", r"cum", r"horny", r"hookers?", r"hoochies?",
     r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
-    r"skeez(e|y|ier)", r"skeevy",
+    r"skeez(e|y|ier)", r"skeevy", r"schlongs?", r"todgers?", r"dildos?", r"arsed", r"arses",
 ]
 # ("damning" = incriminating, and "damnation", are left alone)
 MILD = [r"damn", r"damn(s|ed|edest|it)", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
         r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody",
-        r"crapper", r"turds?", r"hella", r"hussy", r"hussies"]
+        r"crapper", r"turds?", r"hella", r"hussy", r"hussies",
+        r"crap(pier|piest|ped|ping|pers|holes|loads?|tastic|ola)", r"day+um+n?",   # "dayum"
+        r"floozy", r"floozies", r"trollops?", r"strumpets?"]
 MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
           r"geeze?", r"gosh", r"gosh(darn|dang).*", r"darn.*", r"heck", r"dang", r"dang(it|ed)",
-          r"dagnabb?it", r"frak(s|ked|king|kin)?", r"shee+sh"]
+          r"dagnabb?it", r"frak(s|ked|king|kin)?", r"shee+sh",
+          # stand-ins for God, Jesus, Christ, damn and shit
+          r"golly", r"jeepers", r"jee+sh", r"crikey", r"blimey", r"gorblimey", r"cripes",
+          r"crim[ie]ny", r"egads?", r"gadzooks", r"zounds", r"lawdy", r"lawd", r"doggone(d|it)?",
+          r"dadgum(med|mit|it)?", r"dadburn(ed|it)?", r"consarn(ed|it)?", r"tarnation",
+          r"d[eu]rn(ed|it)?", r"crud", r"cruddy", r"shiz", r"shiznit", r"gee",
+          r"diddl[ey]+squat", r"jacksquat"]
 DEITY_PHRASES = [
     ("oh", "my", "god"), ("my", "god"), ("oh", "god"), ("good", "god"),
     ("dear", "god"), ("god", "almighty"), ("for", "god's", "sake"),
@@ -122,7 +130,11 @@ DEITY_PHRASES = [
     ("lord", "almighty"), ("sweet", "jesus"), ("jesus", "christ"),
     ("for", "christ's", "sake"), ("for", "christs", "sake"), ("jesus", "h", "christ"),
     ("christ", "almighty"), ("mother", "of", "god"), ("holy", "mother", "of", "god"),
-    ("good", "god", "almighty"),
+    ("good", "god", "almighty"), ("oh", "my", "lord"), ("lord", "have", "mercy"),
+    ("lord", "knows"), ("god", "help", "us"), ("god", "help", "me"), ("lord", "help", "us"),
+    ("lord", "help", "me"), ("god", "forbid"), ("swear", "to", "god"), ("thank", "the", "lord"),
+    ("in", "god's", "name"), ("in", "gods", "name"), ("for", "the", "love", "of", "god"),
+    ("christ", "on", "a", "bike"), ("god", "in", "heaven"),
 ]
 CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
     ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
@@ -145,14 +157,17 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                         "the"} for w in ("jerk", "jerks")},
                  "fool": {"around", "with", "proof"}, "fools": {"gold", "around", "rush"},
                  "butt": {"in", "heads"}, "butts": {"in", "heads"},
-                 "dumb": {"waiter", "waiters", "luck", "founded", "show"}}
+                 "dumb": {"waiter", "waiters", "luck", "founded", "show"},
+                 # "gee up" to a horse; the letter G ("a gee string", "gee major")
+                 "gee": {"up", "string", "strings", "major", "minor", "sharp", "flat", "clef"}}
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
                  "hooker": {"general", "john", "joe"}, "hookers": {"general"},
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
                  "butts": {"cigarette", "cigar", "rifle", "gun"},
                  "dumb": {"deaf", "struck"}, "dummy": {"test", "ventriloquist", "ventriloquist's"},
-                 "dummies": {"test", "crash"}}
+                 "dummies": {"test", "crash"}, "brat": {"army", "navy", "military"},
+                 "brats": {"army", "navy", "military"}, "twits": {"the"}}   # Roald Dahl's book
 # Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
 # own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
@@ -160,9 +175,12 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
 # ("check out those melons", "pop her cherry") work the same way.
 _PARTS = r"(stones|balls|nuts|cojones|family jewels)"
 _GROW = r"(grow|grows|grew|grown|growing)( yourself| himself| herself| themselves| you| me)?"
-_CHEST = r"(melons|cantaloupes|watermelons|grapefruits|coconuts|honeydews)"   # breasts
+_CHEST = (r"(melons|cantaloupes|watermelons|grapefruits|coconuts|honeydews|"     # breasts
+          r"jugs|hooters|knockers|bazongas|bazooms|bazoombas)")
 _BIG = r"((big|huge|giant|great|massive|enormous|perky|nice|lovely) )?"
-_LOW = r"(grapes|plums|berries|beans|walnuts|franks and beans|frank and beans|meat and two veg)"
+_LOW = (r"(grapes|plums|berries|beans|walnuts|franks and beans|frank and beans|meat and two veg|"
+        r"crown jewels|package|junk(?! (pile|piles|yard|yards|drawer|heap|food|mail|room|shop|"
+        r"car|box|bin)\b))")
 _NOT_FRUIT = (r"(?! (pie|pies|tree|trees|tomato|tomatoes|blossom|blossoms|cola|coke|juice|jam|"
               r"stem|stems|pit|pits|lipstick|chapstick|red|wood|bomb|bombs|on top)\b)")
 BODY_SLANG = [re.compile(p) for p in (
@@ -196,6 +214,11 @@ BODY_SLANG = [re.compile(p) for p in (
     r"(banana|cucumber|zucchini|eggplant|pickle) in (your|his|my) "
     r"(pants|trousers|shorts|jeans|underwear)\b",
     r"(her|his|your) (tight|juicy|round|perfect) (peach|buns)\b",
+    r"(nice|great|big|huge|what a) rack\b(?! of)",                     # not "a rack of lamb"
+    # not "the cock crowed", "cock the gun", "a cock and bull story"
+    r"(my|his|your|big|little|hard|suck|sucks|sucking|sucked) cocks?\b(?! (of the walk|a "
+    r"doodle|doodle|doo|fight|fights|fighting|fighter|fighters|crow|crows|crowed|crowing|robin|"
+    r"robins|sparrow|sparrows|and bull|eyed|pheasant|pheasants|tail|tails)\b)",
     # touching yourself (as CleanListen); "jerked off the road" is left alone
     r"(jerk|jerks|jerked|jerking|jerkin|jack|jacks|jacked|jacking|jackin) off\b"
     r"(?! (the|a|an|his|her|its|their|my|your|our|of|to|into|onto|from|at|toward|towards|"
@@ -216,11 +239,28 @@ BODY_SLANG = [re.compile(p) for p in (
 MILD_SLANG = [re.compile(p) for p in (
     r"(yank|yanks|yanked|yanking|yankin|jerk|jerks|jerked|jerking|jerkin|pull|pulls|pulled|"
     r"pulling|pullin) (my|your|ya|yer|his|her|our|their|someone's|somebody's) chains?\b",
+    r"up yours\b",
+    # "we're screwed", not "screwed to the wall" or "screwed up"
+    r"(i'm|we're|you're|he's|she's|they're|it's|we are|i am|you are|totally|completely|"
+    r"royally|so|really|just) screwed\b(?! (in|into|on|onto|down|together|shut|tight|tightly|to|"
+    r"the|it|that|this|back|off|up)\b)",
 )]
 
 
 # "What the fudge", "what the flip": stand-ins for the f-word, muted with the minced oaths.
-MINCED_SLANG = [re.compile(r"what the (fudge|flip|fork|frack|fuh)\b")]
+# And the same for God's name, Jesus and son of a bitch: "good grief", "for Pete's sake".
+MINCED_SLANG = [re.compile(p) for p in (
+    r"what the (fudge|flip|fork|frack|fuh)\b",
+    r"(oh|aw|ah|ahh|aww) (fudge|shoot|sugar)\b",
+    r"gee (whiz|whizz|willikers|whillikers|wilikers)\b", r"jeepers creepers\b",
+    r"(diddly|diddley|diddlee|doodly|jack) squat\b",          # "jack squat" = "jack shit"
+    r"son of a (gun|biscuit|b)\b",
+    r"good (grief|golly|gravy|heavens?|gracious)\b", r"goodness gracious\b",
+    r"(oh )?my goodness\b", r"thank (goodness|heavens?)\b", r"(oh )?heavens to (betsy|murgatroyd)\b",
+    r"oh heavens\b",
+    r"for (goodness|goodness's|heaven's|heavens|pete's|petes|pete|cripes|mercy's|land's|lands) "
+    r"sakes?\b", r"for crying out loud\b",       # ("holy cow" is left alone, as before)
+)]
 # "Shut up shop", "shut up in the attic", "shut up the house": shut away, not rude.
 SHUT_UP_SAFE_NEXT = {"in", "inside", "shop", "house", "the", "his", "her", "my", "their", "our",
                      "with", "within", "together", "tight", "tightly", "alone", "for", "here",
@@ -240,6 +280,25 @@ BULL_NOT_NEXT = {"riding", "rider", "riders", "ride", "rides", "market", "market
                  "whip", "whips", "dozer", "dozers", "session", "sessions", "calf", "calves",
                  "breed", "breeds", "semen", "snake", "snakes", "mastiff", "mastiffs", "nose",
                  "neck", "pup", "pups", "elk", "whale", "whales", "pit", "pits"}
+
+
+# "You don't know squat", "it doesn't mean squat": short for "jack shit", a minced oath. Only
+# the word "squat", only straight after these words, and not "do squat jumps" or "squat down".
+SQUAT_BEFORE = {"know", "knows", "knew", "mean", "means", "meant", "do", "does", "did", "done",
+                "doing", "worth", "care", "cares", "cared", "got", "get", "gets", "gotten",
+                "have", "has", "had", "say", "says", "said", "see", "saw", "seen", "find",
+                "found", "give", "gives", "gave", "pay", "pays", "paid", "about", "for",
+                "learned", "learnt", "proves", "proved", "prove"}
+SQUAT_NOT_NEXT = {"down", "jump", "jumps", "thrust", "thrusts", "rack", "racks", "position",
+                  "toilet", "toilets", "lift", "lifts", "press", "exercise", "exercises", "low",
+                  "lower", "deep", "deeper", "squat", "squats", "reps", "sets", "and", "with"}
+
+
+def squat_swear(words, i):
+    """True if words[i] is "squat" said for "jack shit" ("you don't know squat")."""
+    if words[i] != "squat" or not i or words[i - 1] not in SQUAT_BEFORE:
+        return False
+    return (words[i + 1] if i + 1 < len(words) else "") not in SQUAT_NOT_NEXT
 
 
 def bull_swear(words, i):
@@ -272,10 +331,20 @@ RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?"
         r"morons?", r"moronic", r"dumm(y|ies)", r"dorks?", r"dorky", r"dweebs?", r"jerks?",
         r"losers?", r"fools?", r"butts?", r"butthead(s)?", r"buttface", r"nincompoops?",
         r"nitwits?", r"dimwits?", r"halfwits?", r"numbskulls?", r"knucklehead(s)?",
-        r"dummkopf", r"bonehead(s)?", r"airhead(s)?", r"doofus", r"dingbat(s)?", r"pea-?brain(s)?"]
+        r"dummkopf", r"bonehead(s)?", r"airhead(s)?", r"doofus", r"dingbat(s)?", r"pea-?brain(s)?",
+        r"imbeciles?", r"cretins?", r"buffoons?", r"twits?", r"twerps?", r"pinheads?",
+        r"meatheads?", r"lamebrains?", r"birdbrains?", r"dunces?", r"wimps?",   # not Wimpy
+        r"wuss(es)?", r"wussy", r"sissy", r"sissies", r"crybab(y|ies)", r"scaredy(cats?)?",
+        r"weirdos?", r"fatsos?", r"putz(es)?", r"schmucks?", r"ignoramus(es)?", r"brats?",
+        r"dumbdumbs?"]
 RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
                 ("shut", "your", "face"), ("shut", "it"), ("you", "suck"), ("it", "sucks"),
-                ("this", "sucks"), ("that", "sucks")]
+                ("this", "sucks"), ("that", "sucks"), ("shut", "your", "pie", "hole"),
+                ("shut", "your", "piehole"), ("shut", "your", "cake", "hole"),
+                ("shut", "your", "cakehole"), ("shut", "your", "yap"),
+                ("shut", "your", "big", "mouth"), ("shut", "your", "big", "fat", "mouth"),
+                ("buzz", "off"), ("i", "hate", "you"), ("talk", "to", "the", "hand"),
+                ("eat", "my", "shorts"), ("suck", "it"), ("sucks", "to", "be", "you")]
 BLOODY_SWEAR_NEXT = {
     "hell", "well", "idiot", "fool", "fools", "stupid", "ridiculous", "nuisance",
     "nonsense", "cheek", "marvellous", "marvelous", "brilliant", "awful", "good",
@@ -299,7 +368,8 @@ SEX_WINDOW_SCORE = 9   # a stretch of ~3 paragraphs (or ~60s) scoring this much 
 SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score this to be cut
 
 SAMESEX_WORDS = [r"gays?", r"homosexuals?", r"homosexuality", r"lesbians?", r"bisexuals?",
-                 r"queers?", r"fags?", r"faggots?", r"dykes?", r"homos?"]
+                 r"queers?", r"fags?", r"faggots?", r"dykes?", r"homos?", r"lesbos?",
+                 r"lez(z?ie|z?ies|bos?)"]
 
 # Checkbox groups shown in the app → word-list categories
 GROUPS = {
@@ -394,6 +464,7 @@ def listed_word(word, mine=()):
             return True
     if any(body_slang(parts, k) or body_slang(parts, k, MILD_SLANG)  # "grow some stones"
            or body_slang(parts, k, MINCED_SLANG) or bull_swear(parts, k)   # "that's bull"
+           or squat_swear(parts, k)                                         # "know squat"
            for k in range(len(parts))):
         return True
     for c in [w] + parts:
@@ -457,6 +528,10 @@ def find_language(words, cats, mine=()):
                 continue
         if ("mild" in cats or "moderate" in cats) and bull_swear(words, i):   # "that's bull"
             hits.append((i, i + 1, "mild" if "mild" in cats else "moderate"))
+            i += 1
+            continue
+        if "minced" in cats and squat_swear(words, i):                   # "you don't know squat"
+            hits.append((i, i + 1, "minced"))
             i += 1
             continue
         if "rude" in cats:

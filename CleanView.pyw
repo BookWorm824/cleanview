@@ -29,7 +29,8 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
         "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
         "Christmas": "#2E6B45", "Halloween": "#B4621E", "Birthday": "#8C5AA8",
-        "Valentine's": "#B23A5A", "Rude": "#8A4B2E"}
+        "Valentine's": "#B23A5A", "Rude": "#8A4B2E", "Easter": "#6E8B2E",
+        "Dark": "#4A2E5E", "Magic": "#5A4FA0"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
@@ -41,12 +42,14 @@ FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "s
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
                "drinking", "drugs", "religion", "loudmusic", "christmas", "halloween",
-               "birthday", "valentine", "gestures"]
-HOLIDAYS = ("christmas", "halloween", "birthday", "valentine")
+               "birthday", "valentine", "gestures", "easter", "darkmagic", "magic"]
+HOLIDAYS = ("christmas", "halloween", "birthday", "valentine", "easter")
+MAGIC = ("darkmagic", "magic")
 _ALL = {k: True for k in FILTER_KEYS}
 _ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
             loudmusic=False)
-NO_HOLIDAYS = dict.fromkeys(HOLIDAYS, False)    # holidays are taken out for the kids' ages only
+# holidays and magic are taken out for the kids' ages only
+NO_HOLIDAYS = dict.fromkeys(HOLIDAYS + MAGIC, False)
 PRESETS = {
     "young": dict(_ALL),
     "kids": dict(_ALL, kiss_os="passionate"),
@@ -662,7 +665,7 @@ class App(tk.Tk):
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
             ("sex", "Sex scenes", True),
-            ("immodest", "Immodest clothing  (swimsuits, underwear)", False),
+            ("immodest", "Immodest clothing  (swimsuits, underwear, sexy dancing)", False),
             ("casual", "Sleeping around  (casual sex, affairs)", True)])
         g = section("Kissing and relationships")
         levels = {"Keep": "off", "Cut passionate kisses": "passionate", "Cut all kisses": "all"}
@@ -693,8 +696,12 @@ class App(tk.Tk):
         checks(section("Holidays and birthdays"), [
             ("christmas", "Christmas  (Santa, trees, presents)", False),
             ("halloween", "Halloween  (costumes, jack-o'-lanterns, trick-or-treating)", False),
-            ("birthday", "Birthdays  (cakes, candles, parties)", False),
-            ("valentine", "Valentine's Day  (cards, hearts, Cupid)", False)])
+            ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False),
+            ("valentine", "Valentine's Day  (cards, hearts, Cupid)", False),
+            ("easter", "Easter  (the Easter bunny, egg hunts)", False)])
+        checks(section("Magic"), [
+            ("darkmagic", "Dark magic  (witchcraft, curses, the occult, fortune telling)", False),
+            ("magic", "Magic  (spells, wands, wizards, potions)", False)])
         checks(section("Music"), [
             ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
              False)], cols=1)

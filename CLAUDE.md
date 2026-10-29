@@ -189,8 +189,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
 - When one word is the only problem in a line, mute just the word, not the whole line. But
   jokes or innuendo mean the whole line goes.
-- Holidays and birthdays: Christmas, Halloween, birthdays (cakes, candles, parties) and
-  Valentine's Day, each its own tick box, ticked for Young kids and Kids, not Teens or Adults.
+- Holidays and birthdays: Christmas, Halloween, candles on a birthday cake, Valentine's
+  Day and Easter, each its own tick box, ticked for Young kids and Kids, not Teens or Adults.
+  For birthdays only the candles count (Lauren, 2026-10-29: parties, cake and "happy
+  birthday" are fine), so it's just the candle lines, not whole conversations. The "Magic"
+  section works the same way: Dark magic (witchcraft, curses, the occult, seances, fortune
+  telling) and Magic (spells, wands, wizards, potions; not stage tricks), `MAGIC` in
+  cleanview.py and CleanView.pyw, also ticked for Young kids and Kids only.
   Each is both a dialogue filter (whole conversations, whole lines) and a picture category
   (CLIP descriptions + local vision check in cleanview_ai.py, `PIC_KINDS`/`PIC_TEXT`/
   `PIC_LABEL` for Claude's picture review). A picture category needs `CLIP_CATS`, `THRESH`,

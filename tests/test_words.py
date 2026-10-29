@@ -254,6 +254,88 @@ class SlangForPrivateParts(unittest.TestCase):
         self.assertIn("grow some stones", engine.wanted_text({}, ["swearing"]))
 
 
+class MoreOfTheSame(unittest.TestCase):
+    """Words and phrases like the ones already on the lists (2026-10-28 review)."""
+
+    def test_minced_oaths(self):
+        for text, phrase in [("Golly, that's big", "golly"), ("Jeepers!", "jeepers"),
+                             ("Crikey, mate", "crikey"), ("Blimey", "blimey"),
+                             ("Cripes almighty", "cripes"), ("Well, doggone it", "doggone"),
+                             ("Tarnation!", "tarnation"), ("Oh, crud.", "crud"),
+                             ("Good grief!", "good grief"), ("Good heavens!", "good heavens"),
+                             ("Oh my goodness!", "oh my goodness"),
+                             ("Thank goodness you're here", "thank goodness"),
+                             ("For Pete's sake", "for pete's sake"),
+                             ("For crying out loud!", "for crying out loud"),
+                             ("Gee whiz", "gee whiz"), ("Jeepers creepers", "jeepers creepers"),
+                             ("You son of a gun!", "son of a gun"), ("Oh, fudge.", "oh fudge"),
+                             ("Oh shoot, I forgot", "oh shoot"),
+                             ("Goodness gracious me", "goodness gracious"),
+                             ("Gee, thanks", "gee"), ("Gee, Mom!", "gee"),
+                             ("You don't know squat", "squat"),
+                             ("It doesn't mean squat", "squat"),
+                             ("He didn't do squat all day", "squat"),
+                             ("That's not worth squat", "squat"),
+                             ("You got jack squat", "jack squat"),
+                             ("Diddly squat", "diddly squat"), ("diddlysquat", "diddlysquat")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["minced"]), [(phrase, "minced")])
+
+    def test_exercise_squats_and_horses_left_alone(self):
+        for text in ("Do ten squats", "Squat down low", "Can you do squat jumps?",
+                     "He did a squat", "squatters moved in", "a squat little teapot",
+                     "Gee up, horse!", "Sit squat on the floor"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_gods_name(self):
+        for text, phrase in [("Oh my Lord, look at that", "oh my lord"),
+                             ("Lord have mercy", "lord have mercy"),
+                             ("I swear to God", "swear to god"),
+                             ("God forbid", "god forbid"),
+                             ("What in God's name?", "in god's name"),
+                             ("Lord knows I tried", "lord knows")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["deity"]), [(phrase, "deity")])
+
+    def test_rude_words_kids_copy(self):
+        for text, phrase in [("You wimp!", "wimp"), ("What a weirdo", "weirdo"),
+                             ("Don't be a crybaby", "crybaby"), ("You big sissy", "sissy"),
+                             ("You twit", "twit"), ("Stop it, you brat", "brat"),
+                             ("You imbecile!", "imbecile"), ("scaredy-cat", "scaredycat"),
+                             ("I hate you!", "i hate you"), ("Talk to the hand", "talk to the hand"),
+                             ("Shut your pie hole", "shut your pie hole"),
+                             ("Shut your big mouth", "shut your big mouth"),
+                             ("Buzz off!", "buzz off"), ("Eat my shorts", "eat my shorts")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["rude"]), [(phrase, "rude")])
+
+    def test_mild_and_moderate(self):
+        for text, phrase, cat in [("We're screwed", "we're screwed", "mild"),
+                                  ("Up yours!", "up yours", "mild"),
+                                  ("That was craptastic", "craptastic", "mild"),
+                                  ("Dayum", "dayum", "mild"), ("She's a floozy", "floozy", "mild"),
+                                  ("Can't be arsed", "arsed", "moderate"),
+                                  ("Check out those jugs", "check out those jugs", "moderate"),
+                                  ("Nice rack", "nice rack", "moderate"),
+                                  ("Kicked him in the junk", "kicked him in the junk", "moderate"),
+                                  ("suck my cock", "my cock", "moderate")]:
+            with self.subTest(text=text):
+                self.assertEqual(found(text, [cat]), [(phrase, cat)])
+        self.assertEqual(found("lesbos", ["samesex"]), [("lesbos", "samesex")])
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("The shelf is screwed to the wall", "I screwed up the order",
+                     "The lid was screwed on tight", "a rack of lamb", "the spice rack",
+                     "The cock crowed at dawn", "Cock the gun", "a cock and bull story",
+                     "Throw it in the junk pile", "Your package arrived",
+                     "Army brats move a lot", "The Twits by Roald Dahl", "Wimpy ate a burger",
+                     "Get that bug off me", "Holy water", "Good night", "My goodwill",
+                     "a big jug of milk", "I hate yogurt", "Golf is fun"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+
 class Bull(unittest.TestCase):
     """"That's bull" is short for bullshit (mild language); a real bull is left alone."""
 

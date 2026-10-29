@@ -247,11 +247,14 @@ class Window(unittest.TestCase):
     def test_holidays_ticked_for_the_kids_only(self):
         app = self.app
         app.show_setup()
-        for k in ui.HOLIDAYS:
+        for k in ui.HOLIDAYS + ui.MAGIC:
             self.assertIn(k, app.opts)
             self.assertTrue(ui.PRESETS["young"][k] and ui.PRESETS["kids"][k])
             self.assertFalse(ui.PRESETS["teens"][k] or ui.PRESETS["adults"][k])
         self.assertEqual(ui.chip_color("Valentine's Day"), ui.CHIP["Valentine's"])
+        self.assertEqual(ui.chip_color("Dark magic"), ui.CHIP["Dark"])
+        self.assertEqual(ui.chip_color("Magic"), ui.CHIP["Magic"])
+        self.assertEqual(ui.chip_color("Easter"), ui.CHIP["Easter"])
 
     def test_own_words_box_remembered(self):
         app = self.app

@@ -378,10 +378,21 @@ TYPE_TEXT = {
     "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
                  "or jack-o'-lanterns; the whole conversation. Not: a story's own witches, "
                  "ghosts or monsters",
-    "birthday": "birthdays: any talk about a birthday or birthday celebration (cake, candles, "
-                "party, presents, singing Happy Birthday); the whole conversation",
+    "birthday": "birthday candles: talk about the candles on a birthday cake (blowing them "
+                "out, making a wish over them); just those lines. Not: birthdays, birthday "
+                "parties, cake, presents or singing Happy Birthday, which are fine",
     "valentine": "Valentine's Day: any talk about Valentine's Day, valentines or Cupid; the "
                  "whole conversation. Not: someone named Valentine",
+    "easter": "Easter: any talk about Easter, the Easter bunny, Easter eggs or egg hunts; the "
+              "whole conversation. Not: ordinary eggs or rabbits, Easter Island",
+    "darkmagic": "dark magic and the occult: any talk about or use of witchcraft, sorcery, "
+                 "curses or hexes, black magic, voodoo, summoning demons or spirits, talking to "
+                 "the dead, seances, Ouija boards, fortune telling, tarot, psychics or devil "
+                 "worship; the whole conversation. Not: 'witch' as an insult, stage magic tricks",
+    "magic": "magic: any talk about or use of spells, magic wands, wizards, witches or fairies "
+             "doing magic, magic potions, enchantments, magic powers, a genie's wishes or a "
+             "magic object; the whole conversation. Not: dark magic (a separate choice), stage "
+             "magic tricks, 'magic' meaning wonderful ('it was magic', 'the magic word')",
 }
 
 
@@ -604,8 +615,11 @@ WORD_REASON = re.compile(r"\b(contains?|word|language|swear\w*|profan\w*|curse\w
 MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w*|romanc\w*|"
                             r"affair|bull\w*|mock\w*|crude humor|gross|relig\w*|faith|pray\w*|"
                             r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*|christmas|"
-                            r"santa|halloween|trick.or.treat\w*|birthday\w*|valentine\w*)\b", re.I)
-WHOLE_LINE_TYPES = {"religion", "christmas", "halloween", "birthday", "valentine"}   # never just a word
+                            r"santa|halloween|trick.or.treat\w*|birthday\w*|candles?|"
+                            r"valentine\w*|easter|magic\w*|spells?|witch\w*|wizard\w*|"
+                            r"sorcer\w*|occult|demon\w*|hex\w*|potions?|enchant\w*)\b", re.I)
+WHOLE_LINE_TYPES = {"religion", "christmas", "halloween", "birthday", "valentine", "easter",
+                    "darkmagic", "magic"}   # never just a word
 # Where a single word was found, for the review. Heard by listening means it really is said:
 # Radio's review unticked "hell", "damn", "shit" heard there for not being in the subtitles.
 HEARD = {"audio": ", heard in the sound", "subtitles": ", in the subtitles",
@@ -723,7 +737,8 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
 # ---------------------------------------------------------------------------
 PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
-             "halloween", "birthday", "valentine", "rude gesture"]
+             "halloween", "birthday", "valentine", "easter", "dark magic", "magic",
+             "rude gesture"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
@@ -748,8 +763,13 @@ PIC_RULES = (
     "neither. For kissing, say who (man & woman, two "
     "men, two women) and whether it's light or passionate. For holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
-    "story's own witches or monsters, a cake with no candles at an ordinary meal, or a single "
-    "red heart are NOT. A rude gesture is someone raising the middle finger at someone, or a "
+    "story's own witches or monsters, an ordinary egg or rabbit, or a single red heart are "
+    "NOT. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
+    "presents or a cake with no candles are fine. \"dark magic\" is witchcraft, curses, occult "
+    "rituals, summoning, seances, Ouija boards, voodoo and fortune telling; \"magic\" is any "
+    "other magic being done (spells, wands, glowing magic, potions); a stage magician's trick "
+    "is neither. Immodest includes sexual dancing (stripping, pole dancing, grinding); "
+    "smoking includes vaping. A rude gesture is someone raising the middle finger at someone, or a "
     "crude sexual gesture (a hand gesture mimicking sex or oral sex, thrusting the hips, "
     "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "
     "Waving, pointing, a thumbs up, a peace sign or dancing are NOT.")
