@@ -388,14 +388,18 @@ TYPE_TEXT = {
     "stpatricks": "St. Patrick's Day: any talk about St. Patrick's Day, leprechauns, a pot of "
                   "gold or wearing green for the day; the whole conversation. Not: Ireland or "
                   "Irish people in general, a church or school named St. Patrick's",
-    "darkmagic": "dark magic and the occult: any talk about or use of witchcraft, sorcery, "
-                 "curses or hexes, black magic, voodoo, summoning demons or spirits, talking to "
-                 "the dead, seances, Ouija boards, fortune telling, tarot, psychics or devil "
-                 "worship; the whole conversation. Not: 'witch' as an insult, stage magic tricks",
-    "magic": "magic: any talk about or use of spells, magic wands, wizards, witches or fairies "
-             "doing magic, magic potions, enchantments, magic powers, a genie's wishes or a "
-             "magic object; the whole conversation. Not: dark magic (a separate choice), stage "
-             "magic tricks, 'magic' meaning wonderful ('it was magic', 'the magic word')",
+    "darkmagic": "dark magic and the occult: any talk about or use of witchcraft, wizards or "
+                 "witches doing magic, sorcery, curses or hexes, black magic, voodoo, summoning "
+                 "demons or spirits, talking to the dead, seances, Ouija boards, fortune "
+                 "telling, tarot, psychics or devil worship; the whole conversation. Not: "
+                 "'witch' as an insult, 'a wizard with numbers', stage magic tricks",
+    "magic": "magic: any talk about or use of spells, magic wands, fairies doing magic, magic "
+             "potions, enchantments, magic powers, a genie's wishes or a magic object; the "
+             "whole conversation. Not: dark magic, wizards or witches (a separate choice), "
+             "stage magic tricks, 'magic' meaning wonderful ('it was magic', 'the magic word')",
+    "vampires": "vampires and werewolves: any talk about vampires, Dracula, drinking someone's "
+                "blood, turning into a bat, werewolves or turning into a wolf; the whole "
+                "conversation. Not: vampire bats or other real animals, ordinary wolves",
 }
 
 
@@ -620,10 +624,10 @@ MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w
                             r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*|christmas|"
                             r"santa|halloween|trick.or.treat\w*|birthday\w*|candles?|"
                             r"valentine\w*|easter|patrick\w*|leprechaun\w*|magic\w*|spells?|"
-                            r"witch\w*|wizard\w*|"
+                            r"witch\w*|wizard\w*|vampir\w*|werewol\w*|dracula|"
                             r"sorcer\w*|occult|demon\w*|hex\w*|potions?|enchant\w*)\b", re.I)
 WHOLE_LINE_TYPES = {"religion", "christmas", "halloween", "birthday", "valentine", "easter",
-                    "stpatricks", "darkmagic", "magic"}   # never just a word
+                    "stpatricks", "darkmagic", "magic", "vampires"}   # never just a word
 # Where a single word was found, for the review. Heard by listening means it really is said:
 # Radio's review unticked "hell", "damn", "shit" heard there for not being in the subtitles.
 HEARD = {"audio": ", heard in the sound", "subtitles": ", in the subtitles",
@@ -742,7 +746,7 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
 PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
              "halloween", "birthday", "valentine", "easter", "st patrick's day", "dark magic",
-             "magic",
+             "magic", "vampires",
              "rude gesture"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
@@ -770,10 +774,12 @@ PIC_RULES = (
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
     "story's own witches or monsters, an ordinary egg or rabbit, ordinary green clothes, a "
     "clover field or a rainbow alone, or a single red heart are NOT. Thanksgiving is fine. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
-    "presents or a cake with no candles are fine. \"dark magic\" is witchcraft, curses, occult "
-    "rituals, summoning, seances, Ouija boards, voodoo and fortune telling; \"magic\" is any "
-    "other magic being done (spells, wands, glowing magic, potions); a stage magician's trick "
-    "is neither. Immodest includes sexual dancing (stripping, pole dancing, grinding); "
+    "presents or a cake with no candles are fine. \"dark magic\" is witchcraft, wizards or "
+    "witches doing magic, curses, occult rituals, summoning, seances, Ouija boards, voodoo and "
+    "fortune telling; \"magic\" is any other magic being done (spells, wands, glowing magic, "
+    "potions, fairies); a stage magician's trick is neither. \"vampires\" is a vampire or a "
+    "werewolf (fangs and a cape, drinking blood, a wolf-man); a real bat or wolf is not. "
+    "Immodest includes sexual dancing (stripping, pole dancing, grinding); "
     "smoking includes vaping. A rude gesture is someone raising the middle finger at someone, or a "
     "crude sexual gesture (a hand gesture mimicking sex or oral sex, thrusting the hips, "
     "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "

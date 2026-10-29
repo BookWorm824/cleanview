@@ -1,6 +1,7 @@
-"""Dark magic (witchcraft, curses, the occult, fortune telling) and magic (spells, wands,
-wizards, potions): heard (lines muted, whole conversations) and seen (scenes cut, by the AI
-on this PC and by Claude/ChatGPT). Ticked for Young kids and Kids only."""
+"""Dark magic (witchcraft, wizards, curses, the occult, fortune telling), magic (spells,
+wands, potions, fairies), and vampires and werewolves: heard (lines muted, whole
+conversations) and seen (scenes cut, by the AI on this PC and by Claude/ChatGPT). Ticked for
+Young kids and Kids only."""
 import unittest
 
 import support  # noqa: F401  (sets up the sandbox first)
@@ -8,7 +9,7 @@ import cleanview as engine
 import cleanview_ai as ai
 import cleanview_claude as cc
 
-MAGIC = ("darkmagic", "magic")
+MAGIC = ("darkmagic", "magic", "vampires")
 ON = engine.full_opts(dict.fromkeys(MAGIC, True))
 
 
@@ -34,7 +35,13 @@ class Heard(unittest.TestCase):
                            ("Get out the Ouija board.", "darkmagic"),
                            ("The fortune teller read my palm.", "darkmagic"),
                            ("He'll summon the dead.", "darkmagic"),
-                           ("The wizard cast a spell on the king.", "magic"),
+                           ("The wizard is coming!", "darkmagic"),   # Lauren: dark magic
+                           ("Wizards and sorcerers", "darkmagic"),
+                           ("She cast a spell on the king.", "magic"),
+                           ("A vampire bit him!", "vampires"),
+                           ("Count Dracula's castle", "vampires"),
+                           ("He turns into a werewolf at night.", "vampires"),
+                           ("Beware the werewolves.", "vampires"),
                            ("Wave your magic wand.", "magic"),
                            ("Drink the potion.", "magic"),
                            ("Bibbidi-bobbidi-boo!", "magic"),
@@ -47,7 +54,8 @@ class Heard(unittest.TestCase):
         for text in ("It was pure magic.", "Say the magic word.", "How do you spell cat?",
                      "Curse this traffic!", "What am I, psychic?", "She's a wizard with numbers.",
                      "A hex key and some screws.", "Magic Johnson scored again.",
-                     "The spirits were high."):
+                     "The spirits were high.", "Vampire bats live in caves.",
+                     "A wolf howled at the moon.", "The wolves ran by."):
             with self.subTest(text=text):
                 self.assertEqual(flagged(dialogue(text)), {})
 
@@ -68,6 +76,9 @@ class Heard(unittest.TestCase):
         self.assertIn("witchcraft", text)
         self.assertIn("magic wands", text)
         self.assertIn("stage magic tricks", ai.LINE_TYPES["magic"])
+        self.assertIn("werewolves", text)
+        self.assertIn("wizards", ai.LINE_TYPES["darkmagic"])
+        self.assertIn("wizards", cc.TYPE_TEXT["darkmagic"])
 
 
 class Seen(unittest.TestCase):
@@ -105,6 +116,10 @@ class Seen(unittest.TestCase):
         self.assertIn("magic (", text)
         self.assertIn("dark magic", cc.PIC_KINDS)
         self.assertIn("magic", cc.PIC_KINDS)
+        self.assertIn("vampires", cc.PIC_KINDS)
+        self.assertIn("werewolf", text)
+        self.assertEqual(engine._pic_wanted({"what": "vampires"}, ON), "Vampires and werewolves")
+        self.assertIsNone(engine._pic_wanted({"what": "vampires"}, engine.full_opts()))
         self.assertEqual(engine._pic_wanted({"what": "dark magic"}, ON), "Dark magic")
         self.assertEqual(engine._pic_wanted({"what": "magic"}, ON), "Magic")
         self.assertIsNone(engine._pic_wanted({"what": "dark magic"}, engine.full_opts()))

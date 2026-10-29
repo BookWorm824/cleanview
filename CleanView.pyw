@@ -30,7 +30,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
         "Christmas": "#2E6B45", "Halloween": "#B4621E", "Birthday": "#8C5AA8",
         "Valentine's": "#B23A5A", "Rude": "#8A4B2E", "Easter": "#6E8B2E",
-        "Dark": "#4A2E5E", "Magic": "#5A4FA0", "St.": "#2E7D4F"}
+        "Dark": "#4A2E5E", "Magic": "#5A4FA0", "St.": "#2E7D4F", "Vampires": "#6B2238"}
 
 
 CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
@@ -42,12 +42,12 @@ FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "s
                "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
                "drinking", "drugs", "religion", "loudmusic", "holidays", "birthday",
-               "gestures", "darkmagic", "magic"]
+               "gestures", "darkmagic", "magic", "vampires"]
 # "holidays" is one box for Christmas, Halloween, Valentine's, Easter and St. Patrick's Day
 # (cleanview.HOLIDAYS); these were separate boxes before 1.17.1
 HOLIDAYS = ("holidays", "birthday")
 OLD_HOLIDAY_BOXES = ("christmas", "halloween", "valentine", "easter")
-MAGIC = ("darkmagic", "magic")
+MAGIC = ("darkmagic", "magic", "vampires")
 _ALL = {k: True for k in FILTER_KEYS}
 _ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
             loudmusic=False)
@@ -711,9 +711,11 @@ class App(tk.Tk):
                          "St. Patrick's Day)", False),
             ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False)],
                cols=1)
-        checks(section("Magic"), [
-            ("darkmagic", "Dark magic  (witchcraft, curses, the occult, fortune telling)", False),
-            ("magic", "Magic  (spells, wands, wizards, potions)", False)])
+        checks(section("Magic and monsters"), [
+            ("darkmagic", "Dark magic  (witchcraft, wizards, curses, the occult, fortune "
+                          "telling)", False),
+            ("magic", "Magic  (spells, wands, potions, fairies)", False),
+            ("vampires", "Vampires and werewolves", False)])
         checks(section("Music"), [
             ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
              False)], cols=1)

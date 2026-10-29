@@ -47,7 +47,7 @@ CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGP
 # Heard and seen. One "holidays" tick box turns on all of HOLIDAYS (full_opts); birthday
 # candles and the two magic boxes are their own.
 HOLIDAYS = ("christmas", "halloween", "valentine", "easter", "stpatricks")
-MAGIC = ("darkmagic", "magic")
+MAGIC = ("darkmagic", "magic", "vampires")          # magic, and vampires and werewolves
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying",
               "religion") + HOLIDAYS + ("birthday",) + MAGIC
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
@@ -60,7 +60,7 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
             "birthday": False, "valentine": False, "easter": False, "stpatricks": False,
             "holidays": False, "darkmagic": False,
-            "magic": False, "gestures": False, "mywords": (), "ai": True,
+            "magic": False, "vampires": False, "gestures": False, "mywords": (), "ai": True,
             "autosubs": True,
             "reader": "local", "look": True}
 
@@ -1060,21 +1060,27 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                             r"hex(es|ed)? (on|you|him|her|them)|put a curse|cast a curse|"
                             r"occult|satanic|satanists?|devil worship\w*|pentagrams?|"
                             r"fortune ?tell(er|ers|ing)|tarot|"
-                            r"summon(s|ed|ing)? (a |the )?(demons?|spirits?|the dead|dead))\b",
-                            re.I),
+                            r"summon(s|ed|ing)? (a |the )?(demons?|spirits?|the dead|dead)|"
+                            # wizards are dark magic (Lauren, 2026-10-29); not "a wizard with
+                            # numbers"
+                            r"wizards?(?! (with|at|of))|wizardry)\b", re.I),
     # not "magic" alone ("it was magic", "the magic word") or "spell" (spelling)
     "magic": re.compile(r"\b(magic (spells?|wands?|potions?|powers?|carpets?|lamps?|beans|"
                         r"mirrors?|rings?|kingdom|book|dust)|"
                         r"magical powers?|cast(s|ing)? a spell|put a spell|under (a|the|her|his) "
-                        r"spell|spell (on|to make)|spells?book|wizards?(?! (with|at|of))|"
-                        r"wizardry|enchant(ed|ment|"
+                        r"spell|spell (on|to make)|spells?book|enchant(ed|ment|"
                         r"ments|ress)|abracadabra|hocus pocus|bibbidi|potions?|fairy "
                         r"godmother|gummiberry juice)\b", re.I),
+    # not "vampire bats" or "vampire squid" (real animals), or "vamp" (a dance, a flirt)
+    "vampires": re.compile(r"\b(vampires?(?! (bats?|squids?|finch|finches|weekend|facials?|"
+                           r"energy|power|devices?))|vampiric|vampirism|dracula|nosferatu|"
+                           r"the undead|werewol(f|ves|f's)|lycanthrop\w*|wolf ?m[ae]n)\b", re.I),
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
               "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
               "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
               "magic": "Magic", "stpatricks": "St. Patrick's Day",
+              "vampires": "Vampires and werewolves",
               "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by Claude",
               "shared": "CleanView learned", "chat": "You asked in the chat",
@@ -1086,7 +1092,7 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
              "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
              "magic": "Magic", "stpatricks": "St. Patrick's Day",
-             "gestures": "Rude or sexual gesture"}
+             "vampires": "Vampires and werewolves", "gestures": "Rude or sexual gesture"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
@@ -1134,13 +1140,16 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                       "hunts, Easter baskets",
             "stpatricks": "St. Patrick's Day, in talk or on screen: leprechauns, a pot of gold, "
                           "shamrock decorations, wearing green for the day, its parades",
-            "darkmagic": "dark magic and the occult, in talk or on screen: witchcraft, sorcery, "
-                         "curses and hexes, black magic, voodoo, summoning demons or spirits, "
-                         "talking to the dead, seances, Ouija boards, fortune telling, tarot, "
-                         "psychics, devil worship",
-            "magic": "magic, in talk or on screen: spells, magic wands, wizards, witches or "
-                     "fairies doing magic, magic potions, enchantments, magic powers, a genie's "
-                     "wishes (not stage magic tricks, or 'magic' meaning wonderful)",
+            "darkmagic": "dark magic and the occult, in talk or on screen: witchcraft, wizards "
+                         "and witches doing magic, sorcery, curses and hexes, black magic, "
+                         "voodoo, summoning demons or spirits, talking to the dead, seances, "
+                         "Ouija boards, fortune telling, tarot, psychics, devil worship",
+            "magic": "magic, in talk or on screen: spells, magic wands, fairies doing magic, "
+                     "magic potions, enchantments, magic powers, a genie's wishes (not stage "
+                     "magic tricks, or 'magic' meaning wonderful)",
+            "vampires": "vampires and werewolves, in talk or on screen: vampires, Dracula, "
+                        "drinking someone's blood, turning into a bat, werewolves, turning into "
+                        "a wolf (not vampire bats or ordinary wolves)",
             "gestures": "rude or sexual gestures: raising the middle finger at someone, or a "
                         "crude sexual motion (a hand gesture mimicking sex, thrusting the hips, "
                         "grabbing the crotch)"}
@@ -1531,19 +1540,23 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
                       "baskets)",
             "stpatricks": "st patrick's day (a leprechaun, a pot of gold, shamrock decorations, "
                           "a St. Patrick's Day parade)",
-            "darkmagic": "dark magic (witchcraft, a curse or evil spell, an occult ritual, a "
-                         "pentagram, summoning demons or the dead, a seance or Ouija board, a "
-                         "voodoo doll, fortune telling with a crystal ball, tarot or palms)",
+            "darkmagic": "dark magic (witchcraft, a wizard or witch doing magic, a curse or evil "
+                         "spell, an occult ritual, a pentagram, summoning demons or the dead, a "
+                         "seance or Ouija board, a voodoo doll, fortune telling with a crystal "
+                         "ball, tarot or palms)",
             "magic": "magic (someone casting a spell, a magic wand at work, glowing magic, a "
-                     "magic potion working, a wizard, witch, fairy or genie doing magic; not "
-                     "a stage magician's trick)",
+                     "magic potion working, a fairy or genie doing magic; not a stage "
+                     "magician's trick)",
+            "vampires": "vampires (a vampire or a werewolf: vampire fangs, a Dracula cape, "
+                        "drinking blood, turning into a bat, a wolf-man, someone changing into a "
+                        "wolf; not a real bat or an ordinary wolf)",
             "gestures": "rude gesture (someone raising the middle finger, or a crude sexual "
                         "gesture: a hand gesture mimicking sex or oral sex, thrusting the hips, "
                         "grabbing the crotch)"}
 PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "rude gesture": "Rude or sexual gesture",
              "easter": "Easter", "dark magic": "Dark magic", "magic": "Magic",
-             "st patrick's day": "St. Patrick's Day",
+             "st patrick's day": "St. Patrick's Day", "vampires": "Vampires and werewolves",
              "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
              "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",

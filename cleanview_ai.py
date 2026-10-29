@@ -92,10 +92,12 @@ CLIP_CATS = {
                    "a st. patrick's day parade", "a leprechaun's pot of gold"],
     "darkmagic": ["a witch casting an evil spell", "a dark occult ritual with a pentagram",
                   "a person summoning a demon", "a voodoo doll", "a fortune teller with a crystal "
-                  "ball", "a seance with a ouija board"],
-    "magic": ["a wizard casting a magic spell with a wand", "glowing magic sparkles from a "
-              "magic wand", "a person casting a spell with glowing magic from their hands",
-              "a fairy doing magic"],
+                  "ball", "a seance with a ouija board", "a wizard casting a spell with a wand",
+                  "a wizard in a pointed hat and robes"],
+    "magic": ["glowing magic sparkles from a magic wand", "a person casting a spell with "
+              "glowing magic from their hands", "a fairy doing magic"],
+    "vampires": ["a vampire with fangs", "dracula in a black cape", "a werewolf",
+                 "a person turning into a werewolf"],
     "gestures": ["a person giving the middle finger", "a person flipping someone off with "
                  "their middle finger", "a person making an obscene hand gesture",
                  "a person making a crude sexual gesture with their hands",
@@ -294,10 +296,11 @@ class Clip:
 THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
           "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
           "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65,
-          "easter": 0.65, "darkmagic": 0.65, "magic": 0.65, "stpatricks": 0.65}
+          "easter": 0.65, "darkmagic": 0.65, "magic": 0.65, "stpatricks": 0.65,
+          "vampires": 0.65}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
               "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
-              "valentine": 3, "easter": 3, "stpatricks": 3, "darkmagic": 2,
+              "valentine": 3, "easter": 3, "stpatricks": 3, "darkmagic": 2, "vampires": 2,
               "magic": 2,      # a spell's flash can be over in a couple of seconds
               "gestures": 1}   # seconds of hits a scene needs (a rude gesture is over in a second)
 
@@ -620,15 +623,17 @@ LOOK = {
                    "gold, shamrock decorations, or people dressed up in green for St. Patrick's "
                    "Day or its parade? Ordinary green clothes, a clover field or a rainbow alone "
                    "is NOT.", _YES),
-    "darkmagic": ("Question: is dark magic or the occult shown: witchcraft, a curse or evil "
-                  "spell being cast, an occult ritual (a pentagram, summoning a demon or the "
-                  "dead, a seance, a Ouija board), a voodoo doll, or fortune telling (a crystal "
-                  "ball, tarot cards, palm reading)? A Halloween costume or decoration is NOT.",
-                  _YES),
+    "darkmagic": ("Question: is dark magic or the occult shown: witchcraft, a witch or wizard "
+                  "doing magic, a curse or evil spell being cast, an occult ritual (a pentagram, "
+                  "summoning a demon or the dead, a seance, a Ouija board), a voodoo doll, or "
+                  "fortune telling (a crystal ball, tarot cards, palm reading)? A Halloween "
+                  "costume or decoration is NOT.", _YES),
     "magic": ("Question: is magic being done: someone casting a spell, a magic wand at work, "
-              "glowing magic, a magic potion working, a wizard, witch, fairy or genie doing "
-              "magic? A stage magician's trick (cards, a rabbit from a hat) or fireworks is NOT.",
-              _YES),
+              "glowing magic, a magic potion working, a fairy or genie doing magic? A stage "
+              "magician's trick (cards, a rabbit from a hat) or fireworks is NOT.", _YES),
+    "vampires": ("Question: is a vampire or a werewolf shown: someone with vampire fangs or a "
+                 "Dracula cape, drinking blood, turning into a bat; a wolf-man, or someone "
+                 "changing into a wolf? A real bat, or an ordinary wolf or dog, is NOT.", _YES),
     "gestures": ("Question: is someone making a rude or sexual gesture? That means raising "
                  "the middle finger at someone (flipping them off), or a crude sexual motion: "
                  "a hand or finger gesture that mimics sex or oral sex, thrusting the hips "
@@ -741,14 +746,19 @@ LINE_TYPES = {
     "stpatricks": ("talks about St. Patrick's Day: leprechauns, a pot of gold, wearing green or "
                    "shamrocks for the day, its parades. NOT: Ireland or Irish people in "
                    "general, a church or school named St. Patrick's"),
-    "darkmagic": ("talks about or uses dark magic or the occult: witchcraft, sorcery, curses and "
-                  "hexes, black magic, voodoo, summoning demons or spirits, talking to the dead, "
-                  "seances, Ouija boards, fortune telling, tarot, psychics, devil worship. NOT: "
-                  "'witch' as an insult, stage magic tricks, a Halloween costume"),
-    "magic": ("talks about or uses magic: spells, magic wands, wizards, witches or fairies doing "
-              "magic, magic potions, enchantments, magic powers, a genie's wishes, a magic "
-              "object. NOT: dark magic (a separate choice), stage magic tricks (a card trick, a "
-              "rabbit from a hat), 'magic' meaning wonderful ('it was magic', 'the magic word')"),
+    "darkmagic": ("talks about or uses dark magic or the occult: witchcraft, wizards and "
+                  "witches doing magic, sorcery, curses and hexes, black magic, voodoo, "
+                  "summoning demons or spirits, talking to the dead, seances, Ouija boards, "
+                  "fortune telling, tarot, psychics, devil worship. NOT: 'witch' as an insult, "
+                  "'a wizard with numbers', stage magic tricks, a Halloween costume"),
+    "magic": ("talks about or uses magic: spells, magic wands, fairies doing magic, magic "
+              "potions, enchantments, magic powers, a genie's wishes, a magic object. NOT: dark "
+              "magic, wizards or witches (a separate choice), stage magic tricks (a card trick, "
+              "a rabbit from a hat), 'magic' meaning wonderful ('it was magic', 'the magic "
+              "word')"),
+    "vampires": ("talks about vampires or werewolves: vampires, Dracula, drinking someone's "
+                 "blood, turning into a bat, werewolves, turning into a wolf at the full moon. "
+                 "NOT: vampire bats or other real animals, ordinary wolves"),
 }
 LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around",
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
@@ -758,7 +768,8 @@ LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around
               "birthday": "talk about the candles on a birthday cake",
               "valentine": "talk about Valentine's Day", "easter": "talk about Easter",
               "stpatricks": "talk about St. Patrick's Day",
-              "darkmagic": "talk about dark magic or the occult", "magic": "talk about magic"}
+              "darkmagic": "talk about dark magic or the occult", "magic": "talk about magic",
+              "vampires": "talk about vampires or werewolves"}
 
 
 def _letters(t):

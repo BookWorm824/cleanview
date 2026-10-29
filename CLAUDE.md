@@ -197,8 +197,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   are their own box. Ticked for Young kids and Kids, not Teens or Adults.
   For birthdays only the candles count (Lauren, 2026-10-29: parties, cake and "happy
   birthday" are fine), so it's just the candle lines, not whole conversations. The "Magic"
-  section works the same way: Dark magic (witchcraft, curses, the occult, seances, fortune
-  telling) and Magic (spells, wands, wizards, potions; not stage tricks), `MAGIC` in
+  section ("Magic and monsters") works the same way: Dark magic (witchcraft, wizards and
+  witches doing magic, curses, the occult, seances, fortune telling; wizards are dark magic,
+  Lauren 2026-10-29), Magic (spells, wands, potions, fairies; not stage tricks) and
+  Vampires and werewolves (`vampires`; not vampire bats or ordinary wolves), `MAGIC` in
   cleanview.py and CleanView.pyw, also ticked for Young kids and Kids only.
   Each is both a dialogue filter (whole conversations, whole lines) and a picture category
   (CLIP descriptions + local vision check in cleanview_ai.py, `PIC_KINDS`/`PIC_TEXT`/
