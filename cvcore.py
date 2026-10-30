@@ -136,6 +136,7 @@ DEITY_PHRASES = [
     ("lord", "knows"), ("god", "help", "us"), ("god", "help", "me"), ("lord", "help", "us"),
     ("lord", "help", "me"), ("god", "forbid"), ("swear", "to", "god"), ("thank", "the", "lord"),
     ("in", "god's", "name"), ("in", "gods", "name"), ("for", "the", "love", "of", "god"),
+    ("for", "the", "love", "of", "christ"),
     ("christ", "on", "a", "bike"), ("god", "in", "heaven"), ("so", "help", "me", "god"),
     ("praise", "the", "lord"), ("holy", "lord"), ("for", "god's", "sakes"),
     ("for", "gods", "sakes"), ("for", "christ's", "sakes"), ("for", "christs", "sakes"),
@@ -151,6 +152,38 @@ CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, sc
 ]
 DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"oh?m[iy]god", r"goddamn.*",
                r"godd?amm?it"]
+
+# "Jesus" and "Christ" said with reverence aren't swears ("the love of Christ", "Jesus told
+# us", "the gospel of Jesus Christ"); oaths still are ("Jesus!", "Christ, that hurt", "oh my
+# Jesus"). Lauren, from Jason's report on At Every Turn (CleanListen 1.10.0).
+REVERENT_BEFORE = {"about", "accept", "accepted", "accepts", "and", "as", "before", "believe",
+    "believed", "believes", "bring", "brought", "by", "crucified", "embrace", "embraced",
+    "find", "finds", "follow", "followed", "following", "follows", "for", "found", "from",
+    "glorify", "her", "his", "in", "into", "jesus", "knew", "know", "knowing", "known",
+    "knows", "like", "lord", "love", "loved", "loves", "loving", "meet", "met", "my", "need",
+    "needed", "needs", "of", "our", "please", "praise", "praised", "praising", "preach",
+    "preached", "preaching", "proclaim", "proclaimed", "risen", "serve", "served", "serves",
+    "serving", "share", "shared", "sharing", "taught", "teach", "tell", "than", "the",
+    "their", "through", "to", "told", "toward", "towards", "trust", "trusted", "trusts",
+    "unto", "upon", "with", "worship", "worshiped", "worshipped"}
+REVERENT_NEXT = {"alone", "answered", "answers", "called", "calls", "came", "comes", "died",
+    "dies", "forgave", "forgives", "healed", "heals", "heard", "hears", "himself", "lived",
+    "lives", "loved", "loves", "promised", "promises", "rose", "said", "saved", "saves",
+    "says", "sends", "sent", "taught", "teaches", "tells", "told", "wept"}
+REVERENT_IS = {"alive", "born", "coming", "god", "here", "in", "king", "lord", "love", "my",
+    "our", "real", "risen", "the", "with"}
+
+
+def reverent(words, i, j=None):
+    """True if words[i:j] ("jesus", "christ", "jesus christ") is said with reverence."""
+    j = j or i + 1
+    prev, two = (words[i - 1] if i else ""), (words[i - 2] if i > 1 else "")
+    nxt = words[j] if j < len(words) else ""
+    if prev in ("my", "sweet", "dear") and two == "oh":
+        return False                                          # "oh my Jesus"
+    if nxt in ("is", "was"):                                  # "Christ is risen", not
+        return (words[j + 1] if j + 1 < len(words) else "") in REVERENT_IS  # "Jesus, is that you?"
+    return prev in REVERENT_BEFORE or nxt in REVERENT_NEXT or (two, prev) == ("thank", "you")
 # Words that are innocent next to these: "pussy cat", "Dick Grayson", "Moby Dick", "summa
 # cum laude", "General Hooker". (The word before or after, normalised.)
 INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"},
@@ -551,6 +584,8 @@ def find_language(words, cats, mine=()):
         if "deity" in cats:
             ph = next((p for p in sorted(DEITY_PHRASES, key=len, reverse=True)
                        if tuple(words[i:i + len(p)]) == p), None)
+            if ph == ("jesus", "christ") and reverent(words, i, i + 2):
+                ph = None                 # "the gospel of Jesus Christ"
             if ph:
                 hits.append((i, i + len(ph), "deity"))
                 i += len(ph)
@@ -606,7 +641,8 @@ def find_language(words, cats, mine=()):
                 if w == "bloody" and nxt not in BLOODY_SWEAR_NEXT:
                     break
                 if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()) or (
-                        wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]):
+                        wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
+                        w in ("jesus", "christ") and reverent(words, i)):
                     break        # "pussy cat", "Moby Dick", "summa cum laude", "deaf and dumb"
                 hits.append((i, i + 1, cat))
                 break

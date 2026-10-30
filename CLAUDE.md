@@ -220,6 +220,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   copy (stupid, dumb, idiot, shut up, "that sucks"...). "screw you" and "crap" count as
   language. "Suck" meaning "is bad" counts wherever it's said (`cvcore.suck_swear`,
   Lauren 2026-10-29); sucking something (a lollipop, a thumb, "suck it up") doesn't.
+- "Jesus" and "Christ" said with reverence aren't muted as swears ("the love of Christ",
+  "Jesus told us", "the gospel of Jesus Christ"); oaths still are ("Jesus!", "Christ, that
+  hurt", "oh my Jesus"): `cvcore.reverent` (Lauren, from Jason's report on At Every Turn;
+  the same rule in CleanListen 1.10.0).
 - "What the" / "who the" / "what in the" just before a muted word is muted with it
   ("what the hell" goes whole; `cvcore.with_lead_in`), since it says what the word was.
 - Her own words and phrases (start page box, one per line, every age; `opts["mywords"]`,

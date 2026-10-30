@@ -631,5 +631,27 @@ class FromTheResident(unittest.TestCase):
         self.assertIn("where the subtitles have 'Nic,'", cc.candidates(st)[1])
 
 
+
+class ReverentJesus(unittest.TestCase):
+    """"Jesus" and "Christ" said with reverence aren't muted as swears; oaths are
+    (Lauren, from Jason's report on At Every Turn; the same in CleanListen 1.10.0)."""
+
+    def test_reverent_left_alone(self):
+        for text in ("the love of Christ", "Jesus told us to love one another",
+                     "the gospel of Jesus Christ", "Christ is risen", "thank you Jesus",
+                     "We follow Jesus", "Jesus loves you"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_oaths_still_muted(self):
+        for text, phrase in [("Jesus!", "jesus"), ("Jesus, is that you?", "jesus"),
+                             ("Christ, that hurt", "christ"),
+                             ("Jesus Christ, what a mess", "jesus christ"),
+                             ("Oh my Jesus", "jesus"), ("Sweet Jesus", "sweet jesus"),
+                             ("For the love of Christ", "for the love of christ")]:
+            with self.subTest(text=text):
+                self.assertIn((phrase, "deity"), found(text))
+
+
 if __name__ == "__main__":
     unittest.main()
