@@ -177,6 +177,21 @@ class ReligionIsNotAnExclamation(unittest.TestCase):
             self.assertIn("match", text)
 
 
+class ViolenceCalls(unittest.TestCase):
+    """Lauren (2026-10-30): blood from an accident is Disturbing (The Blind Side's car
+    wreck); a killing heard but not seen is Violence (Bambi's mother)."""
+
+    def test_accident_blood_is_disturbing(self):
+        self.assertIn("from an accident", cc.PIC_RULES)
+        self.assertIn("accident", engine.picture_wanted({"disturbing": True}))
+        self.assertIn("accident", engine.OPT_TEXT["disturbing"])
+
+    def test_off_screen_killing_is_violence(self):
+        import inspect
+        self.assertIn("off screen but is clearly heard", cc.PIC_RULES)
+        self.assertIn("A killing heard but not seen", inspect.getsource(cc.review))
+
+
 class CountedOnce(unittest.TestCase):
 
     def setUp(self):

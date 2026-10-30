@@ -1155,7 +1155,8 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang fo
               "rude": "rude words kids copy (stupid, dumb, idiot, shut up, fool, loser, "
                       "wimp, weirdo, I hate you, talk to the hand...)"}
 OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)",
-            "disturbing": "disturbing violence outside of combat (torture, executions, cruelty)",
+            "disturbing": "disturbing violence outside of combat (torture, executions, cruelty) "
+                          "and bloody accident injuries",
             "nudity": "nudity (private parts actually shown)",
             "implied": "implied nudity (undressed but covered by sheets, towels or the camera)",
             "sex": "sex scenes", "violence": "violence",
@@ -1570,7 +1571,8 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
                        "scenes)",
             "gore": "gore (insides on the outside: organs, entrails, brains, dismemberment)",
             "disturbing": "disturbing violence outside of combat (torture, executions, cruelty "
-                          "to the helpless)",
+                          "to the helpless) and blood and injuries from an accident (a car "
+                          "crash, a fall)",
             "nudity": "nudity (bare breasts, buttocks or genitals actually shown)",
             "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
                        "back or shoulders, shower from the shoulders up)",

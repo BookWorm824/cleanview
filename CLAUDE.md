@@ -239,7 +239,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - Violence follows **VidAngel's levels**: Violence (non-graphic fighting, including cartoon
   slapstick); Graphic (blood and wounds, crime-scene bodies with blood); Gore (insides on the
   outside); Disturbing (violence outside combat: torture, execution, cruelty to the helpless).
-  Crime scenes are Graphic, not Gore.
+  Crime scenes are Graphic, not Gore. Blood and injuries from an accident (a car crash, a
+  fall) are Disturbing, never Violence or Graphic (Lauren 2026-10-30, The Blind Side). A
+  killing that happens off screen but is clearly heard (Bambi's mother) is Violence.
 - Nudity (actually shown) is separate from Implied nudity (sheets, towels, bare backs).
 - Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
 - When one word is the only problem in a line, mute just the word, not the whole line. But

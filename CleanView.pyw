@@ -726,7 +726,7 @@ class App(tk.Tk):
             ("violence", "Violence  (fights, shootings, attacks)", True),
             ("graphic", "Graphic violence  (blood, bloody wounds)", True),
             ("gore", "Gore  (insides showing: organs, dismemberment)", True),
-            ("disturbing", "Disturbing  (torture, executions, cruelty)", True)])
+            ("disturbing", "Disturbing  (torture, executions, cruelty, bloody accidents)", True)])
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
             ("drugs", "Drug use", True),
