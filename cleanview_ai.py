@@ -550,9 +550,12 @@ LOOK = {
                                                     "unclear"]},
                  "level": {"type": "string", "enum": ["light", "passionate", "none"]}},
               "required": ["see", "kissing", "who", "level"]}),
-    "bed": ("Question: is a couple shown in a sexual or intimate way (in bed together, making "
-            "out, undressing each other)? Who is the couple (a man and a woman, two men, two "
-            "women)? Someone simply lying in bed alone, or sitting on a bed talking, is NOT.",
+    "bed": ("Question: is something sexual happening (sex, even with clothes on; making out in "
+            "bed; undressing each other; oral sex, such as a head moving at someone's lap or "
+            "under the covers below someone's waist; a hand at or inside someone's crotch, "
+            "pants or skirt)? Who is the couple (a man and a woman, two men, two women)? Two "
+            "people only sitting or lying in bed together talking or sleeping, or someone "
+            "alone in bed, is NOT.",
             {"type": "object", "properties": {
                 "see": {"type": "string"},
                 "intimate": {"type": "boolean"},
@@ -708,7 +711,7 @@ def second_look(cands, frames_for, progress=None, cancel=None):
 # ---------------------------------------------------------------------------
 LINE_TYPES = {
     "sexref": ("talks about sex or sexual body parts, or makes a sexual joke or sexual double "
-               "meaning. NOT: swearing, insults, lying, drinking, drugs, violence, crime, threats, "
+               "meaning, including oral sex or touching someone's private parts. NOT: swearing, insults, lying, drinking, drugs, violence, crime, threats, "
                "compliments, ordinary love and affection, pregnancy or babies, 'sex' meaning men or "
                "women ('the fair sex'), a polite 'it's a pleasure', a body part in a threat, "
                "'sleeps with the pigs' meaning where someone sleeps"),

@@ -361,7 +361,9 @@ SYSTEM = ("You help a family make movies and TV shows fit their standards by mut
           "lecture or add opinions about their choices.")
 
 TYPE_TEXT = {
-    "sexref": "sexual references, sexual jokes or innuendo. Not: pregnancy or babies, 'sex' "
+    "sexref": "sexual references, sexual jokes or innuendo, including talk of oral sex or of "
+              "touching someone's private parts, and the sounds of it in the subtitles. Not: "
+              "pregnancy or babies, 'sex' "
               "meaning men or women ('the fair sex'), a polite 'it's a pleasure', a body part "
               "in a threat; read the lines around it first (a line that sounds suggestive alone "
               "may be about a pager or a phobia)",
@@ -525,8 +527,8 @@ CHAT_HOW = (
     "or isn't a problem (\"they're just sitting in bed talking\", \"it's Aladdin, the "
     "Genie's magic is fine\", \"slapstick is fine in this show\", \"never mute 'gosh'\"). "
     "Write it as a short rule in plain words that a later check can follow on other scenes "
-    "and lines like it, not just this one (\"A couple only sitting or lying in bed talking, "
-    "dressed, is not a sex scene\"), with \"for\": \"this\" (this movie, or every episode of "
+    "and lines like it, not just this one (\"A couple only talking in bed, with nothing "
+    "sexual happening or said, is not a sex scene\"), with \"for\": \"this\" (this movie, or every episode of "
     "this show) or \"everything\" (everything they clean; use it for rules about how things "
     "are judged in general). CleanView keeps it, and every later check follows it, the "
     "picture checks too, so you CAN learn: never tell them you can't remember things or "
@@ -823,11 +825,20 @@ PIC_RULES = (
     "buttocks or genitals actually shown; implied nudity means someone undressed but covered "
     "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
     "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
-    "neither. A sex scene needs sexual activity: sex, or undressing each other, or "
-    "passionate kissing and touching in bed. Two people only sitting or lying in bed "
-    "talking, sleeping or waking up (dressed, or covered and nothing happening) is NOT a sex "
-    "scene; call it implied "
-    "nudity only if bare shoulders or backs show they're undressed. For kissing, say who (man & woman, two "
+    "neither. A sex scene is judged by what's happening and by the context, not by the bed "
+    "or the clothes: use the stills before and after, what's said and the sounds the "
+    "subtitles describe. It IS one when there's sex (even fully clothed, sitting, standing, "
+    "or under the covers), undressing each other, passionate kissing and touching that's "
+    "leading to sex, moving together under the covers, lying together undressed and out of "
+    "breath after sex, or any other sexual act: oral sex (a head moving at someone's lap or "
+    "below the waist, kneeling or ducking under the covers in front of someone's crotch, "
+    "someone's face showing pleasure while another's head is down), or touching someone's "
+    "private parts (a hand down someone's pants or under a skirt, a hand moving at a crotch, "
+    "over or under clothes or covers), or touching themselves. It is NOT one when two people "
+    "only sit or lie in bed talking, reading, sleeping or waking up with nothing sexual "
+    "happening and nothing sexual said; call that implied nudity only if bare shoulders or "
+    "backs show they're undressed. When it's unclear, the dialogue and sounds decide "
+    "(moaning, panting, talk of sex = a sex scene). For kissing, say who (man & woman, two "
     "men, two women) and whether it's light or passionate (passionate only when it clearly "
     "is: long, open-mouthed, embracing). For holidays, Christmas needs clear signs (a "
     "Christmas tree, ornaments, Santa, stockings); for all holidays, only what is "
@@ -846,9 +857,24 @@ PIC_RULES = (
     "Waving, pointing, a thumbs up, a peace sign or dancing are NOT.")
 
 
-def picture_review(sheets, wanted, per_request=12, progress=None):
+CONTEXT_HOW = (
+    " With each set of stills is what's said then and the sounds the subtitles describe: "
+    "use them as context (two people in bed only talking, or a sex scene), but report what "
+    "is shown and clearly happening, not just what's talked about.")
+
+
+def _heard(context, a, b):
+    try:
+        said = context(a, b) if context else ""
+    except Exception:
+        said = ""
+    return f" ({said})" if said else ""
+
+
+def picture_review(sheets, wanted, per_request=12, progress=None, context=None):
     """sheets: [(path, start_seconds)], each 20 stills 2 s apart (5 across, 4 down).
-    wanted: plain text of what to look for. Returns [{"s","e","what","who","level","why"}]."""
+    wanted: plain text of what to look for. context(t0, t1): what's said and heard then.
+    Returns [{"s","e","what","who","level","why"}]."""
     schema = {"type": "object", "properties": {"found": {"type": "array", "items": {
         "type": "object", "properties": {
             "sheet": {"type": "integer"}, "from_tile": {"type": "integer"},
@@ -864,11 +890,13 @@ def picture_review(sheets, wanted, per_request=12, progress=None):
     for b, batch in enumerate(batches):
         if progress:
             progress(b / len(batches))
-        imgs = [(f"Sheet {k + 1} ({_t(t0)} to {_t(t0 + 40)}):", p) for k, (p, t0) in enumerate(batch)]
+        imgs = [(f"Sheet {k + 1} ({_t(t0)} to {_t(t0 + 40)}):" + _heard(context, t0, t0 + 40), p)
+                for k, (p, t0) in enumerate(batch)]
         prompt = (
             "Each sheet above is 20 stills from one episode or movie, 2 seconds apart, read left "
             "to right and top to bottom (tiles 1-20, 5 across and 4 down). They want removed:\n" +
-            wanted + "\n\n" + PIC_RULES + "\n\nList every stretch that clearly shows one of "
+            wanted + "\n\n" + PIC_RULES + CONTEXT_HOW + "\n\nList every stretch that clearly "
+            "shows one of "
             "these, with the sheet number and the first and last tile. If nothing does, return "
             "an empty list. Keep each \"why\" to a few plain words.")
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
@@ -907,7 +935,8 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
         prompt = (
             "Each numbered scene above was flagged by an automatic picture checker, which often "
             "makes mistakes (dark frames, hugs, ordinary police scenes). They want removed:\n" +
-            wanted + "\n\n" + PIC_RULES + "\n\nFor EVERY scene give a decision: \"remove\" if the "
+            wanted + "\n\n" + PIC_RULES + CONTEXT_HOW + "\n\nFor EVERY scene give a decision: "
+            "\"remove\" if the "
             "stills really show what it was flagged for (or anything else they want removed), "
             "\"not an issue\" if it's a false alarm, or \"can't tell\". Also say for every scene "
             "whether nudity is \"shown\", only \"implied\", or \"none\", and the highest "

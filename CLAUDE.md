@@ -76,7 +76,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (`examples()["notes"]`, `cc.told`), the cloud picture checks (`look_at_picture`), and
   are in "Send what CleanView learned". The chat keeps a lesson whenever it's corrected
   (1.18.2: told "they're just talking in bed", it unticked the scene but kept nothing).
-  Two people only sitting or lying in bed talking is not a sex scene (`PIC_RULES`).
+  Sex scenes are judged by what's happening and the context, not the bed or the clothes
+  (Lauren 2026-10-30: two people only talking in bed isn't one, but a sex scene can be
+  people sitting with their clothes on), including oral sex and touching private parts
+  (`PIC_RULES`, `picture_wanted`, local `LOOK["bed"]`, `sexref`). The picture checks get
+  what's said and the subtitles' sounds with each sheet and scene (`heard_between`,
+  `picture_review(context=)`, `CONTEXT_HOW`); the old wanted text "a couple in bed" made
+  it cut every couple in bed.
 - Learned lines under 5 words (`learn.LEARNED_SHORTEST`) are never muted again just
   because they were learned: a muted conversation is learned line by line, and "What do
   you think?" was then muted in every later episode (The Resident).

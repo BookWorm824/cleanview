@@ -85,7 +85,45 @@ class Lessons(unittest.TestCase):
 
     def test_two_people_in_bed_talking_is_not_a_sex_scene(self):
         self.assertIn("in bed talking", cc.PIC_RULES)
-        self.assertIn("is NOT a sex scene", cc.PIC_RULES)
+        self.assertNotIn("a couple in bed", engine.picture_wanted({"sex": True}))
+
+
+class SexScenesByContext(unittest.TestCase):
+    """Lauren (2026-10-30): in bed isn't a sex scene by itself, but a sex scene can be people
+    sitting with their clothes on, so look at the context; and look for oral sex and
+    touching too."""
+
+    def test_judged_by_context_not_clothes(self):
+        self.assertIn("even fully clothed", cc.PIC_RULES)
+        self.assertIn("the dialogue and sounds decide", cc.PIC_RULES)
+        self.assertIn("context", engine.picture_wanted({"sex": True}))
+
+    def test_oral_sex_and_touching(self):
+        for text in (cc.PIC_RULES, engine.picture_wanted({"sex": True}), cc.TYPE_TEXT["sexref"]):
+            self.assertIn("oral sex", text)
+        self.assertIn("private parts", cc.PIC_RULES)
+        import cleanview_ai as ai
+        self.assertIn("oral sex", ai.LOOK["bed"][0])
+        self.assertIn("oral sex", ai.LINE_TYPES["sexref"])
+
+    def test_what_is_said_and_heard_goes_with_the_stills(self):
+        asr = [{"t": "Was", "s": 10.0}, {"t": "this", "s": 10.3}, {"t": "a", "s": 10.5},
+               {"t": "bad", "s": 10.6}, {"t": "idea?", "s": 10.8}, {"t": "later", "s": 90.0}]
+        cues = [{"s": 12.0, "e": 13.0, "text": "[moaning]"}]
+        heard = engine.heard_between(asr, cues, 0, 40)
+        self.assertEqual(heard, 'said: "Was this a bad idea?"; sounds: moaning')
+        asked = []
+        real = cc.ask
+        cc.ask = lambda prompt, schema, images=None, **k: (asked.append((prompt, images)) or
+                                                           ({"found": []}, None))
+        try:
+            cc.picture_review([("sheet1.jpg", 0)], "sex scenes",
+                              context=lambda a, b: engine.heard_between(asr, cues, a, b))
+        finally:
+            cc.ask = real
+        prompt, images = asked[0]
+        self.assertIn('said: "Was this a bad idea?"', images[0][0])
+        self.assertIn("use them as context", prompt)
 
     def test_picture_checks_follow_the_lessons(self):
         import inspect

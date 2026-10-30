@@ -1572,7 +1572,10 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "nudity": "nudity (bare breasts, buttocks or genitals actually shown)",
             "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
                        "back or shoulders, shower from the shoulders up)",
-            "sex": "sex scenes or a couple in bed",
+            # not "a couple in bed": every couple talking in bed was cut (Jason, The Resident)
+            "sex": "sex scenes, judged by what's happening and the context (a couple only "
+                   "talking in bed is not one; sex with clothes on is), including oral sex "
+                   "and touching someone's private parts",
             "immodest": "immodest (swimsuits, underwear, very revealing clothes, or sexual "
                         "dancing: stripping, pole dancing, grinding)",
             "smoking": "smoking (cigarettes, cigars, pipes, vaping)",
@@ -1792,7 +1795,19 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
     return merged, widened
 
 
-def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None):
+def heard_between(asr, cues, a, b, limit=240):
+    """What's said from a to b seconds, and the sounds the subtitles describe then: context
+    for the picture checks (two people in bed only talking, or a sex scene)."""
+    said = " ".join(w["t"] for w in asr or [] if a <= w["s"] <= b)
+    sounds = [x or y for c in cues or [] if a - 1 <= c["s"] <= b
+              for x, y in re.findall(r"\[([^\]]*)\]|\(([^)]*)\)", c["text"])]
+    out = (f'said: "{said[:limit]}' + ('…"' if len(said) > limit else '"')) if said else ""
+    if sounds:
+        out += ("; " if out else "") + "sounds: " + "; ".join(t.strip() for t in sounds)[:120]
+    return out
+
+
+def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None, cues=None):
     """Claude/ChatGPT checks the picture: confirms or rules out each scene the
     picture/sound checks found, and adds what they missed. Returns (scenes, note)."""
     say = progress or (lambda f, m: None)
@@ -1806,9 +1821,11 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     sheets = make_sheets(path, work, dur)
     if cancel and cancel():
         raise KeyboardInterrupt
+    def heard(a, b):
+        return heard_between(asr, cues, a, b)
     finds = cc.picture_review(sheets, wanted,
                               progress=lambda f: say(0.05 + 0.6 * f, "is looking through the "
-                                                     "whole picture"))
+                                                     "whole picture"), context=heard)
     finds = [dict(f, label=_pic_wanted(f, o)) for f in finds]
     finds = [f for f in finds if f["label"]]
     used = set()
@@ -1840,7 +1857,9 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     for sc in todo:
         p = scene_sheet(path, sc, work)
         if p:
-            items.append((sc["id"], ", ".join(sc.get("kind", [])), sc.get("why", ""), p))
+            ctx = heard(sc["s"] - 5, sc["e"] + 5)
+            items.append((sc["id"], ", ".join(sc.get("kind", [])),
+                          sc.get("why", "") + (f"; {ctx}" if ctx else ""), p))
     ruled_out = 0
     if items:
         verdicts = cc.verify_scenes(items, wanted, progress=lambda f: say(
@@ -2490,7 +2509,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         try:
             scenes, pic_note = look_at_picture(
                 path, work, dur, scenes, o, asr,
-                lambda f, m: say(at("pics", f), f"{who} {m} · {eta(at('pics', f))}"), cancel)
+                lambda f, m: say(at("pics", f), f"{who} {m} · {eta(at('pics', f))}"), cancel,
+                cues=cues)
             notes.append(pic_note)
         except cc.ClaudeError as ex:
             notes.append(f"{who} couldn't look at the picture this time: {ex}")
