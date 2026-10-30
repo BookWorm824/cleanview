@@ -1236,14 +1236,16 @@ def _set_on(kind, it, on):
         it["keep"] = not on
 
 
-UNLISTED = (" (not a word on any list, so left unticked: it may be a name the speech "
+UNLISTED = (" (not on a word list you ticked, so left unticked: it may be a name the speech "
             "recognition misheard. Tick it if it really is a bad word.)")
 NEVER_FINE_WHY = "a slur: always muted, even said as a description"
 
 
-def _words_listed(word, mine=()):
+def _words_listed(word, mine=(), groups=None):
+    """Every word is on a list of a word group that's ticked (groups None: any list)."""
+    cats = None if groups is None else [c for g in groups for c in cl.GROUPS.get(g, [])]
     ws = [w.strip() for w in re.split(r"[|,]", word or "") if w.strip()]
-    return bool(ws) and all(cl.listed_word(w, mine) for w in ws)
+    return bool(ws) and all(cl.listed_word(w, mine, cats) for w in ws)
 
 
 def my_words(o):
@@ -1331,7 +1333,7 @@ def apply_review(st, result):
         if word and dec == "just the word":
             it["claude"]["word"] = word
         mine = it.get("by_you") or it.get("learned")
-        if dec == "just the word" and not _words_listed(word, own_words):
+        if dec == "just the word" and not _words_listed(word, own_words, st.get("groups")):
             # not a word on any list: often a name the speech recognition misheard
             # ("Grafi" for Gruffi). Offer it unticked; the line stays as it was.
             for w in re.split(r"[|,]", word):
@@ -1376,7 +1378,7 @@ def apply_review(st, result):
         l = lines[k]
         ms = [word_mute(st, l, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
         if ms and None not in ms:
-            ok = _words_listed(word, own_words)
+            ok = _words_listed(word, own_words, st.get("groups"))
             for m in ms:
                 if m.get("by_you") or m.get("learned"):
                     continue
@@ -1389,7 +1391,7 @@ def apply_review(st, result):
             if ok:
                 n_add += 1
             continue
-        if word and not _words_listed(word, own_words):
+        if word and not _words_listed(word, own_words, st.get("groups")):
             continue                      # couldn't even place an unlisted word: skip it
         st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
                             "types": ["claude"], "mute": True, "idx": k,
@@ -2170,16 +2172,32 @@ def fill_conversations(found, lines, kind, gap_lines=3, gap_secs=20.0):
                 found.setdefault(i, set()).add(kind)
 
 
-def already_muted(mutes, raw, s, e):
+def already_muted(mutes, raw, s, e, used=None):
     """True if a word found in the subtitles is already muted from listening: the same
     word heard about then, or most of its time already muted. Another word close by
-    ("what the hell, damn it") is no reason to skip it."""
+    ("what the hell, damn it") is no reason to skip it. used: the mutes that already
+    stood for a subtitle word; each heard word stands for one, so a word said twice
+    with only one heard is still muted twice ("Bitty bitch!" x2, a repeated lyric)."""
+    used = set() if used is None else used
     for m in mutes:
-        if m.get("raw") == raw and m["s"] - 0.8 <= s <= m["e"] + 0.8:
-            return True
-        if min(e, m["e"]) - max(s, m["s"]) > 0.5 * max(0.01, e - s):
+        same = m.get("raw") == raw
+        if same and id(m) in used:
+            continue
+        if (same and m["s"] - 0.8 <= s <= m["e"] + 0.8) or \
+                min(e, m["e"]) - max(s, m["s"]) > 0.5 * max(0.01, e - s):
+            if same:
+                used.add(id(m))
             return True
     return False
+
+
+def after_same_word(mutes, raw, s, e):
+    """A repeat placed on top of the same word already muted (its time was only
+    estimated): move it just after, where the repeat really is."""
+    for m in sorted(mutes, key=lambda m: m["s"]):
+        if m.get("raw") == raw and min(e, m["e"]) - max(s, m["s"]) > 0:
+            s, e = m["e"] + 0.05, m["e"] + 0.05 + (e - s)
+    return s, e
 
 
 def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, progress=None,
@@ -2335,7 +2353,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                     sw_cue.append(ci)
         sn = [cl.norm(w) for w in sw]
         mapping = cl.align(sn, asr_n) if asr_n else [None] * len(sn)
-        added = 0
+        added, used = 0, set()
         for i, j, cat in cl.find_language(sn, cats, mine):
             t = cl.est_time(i, mapping, asr) if asr else None
             if t:
@@ -2354,12 +2372,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 mid = c["s"] + (c["e"] - c["s"]) * frac
                 s, e = max(c["s"], mid - 0.7), min(c["e"], mid + 0.7 + 0.3 * (j - i - 1))
                 src = "subtitles-estimated"
-            if already_muted(mutes, " ".join(sn[i:j]), s, e):
+            if already_muted(mutes, " ".join(sn[i:j]), s, e, used):
                 continue
+            s, e = after_same_word(mutes, " ".join(sn[i:j]), s, e)
             mutes.append({"s": round(s, 3), "e": round(e, 3), "cat": cat, "src": src,
                           "word": " ".join(cl.mask(w) for w in sw[i:j]),
                           "raw": " ".join(sn[i:j]),
                           "ctx": " ".join(sw[max(0, i - 6):i])})
+            used.add(id(mutes[-1]))       # it stands for this subtitle word
             added += 1
         sub_note = f"Checked against {sub_note}: caught {added} extra word(s)."
         log(sub_note)

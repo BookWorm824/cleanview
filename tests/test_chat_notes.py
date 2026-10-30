@@ -33,6 +33,39 @@ class Notes(unittest.TestCase):
         self.assertEqual(learn.notes("_movies@kids", "Frozen (2013)"), ["Never mute 'gosh'."])
         self.assertEqual(learn.notes("castle", "Castle"), [])    # what she watches herself
 
+    def test_checked_lessons_come_with_updates(self):
+        """Lessons checked from the reports sent in ship in shared_learned.json, so every
+        copy's AI follows them (a wrong scene flag can't be taught as a line)."""
+        s = learn.shared()
+        saved = (list(s["general"].get("notes", [])), dict(s["shows"]))
+        try:
+            s["general"]["notes"] = ["Two people only talking in bed is not a sex scene."]
+            s["shows"]["castle"] = {"notes": ["Crime-scene bodies are graphic, not gore."]}
+            s["shows"]["_movies"] = {"notes": [{"text": "The Genie's magic is fine.",
+                                                "title": "Aladdin (1992)"}]}
+            self.assertEqual(learn.notes("castle@kids", "Castle"),
+                             ["Two people only talking in bed is not a sex scene.",
+                              "Crime-scene bodies are graphic, not gore."])
+            self.assertIn("The Genie's magic is fine.", learn.notes("_movies@kids", "Aladdin (1992)"))
+            self.assertNotIn("The Genie's magic is fine.", learn.notes("_movies", "Frozen"))
+        finally:
+            s["general"]["notes"], s["shows"] = saved[0], saved[1]
+            if not saved[0]:
+                s["general"].pop("notes")
+
+    def test_merge_carries_lessons(self):
+        import importlib.util
+        from pathlib import Path
+        spec = importlib.util.spec_from_file_location(
+            "merge_learned", Path(__file__).resolve().parent.parent / "tools" / "merge_learned.py")
+        ml = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ml)
+        shared = {"shows": {}, "general": {}}
+        ml.merge(shared, {"general": {"notes": ["A rule for all."]},
+                          "shows": {"castle": {"muted": [], "kept": [], "notes": ["A rule."]}}})
+        self.assertEqual(shared["general"]["notes"], ["A rule for all."])
+        self.assertEqual(shared["shows"]["castle"]["notes"], ["A rule."])
+
     def test_said_twice_kept_once(self):
         self.assertTrue(learn.add_note("castle", "Slapstick is fine."))
         self.assertFalse(learn.add_note("castle", "slapstick is fine."))

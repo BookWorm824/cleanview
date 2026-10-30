@@ -67,7 +67,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   muted, or shown as examples, when that filter is ticked: `learn.apply(on=...)`), flagged
   lines that fit no filter, and listed words that were fine in context. Short everyday lines
   that were only muted as part of a conversation are never taught. Reports gone over are
-  then deleted from the Drive folder, so they aren't gone over twice.
+  then deleted from the Drive folder, so they aren't gone over twice. Every untick is
+  looked at (Lauren 2026-10-30): one that was flagged wrongly is taught as a false alarm;
+  one that does fit a filter is her preference and isn't. Lessons that are about judging
+  (a scene, a show's names) can ship as built-in notes: `"notes"` in `shared_learned.json`
+  (general, or per show; `{"text", "title"}` for one movie), which `learn.notes` adds
+  first and `merge_learned.py` carries.
 - The chat can learn (Jason, 2026-10-30: told "it's Aladdin", it said it couldn't change
   what it looks for). When they explain how something should be judged from now on, its
   answer's `remember` list is kept as notes (`learn.add_note`/`learn.notes`): for that movie
@@ -258,7 +263,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   whole conversations), ticked for Young kids, Kids and Teens. It's still flagged when the
   child learns their lesson later, but Claude/ChatGPT/Gemini say so in the line's "why"
   and the review's summary (or that they got away with it): `TYPE_TEXT` and `review()`.
-- An AI may only mute a single word on its own if it is on a word list (`cvcore.listed_word`);
+- An AI may only mute a single word on its own if it is on the list of a word group that's
+  ticked (`cvcore.listed_word(cats=)`, `_words_listed(groups=)`; 13 Going on 30 had
+  "butts" muted with rude words off);
   otherwise it is offered unticked. Speech recognition mishears character names ("Grafi" for
   Gruffi) and those must never be muted.
 - Slurs (`cvcore.NEVER_FINE`: "retarded" and its forms, racial slurs) are never "fine
@@ -266,6 +273,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   learned or shared as fine. The review is also told where each word came from ("heard
   in the sound" is really said, even when the subtitles leave it out). From Radio, where
   Claude unticked "severely retarded" and swears missing from the subtitles.
+- A word said twice with only one heard is muted twice: each heard word stands for one
+  subtitle word (`already_muted(used=)`, `after_same_word`), from "Bitty bitch!" twice and
+  repeated song lines.
 - No captions on clean copies (the subtitle track is included but not default; no sidecar
   .srt).
 - She always reviews before anything is cut, and her own ticks are never undone by an AI.

@@ -139,6 +139,9 @@ DEITY_PHRASES = [
     ("christ", "on", "a", "bike"), ("god", "in", "heaven"), ("so", "help", "me", "god"),
     ("praise", "the", "lord"), ("holy", "lord"), ("for", "god's", "sakes"),
     ("for", "gods", "sakes"), ("for", "christ's", "sakes"), ("for", "christs", "sakes"),
+    # from the reports sent in (Aladdin, The Blind Side, 2026-10-30)
+    ("by", "allah"), ("allah", "forbid"), ("praise", "allah"), ("oh", "allah"),
+    ("god", "help", "him"), ("god", "help", "her"), ("god", "help", "them"), ("god", "help", "you"), ("god", "help", "that"), ("god", "help", "this"), ("god", "help", "the"), ("lord", "help", "him"), ("lord", "help", "her"), ("lord", "help", "them"), ("lord", "help", "you"), ("lord", "help", "that"), ("lord", "help", "this"), ("lord", "help", "the"),
 ]
 CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
     ("screw", "you"), ("screw", "off"), ("screw", "it"), ("screw", "that"), ("screw", "this"),
@@ -279,7 +282,7 @@ SHUT_UP_SAFE_NEXT = {"in", "inside", "shop", "house", "the", "his", "her", "my",
 BULL_BEFORE = re.compile(r"(^| )(that's|thats|that is|that was|this is|this was|it's|it is|"
                          r"it was|all|such|total|complete|utter|absolute|pure|load of|bunch of|"
                          r"pile of|full of|cut the|cut out the|enough of the|enough with the|"
-                         r"no more)$")
+                         r"no more|sounds like|sounded like)$")
 BULL_SWEAR_NEXT = {"crap", "crapping", "shit", "shits", "shitting", "shitter"}
 BULL_NOT_NEXT = {"riding", "rider", "riders", "ride", "rides", "market", "markets", "terrier",
                  "terriers", "shark", "sharks", "frog", "frogs", "elephant", "elephants", "seal",
@@ -452,7 +455,8 @@ def unbleep(w):
 # Short forms of swears on the lists. "sob" is also a real word (to cry, a sob story), so
 # it only counts written as an abbreviation: capitals ("SOB") or dots ("S.O.B.").
 ABBREVIATIONS = [(re.compile(r"[Ss]\.[Oo]\.[Bb]\.?('?s)?|SOB('?S|'?s)?|S-O-B"), "sonofabitch"),
-                 (re.compile(r"[Dd][-.]?[Bb][Aa][Gg][Ss]?"), "douchebag")]
+                 (re.compile(r"[Dd][-.]?[Bb][Aa][Gg][Ss]?"), "douchebag"),
+                 (re.compile(r"PO'e?d|[Pp]\.[Oo]\.'?e?d"), "pissed")]   # "PO'd", not "Po'd" (Po would)
 
 
 def unabbreviate(w):
@@ -487,30 +491,37 @@ def _base(w):
     return w[:-2] if w.endswith("'s") and len(w) > 3 else w
 
 
-def listed_word(word, mine=()):
+def listed_word(word, mine=(), cats=None):
     """True if a word (or phrase like 'sweet-ass', 'fool's') is on any of the
     word lists: swearing, mild, minced, God's name, rude, sex words, same-sex
     words, or her own list (mine: word tuples). Used so an AI can't mute a misheard
-    name ('Grafi') on its own."""
+    name ('Grafi') on its own. cats: only the lists of the word groups ticked (an AI
+    muted "butts" with rude words off, 13 Going on 30); None: every list."""
+    on = set(CATS) if cats is None else set(cats)
+    swear = bool(on & {"mild", "moderate"})
     w = norm(word.replace(" ", "").replace("-", ""))
     parts = [norm(p) for p in re.split(r"[\s\-]+", word) if norm(p)]
     for ph in mine:
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
-    for ph in DEITY_PHRASES + CRUDE_PHRASES + RUDE_PHRASES:     # "shut up", "screw you"
+    phrases = ((DEITY_PHRASES if "deity" in on else []) + (CRUDE_PHRASES if swear else []) +
+               (RUDE_PHRASES if "rude" in on else []))
+    for ph in phrases:                                           # "shut up", "screw you"
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
-    if any(body_slang(parts, k) or body_slang(parts, k, MILD_SLANG)  # "grow some stones"
-           or body_slang(parts, k, MINCED_SLANG) or bull_swear(parts, k)   # "that's bull"
-           or squat_swear(parts, k)                                         # "know squat"
-           or suck_swear(parts, k)                                     # "that really sucks"
+    if any(("moderate" in on and body_slang(parts, k))                # "grow some stones"
+           or (swear and body_slang(parts, k, MILD_SLANG))
+           or ("minced" in on and body_slang(parts, k, MINCED_SLANG))
+           or (swear and bull_swear(parts, k))                        # "that's bull"
+           or ("minced" in on and squat_swear(parts, k))              # "know squat"
+           or ("rude" in on and suck_swear(parts, k))                 # "that really sucks"
            for k in range(len(parts))):
         return True
     for c in [w] + parts:
         c = _base(c)
-        if c in ("god", "gods", "lord", "lords"):
+        if "deity" in on and c in ("god", "gods", "lord", "lords"):
             return True
-        if any(p.match(c) for pats in CATS.values() for p in pats):
+        if any(p.match(c) for k, pats in CATS.items() if k in on for p in pats):
             return True
         if any(p.match(c) for p in SEX_C[3]):
             return True

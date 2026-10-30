@@ -362,7 +362,9 @@ SYSTEM = ("You help a family make movies and TV shows fit their standards by mut
 
 TYPE_TEXT = {
     "sexref": "sexual references, sexual jokes or innuendo, including talk of oral sex or of "
-              "touching someone's private parts, and the sounds of it in the subtitles. Not: "
+              "touching someone's private parts, and the sounds of it in the subtitles. Only "
+              "the lines that are sexual themselves, not the lines around a joke. Not: plainly "
+              "mentioning underwear ('can you see my underwear?'), "
               "pregnancy or babies, 'sex' "
               "meaning men or women ('the fair sex'), a polite 'it's a pleasure', a body part "
               "in a threat; read the lines around it first (a line that sounds suggestive alone "
@@ -371,10 +373,13 @@ TYPE_TEXT = {
               "of cheating with nothing sexual said (an engaged or married person kissing "
               "someone else). Not: dating, setting people up, dating apps, being in love",
     "samesex": "same-sex romance or relationships, including flirting or romantic interest "
-               "between two men or two women",
+               "between two men or two women. Not: 'gay' meaning happy or cheerful (an old "
+               "song, 'gay apparel'), which is only a word, never this kind of line",
     "oppsex": "an unmarried man and woman living or sleeping together",
     "crude": "crude humor: bathroom, bodily-function or gross-out jokes",
-    "bullying": "bullying: mocking, taunting, demeaning someone or cruel name-calling",
+    "bullying": "bullying: mocking, taunting, demeaning someone or cruel name-calling, "
+                "including a villain's mocking song and an insult passed on ('she called "
+                "you a ...'), the whole line",
     "disrespect": "disrespect: a child or teen being bratty or disrespectful to a parent, "
                   "teacher or other grown-up: talking back, sassing, eye-rolling replies "
                   "('whatever', 'you can't tell me what to do'), mocking or insulting them, "
@@ -737,8 +742,15 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
         "alarm (\"not an issue\", e.g. the 'gunshots' are fireworks at a party). A word "
         "\"heard in the sound\" really is said, even when the dialogue line doesn't have it: "
         "subtitles often leave swear words out or soften them, so never call it a false alarm "
-        "for not being in the subtitles. Slurs such as 'retarded' or 'retard' are always "
-        "\"remove\", even said as a plain description of someone. Scenes "
+        "for not being in the subtitles. But speech recognition does mishear names and "
+        "look-alike words: a word heard in the sound that only makes sense as something "
+        "else ('hell, you won!' where a character is called Al; 'dick for trinkets' for "
+        "'dig') is \"not an issue\": say what it really was. A listed phrase that really is "
+        "said counts even as a figure of speech: 'Lord knows', 'Thank God', 'God help him' "
+        "are \"remove\" when God's name is on their list. Slurs such as 'retarded' or "
+        "'retard' are always \"remove\", even said as a plain description of someone, and "
+        "any other slur that's said goes in missed_lines with the word, even if it isn't on "
+        "their list. Scenes "
         "already checked by looking at the picture are settled: answer \"remove\" or \"not an "
         "issue\" to match, and leave them out of the summary. \"remove\" a scene only for "
         "something they want removed: if what it shows is something they didn't ask about "
@@ -816,9 +828,14 @@ PIC_RULES = (
     "and wounds shown: bloody injuries, a bloody body, a crime-scene body with visible blood; "
     "\"gore\" = insides on the outside: organs, entrails, brains, bone through skin, "
     "dismemberment, a severed body part; \"disturbing\" = violence outside of combat: "
-    "torture, an execution, cruelty or abuse of someone helpless (or an animal). A body with "
+    "torture, an execution (even a quick shot at someone unarmed, kneeling or held), a "
+    "gun held to a child, chaining or drowning someone, cruelty or abuse of someone "
+    "helpless (or an animal). A body with "
     "no visible blood (covered, or just lying there) is none of these. Cartoon and slapstick "
-    "fighting IS \"violence\" too: a brawl in a dust cloud, piling on or sitting on someone "
+    "fighting IS \"violence\" too, and so is a gun fired at a person or an animal "
+    "even when the stills only show what comes after (animals fleeing, someone falling); "
+    "bangs from a stage show, fireworks or machinery are not. That includes cartoon "
+    "fighting: a brawl in a dust cloud, piling on or sitting on someone "
     "after a fight, punching, kicking, shoving or knocking someone to the ground, a villain "
     "roughing up his own henchmen. Report the whole stretch, from the first blow to when it "
     "ends. Nudity means bare breasts, bare "
@@ -838,7 +855,8 @@ PIC_RULES = (
     "only sit or lie in bed talking, reading, sleeping or waking up with nothing sexual "
     "happening and nothing sexual said; call that implied nudity only if bare shoulders or "
     "backs show they're undressed. When it's unclear, the dialogue and sounds decide "
-    "(moaning, panting, talk of sex = a sex scene). For kissing, say who (man & woman, two "
+    "(moaning, panting, talk of sex = a sex scene). For kissing, look at both faces before saying who (a boy and a girl is man & woman), "
+    "and say who (man & woman, two "
     "men, two women) and whether it's light or passionate (passionate only when it clearly "
     "is: long, open-mouthed, embracing). For holidays, Christmas needs clear signs (a "
     "Christmas tree, ornaments, Santa, stockings); for all holidays, only what is "

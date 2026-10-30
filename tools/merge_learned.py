@@ -52,7 +52,13 @@ def merge(shared, export):
         else:
             sh.pop("muted_for", None)
         add(gen["ok_words"], d.get("claude_ok_words", []))
+        # checked lessons (a "CleanView reviewed" file): rules every copy's AI follows
+        if d.get("notes"):
+            add(sh.setdefault("notes", []), d["notes"])
         n += len(muted) + len(kept)
+    if export.get("general", {}).get("notes"):
+        add(gen.setdefault("notes", []), export["general"]["notes"])
+        n += len(export["general"]["notes"])
     shows = {k: v for k, v in shows.items() if any(v.values())}
     shared["shows"] = shows
     return n

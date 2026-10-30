@@ -555,6 +555,49 @@ class SubtitleWordsNearOtherMutes(unittest.TestCase):
     def test_a_word_already_inside_a_mute_is_not_added(self):
         self.assertTrue(engine.already_muted([self.damn], "dang", 1.52, 1.78))
 
+    def test_a_word_said_twice_is_muted_twice(self):
+        """Listening caught one "bitch", the subtitles have two ("Bitty bitch! Bitty
+        bitch!", The Blind Side; a repeated lyric, A Walk to Remember)."""
+        heard = {"s": 1.5, "e": 1.8, "raw": "bitch"}
+        mutes, used = [heard], set()
+        self.assertTrue(engine.already_muted(mutes, "bitch", 1.6, 1.9, used))   # that one
+        self.assertFalse(engine.already_muted(mutes, "bitch", 1.7, 2.0, used))  # the repeat
+        s, e = engine.after_same_word(mutes, "bitch", 1.7, 2.0)
+        self.assertAlmostEqual(s, 1.85)
+        self.assertAlmostEqual(e, 2.15)
+
+
+class FromJasonsReports(unittest.TestCase):
+    """Words from the reports sent in on 2026-10-30 (Aladdin, The Blind Side, A Walk to
+    Remember), and their everyday uses."""
+
+    def test_now_found(self):
+        for text, phrase, cat in [("By Allah, it's true", "by allah", "deity"),
+                                  ("Allah forbid", "allah forbid", "deity"),
+                                  ("Praise Allah!", "praise allah", "deity"),
+                                  ("Lord help that child", "lord help that", "deity"),
+                                  ("God help him", "god help him", "deity"),
+                                  ("He's PO'd at me", "pissed", "moderate"),
+                                  ("That sounds like bull", "bull", "mild")]:
+            with self.subTest(text=text):
+                self.assertIn((phrase, cat), found(text))
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("Po'd better run", "A bull in a field", "Allah is the Arabic word for God",
+                     "It sounds like a bull"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_ai_mutes_only_words_from_ticked_groups(self):
+        """13 Going on 30: an AI muted "butts" with rude words off."""
+        self.assertTrue(cl.listed_word("butts"))
+        self.assertFalse(cl.listed_word("butts", cats=["strong", "moderate", "mild", "deity"]))
+        self.assertTrue(cl.listed_word("butts", cats=["rude"]))
+        self.assertFalse(cl.listed_word("Lord knows", cats=["mild"]))
+        self.assertTrue(cl.listed_word("Lord knows", cats=["deity"]))
+        self.assertFalse(engine._words_listed("butts", (), ["swearing", "mild", "deity"]))
+        self.assertTrue(engine._words_listed("butts", (), ["rude"]))
+
 
 if __name__ == "__main__":
     unittest.main()

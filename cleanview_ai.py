@@ -620,7 +620,8 @@ LOOK = {
     "valentine": ("Question: is something about Valentine's Day shown: valentine cards, "
                   "Cupid, or hearts used as Valentine decorations?", _YES),
     "easter": ("Question: is something about Easter shown: the Easter bunny, an Easter egg "
-               "hunt, decorated Easter eggs or Easter baskets? An ordinary rabbit or egg is NOT.",
+               "hunt, decorated Easter eggs or Easter baskets? An ordinary rabbit or egg, or a cartoon "
+               "rabbit with no basket, eggs or other Easter signs (Bambi's Thumper), is NOT.",
                _YES),
     "stpatricks": ("Question: is something about St. Patrick's Day shown: a leprechaun, a pot of "
                    "gold, shamrock decorations, or people dressed up in green for St. Patrick's "
@@ -722,7 +723,8 @@ LINE_TYPES = {
                "setting people up, dating apps, being in love, marriage, family, drinking together"),
     "samesex": ("clearly refers to romance, dating, attraction or a sexual relationship between "
                 "two men or two women (for example a man saying 'my boyfriend', 'her wife', "
-                "'he's gay'). NOT: friends, coworkers, police or business partners, family"),
+                "'he's gay'). NOT: friends, coworkers, police or business partners, family, 'gay' "
+                "meaning happy or cheerful (an old song, 'gay apparel')"),
     "oppsex": ("says an unmarried man and woman live together or sleep together. NOT: married "
                "couples, dating, roommates, family"),
     "crude": ("crude humor: jokes or talk about bodily functions, bathroom or toilet humor, "

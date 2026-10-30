@@ -340,12 +340,20 @@ def add_note(key, text, title="", everywhere=False):
 
 
 def notes(key, title=""):
-    """The notes that apply to this video: for everything, then for this show or movie."""
+    """The notes that apply to this video: the built-in ones (checked lessons from the
+    reports sent in, shipped in shared_learned.json), then theirs for everything, then for
+    this show or movie."""
     t, out = norm(title or ""), []
-    for k in dict.fromkeys((_notes_key(key, True), key)):
-        for n in load(k).get("notes", []):
-            if (not n.get("title") or n["title"] == t) and n["text"] not in out:
-                out.append(n["text"])
+    s = shared()
+    built_in = list(s["general"].get("notes", []))
+    for k in dict.fromkeys((key, key.split("@")[0])):
+        built_in += s["shows"].get(k, {}).get("notes", [])
+    mine = [n for k in dict.fromkeys((_notes_key(key, True), key))
+            for n in load(k).get("notes", [])]
+    for n in built_in + mine:
+        n = n if isinstance(n, dict) else {"text": n}
+        if (not n.get("title") or norm(n["title"]) == t) and n["text"] not in out:
+            out.append(n["text"])
     return out
 
 

@@ -35,8 +35,12 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
 # says so: take it off this list.
-# (Empty: CleanListen took CleanView 1.17.0-1.17.1's words, 2026-10-29.)
-WAITING_ON_CLEANLISTEN = set()
+# CleanView 1.18.4 (Jason's reports, 2026-10-30): the Allah and "God/Lord help ..." phrases
+# and "sounds like bull".
+WAITING_ON_CLEANLISTEN = {"Allah forbid", "By Allah, it's true", "God help him",
+                          "Lord help that child", "Praise Allah!", "That sounds like bull",
+                          "allah forbid", "by allah", "god help him", "lord help that",
+                          "praise allah"}
 
 
 def load_cleanlisten():
