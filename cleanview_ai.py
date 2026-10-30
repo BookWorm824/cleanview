@@ -723,7 +723,8 @@ LINE_TYPES = {
                "setting people up, dating apps, being in love, marriage, family, drinking together"),
     "samesex": ("clearly refers to romance, dating, attraction or a sexual relationship between "
                 "two men or two women (for example a man saying 'my boyfriend', 'her wife', "
-                "'he's gay'). NOT: friends, coworkers, police or business partners, family, 'gay' "
+                "'he's gay'). NOT: a man and a woman together (dating, engaged or married), friends, "
+                "coworkers, police or business partners, family, 'gay' "
                 "meaning happy or cheerful (an old song, 'gay apparel')"),
     "oppsex": ("says an unmarried man and woman live together or sleep together. NOT: married "
                "couples, dating, roommates, family"),

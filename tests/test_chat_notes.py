@@ -192,6 +192,15 @@ class ViolenceCalls(unittest.TestCase):
         self.assertIn("A killing heard but not seen", inspect.getsource(cc.review))
 
 
+class SameSexIsTwoMenOrTwoWomen(unittest.TestCase):
+    """CleanListen 1.10.1: its local AI put a man and a woman's romance under same-sex."""
+
+    def test_a_man_and_a_woman_is_not_same_sex(self):
+        import cleanview_ai as ai
+        for text in (cc.TYPE_TEXT["samesex"], ai.LINE_TYPES["samesex"]):
+            self.assertIn("a man and a woman together", text)
+
+
 class CountedOnce(unittest.TestCase):
 
     def setUp(self):

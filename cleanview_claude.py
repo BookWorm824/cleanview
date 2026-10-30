@@ -373,7 +373,8 @@ TYPE_TEXT = {
               "of cheating with nothing sexual said (an engaged or married person kissing "
               "someone else). Not: dating, setting people up, dating apps, being in love",
     "samesex": "same-sex romance or relationships, including flirting or romantic interest "
-               "between two men or two women. Not: 'gay' meaning happy or cheerful (an old "
+               "between two men or two women. Not: a man and a woman together (dating, engaged or "
+               "married); 'gay' meaning happy or cheerful (an old "
                "song, 'gay apparel'), which is only a word, never this kind of line",
     "oppsex": "an unmarried man and woman living or sleeping together",
     "crude": "crude humor: bathroom, bodily-function or gross-out jokes",
