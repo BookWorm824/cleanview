@@ -2191,6 +2191,20 @@ def already_muted(mutes, raw, s, e, used=None):
     return False
 
 
+def subtitle_word_there(mutes, mapping, sw, sn, asr_n):
+    """A word heard in the sound where the subtitles have a different, ordinary word or a
+    name at that very spot ("dick" where they say "Nic", "shit" for "page me"; The
+    Resident) is probably misheard: noted for the review as m["sub"]. A word the subtitles
+    only leave out or soften isn't (Radio)."""
+    there = {a: k for k, a in enumerate(mapping) if a is not None}
+    for m in mutes:
+        k = there.get(m.get("at"))
+        if k is None or m.get("src") != "audio" or sn[k] == asr_n[m["at"]]:
+            continue
+        if not cl.listed_word(sw[k]) and re.search(r"[A-Za-z]{2}", sw[k]):
+            m["sub"] = sw[k]
+
+
 def after_same_word(mutes, raw, s, e):
     """A repeat placed on top of the same word already muted (its time was only
     estimated): move it just after, where the repeat really is."""
@@ -2339,7 +2353,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                              f"({frac:.0%} of words lined up), so they weren't used.")
         else:
             notes.append(f"No subtitles: {why}.")
-    mutes = [{"s": asr[i]["s"], "e": asr[j - 1]["e"], "cat": cat, "src": "audio",
+    mutes = [{"s": asr[i]["s"], "e": asr[j - 1]["e"], "cat": cat, "src": "audio", "at": i,
               "word": " ".join(cl.mask(asr[k]["t"]) for k in range(i, j)),
               "raw": " ".join(asr[k]["n"] for k in range(i, j)),
               "ctx": " ".join(asr[k]["t"] for k in range(max(0, i - 6), i))}
@@ -2353,6 +2367,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                     sw_cue.append(ci)
         sn = [cl.norm(w) for w in sw]
         mapping = cl.align(sn, asr_n) if asr_n else [None] * len(sn)
+        subtitle_word_there(mutes, mapping, sw, sn, asr_n)
         added, used = 0, set()
         for i, j, cat in cl.find_language(sn, cats, mine):
             t = cl.est_time(i, mapping, asr) if asr else None

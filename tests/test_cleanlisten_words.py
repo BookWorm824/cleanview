@@ -40,7 +40,10 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 WAITING_ON_CLEANLISTEN = {"Allah forbid", "By Allah, it's true", "God help him",
                           "Lord help that child", "Praise Allah!", "That sounds like bull",
                           "allah forbid", "by allah", "god help him", "lord help that",
-                          "praise allah"}
+                          "praise allah",
+                          # 1.18.5 (The Resident): be screwed, in heaven's name, oh hallelujah
+                          "Oh, hallelujah", "We would be screwed", "What in heaven's name",
+                          "be screwed", "in heaven's name", "oh hallelujah"}
 
 
 def load_cleanlisten():

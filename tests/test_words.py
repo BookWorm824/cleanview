@@ -599,5 +599,37 @@ class FromJasonsReports(unittest.TestCase):
         self.assertTrue(engine._words_listed("butts", (), ["rude"]))
 
 
+
+class FromTheResident(unittest.TestCase):
+    """The Resident, season 2 episodes 9-23 (checked 2026-10-30)."""
+
+    def test_now_found(self):
+        for text, phrase, cat in [("We would be screwed", "be screwed", "mild"),
+                                  ("What in heaven's name", "in heaven's name", "minced"),
+                                  ("Oh, hallelujah", "oh hallelujah", "deity")]:
+            with self.subTest(text=text):
+                self.assertIn((phrase, cat), found(text))
+
+    def test_everyday_uses_left_alone(self):
+        for text in ("The shelf was screwed to the wall", "The choir sang hallelujah",
+                     "It was screwed shut"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text), [])
+
+    def test_a_different_word_in_the_subtitles_is_noted(self):
+        """"dick" heard where the subtitles have the name "Nic": told to the review.
+        A swear the subtitles soften ("darn") or leave out isn't."""
+        asr_n = ["hey", "dick", "come", "here", "damn", "it"]
+        mutes = [{"src": "audio", "at": 1, "raw": "dick"}, {"src": "audio", "at": 4, "raw": "damn"}]
+        sw = ["Hey,", "Nic,", "come", "here.", "Darn", "it."]
+        sn = [cl.norm(w) for w in sw]
+        engine.subtitle_word_there(mutes, list(range(6)), sw, sn, asr_n)
+        self.assertEqual(mutes[0].get("sub"), "Nic,")
+        self.assertNotIn("sub", mutes[1])
+        import cleanview_claude as cc
+        st = {"scenes": [], "lines": [], "mutes": [dict(mutes[0], s=1, e=2, word="d***")]}
+        self.assertIn("where the subtitles have 'Nic,'", cc.candidates(st)[1])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -741,8 +741,9 @@ LINE_TYPES = {
     "religion": ("talks about religion or faith: God, Jesus, prayer or praying, church, the "
                  "Bible, heaven or hell as places, angels, sin, or the beliefs, practices, "
                  "clergy or holidays of any religion. NOT: 'oh my God' or 'Jesus' said as a "
-                 "swear or exclamation, 'bless you' after a sneeze, 'thank heavens', a "
-                 "character's name"),
+                 "swear or exclamation ('thank God', 'dear God', 'go to hell'), idioms ('a match "
+                 "made in heaven', 'get to the church on time'), 'bless you' after a sneeze, "
+                 "'thank heavens', a character's name"),
     "christmas": ("talks about Christmas: Santa, Christmas trees, presents, carols, Christmas "
                   "Eve or Day, 'Merry Christmas'. NOT: winter or snow alone, the word "
                   "'present' meaning now or here"),

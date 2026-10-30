@@ -166,6 +166,17 @@ class SexScenesByContext(unittest.TestCase):
                          "_movies@kids")
 
 
+class ReligionIsNotAnExclamation(unittest.TestCase):
+    """The Resident: "Thank God", "Dear God" got the whole line muted as religious talk;
+    the God's-name words are muted on their own. Idioms aren't religion either."""
+
+    def test_definitions(self):
+        import cleanview_ai as ai
+        for text in (cc.TYPE_TEXT["religion"], ai.LINE_TYPES["religion"]):
+            self.assertIn("thank god", text.lower())
+            self.assertIn("match", text)
+
+
 class CountedOnce(unittest.TestCase):
 
     def setUp(self):

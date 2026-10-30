@@ -392,8 +392,11 @@ TYPE_TEXT = {
                 "church, the Bible, heaven or hell as places, angels, sin, or the beliefs, "
                 "practices, clergy or holidays of any religion; the whole conversation, not just "
                 "the line that names it; in a song, only the lines that are about it. Not: God's or "
-                "Jesus' name said as a swear or exclamation, 'bless you' after a sneeze, a "
-                "character's name",
+                "Jesus' name said as a swear or exclamation ('Thank God', 'Dear God', 'Oh, "
+                "hallelujah', 'what in the name of God', 'go to hell': that's their God's-name "
+                "word list, which mutes just those words), idioms ('a match made in heaven', "
+                "'fire and brimstone', 'get to the church on time', 'penance' meaning a "
+                "punishment), 'bless you' after a sneeze, a character's name",
     "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents or "
                  "carols; the whole conversation. Not: winter or snow alone",
     "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
@@ -657,6 +660,8 @@ def candidates(st, with_review=False):
         i = f"W{k}"
         items[i] = ("word", m)
         heard = HEARD.get(m.get("src", ""), "")
+        if m.get("sub"):
+            heard += f", where the subtitles have '{m['sub']}'"
         out.append(f"{i} word {_t(m['s'])} [{m.get('cat', '')}{heard}] "
                    f"\"{m.get('raw') or m['word']}\" "
                    f"after: \"{m.get('ctx', '')}\"; currently "
@@ -745,7 +750,9 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
         "for not being in the subtitles. But speech recognition does mishear names and "
         "look-alike words: a word heard in the sound that only makes sense as something "
         "else ('hell, you won!' where a character is called Al; 'dick for trinkets' for "
-        "'dig') is \"not an issue\": say what it really was. A listed phrase that really is "
+        "'dig') is \"not an issue\": say what it really was. So is one where the subtitles "
+        "have a different, ordinary word or a name at that same spot ('dick' where they "
+        "have 'Nic'). A listed phrase that really is "
         "said counts even as a figure of speech: 'Lord knows', 'Thank God', 'God help him' "
         "are \"remove\" when God's name is on their list. Slurs such as 'retarded' or "
         "'retard' are always \"remove\", even said as a plain description of someone, and "

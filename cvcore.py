@@ -141,6 +141,7 @@ DEITY_PHRASES = [
     ("for", "gods", "sakes"), ("for", "christ's", "sakes"), ("for", "christs", "sakes"),
     # from the reports sent in (Aladdin, The Blind Side, 2026-10-30)
     ("by", "allah"), ("allah", "forbid"), ("praise", "allah"), ("oh", "allah"),
+    ("oh", "hallelujah"),
     ("god", "help", "him"), ("god", "help", "her"), ("god", "help", "them"), ("god", "help", "you"), ("god", "help", "that"), ("god", "help", "this"), ("god", "help", "the"), ("lord", "help", "him"), ("lord", "help", "her"), ("lord", "help", "them"), ("lord", "help", "you"), ("lord", "help", "that"), ("lord", "help", "this"), ("lord", "help", "the"),
 ]
 CRUDE_PHRASES = [   # muted with the mild group ("mild language such as crap, screw you") or swearing
@@ -250,7 +251,7 @@ MILD_SLANG = [re.compile(p) for p in (
     r"up yours\b",
     # "we're screwed", not "screwed to the wall" or "screwed up"
     r"(i'm|we're|you're|he's|she's|they're|it's|we are|i am|you are|totally|completely|"
-    r"royally|so|really|just|get|gets|got|getting|gotten) screwed\b(?! (in|into|on|onto|down|together|shut|tight|tightly|to|"
+    r"royally|so|really|just|get|gets|got|getting|gotten|be|been|is|are|was|were) screwed\b(?! (in|into|on|onto|down|together|shut|tight|tightly|to|"
     r"the|it|that|this|back|off|up)\b)",
 )]
 
@@ -265,7 +266,7 @@ MINCED_SLANG = [re.compile(p) for p in (
     r"son of a (gun|biscuit|b)\b",
     r"good (grief|golly|gravy|heavens?|gracious)\b", r"goodness gracious\b",
     r"(oh )?my goodness\b", r"thank (goodness|heavens?)\b", r"(oh )?heavens to (betsy|murgatroyd)\b",
-    r"oh heavens\b",
+    r"oh heavens\b", r"in heaven'?s name\b",     # "what in heaven's name" (The Resident)
     r"for (goodness|goodness's|heaven's|heavens|pete's|petes|pete|cripes|mercy's|land's|lands) "
     r"sakes?\b", r"for crying out loud\b",
     # "holy cow", "holy moly" (Lauren, 2026-10-29: not fine)

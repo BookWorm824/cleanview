@@ -72,7 +72,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   one that does fit a filter is her preference and isn't. Lessons that are about judging
   (a scene, a show's names) can ship as built-in notes: `"notes"` in `shared_learned.json`
   (general, or per show; `{"text", "title"}` for one movie), which `learn.notes` adds
-  first and `merge_learned.py` carries.
+  first and `merge_learned.py` carries. A word only "fine" because its group was off,
+  or a line fine in one movie but usually innuendo elsewhere, is never taught as fine.
+- A word heard in the sound where the subtitles have a different, ordinary word or a name
+  at that spot is noted for the review (`subtitle_word_there`, `m["sub"]`: "dick" where
+  they have "Nic"); one the subtitles only leave out or soften isn't.
 - The chat can learn (Jason, 2026-10-30: told "it's Aladdin", it said it couldn't change
   what it looks for). When they explain how something should be judged from now on, its
   answer's `remember` list is kept as notes (`learn.add_note`/`learn.notes`): for that movie
