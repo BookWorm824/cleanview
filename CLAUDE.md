@@ -233,6 +233,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   prayer, church, the Bible or any religion, including sincere prayer; whole conversations
   (`fill_conversations` joins lines found close together) and always whole lines
   (`WHOLE_LINE_TYPES`). God's name said as a swear stays the separate "deity" word group.
+- Disrespect (`disrespect`, Lauren 2026-10-30): kids being bratty, talking back to, mocking
+  or disobeying their parents and other grown-ups. A dialogue filter (whole lines, not
+  whole conversations), ticked for Young kids, Kids and Teens. It's still flagged when the
+  child learns their lesson later, but Claude/ChatGPT/Gemini say so in the line's "why"
+  and the review's summary (or that they got away with it): `TYPE_TEXT` and `review()`.
 - An AI may only mute a single word on its own if it is on a word list (`cvcore.listed_word`);
   otherwise it is offered unticked. Speech recognition mishears character names ("Grafi" for
   Gruffi) and those must never be muted.

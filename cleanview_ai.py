@@ -725,6 +725,11 @@ LINE_TYPES = {
     "crude": ("crude humor: jokes or talk about bodily functions, bathroom or toilet humor, "
               "gross-out jokes, crude jokes about body parts. NOT: ordinary jokes, sarcasm, "
               "plain insults"),
+    "disrespect": ("a child or teen being bratty or disrespectful to a parent, teacher or "
+                   "other grown-up: talking back, sassing, mocking or insulting them, refusing "
+                   "to do what they're told, openly disobeying, sneaking out or lying to them. "
+                   "NOT: grown-ups disagreeing with each other, a child politely saying no or "
+                   "standing up to something wrong, friendly teasing, a child asking why"),
     "bullying": ("bullying: mocking, taunting or demeaning someone, cruel name-calling, picking "
                  "on someone weaker, trying to humiliate them. NOT: ordinary arguments, police "
                  "questioning or warnings, friendly teasing between friends"),
@@ -767,6 +772,7 @@ LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
                                                          "together",
               "crude": "crude humor", "bullying": "bullying", "religion": "religious talk",
+              "disrespect": "disrespect or talking back to a parent",
               "christmas": "talk about Christmas", "halloween": "talk about Halloween",
               "birthday": "talk about the candles on a birthday cake",
               "valentine": "talk about Valentine's Day", "easter": "talk about Easter",

@@ -49,7 +49,7 @@ CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGP
 # candles and the two magic boxes are their own.
 HOLIDAYS = ("christmas", "halloween", "valentine", "easter", "stpatricks")
 MAGIC = ("darkmagic", "magic", "vampires")          # magic, and vampires and werewolves
-LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying",
+LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "disrespect",
               "religion") + HOLIDAYS + ("birthday",) + MAGIC
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
 WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS + MAGIC
@@ -58,6 +58,7 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
+            "disrespect": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
             "birthday": False, "valentine": False, "easter": False, "stpatricks": False,
             "holidays": False, "darkmagic": False,
@@ -1051,6 +1052,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"sleeping together|slept together)\b", re.I),
     "crude": re.compile(r"\b(farts?|farted|farting|poop(ed|ing)?|butt crack|boogers?|"
                         r"peed (my|his|her|your) pants)\b", re.I),
+    # talking back to a parent: only what's hard to mistake (not "whatever", "make me")
+    "disrespect": re.compile(r"\b(you can'?t tell me what to do|you'?re not the boss of me|"
+                             r"you'?re not my (real )?(mom|mum|dad|mother|father|boss)|"
+                             r"i don'?t have to (listen to|obey|do what) you|you can'?t make me|"
+                             r"i hate you,? (mom|mum|mommy|mummy|dad|daddy|mother|father)|"
+                             r"i don'?t care what you (say|think|want))\b", re.I),
     "bullying": re.compile(r"\b(nobody likes you|you're worthless|you are worthless|"
                            r"fatso|four[- ]eyes|crybaby|you freak)\b", re.I),
     # not "God", "heaven", "angel" or "bless you": too often an exclamation, a name or a sneeze
@@ -1099,6 +1106,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"the undead|werewol(f|ves|f's)|lycanthrop\w*|wolf ?m[ae]n)\b", re.I),
 }
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
+              "disrespect": "Disrespect",
               "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
               "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
               "magic": "Magic", "stpatricks": "St. Patrick's Day",
@@ -1146,6 +1154,8 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "oppsex": "unmarried man and woman living or sleeping together",
             "sexref": "sexual references and innuendo", "crude": "crude humor",
             "bullying": "bullying",
+            "disrespect": "disrespect: kids talking back, being bratty or rude to their "
+                          "parents or other grown-ups, or disobeying them",
             "religion": "all religious conversations: talk about God, faith, prayer, church, the "
                         "Bible, heaven, or any religion's beliefs and practices, including "
                         "sincere prayer (God's name said as a swear is a separate choice)",

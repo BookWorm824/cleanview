@@ -27,7 +27,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
-        "Bullying": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
+        "Bullying": "#8A4B2E", "Disrespect": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
         "Christmas": "#2E6B45", "Halloween": "#B4621E", "Birthday": "#8C5AA8",
         "Valentine's": "#B23A5A", "Rude": "#8A4B2E", "Easter": "#6E8B2E",
         "Dark": "#4A2E5E", "Magic": "#5A4FA0", "St.": "#2E7D4F", "Vampires": "#6B2238"}
@@ -39,7 +39,7 @@ CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
 # ---------- who you're filtering for: each has its own ticks, remembered separately ----------
 PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adults", "Adults")]
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
-               "bullying", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
+               "bullying", "disrespect", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
                "drinking", "drugs", "religion", "loudmusic", "holidays", "birthday",
                "gestures", "darkmagic", "magic", "vampires"]
@@ -59,7 +59,8 @@ PRESETS = {
     "teens": dict(_ALL, rude=False, minced=False, crude=False, kiss_os="passionate",
                   implied=False, **NO_HOLIDAYS),
     "adults": dict(swearing=True, mild=True, deity=True, minced=False, samesexwords=True,
-                   rude=False, sexref=True, crude=False, bullying=False, nudity=True,
+                   rude=False, sexref=True, crude=False, bullying=False, disrespect=False,
+                   nudity=True,
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
                    graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
@@ -670,6 +671,7 @@ class App(tk.Tk):
             ("sexref", "Sexual references and innuendo", True),
             ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
             ("bullying", "Bullying and mocking", False),
+            ("disrespect", "Disrespect  (bratty, talking back, disobeying parents)", False),
             ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False),
             ("religion", "Religious conversations  (prayer, church, faith, the Bible\u2026)",
              False)])

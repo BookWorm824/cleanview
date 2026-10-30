@@ -373,6 +373,14 @@ TYPE_TEXT = {
     "oppsex": "an unmarried man and woman living or sleeping together",
     "crude": "crude humor: bathroom, bodily-function or gross-out jokes",
     "bullying": "bullying: mocking, taunting, demeaning someone or cruel name-calling",
+    "disrespect": "disrespect: a child or teen being bratty or disrespectful to a parent, "
+                  "teacher or other grown-up: talking back, sassing, eye-rolling replies "
+                  "('whatever', 'you can't tell me what to do'), mocking or insulting them, "
+                  "refusing to do what they're told, openly disobeying, sneaking out or lying to "
+                  "them. The whole line. Not: grown-ups disagreeing with each other, a child "
+                  "politely saying no or standing up to something wrong, friendly teasing. "
+                  "Still flag it if they learn their lesson later, but say so in \"why\" "
+                  "(\"learns their lesson: apologizes at 41:10\"), or say they get away with it",
     "religion": "religious conversations: any talk about God, Jesus, faith, prayer or praying, "
                 "church, the Bible, heaven or hell as places, angels, sin, or the beliefs, "
                 "practices, clergy or holidays of any religion; the whole conversation, not just "
@@ -626,7 +634,8 @@ WORD_REASON = re.compile(r"\b(contains?|word|language|swear\w*|profan\w*|curse\w
 
 
 MORE_THAN_WORD = re.compile(r"\b(refer\w*|innuendo|joke\w*|sexual\w*|sex|flirt\w*|romanc\w*|"
-                            r"affair|bull\w*|mock\w*|crude humor|gross|relig\w*|faith|pray\w*|"
+                            r"affair|bull\w*|mock\w*|disrespect\w*|talk\w* back|sass\w*|defian\w*|disobe\w*|"
+                            r"crude humor|gross|relig\w*|faith|pray\w*|"
                             r"church\w*|bible|worship\w*|scripture\w*|spiritual\w*|christmas|"
                             r"santa|halloween|trick.or.treat\w*|birthday\w*|candles?|"
                             r"valentine\w*|easter|patrick\w*|leprechaun\w*|magic\w*|spells?|"
@@ -716,7 +725,9 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
         "give your view, but don't list those lines or scenes again as missed.\n"
         "4. Keep every \"why\" to a few plain words. The summary is one or two plain "
         "sentences for them about this episode: what really needed removing and what was a "
-        "false alarm.")
+        "false alarm. If a child is disrespectful or disobeys (and they want that removed), "
+        "the summary also says whether they learn their lesson by the end (apologize, make it "
+        "right, face consequences) or just get away with it; it's still removed either way.")
     res, _ = ask(prompt, REVIEW_SCHEMA, numbered(lines, st.get("voices")), system=SYSTEM,
                  timeout=900, fresh=fresh)
     decisions = {}
