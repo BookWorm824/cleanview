@@ -501,7 +501,7 @@ class Window(unittest.TestCase):
                                      "why": "", "lower": True}]
         app.show_review()
         app.update()
-        self.assertIn("1 loud song", app.page.winfo_children()[1].cget("text"))
+        self.assertIn("1 loud song", app.page.winfo_children()[2].cget("text"))  # under the name
         self.assertEqual(len(app.quiet_vars), 1)
         app.quiet_vars[0][0].set(False)
         app._sync_job(job)

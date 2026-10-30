@@ -75,6 +75,45 @@ class Chat(unittest.TestCase):
         self.assertIn("Never mute 'gosh'.", self.asked[0][0])   # it's told the earlier ones
 
 
+class Lessons(unittest.TestCase):
+    """Jason (1.18.1): told it the couple in bed were only talking, the chat unticked the
+    scene but kept no lesson, and the picture check had cut it for "two people in bed"."""
+
+    def test_a_correction_is_a_lesson(self):
+        self.assertIn("whenever they correct a call", cc.CHAT_HOW)
+        self.assertIn("not a sex scene", cc.CHAT_HOW)
+
+    def test_two_people_in_bed_talking_is_not_a_sex_scene(self):
+        self.assertIn("in bed talking", cc.PIC_RULES)
+        self.assertIn("is NOT a sex scene", cc.PIC_RULES)
+
+    def test_picture_checks_follow_the_lessons(self):
+        import inspect
+        src = inspect.getsource(engine.look_at_picture)
+        self.assertIn("learn.notes(learned_key(path, o)", src)
+        self.assertEqual(engine.learned_key(r"D:\Movies\Aladdin (1992).mkv", {"profile": "kids"}),
+                         "_movies@kids")
+
+
+class CountedOnce(unittest.TestCase):
+
+    def setUp(self):
+        for f in learn.DIR.glob("*.json"):
+            f.unlink()
+
+    def test_leaving_and_coming_back_counts_each_choice_once(self):
+        sc = {"kind": ["Sex scene"], "_shown": True}
+        w = {"word": "damn", "_shown": False}
+        for _ in range(3):                         # back to start, pick up, back again...
+            learn.record("castle", [], [], [], [sc], [False], [], [w], [True])
+        d = learn.load("castle")
+        self.assertEqual(d["scenes"]["Sex scene"], {"cut": 0, "kept": 1})
+        self.assertEqual(d["words"]["damn"], {"muted": 1, "kept": 0})
+        learn.record("castle", [], [], [], [sc], [True], [], [w], [True])   # she changed it
+        d = learn.load("castle")
+        self.assertEqual(d["scenes"]["Sex scene"], {"cut": 1, "kept": 0})
+
+
 class BackToStart(unittest.TestCase):
 
     def test_back_to_start_keeps_the_review(self):
@@ -89,12 +128,40 @@ class BackToStart(unittest.TestCase):
                      if isinstance(w, ui.ttk.Button)]
             self.assertIn("\u25c0 Back to start", texts)
             app._forget_session()
-            app._back_to_start()
+            learned = []
+            real = ui.learn.record
+            ui.learn.record = lambda key, *a: learned.append(key)
+            try:
+                app._back_to_start()
+            finally:
+                ui.learn.record = real
             app.update()
             self.assertEqual(app.page_name, "setup")
             self.assertTrue(app.SESSION.exists(), "Pick up where I left off opens it again")
+            self.assertTrue(learned, "her ticks are learned without saving a copy")
         finally:
             Window.tearDownClass()
+
+    def test_the_videos_name_is_on_the_review_page(self):
+        """Jason: after cleaning you don't know which movie it was."""
+        from test_ui import Window, ui
+        Window.setUpClass()
+        try:
+            app = Window.app
+            support.write_review()
+            self.assertTrue(app._resume())
+            app.update()
+            texts = [w.cget("text") for w in app.page.winfo_children()
+                     if isinstance(w, ui.tk.Label)]
+            self.assertIn("Sample Show S01E01", texts)
+        finally:
+            Window.tearDownClass()
+
+    def test_questions_chime(self):
+        from test_ui import ui
+        import inspect
+        src = inspect.getsource(ui.App._send_in)
+        self.assertLess(src.index("chime()"), src.index("askyesno"))
 
 
 if __name__ == "__main__":

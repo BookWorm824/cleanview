@@ -483,6 +483,14 @@ def guess_title(path):
     return (title, None, None) if re.search(r"[A-Za-z]{2}", title) else None
 
 
+def learned_key(path, o):
+    """Where what's learned about this video is kept: the show (or "_movies"), per age."""
+    key = learn.show_key(guess_title(path))
+    if o.get("profile") and o["profile"] != "adults":
+        key += "@" + o["profile"]       # what you choose for the kids is learned separately
+    return key
+
+
 def title_name(path):
     """The movie's (or show's) name: notes from the chat can be kept for one movie."""
     t = guess_title(path) if path else None
@@ -1792,6 +1800,8 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None)
     wanted = picture_wanted(o)
     if not wanted:
         return scenes, "Nothing picture-related was chosen, so the picture wasn't looked at."
+    # what they told the chat ("a couple only sitting in bed talking isn't a sex scene")
+    wanted += cc.told(learn.notes(learned_key(path, o), title_name(path)))
     say(0.02, "is taking stills of the whole video")
     sheets = make_sheets(path, work, dur)
     if cancel and cancel():
@@ -2363,11 +2373,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
     genders = None
-    title = guess_title(path)
-    key = learn.show_key(title)
-    if o.get("profile") and o["profile"] != "adults":
-        key += "@" + o["profile"]       # what you choose for the kids is learned separately
-    examples = learn.examples(key, on_kinds(o), title[0] if title else Path(path).stem)
+    key = learned_key(path, o)
+    examples = learn.examples(key, on_kinds(o), title_name(path))
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
     who = cc.name()

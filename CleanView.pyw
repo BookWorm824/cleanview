@@ -86,6 +86,16 @@ TEXT_SIZES = {"Normal": 1.0, "Larger": 1.15, "Largest": 1.3}
 _text_scale = 1.0          # the chosen one, set as the window opens
 
 
+def chime():
+    """The Windows "information" sound, so a question is heard like the other boxes
+    (a question box is silent on Windows; Jason missed the "Send it in now?" one)."""
+    try:
+        import winsound
+        winsound.MessageBeep(winsound.MB_ICONASTERISK)
+    except Exception:
+        pass
+
+
 def wrap_width(px):
     """A width for wrapping text that grows with the chosen text size."""
     return round(px * _text_scale)
@@ -335,6 +345,7 @@ class App(tk.Tk):
         elif self.page_name == "setup":
             self._save_settings()       # nor the ticks just changed on the start page
         elif self.page_name == "working":
+            chime()
             if not messagebox.askyesno(
                     "CleanView is still working",
                     "If you close CleanView now, this stops. Starting the same videos again "
@@ -465,7 +476,7 @@ class App(tk.Tk):
             ("Checkbutton.focus", {"side": "left", "sticky": "w", "children": [
                 ("Checkbutton.label", {"sticky": "nswe"})]})]})])
 
-    def _new_page(self, title, subtitle=""):
+    def _new_page(self, title, subtitle="", name=""):
         for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
             self.unbind_all(seq)
         if self.page:
@@ -475,6 +486,9 @@ class App(tk.Tk):
         self.page.pack(fill="both", expand=True, padx=28, pady=(20, 16))
         self.footer = tk.Frame(self.page, bg=BG)
         self.footer.pack(side="bottom", fill="x", pady=(12, 0))
+        if name:                # which video this is (Jason: "you don't know what you've cleaned")
+            tk.Label(self.page, text=name, bg=BG, fg=ACCENT_DK, font=(FONT, 16, "bold"),
+                     wraplength=wrap_width(860), justify="left").pack(anchor="w", pady=(0, 2))
         tk.Label(self.page, text=title, bg=BG, fg=INK, font=(FONT, 20, "bold")).pack(anchor="w")
         if subtitle:
             tk.Label(self.page, text=subtitle, bg=BG, fg=MUTED, font=(FONT, 11),
@@ -808,6 +822,7 @@ class App(tk.Tk):
         if not learn.send_url():
             self._send_by_hand(path)
             return
+        chime()
         if not messagebox.askyesno(
                 "CleanView", "Send it in now?\n\nIt has the lines and words you and the AI "
                 "muted or kept, and its notes. No video or sound. Once it's added, every copy "
@@ -993,6 +1008,7 @@ class App(tk.Tk):
             return
         n = cc.name(p)
         who = getattr(self, "ai_who", {}).get(p) or "this account"
+        chime()
         if not messagebox.askyesno(
                 "Sign out", f"Sign {who} out of {n} in CleanView?\n\nCleanView will go back to the "
                             f"{n} sign-in this PC had before, if there is one.", parent=self):
@@ -1168,6 +1184,7 @@ class App(tk.Tk):
         if state != "ready":
             n = cc.name(p)
             what = "set up on this PC" if state == "missing" else "signed in"
+            chime()
             ans = messagebox.askyesnocancel(
                 "CleanView", f"{n} isn't {what} yet.\n\nPress Yes to "
                 f"{'set it up and ' if state == 'missing' else ''}sign in with your own {n} "
@@ -1527,7 +1544,9 @@ class App(tk.Tk):
                            "Checked scenes will be cut and checked words and lines muted. Untick "
                            "anything you want to keep, and use \u201cAll dialogue\u201d" +
                            (f" or \u201cAsk {AI_NAME}\u201d" if self.review_ai else "") +
-                           " to add anything it missed.")
+                           " to add anything it missed.",
+                           name=short(Path(good[0]["video"]).stem, 70) +
+                           (f" and {len(good) - 1} more" if len(good) > 1 else ""))
         self.scene_vars, self.line_vars, self.word_vars, self.quiet_vars = [], [], [], []
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
         self.found_frames = {}
@@ -1642,8 +1661,30 @@ class App(tk.Tk):
                    command=self._send_report_now).pack(side="left")
 
     def _back_to_start(self):
+        self._learn_choices()           # learned without saving a copy too (Jason)
         self._save_session()
         self.reset()
+
+    def _learn_choices(self):
+        """Remember her ticks for next time (each choice counts once, however often
+        she leaves the review and comes back: learn.record)."""
+        flagged = {(j["_ji"], l["idx"]) for _, j, l in self.line_vars if "idx" in l}
+        for j in [j for j in self.jobs if j["analysis"]]:
+            d = j["analysis"].get("dialogue", [])
+            extra = [d[i] for (ji, i), v in self.dlg_vars.items()
+                     if ji == j["_ji"] and v.get() and (ji, i) not in flagged and i < len(d)]
+            try:
+                mine = [(v, l) for v, jj, l in self.line_vars if jj is j]
+                scs = [(v, sc) for v, jj, sc in self.scene_vars if jj is j]
+                wds = [(v, m) for v, jj, m in self.word_vars if jj is j]
+                learn.record(j["analysis"].get("show", "_movies"),
+                             [l for _, l in mine], [v.get() for v, _ in mine], extra,
+                             [sc for _, sc in scs if not sc.get("added")],
+                             [v.get() for v, sc in scs if not sc.get("added")],
+                             [sc for v, sc in scs if sc.get("added") and v.get()],
+                             [m for _, m in wds], [v.get() for v, _ in wds])
+            except Exception:
+                pass
 
     # --- hiding what the AI says is fine
     def _visible(self, st):
@@ -2460,18 +2501,7 @@ class App(tk.Tk):
             j["lines"] += [{"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
                             "types": ["added"], "mute": True} for l in extra]
             j["lines"].sort(key=lambda l: l["s"])
-            try:           # remember these choices for next time
-                mine = [(v, l) for v, jj, l in self.line_vars if jj is j]
-                scs = [(v, sc) for v, jj, sc in self.scene_vars if jj is j]
-                wds = [(v, m) for v, jj, m in self.word_vars if jj is j]
-                learn.record(j["analysis"].get("show", "_movies"),
-                             [l for _, l in mine], [v.get() for v, _ in mine], extra,
-                             [sc for _, sc in scs if not sc.get("added")],
-                             [v.get() for v, sc in scs if not sc.get("added")],
-                             [sc for v, sc in scs if sc.get("added") and v.get()],
-                             [m for _, m in wds], [v.get() for v, _ in wds])
-            except Exception:
-                pass
+        self._learn_choices()           # remember these choices for next time
         for j in good:                  # the final choices, for the "what we refined" export
             try:
                 self._sync_job(j)

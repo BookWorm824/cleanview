@@ -27,7 +27,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   box `wrap` in a function calling `wrap()`, and the review page failed to open);
   `test_ui.NoHiddenNames` checks for this. "◀ Back to start" on the review page
   (Jason, 2026-10-30: he only wanted to check a movie, not save it) keeps the review, so
-  "Pick up where I left off" opens it again. Tick boxes
+  "Pick up where I left off" opens it again, and her ticks are learned then too
+  (`_learn_choices`; `learn.record` counts each choice once however often she leaves and
+  comes back, `_learned_as`). The video's name is shown big at the top of the review page.
+  Every question box chimes (`chime()`; Windows' question boxes are silent). Tick boxes
   are drawn images (`_tick_boxes`), since the theme's own show an ✗.
 - Buttons: each page's main step is the big green `Accent.TButton`, bottom right (Start
   cleaning, Save clean copy, Clean another); first steps are the smaller green
@@ -70,7 +73,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   answer's `remember` list is kept as notes (`learn.add_note`/`learn.notes`): for that movie
   (by title), every episode of that show, or everything they clean (`_all@profile`). Notes
   go to the dialogue readers (local and cloud), the final review and the chat
-  (`examples()["notes"]`, `cc.told`), and are in "Send what CleanView learned".
+  (`examples()["notes"]`, `cc.told`), the cloud picture checks (`look_at_picture`), and
+  are in "Send what CleanView learned". The chat keeps a lesson whenever it's corrected
+  (1.18.2: told "they're just talking in bed", it unticked the scene but kept nothing).
+  Two people only sitting or lying in bed talking is not a sex scene (`PIC_RULES`).
 - Learned lines under 5 words (`learn.LEARNED_SHORTEST`) are never muted again just
   because they were learned: a muted conversation is learned line by line, and "What do
   you think?" was then muted in every later episode (The Resident).

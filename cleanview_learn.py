@@ -205,17 +205,29 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
     for l in extra_lines:
         _remember(d["muted"], l.get("plain") or l["text"])
     for sc, on in zip(scenes, scene_choice):
-        if on or _changed(sc, on):
-            s = d["scenes"].setdefault(scene_kind(sc), {"cut": 0, "kept": 0})
-            s["cut" if on else "kept"] += 1
-    if added_scenes:
-        s = d["scenes"].setdefault("Added by you", {"cut": 0, "kept": 0})
-        s["cut"] += len(added_scenes)
+        _count(d["scenes"], scene_kind(sc), sc, on if on or _changed(sc, on) else None,
+               "cut", "kept")
+    for sc in added_scenes:
+        _count(d["scenes"], "Added by you", sc, True, "cut", "kept")
     for m, on in zip(mutes, word_choice):
-        if on or _changed(m, on):
-            s = d["words"].setdefault(m.get("raw") or m.get("word", ""), {"muted": 0, "kept": 0})
-            s["muted" if on else "kept"] += 1
+        _count(d["words"], m.get("raw") or m.get("word", ""), m,
+               on if on or _changed(m, on) else None, "muted", "kept")
     save(key, d)
+
+
+def _count(table, name, it, now, yes, no):
+    """Count one choice (True/False, or None for not hers). Her choices are learned when
+    she leaves the review ("Back to start", Jason) and again when she saves it, so a
+    choice already counted is only moved if she changed it since (it["_learned_as"])."""
+    prev = it.get("_learned_as")
+    if prev == now:
+        return
+    counts = table.setdefault(name, {yes: 0, no: 0})
+    if prev is not None:
+        counts[yes if prev else no] = max(0, counts[yes if prev else no] - 1)
+    if now is not None:
+        counts[yes if now else no] += 1
+    it["_learned_as"] = now
 
 
 def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=None):

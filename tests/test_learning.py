@@ -66,8 +66,9 @@ class OnlyHerChoicesCount(unittest.TestCase):
         by_ai = {"kind": ["Gore"], "cut": False, "_shown": False, "learned": "you usually keep these"}
         by_her = {"kind": ["Kiss"], "cut": False, "_shown": True}
         ticked = {"kind": ["Violence"], "cut": True, "_shown": True}
-        for _ in range(5):
-            learn.record("scenes", [], [], [], [by_ai, by_her, ticked], [False, False, True],
+        for _ in range(5):                  # five episodes (each its own scenes)
+            learn.record("scenes", [], [], [], [dict(by_ai), dict(by_her), dict(ticked)],
+                         [False, False, True],
                          [], [], [])
         d = learn.load("scenes")
         self.assertNotIn("Gore", d["scenes"])
@@ -97,7 +98,8 @@ class OnlyHerChoicesCount(unittest.TestCase):
         by_ai = {"raw": "heck", "keep": True, "_shown": False}
         by_her = {"raw": "gosh", "keep": True, "_shown": True}
         for _ in range(2):
-            learn.record("words", [], [], [], [], [], [], [by_ai, by_her], [False, False])
+            learn.record("words", [], [], [], [], [], [], [dict(by_ai), dict(by_her)],
+                         [False, False])
         d = learn.load("words")
         self.assertNotIn("heck", d["words"])
         self.assertEqual(d["words"]["gosh"], {"muted": 0, "kept": 2})
