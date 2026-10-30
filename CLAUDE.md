@@ -25,7 +25,9 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   points (`(FONT, 10)`) and wrap widths through `wrap_width(px)` so both follow it.
   Never give a local variable the name of a module helper a function calls (1.11.7 named a
   box `wrap` in a function calling `wrap()`, and the review page failed to open);
-  `test_ui.NoHiddenNames` checks for this. Tick boxes
+  `test_ui.NoHiddenNames` checks for this. "◀ Back to start" on the review page
+  (Jason, 2026-10-30: he only wanted to check a movie, not save it) keeps the review, so
+  "Pick up where I left off" opens it again. Tick boxes
   are drawn images (`_tick_boxes`), since the theme's own show an ✗.
 - Buttons: each page's main step is the big green `Accent.TButton`, bottom right (Start
   cleaning, Save clean copy, Clean another); first steps are the smaller green
@@ -63,6 +65,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   lines that fit no filter, and listed words that were fine in context. Short everyday lines
   that were only muted as part of a conversation are never taught. Reports gone over are
   then deleted from the Drive folder, so they aren't gone over twice.
+- The chat can learn (Jason, 2026-10-30: told "it's Aladdin", it said it couldn't change
+  what it looks for). When they explain how something should be judged from now on, its
+  answer's `remember` list is kept as notes (`learn.add_note`/`learn.notes`): for that movie
+  (by title), every episode of that show, or everything they clean (`_all@profile`). Notes
+  go to the dialogue readers (local and cloud), the final review and the chat
+  (`examples()["notes"]`, `cc.told`), and are in "Send what CleanView learned".
 - Learned lines under 5 words (`learn.LEARNED_SHORTEST`) are never muted again just
   because they were learned: a muted conversation is learned line by line, and "What do
   you think?" was then muted in every later episode (The Resident).

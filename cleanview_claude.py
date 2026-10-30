@@ -431,11 +431,19 @@ def numbered(lines, voices=None):
     return "\n".join(out)
 
 
+def told(notes):
+    """What they told the chat to keep in mind from now on (learn.add_note)."""
+    if not notes:
+        return ""
+    return ("\nThey have told CleanView to keep this in mind (follow it; it outweighs the "
+            "examples):\n" + "\n".join(f"- {t}" for t in notes[:40]) + "\n")
+
+
 def _examples(examples):
     if not examples:
         return ""
     want, keep = examples.get("muted", [])[:15], examples.get("kept", [])[:15]
-    txt = ""
+    txt = told(examples.get("notes"))
     if want:
         txt += "\nIn this show they have muted lines like:\n" + "\n".join(f"- {t}" for t in want)
     if keep:
@@ -498,9 +506,12 @@ CHAT_SCHEMA = {"type": "object", "properties": {
         "why": {"type": "string"}}, "required": ["from_line", "to_line", "why"]}},
     "cut_times": {"type": "array", "items": {"type": "object", "properties": {
         "from": {"type": "string"}, "to": {"type": "string"},
-        "why": {"type": "string"}}, "required": ["from", "to", "why"]}}},
+        "why": {"type": "string"}}, "required": ["from", "to", "why"]}},
+    "remember": {"type": "array", "items": {"type": "object", "properties": {
+        "note": {"type": "string"}, "for": {"type": "string", "enum": ["this", "everything"]}},
+        "required": ["note", "for"]}}},
     "required": ["reply", "tick", "untick", "mute_lines", "mute_words", "cut_scenes",
-                 "cut_times"]}
+                 "cut_times", "remember"]}
 
 CHAT_HOW = (
     "You can change the list directly, and your changes happen as soon as you answer:\n"
@@ -510,6 +521,13 @@ CHAT_HOW = (
     "- \"mute_words\": a line number and the exact word to mute just that word\n"
     "- \"cut_scenes\": first and last dialogue line of a stretch to cut\n"
     "- \"cut_times\": a stretch to cut by time, like {\"from\": \"12:30\", \"to\": \"13:05\"}\n"
+    "- \"remember\": when they explain how something should be judged from now on, not "
+    "just here (\"it's Aladdin, the Genie's magic is fine\", \"slapstick is fine in this "
+    "show\", \"never mute 'gosh'\"), a short rule in plain words a later check can follow, "
+    "with \"for\": \"this\" (this movie, or every episode of this show) or \"everything\" "
+    "(everything they clean). CleanView keeps it and every later check follows it, so you "
+    "CAN learn: never tell them you can't remember things or change how CleanView checks. "
+    "Make the change on this list too. Don't add a rule when they only ask about one item.\n"
     "Do what they ask: if they say to remove, keep, mute or cut something, make that change "
     "(\"keep the kiss at 12:30\" = untick that scene; \"just mute the word\" = untick the line "
     "and mute_words). If they only ask a question, answer it and change nothing unless they ask. "
@@ -518,13 +536,16 @@ CHAT_HOW = (
     "than ids or line numbers. Plain text only: no bullet points, bold or headings.")
 
 
-def chat(question, st, session=None):
+def chat(question, st, session=None, notes=None):
     """Talk about this episode and change the list. Returns (reply, actions, items, session_id):
-    actions is the answer's change lists, items maps the S/L/W ids it may use."""
+    actions is the answer's change lists, items maps the S/L/W ids it may use, and
+    actions["remember"] is [(note, for everything?)] to keep for later checks.
+    notes: what they told it to keep in mind before (learn.notes)."""
     lines = st.get("dialogue", [])
     items, listing = candidates(st, with_review=True)
     if st.get("claude_summary"):
         listing += "\n\nYour earlier review said: " + st["claude_summary"]
+    listing += told(notes)
     if session:
         prompt = ("The list as it is now (ids may have changed since last time):\n" + listing +
                   "\n\n" + CHAT_HOW + "\n\nThey say: " + question)
@@ -545,7 +566,10 @@ def chat(question, st, session=None):
             "mute_words": [(int(w.get("line", 0)) - 1, str(w.get("word", "")).strip())
                            for w in res.get("mute_words", [])
                            if 0 < int(w.get("line", 0)) <= n and str(w.get("word", "")).strip()],
-            "cut_scenes": [], "cut_times": []}
+            "cut_scenes": [], "cut_times": [],
+            "remember": [(" ".join(str(r.get("note", "")).split()), r.get("for") == "everything")
+                         for r in res.get("remember", []) or []
+                         if isinstance(r, dict) and str(r.get("note", "")).strip()]}
     for c in res.get("cut_scenes", []):
         i, j = int(c.get("from_line", 0)) - 1, int(c.get("to_line", 0)) - 1
         if 0 <= i <= j < n:

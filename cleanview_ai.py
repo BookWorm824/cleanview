@@ -838,6 +838,9 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
         return {}
     genders = genders or [{}] * len(lines)
     defs = "\n".join(f'- "{k}": {LINE_TYPES[k]}' for k in wanted if k in LINE_TYPES)
+    if examples and examples.get("notes"):        # what they told the chat to keep in mind
+        defs += ("\n\nThe family has said (follow it):\n" +
+                 "\n".join(f"- {t}" for t in examples["notes"][:20]))
     if examples and (examples.get("muted") or examples.get("kept")):
         if examples.get("muted"):
             defs += ("\n\nIn this show the family has muted lines like:\n" +

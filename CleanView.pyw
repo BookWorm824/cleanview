@@ -1633,9 +1633,17 @@ class App(tk.Tk):
         self._chat_tab(t_chat, good)
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
+        # back to the start page without saving (Jason: just checking what's in it);
+        # the review is kept, so "Pick up where I left off" opens it again
+        ttk.Button(self.footer, text="\u25c0 Back to start", style="Plain.TButton",
+                   command=self._back_to_start).pack(side="left", padx=(0, 8))
         # what was refined, sent in before saving too (Lauren): the ticks as they are now
         ttk.Button(self.footer, text="Send what we refined…", style="Plain.TButton",
                    command=self._send_report_now).pack(side="left")
+
+    def _back_to_start(self):
+        self._save_session()
+        self.reset()
 
     # --- hiding what the AI says is fine
     def _visible(self, st):
@@ -2041,7 +2049,9 @@ class App(tk.Tk):
 
         def go():
             try:
-                reply, acts, items, sid = cc.chat(question, st, self.chat_sessions.get(job["_ji"]))
+                notes = learn.notes(st.get("show", "_movies"), engine.title_name(st.get("path")))
+                reply, acts, items, sid = cc.chat(question, st, self.chat_sessions.get(job["_ji"]),
+                                                  notes)
                 self.chat_sessions[job["_ji"]] = sid
                 self.q.put(("chat_reply", job, reply, acts, items, None, box))
             except Exception as ex:
@@ -2223,6 +2233,13 @@ class App(tk.Tk):
             to_box("\u26a0 " + err, MUTED)
             return
         self._log(f"{AI_NAME}: " + reply)
+        st = job["analysis"]
+        for note, everywhere in acts.get("remember", []):   # kept for later checks (Jason)
+            if learn.add_note(st.get("show", "_movies"), note,
+                              engine.title_name(st.get("path")), everywhere):
+                self._log("\u2713 CleanView will remember" +
+                          (" for everything you clean" if everywhere else "") + ": " + note,
+                          "note")
         if not any(acts.get(k) for k in ("tick", "untick", "mute_lines", "mute_words",
                                          "cut_scenes", "cut_times")):
             to_box(reply)

@@ -483,6 +483,12 @@ def guess_title(path):
     return (title, None, None) if re.search(r"[A-Za-z]{2}", title) else None
 
 
+def title_name(path):
+    """The movie's (or show's) name: notes from the chat can be kept for one movie."""
+    t = guess_title(path) if path else None
+    return t[0] if t else Path(path or "").stem
+
+
 MISS_REMEMBER = "no matching subtitles were found online"
 
 
@@ -1504,7 +1510,8 @@ def fetch_review(st, fresh=False):
     "Review everything again" asks with fresh=True, so it really looks again instead of
     giving the saved answer, and asks about a copy so she can keep ticking meanwhile."""
     return cc.review(st, wanted_text(st.get("opts"), st.get("groups", [])),
-                     learn.examples(st.get("show", "_movies"), on_kinds(st.get("opts"))), sound_cues(st.get("cues")),
+                     learn.examples(st.get("show", "_movies"), on_kinds(st.get("opts")),
+                                    title_name(st.get("path"))), sound_cues(st.get("cues")),
                      fresh=fresh)
 
 
@@ -2360,7 +2367,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     key = learn.show_key(title)
     if o.get("profile") and o["profile"] != "adults":
         key += "@" + o["profile"]       # what you choose for the kids is learned separately
-    examples = learn.examples(key, on_kinds(o))
+    examples = learn.examples(key, on_kinds(o), title[0] if title else Path(path).stem)
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
     who = cc.name()

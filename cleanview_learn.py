@@ -297,11 +297,52 @@ def _phrase(m):
     return " ".join(ctx + [norm(m.get("raw") or m.get("word", ""))])
 
 
-def examples(key, on=None):
-    """Some of your past choices, and Claude's, for the dialogue readers.
-    Yours come first; Claude's fill the rest. on: the dialogue kinds ticked now."""
+MAX_NOTES = 40
+
+
+def _notes_key(key, everywhere):
+    """Where a note lives: the show's own file, or "_all" (per age, like the rest)."""
+    if not everywhere:
+        return key
+    return "_all" + key[key.index("@"):] if "@" in key else "_all"
+
+
+def add_note(key, text, title="", everywhere=False):
+    """Something they told the chat to keep in mind from now on ("the Genie's magic is
+    fine, it's Aladdin"; Jason, 2026-10-30: the chat said it couldn't learn). For a movie
+    it's kept for that movie only (title), for a show for every episode, or for everything
+    they clean. Returns True if it's new."""
+    text = " ".join(str(text).split())[:300]
+    if not text:
+        return False
+    k = _notes_key(key, everywhere)
+    t = norm(title) if not everywhere and key.startswith("_movies") else ""
+    d = load(k)
+    notes = d.setdefault("notes", [])
+    if any(n["text"].lower() == text.lower() and n.get("title", "") == t for n in notes):
+        return False
+    notes.append({"text": text, "title": t, "added": date.today().isoformat()})
+    d["notes"] = notes[-MAX_NOTES:]
+    save(k, d)
+    return True
+
+
+def notes(key, title=""):
+    """The notes that apply to this video: for everything, then for this show or movie."""
+    t, out = norm(title or ""), []
+    for k in dict.fromkeys((_notes_key(key, True), key)):
+        for n in load(k).get("notes", []):
+            if (not n.get("title") or n["title"] == t) and n["text"] not in out:
+                out.append(n["text"])
+    return out
+
+
+def examples(key, on=None, title=""):
+    """Some of your past choices, and Claude's, for the dialogue readers, plus what
+    they told the chat to keep in mind. Yours come first; Claude's fill the rest.
+    on: the dialogue kinds ticked now."""
     d = load(key)
-    out = {}
+    out = {"notes": notes(key, title)}
     for k in ("muted", "kept"):
         mine = d[k][-15:]
         theirs = [t for t in d["claude_" + k][::-1] if t not in mine][:15 - len(mine)]
