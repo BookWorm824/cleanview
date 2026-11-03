@@ -95,6 +95,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
 - Learned lines under 5 words (`learn.LEARNED_SHORTEST`) are never muted again just
   because they were learned: a muted conversation is learned line by line, and "What do
   you think?" was then muted in every later episode (The Resident).
+- Task Manager says "CleanView", not "Python" (Jason, 2026-11-03): `launcher.pyw` starts
+  itself again as `venv\CleanView\CleanView.exe`, a copy of the base `pythonw.exe` with
+  CleanView's description and icon (`make_own_exe`, `_rename_exe`); `CleanView-work.exe`
+  (from `python.exe`) runs the picture scan and pip (`cleanview._venv_python`). It finds
+  the venv through `venv\pyvenv.cfg` one folder up. Not in `Scripts`: sherpa-onnx put an
+  `onnxruntime.dll` there, which an .exe in that folder would load first. The changed .exe
+  has no signature, so it's only made while Smart App Control is off, only used after a
+  test run of it worked, and never tried again once it failed (`failed.txt`); otherwise
+  plain pythonw.exe, as before. CleanListen and CleanRead want the same.
+- A freeze or a crash is written down (Jason, 2026-11-03: it stopped responding during a
+  movie and didn't say why). If the window doesn't answer for 20 s (`STALL_SECS`), what
+  every thread was doing, the step and memory go in `stopped_last_time.txt`; a hard crash
+  is caught by faulthandler (`crash_log.txt`). Next start she's asked whether to send it
+  in (kind "problem", to the same inbox). `_poll` handles at most 500 messages a go and
+  only the newest progress, so a flood of them can't keep the window busy.
 - Times: everything counts from 0 = the start of the file, the clock ffmpeg's filters use in
   `render()` (not the file's own start time, which can be 10 s or more on .ts/.vob rips).
   Sound is always read through `_mono()` (or `snap_edges(audio=...)`), which pads a late
@@ -164,6 +179,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `snap_edges` on made-up sound. Uses the installed app's ffmpeg if none is on PATH;
   skips if there's none.
 - `test_accounts.py`: signing in to another Claude/ChatGPT/Gemini account (a fake `claude`), and that the PC's own sign-in is used again after signing out.
+- `test_own_exe.py`: CleanView.exe's description and icon, made once, not with Smart App
+  Control on, and a failed try not used again.
+- `test_freeze.py`: the freeze and crash notes, sending one in, and `_poll` under a flood.
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every

@@ -109,7 +109,12 @@ def needs(opts):
 
 
 def _venv_python():
+    """The venv's console Python, for the picture scan and pip. Run as CleanView.exe
+    (launcher.pyw), that's CleanView-work.exe beside it, so Task Manager says CleanView."""
     exe = Path(sys.executable)
+    if os.name == "nt" and exe.name.lower() == "cleanview.exe":
+        work = exe.with_name("CleanView-work.exe")
+        return str(work if work.exists() else Path(sys.prefix) / "Scripts" / "python.exe")
     py = exe.with_name("python.exe") if os.name == "nt" else exe
     return str(py if py.exists() else exe)
 

@@ -175,6 +175,61 @@ def plain_error(ex):
     return "Something unexpected went wrong."
 
 
+# Noticing a freeze (Jason, 2026-11-03: CleanView stopped responding during a movie and
+# didn't say why). If the window doesn't answer for STALL_SECS, what every part of
+# CleanView was doing is written to PROBLEM_NOTE; a hard crash is written by faulthandler
+# to CRASH_LOG. Next time she's asked whether to send it in (_offer_problem_note).
+PROBLEM_NOTE = APP_DATA / "stopped_last_time.txt"
+CRASH_LOG = APP_DATA / "crash_log.txt"
+STALL_SECS = 20
+
+
+def _memory_note():
+    """How much memory CleanView uses and the PC has free, for a note about a freeze."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class Mem(ctypes.Structure):
+            _fields_ = [("size", wintypes.DWORD), ("load", wintypes.DWORD)] + [
+                (n, ctypes.c_ulonglong) for n in ("total", "free", "page_total", "page_free",
+                                                   "virt_total", "virt_free", "ext_free")]
+
+        class Proc(ctypes.Structure):
+            _fields_ = [("size", wintypes.DWORD), ("faults", wintypes.DWORD)] + [
+                (n, ctypes.c_size_t) for n in ("peak_ws", "ws", "qpp", "qp", "qnpp", "qnp",
+                                               "pf", "peak_pf")]
+        k32, psapi = ctypes.WinDLL("kernel32"), ctypes.WinDLL("psapi")
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        psapi.GetProcessMemoryInfo.argtypes = (wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD)
+        m, p = Mem(), Proc()
+        m.size, p.size = ctypes.sizeof(m), ctypes.sizeof(p)
+        if not (k32.GlobalMemoryStatusEx(ctypes.byref(m)) and
+                psapi.GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(p), p.size)):
+            return ""
+        gb = 1024 ** 3
+        return (f"Memory: CleanView uses {p.ws / gb:.1f} GB (at most {p.peak_ws / gb:.1f}); "
+                f"the PC has {m.free / gb:.1f} of {m.total / gb:.1f} GB free.")
+    except Exception:
+        return ""
+
+
+def _add_problem_note(text):
+    try:
+        APP_DATA.mkdir(parents=True, exist_ok=True)
+        with open(PROBLEM_NOTE, "a", encoding="utf8") as f:
+            f.write(text.replace(str(Path.home()), "~").rstrip() + "\n\n")
+    except OSError:
+        pass
+
+
+def _app_version():
+    try:
+        return json.loads((Path(__file__).resolve().parent / "version.json").read_text())["version"]
+    except Exception:
+        return "?"
+
+
 def save_details(text):
     """Keep the technical details of a problem, for whoever helps her."""
     try:
@@ -219,6 +274,8 @@ class App(tk.Tk):
         if not (os.environ.pop("CLEANVIEW_RESUME", None) and self._resume()):
             self.show_setup()
         self.after(100, self._poll)
+        self._watch_for_freezes()
+        self._offer_id = self.after(2500, self._offer_problem_note)
         self.after(4000, self._check_update)
         self.bind_all("<F5>", lambda e: self._check_update(manual=True))
 
@@ -1396,22 +1453,145 @@ class App(tk.Tk):
         except Exception as ex:
             self.q.put(("error", plain_error(ex), traceback.format_exc()))
 
-    def _poll(self):
+    # ---------- noticing a freeze or a crash ----------
+    def _watch_for_freezes(self):
+        """A beat from the window every second, and a watcher that writes down what every
+        part of CleanView was doing if the beats stop for STALL_SECS (and, if they start
+        again, how long it was). A crash (in the speech or picture tools, say) is written
+        down by faulthandler. A question box doesn't count: the beats go on under it."""
+        import faulthandler
         try:
-            while True:
-                msg = self.q.get_nowait()
+            APP_DATA.mkdir(parents=True, exist_ok=True)
+            if CRASH_LOG.exists() and CRASH_LOG.stat().st_size:
+                _add_problem_note("CleanView closed suddenly.\n\n"
+                                  + CRASH_LOG.read_text(encoding="utf8", errors="replace"))
+            self._crash_log = open(CRASH_LOG, "w", encoding="utf8")
+            faulthandler.enable(self._crash_log, all_threads=True)
+        except Exception:
+            pass
+        self._doing, self._gone = {}, False
+        self._beat = time.monotonic()
+
+        def beat():
+            self._beat = time.monotonic()
+            self._beat_id = self.after(1000, beat)
+        beat()
+
+        def watch():
+            woke, stuck = time.monotonic(), None
+            while not self._gone:
+                time.sleep(5)
+                now = time.monotonic()
+                if now - woke > 30:          # the PC was asleep, not CleanView
+                    self._beat = now
+                woke = now
+                if stuck is None and now - self._beat > STALL_SECS:
+                    stuck = self._beat
+                    self._note_freeze(now - stuck)
+                elif stuck is not None and self._beat > stuck:
+                    _add_problem_note(f"It answered again after about "
+                                      f"{int(self._beat - stuck)} seconds.")
+                    stuck = None
+        threading.Thread(target=watch, daemon=True, name="freeze watcher").start()
+
+    def destroy(self):
+        self._gone = True            # stops the watcher, and the crash log is closed
+        for name in ("_offer_id", "_beat_id"):
+            try:
+                self.after_cancel(getattr(self, name))
+            except Exception:
+                pass
+        try:
+            import faulthandler
+            faulthandler.disable()
+            self._crash_log.close()
+        except Exception:
+            pass
+        super().destroy()
+
+    def _note_freeze(self, secs):
+        """Runs on the watcher's thread, so it reads no part of the window."""
+        doing = self._doing
+        lines = [f"CleanView {_app_version()} stopped answering for {int(secs)} seconds "
+                 f"({time.strftime('%Y-%m-%d %H:%M')}).",
+                 f"Page: {self.page_name}",
+                 f"Doing: {doing.get('which', '')} {doing.get('status', '')}".rstrip(),
+                 _memory_note()]
+        names = {t.ident: t.name for t in threading.enumerate()}
+        for ident, frame in sys._current_frames().items():
+            if names.get(ident) == "freeze watcher":
+                continue
+            lines.append(f"\n--- {names.get(ident, ident)} ---")
+            lines.append("".join(traceback.format_stack(frame)[-12:]).rstrip())
+        _add_problem_note("\n".join(line for line in lines if line))
+
+    def _offer_problem_note(self):
+        """CleanView froze or closed suddenly last time: send in what it was doing?"""
+        try:
+            text = PROBLEM_NOTE.read_text(encoding="utf8").strip()
+            PROBLEM_NOTE.replace(PROBLEM_NOTE.with_name("stopped_before.txt"))
+        except OSError:
+            return
+        if not text:
+            return
+        what = ("closed suddenly" if text.startswith("CleanView closed suddenly")
+                else "stopped responding")
+        path = APP_DATA / f"CleanView {what} {time.strftime('%Y-%m-%d %H-%M')}.json"
+        try:
+            path.write_text(json.dumps({"app": "CleanView", "version": _app_version(),
+                                        "what": what, "note": text}, indent=1),
+                            encoding="utf8")
+        except OSError:
+            return
+        if not learn.send_url():
+            return
+        chime()
+        if not messagebox.askyesno(
+                "CleanView", f"CleanView {what} last time. Sorry about that!\n\nSend a note "
+                "about what it was doing, so it can be fixed? It has the step it was on and "
+                "the video's name. No video or sound.", parent=self):
+            return
+
+        def go():
+            try:
+                learn.send(path, "problem")
+                self.q.put(("call", lambda: messagebox.showinfo(
+                    "CleanView", "Sent. Thank you!", parent=self)))
+            except Exception as ex:
+                save_details(f"Sending {path}\n\n{traceback.format_exc()}")
+                why = plain_error(ex)
+                self.q.put(("call", lambda: self._send_by_hand(
+                    path, f"Couldn't send it ({why[:1].lower() + why[1:].rstrip('.')}). "
+                          f"Check the internet connection.\n\n")))
+        threading.Thread(target=go, daemon=True).start()
+
+    def _poll(self):
+        """Handle what the working threads sent. At most 500 at a time, and only the newest
+        progress, so a flood of them can never keep the window from answering."""
+        msgs = []
+        try:
+            while len(msgs) < 500:
+                msgs.append(self.q.get_nowait())
+        except queue.Empty:
+            pass
+        newest = max((i for i, m in enumerate(msgs) if m[0] == "progress"), default=-1)
+        try:
+            for i, msg in enumerate(msgs):
+                if msg[0] == "progress" and i != newest:
+                    continue
                 try:
                     self._handle(msg)
                 except Exception:      # one bad message must never stop the window updating
                     self._problem("Something unexpected went wrong, but CleanView is still "
                                   "running.", traceback.format_exc())
-        except queue.Empty:
-            pass
         finally:
-            self.after(150, self._poll)
+            self.after(150 if len(msgs) < 500 else 10, self._poll)
 
     def _handle(self, msg):
         kind = msg[0]
+        if kind in ("which", "progress"):       # for a note about a freeze
+            getattr(self, "_doing", {})["which" if kind == "which" else "status"] = \
+                msg[1] if kind == "which" else msg[2]
         alive = getattr(self, "pb", None) is not None and self.pb.winfo_exists()
         if kind == "progress" and alive:
             self.pb["value"] = int(max(0.0, min(1.0, msg[1])) * 1000)
