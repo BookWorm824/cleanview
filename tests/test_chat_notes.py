@@ -25,13 +25,13 @@ class Notes(unittest.TestCase):
         learn.add_note("gummi-bears@kids", "Cartoon bonks on the head are fine.", "Gummi Bears")
         self.assertEqual(learn.notes("gummi-bears@kids", "anything"),
                          ["Cartoon bonks on the head are fine."])
-        self.assertEqual(learn.notes("castle", "Castle"), [])
+        self.assertEqual(learn.notes("made-up-show", "Made Up"), [])
 
     def test_a_note_for_everything_is_for_that_age(self):
         learn.add_note("_movies@kids", "Never mute 'gosh'.", "Aladdin (1992)", everywhere=True)
-        self.assertEqual(learn.notes("castle@kids", "Castle"), ["Never mute 'gosh'."])
+        self.assertEqual(learn.notes("made-up-show@kids", "Made Up"), ["Never mute 'gosh'."])
         self.assertEqual(learn.notes("_movies@kids", "Frozen (2013)"), ["Never mute 'gosh'."])
-        self.assertEqual(learn.notes("castle", "Castle"), [])    # what she watches herself
+        self.assertEqual(learn.notes("made-up-show", "Made Up"), [])    # what she watches herself
 
     def test_checked_lessons_come_with_updates(self):
         """Lessons checked from the reports sent in ship in shared_learned.json, so every
@@ -67,9 +67,9 @@ class Notes(unittest.TestCase):
         self.assertEqual(shared["shows"]["castle"]["notes"], ["A rule."])
 
     def test_said_twice_kept_once(self):
-        self.assertTrue(learn.add_note("castle", "Slapstick is fine."))
-        self.assertFalse(learn.add_note("castle", "slapstick is fine."))
-        self.assertEqual(len(learn.notes("castle")), 1)
+        self.assertTrue(learn.add_note("made-up-show", "Slapstick is fine."))
+        self.assertFalse(learn.add_note("made-up-show", "slapstick is fine."))
+        self.assertEqual(len(learn.notes("made-up-show")), 1)
 
     def test_every_later_check_is_told(self):
         learn.add_note("_movies@kids", "The Genie's magic is fine.", "Aladdin (1992)")

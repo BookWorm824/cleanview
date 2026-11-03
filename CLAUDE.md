@@ -74,6 +74,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (general, or per show; `{"text", "title"}` for one movie), which `learn.notes` adds
   first and `merge_learned.py` carries. A word only "fine" because its group was off,
   or a line fine in one movie but usually innuendo elsewhere, is never taught as fine.
+  Nor is a line with a listed word or phrase in it, or a strong or moderate swear "fine in
+  context" (those were misheard, which the subtitle check handles); same-sex lines that only
+  say "wife" or "husband" aren't taught, and taught muted lines have 5+ words (November
+  reports: 13 reports, 36 videos).
 - A word heard in the sound where the subtitles have a different, ordinary word or a name
   at that spot is noted for the review (`subtitle_word_there`, `m["sub"]`: "dick" where
   they have "Nic"); one the subtitles only leave out or soften isn't.
@@ -182,6 +186,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_own_exe.py`: CleanView.exe's description and icon, made once, not with Smart App
   Control on, and a failed try not used again.
 - `test_freeze.py`: the freeze and crash notes, sending one in, and `_poll` under a flood.
+- `test_reports_nov.py`: lessons from the November reports (long prompts through stdin,
+  sound-only and talk-only scenes, misheard swears, names in the subtitles, a bare "God!").
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every
@@ -304,6 +310,22 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - A word said twice with only one heard is muted twice: each heard word stands for one
   subtitle word (`already_muted(used=)`, `after_same_word`), from "Bitty bitch!" twice and
   repeated song lines.
+- A swear heard in the sound where the subtitles have a different word that sounds alike
+  ("bitch"/Finch, Mitch; "fucking"/"bugging out"; Person of Interest, G.I. Joe) is offered
+  unticked, with "Maybe misheard: the subtitles have ..." (`sounds_alike`). A mild word or
+  minced oath written with a capital mid-sentence in the subtitles is a name or a title and
+  isn't muted ("Cynthia Dern" 12 times in Castle, "Hell Hath No Fury": `name_in_subtitles`).
+  A bare "God!", "God." on its own or "God," starting a sentence is an oath (`bare_god`)
+  unless a prayer follows ("God, please help us").
+- Sound alone isn't enough for a scene: one built only from screams, shouts or crashes is
+  offered unticked (`SOFT_VIOLENCE_SOUNDS`; 17 such in Toy Story 4); gunfire, explosions,
+  blows or subtitles that describe violence still cut. A "Sex scene" from explicit talk
+  alone is offered unticked too (`TALK_ONLY`: the lines are muted on their own; a coroner's
+  findings in Castle), and needs two different explicit words (`sex_score`: "thrust" said
+  over and over in Chicken Run's flying talk).
+- Long prompts go to the Claude CLI through stdin (`LONG_ARGS`): Windows refused the final
+  review's command line ("WinError 206", Clue). With no AI reading the dialogue, the review
+  says plainly that the dialogue choices were only checked against a short list (Enchanted).
 - No captions on clean copies (the subtitle track is included but not default; no sidecar
   .srt).
 - She always reviews before anything is cut, and her own ticks are never undone by an AI.

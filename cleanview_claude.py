@@ -21,6 +21,8 @@ from pathlib import Path
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
 MODEL = os.environ.get("CLEANVIEW_CLAUDE_MODEL", "sonnet")
+# Windows refuses a command line over 32,767 characters; a longer prompt goes through stdin
+LONG_ARGS = 24_000
 
 
 class ClaudeError(Exception):
@@ -272,8 +274,17 @@ def _ask_now(prompt, schema, stdin_text="", system=None, session=None, keep=Fals
         raise ClaudeError("Claude isn't set up yet.")
     work = APP_DATA / "claude"
     work.mkdir(parents=True, exist_ok=True)
-    cmd = [exe, "-p", prompt, "--output-format", "json", "--json-schema", json.dumps(schema),
-           "--tools", "", "--strict-mcp-config", "--model", MODEL]
+    if len(prompt) + len(system or "") + len(json.dumps(schema)) > LONG_ARGS:
+        # too long for a Windows command line (WinError 206; Clue's final review): the
+        # prompt goes in through stdin, which Claude reads as the prompt when none is given
+        stdin_text = prompt + ("\n\n" + stdin_text if stdin_text else "")
+        if len(system or "") > LONG_ARGS // 2:
+            stdin_text = system + "\n\n" + stdin_text
+            system = None
+        prompt = None
+    cmd = [exe, "-p"] + ([prompt] if prompt else []) + [
+        "--output-format", "json", "--json-schema", json.dumps(schema),
+        "--tools", "", "--strict-mcp-config", "--model", MODEL]
     if system:
         cmd += ["--system-prompt", system]
     if session:
@@ -363,7 +374,12 @@ SYSTEM = ("You help a family make movies and TV shows fit their standards by mut
 TYPE_TEXT = {
     "sexref": "sexual references, sexual jokes or innuendo, including talk of oral sex or of "
               "touching someone's private parts, and the sounds of it in the subtitles. Only "
-              "the lines that are sexual themselves, not the lines around a joke. Not: plainly "
+              "the lines that are sexual themselves, not the lines around a joke, but do take "
+              "a follow-up that carries the joke on ('there's no need to be gentle' after a "
+              "bondage joke) or calls back to it later, bragging about sleeping with women, "
+              "brothel talk, and jokes that need knowing the news (a president and his "
+              "interns). A reply that only reacts to a joke ('ha!', 'that's disgusting') "
+              "isn't one. Not: plainly "
               "mentioning underwear ('can you see my underwear?'), "
               "pregnancy or babies, 'sex' "
               "meaning men or women ('the fair sex'), a polite 'it's a pleasure', a body part "
@@ -371,16 +387,28 @@ TYPE_TEXT = {
               "may be about a pager or a phobia)",
     "casual": "sleeping around: casual sex, hooking up, affairs, cheating, including talk "
               "of cheating with nothing sexual said (an engaged or married person kissing "
-              "someone else). Not: dating, setting people up, dating apps, being in love",
+              "someone else). Only the lines that are about the affair or the cheating: not "
+              "the alibis, train times, 'What?' or 'Sorry to bother you' around it, nor "
+              "questions that only lead up to it being revealed. Not: dating, setting people "
+              "up, dating apps, being in love, flirting with nothing sexual said",
     "samesex": "same-sex romance or relationships, including flirting or romantic interest "
-               "between two men or two women. Not: a man and a woman together (dating, engaged or "
+               "between two men or two women, including their tender lines to each other "
+               "('I thought I'd lost you'). Only when both are men or both are women: the "
+               "voice guess (man's/woman's voice) is often wrong, so go by names and what's "
+               "said. Not: a man and a woman together (dating, engaged or "
                "married); 'gay' meaning happy or cheerful (an old "
                "song, 'gay apparel'), which is only a word, never this kind of line",
-    "oppsex": "an unmarried man and woman living or sleeping together",
+    "oppsex": "an unmarried man and woman living or sleeping together, now or in the past "
+              "('my girlfriend kicked me out', 'we're dividing the furniture'). Not: two "
+              "co-workers sharing a motel room for work, dating, flirting",
     "crude": "crude humor: bathroom, bodily-function or gross-out jokes",
     "bullying": "bullying: mocking, taunting, demeaning someone or cruel name-calling, "
-                "including a villain's mocking song and an insult passed on ('she called "
-                "you a ...'), the whole line",
+                "including a villain's mocking song, an insult passed on ('she called "
+                "you a ...'), mocking someone's catchphrase, and grown-ups putting children "
+                "down; the whole line. It must be meant to hurt or belittle. Not: simply "
+                "disagreeing ('you're wrong!'), friendly ribbing between grown-up friends, a "
+                "married couple arguing, a villain's one-off threat, or a line whose only "
+                "problem is a swear word (that's 'just the word')",
     "disrespect": "disrespect: a child or teen being bratty or disrespectful to a parent, "
                   "teacher or other grown-up: talking back, sassing, eye-rolling replies "
                   "('whatever', 'you can't tell me what to do'), mocking or insulting them, "
@@ -397,7 +425,10 @@ TYPE_TEXT = {
                 "hallelujah', 'what in the name of God', 'go to hell': that's their God's-name "
                 "word list, which mutes just those words), idioms ('a match made in heaven', "
                 "'fire and brimstone', 'get to the church on time', 'penance' meaning a "
-                "punishment), 'bless you' after a sneeze, a character's name",
+                "punishment), 'bless you' after a sneeze, a passing 'God bless you' or 'Merry "
+                "Christmas' (Christmas has its own box), a character's name. Any religion "
+                "counts: a whole conversation about Vodun or voodoo rituals, Buddhism or Wicca "
+                "is religious talk too",
     "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents or "
                  "carols; the whole conversation. Not: winter or snow alone",
     "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
@@ -420,7 +451,8 @@ TYPE_TEXT = {
                  "'witch' as an insult, 'a wizard with numbers', stage magic tricks",
     "magic": "magic: any talk about or use of spells, magic wands, fairies doing magic, magic "
              "potions, enchantments, magic powers, a genie's wishes or a magic object; the "
-             "whole conversation. Not: dark magic, wizards or witches (a separate choice), "
+             "whole conversation. Not: science-fiction gadgets, rays or inventions, "
+             "dark magic, wizards or witches (a separate choice), "
              "stage magic tricks, 'magic' meaning wonderful ('it was magic', 'the magic word')",
     "vampires": "vampires and werewolves: any talk about vampires, Dracula, drinking someone's "
                 "blood, turning into a bat, werewolves or turning into a wolf; the whole "
@@ -842,7 +874,10 @@ PIC_RULES = (
     "torture, an execution (even a quick shot at someone unarmed, kneeling or held), a "
     "gun held to a child, chaining or drowning someone, cruelty or abuse of someone "
     "helpless (or an animal), and blood and injuries from an accident (a car crash, a fall), "
-    "which are never \"violence\" or \"graphic violence\". A killing that happens "
+    "which are never \"violence\" or \"graphic violence\". Disturbing needs the cruelty to "
+    "be happening or threatened to someone who can't fight back: a prison breakout or a "
+    "fight between armed men is \"violence\"; when a captive is hit, start where the first "
+    "blow lands, not after it. A killing that happens "
     "off screen but is clearly heard or shown by what follows (a gunshot and the character "
     "is gone, a scream and then a body) IS \"violence\". A body with "
     "no visible blood (covered, or just lying there) is none of these. Cartoon and slapstick "
@@ -856,7 +891,8 @@ PIC_RULES = (
     "buttocks or genitals actually shown; implied nudity means someone undressed but covered "
     "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
     "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
-    "neither. A sex scene is judged by what's happening and by the context, not by the bed "
+    "neither. Shorts, a tank top or a sports top on their own are not immodest or implied "
+    "nudity. A sex scene is judged by what's happening and by the context, not by the bed "
     "or the clothes: use the stills before and after, what's said and the sounds the "
     "subtitles describe. It IS one when there's sex (even fully clothed, sitting, standing, "
     "or under the covers), undressing each other, passionate kissing and touching that's "
@@ -873,14 +909,16 @@ PIC_RULES = (
     "and say who (man & woman, two "
     "men, two women) and whether it's light or passionate (passionate only when it clearly "
     "is: long, open-mouthed, embracing). For holidays, Christmas needs clear signs (a "
-    "Christmas tree, ornaments, Santa, stockings); for all holidays, only what is "
+    "Christmas tree, ornaments, Santa, stockings; red and green colours alone are not); for "
+    "all holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
     "story's own witches or monsters, an ordinary egg or rabbit, ordinary green clothes, a "
     "clover field or a rainbow alone, or a single red heart are NOT. Thanksgiving is fine. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
     "presents or a cake with no candles are fine. \"dark magic\" is witchcraft, wizards or "
     "witches doing magic, curses, occult rituals, summoning, seances, Ouija boards, voodoo and "
     "fortune telling; \"magic\" is any other magic being done (spells, wands, glowing magic, "
-    "potions, fairies); a stage magician's trick is neither. \"vampires\" is a vampire or a "
+    "potions, fairies); a stage magician's trick, a science-fiction gadget, ray or machine, "
+    "and a film company's logo are neither. \"vampires\" is a vampire or a "
     "werewolf (fangs and a cape, drinking blood, a wolf-man); a real bat or wolf is not. "
     "Immodest includes sexual dancing (stripping, pole dancing, grinding); "
     "smoking includes vaping. A rude gesture is someone raising the middle finger at someone, or a "

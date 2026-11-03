@@ -35,8 +35,11 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
 # says so: take it off this list.
-# (Empty: CleanListen 1.10.0 has CleanView 1.18.4-1.18.6's words, 2026-10-30.)
-WAITING_ON_CLEANLISTEN = set()
+# CleanView 1.18.10's guards and phrases, from the November reports (sent 2026-11-03).
+WAITING_ON_CLEANLISTEN = {
+    "I swear by Jesus", "a BS degree", "oh god bless you", "she's freaking out",
+    "that took some balls", "the craps table", "the crud on the floor", "two craps in a row",
+    "uh oh god save the queen", "you hold up yours", "you're freaking me out"}
 
 
 def load_cleanlisten():

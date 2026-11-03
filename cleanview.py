@@ -696,6 +696,12 @@ VIOLENCE_SOUNDS = {"Gunshot, gunfire": 1.0, "Machine gun": 1.0, "Fusillade": 1.0
                    "Smash, crash": 0.25}
 INTIMATE_SOUNDS = {"Breathing": 0.6, "Pant": 0.8, "Gasp": 0.5, "Sigh": 0.4,
                    "Wail, moan": 0.8, "Groan": 0.5}
+# Screams, shouts and crashes alone are as likely a chase, a fright or a cartoon fall as a
+# fight (17 such scenes in Toy Story 4, chases in National Treasure 2): offered unticked,
+# for the picture checks or her to decide. Gunfire, explosions, blows and subtitles that
+# describe violence still cut.
+SOFT_VIOLENCE_SOUNDS = {"Screaming", "Battle cry", "Smash, crash"}
+SOUND_ONLY = " (only heard, not seen: check it)"
 SOUND_WORDS = {"Gunshot, gunfire": "gunshot-like bangs", "Machine gun": "gunfire-like bursts",
                "Fusillade": "gunfire-like bursts", "Artillery fire": "heavy bangs",
                "Explosion": "an explosion", "Screaming": "screaming", "Battle cry": "shouting",
@@ -890,7 +896,7 @@ def violence_scenes(snd, cues):
         return []
     labels = snd["labels"]
     vi = [(labels.index(k), w) for k, w in VIOLENCE_SOUNDS.items()]
-    flagged, why, strong = [], {}, set()
+    flagged, why, strong, hard = [], {}, set(), set()
     for t, row in zip(snd["t"], snd["p"]):
         score = sum(row[i] * w for i, w in vi)
         if score >= 0.45:
@@ -899,12 +905,15 @@ def violence_scenes(snd, cues):
                 strong.add(t)
             top = max(vi, key=lambda iw: row[iw[0]] * iw[1])
             why.setdefault(t, SOUND_WORDS.get(labels[top[0]], labels[top[0]].lower()))
+            if labels[top[0]] not in SOFT_VIOLENCE_SOUNDS:
+                hard.add(t)
     # SDH subtitles often describe violence: [gunshot], [screaming], [grunts]
     for c in cues:
         tags = " ".join(a or b for a, b in re.findall(r"\[([^\]]*)\]|\(([^)]*)\)", c["text"]))
         if tags and SDH_VIOLENCE.search(tags):
             for t in np.arange(c["s"], max(c["s"], c["e"] - SOUND_WIN) + 0.01, SOUND_HOP):
                 flagged.append(round(float(t), 2))   # the whole time the tag is on screen
+                hard.add(round(float(t), 2))
             why.setdefault(round(float(c["s"]), 2), tags.lower()[:30])
     flagged.sort()
     scenes = []
@@ -917,8 +926,10 @@ def violence_scenes(snd, cues):
             w = why.get(t)
             if w and w not in kinds:
                 kinds.append(w)
+        sure = bool(hard.intersection(run_))
         scenes.append({"s": max(0.0, run_[0] - 1.0), "e": run_[-1] + SOUND_WIN + 1.0,
-                       "kind": ["Violence"], "why": ", ".join(kinds[:4])})
+                       "kind": ["Violence"], "sure": sure,
+                       "why": ", ".join(kinds[:4]) + ("" if sure else SOUND_ONLY)})
     return scenes
 
 
@@ -966,7 +977,16 @@ def sex_scenes(snd, cues, asr_n, asr, skin, nude):
                 scenes[-1]["why"] += ", " + w
         else:
             scenes.append({"s": max(0.0, s - 1.0), "e": e + 1.0, "kind": ["Sex scene"], "why": w})
+    for sc in scenes:
+        # talk alone (a coroner's findings, an interrogation, "thrust" in flying talk; Castle,
+        # Chicken Run) is muted as lines, not cut: offered unticked for her to look at
+        if sc["why"] == "explicit dialogue":
+            sc["sure"] = False
+            sc["why"] += TALK_ONLY
     return scenes
+
+
+TALK_ONLY = " (only talk, nothing seen: the lines are muted on their own; check it)"
 
 
 # The sound checker is unsure of music styles in a TV mix: a real rock song at the end of a
@@ -1065,7 +1085,8 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
                          r"on (him|her|me|you)|booty call|friends with benefits)\b", re.I),
-    "samesex": re.compile(r"\b(gay|lesbians?|homosexual|bisexual|same[- ]sex|"
+    "samesex": re.compile(r"\b(gay(?! (refrain|apparel|abandon|laughter|nineties|paree)\b)|"
+                          r"lesbians?|homosexual|bisexual|same[- ]sex|"
                           r"husband and husband|wife and wife)\b", re.I),
     "oppsex": re.compile(r"\b(moved in together|living together|shacking up|"
                          r"sleeping together|slept together)\b", re.I),
@@ -2198,7 +2219,52 @@ def already_muted(mutes, raw, s, e, used=None):
     return False
 
 
-def subtitle_word_there(mutes, mapping, sw, sn, asr_n):
+# A listed mild word or minced oath written with a capital in the middle of a sentence is a
+# name or a title: "Detective Dern" (muted 12 times in Castle), "Hell Hath No Fury".
+NAME_CATS = ("mild", "minced")
+NOT_NAME_AFTER = {"oh", "ah", "aw", "ugh", "well", "aah", "ahh", "aww", "to", "the", "of", "in",
+                  "from", "like", "as", "what", "who", "where", "why", "how", "a", "for",
+                  "bloody", "damn", "straight", "and", "or", "so", "but", "no"}
+
+
+def _new_sentence(sw, sw_cue, k):
+    return (k == 0 or sw_cue[k - 1] != sw_cue[k]
+            or bool(re.search(r"[.!?:;\-\u2013\u2014\u2026]['\"\u201d\u2019]?$", sw[k - 1])))
+
+
+def name_in_subtitles(sw, sw_cue, cues, k):
+    w = sw[k].lstrip("\"'(\u201c\u2018[")
+    if not w[:1].isupper() or (len(w) > 1 and w.isupper()) or _new_sentence(sw, sw_cue, k):
+        return False
+    if cl.norm(sw[k - 1]) in NOT_NAME_AFTER or not re.search(r"[a-z]", cues[sw_cue[k]]["text"]):
+        return False             # "Oh, Hell!", "Go to Hell", "what the Hell"; all capitals
+    return True
+
+
+# A bare "God!" is an oath (Clue, Castle; she asked the chat to mute it), as is "God," at the
+# start of a sentence, unless a prayer follows ("God, please help us", "God, I pray").
+GOD_PRAYER_NEXT = {"please", "help", "bless", "grant", "forgive", "save", "thank", "we", "our",
+                   "if", "why", "give", "keep", "protect", "watch", "be", "is",
+                   "knows", "almighty", "father", "have", "hear", "let", "make", "show"}
+
+
+def bare_god(sw, sw_cue, cues, k):
+    w = sw[k].lstrip("\"'(\u201c\u2018[-\u2013\u2014 ")
+    if not re.fullmatch(r"God(!+|\?!|\.\.\.|\u2026)?[\"'\u201d\u2019]?|God[,.]", w):
+        return False
+    if k and cl.norm(sw[k - 1]) in ("oh", "my", "good", "dear", "thank", "to", "of", "a"):
+        return False                           # phrases, or "thank God", "a god"
+    if "!" in w:
+        return True
+    last = k + 1 >= len(sw) or sw_cue[k + 1] != sw_cue[k]
+    if w.startswith("God.") or w.startswith("God\u2026") or (w == "God" and last):
+        return _new_sentence(sw, sw_cue, k) and last          # "God." said on its own
+    if w == "God," and _new_sentence(sw, sw_cue, k) and not last:
+        return cl.norm(sw[k + 1]) not in GOD_PRAYER_NEXT    # "God, you need a new name"
+    return False
+
+
+def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
     """A word heard in the sound where the subtitles have a different, ordinary word or a
     name at that very spot ("dick" where they say "Nic", "shit" for "page me"; The
     Resident) is probably misheard: noted for the review as m["sub"]. A word the subtitles
@@ -2206,10 +2272,25 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n):
     there = {a: k for k, a in enumerate(mapping) if a is not None}
     for m in mutes:
         k = there.get(m.get("at"))
-        if k is None or m.get("src") != "audio" or sn[k] == asr_n[m["at"]]:
+        if k is None or m.get("src") != "audio":
+            continue
+        if sn[k] == asr_n[m["at"]]:
+            if k in names and m.get("cat") in NAME_CATS:
+                m["sub"], m["keep"] = sw[k], True    # "Dern" heard and written as a name
             continue
         if not cl.listed_word(sw[k]) and re.search(r"[A-Za-z]{2}", sw[k]):
             m["sub"] = sw[k]
+            if m.get("cat") != "mine" and sounds_alike(asr_n[m["at"]], sn[k]):
+                m["keep"] = True    # "bitch" for Finch or Mitch, "fucking" for "bugging"
+
+
+def sounds_alike(heard, written):
+    """True if a heard swear and the subtitles' word there sound alike enough that the
+    swear was misheard: "bitch"/"Finch", "dick"/"Nic", "fucking"/"bugging" (Person of
+    Interest, National Treasure 2, G.I. Joe). Then it's offered unticked."""
+    import difflib
+    a, b = cl.norm(heard), cl.norm(written)
+    return bool(a and b) and difflib.SequenceMatcher(None, a, b).ratio() >= 0.5
 
 
 def after_same_word(mutes, raw, s, e):
@@ -2374,9 +2455,16 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                     sw_cue.append(ci)
         sn = [cl.norm(w) for w in sw]
         mapping = cl.align(sn, asr_n) if asr_n else [None] * len(sn)
-        subtitle_word_there(mutes, mapping, sw, sn, asr_n)
+        names = {k for k in range(len(sw)) if name_in_subtitles(sw, sw_cue, cues, k)}
+        subtitle_word_there(mutes, mapping, sw, sn, asr_n, names)
         added, used = 0, set()
-        for i, j, cat in cl.find_language(sn, cats, mine):
+        found = [(i, j, cat) for i, j, cat in cl.find_language(sn, cats, mine)
+                 if not (j - i == 1 and cat in NAME_CATS and i in names)]  # "Dern" (Castle)
+        if "deity" in cats:
+            found += [(k, k + 1, "deity") for k in range(len(sw))
+                      if bare_god(sw, sw_cue, cues, k) and not any(a <= k < b for a, b, _ in found)]
+            found.sort()
+        for i, j, cat in found:
             t = cl.est_time(i, mapping, asr) if asr else None
             if t:
                 s, e, exact = t[0], t[1], t[2]
@@ -2495,7 +2583,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             lines, genders,
             lambda f: say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation · "
                                                      f"{eta(at('lines', 0.6 + 0.4 * f))}"), cancel)
-    if nd["lines"]:
+    if nd["lines"] and line_how == "word lists":
+        # no AI read it (Enchanted): say plainly that most dialogue filters barely ran
+        notes.append("No AI read the dialogue, so the dialogue choices (jokes, bullying, "
+                     "magic talk and the like) were only checked against a short list of "
+                     "phrases. Turn on the AI helper or Claude, ChatGPT or Gemini to have "
+                     "them really checked.")
+    elif nd["lines"]:
         notes.append(f"Dialogue was checked with {line_how}.")
     if nd["ai"] and not have_ai:
         notes.append("The AI helper wasn't running, so scenes weren't double-checked and "

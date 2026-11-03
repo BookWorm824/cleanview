@@ -181,6 +181,8 @@ def reverent(words, i, j=None):
     nxt = words[j] if j < len(words) else ""
     if prev in ("my", "sweet", "dear") and two == "oh":
         return False                                          # "oh my Jesus"
+    if prev == "by" and two in ("swear", "swears", "swore", "sworn", "swearing"):
+        return False                                          # "I swear by Jesus"
     if nxt in ("is", "was"):                                  # "Christ is risen", not
         return (words[j + 1] if j + 1 < len(words) else "") in REVERENT_IS  # "Jesus, is that you?"
     return prev in REVERENT_BEFORE or nxt in REVERENT_NEXT or (two, prev) == ("thank", "you")
@@ -201,7 +203,12 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  "dumb": {"waiter", "waiters", "luck", "founded", "show"},
                  # "gee up" to a horse; the letter G ("a gee string", "gee major")
                  "gee": {"up", "string", "strings", "major", "minor", "sharp", "flat", "clef"},
-                 "dumdum": {"bullet", "bullets"}, "dumdums": {"bullet", "bullets"}}
+                 "dumdum": {"bullet", "bullets"}, "dumdums": {"bullet", "bullets"},
+                 # the dice game (Iron Man): "a craps table", "craps game"
+                 "craps": {"table", "tables", "game", "games", "shooter", "shooters", "dealer"},
+                 # "gay" meaning happy (Enchanted's "gay refrain", "don we now our gay apparel")
+                 "gay": {"refrain", "apparel", "abandon", "laughter", "nineties", "paree"},
+                 "bullshit": {"degree", "degrees"}}                 # "a BS degree"
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
                  "hooker": {"general", "john", "joe"}, "hookers": {"general"},
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
@@ -209,7 +216,11 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
                  "butts": {"cigarette", "cigar", "rifle", "gun"},
                  "dumb": {"deaf", "struck"}, "dummy": {"test", "ventriloquist", "ventriloquist's"},
                  "dummies": {"test", "crash"}, "brat": {"army", "navy", "military"},
-                 "brats": {"army", "navy", "military"}, "twits": {"the"}}   # Roald Dahl's book
+                 "brats": {"army", "navy", "military"}, "twits": {"the"},   # Roald Dahl's book
+                 "craps": {"two", "play", "playing", "played", "shoot", "shooting", "rolled",
+                           "roll", "of", "at"},                    # "two craps in a row"
+                 "crud": {"the", "some", "of", "that", "this", "all", "any", "green", "black",
+                          "brown", "gray", "grey"}}                 # "the crud on the floor"
 # Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
 # own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
@@ -238,6 +249,10 @@ BODY_SLANG = [re.compile(p) for p in (
     r"chops|chopped|rip|rips|ripped|tear|tore|torn|bite|bit|bitten|shoot|shot|blow|blew|blown) "
     r"(my|his|your|her|our|their) (balls|nuts|stones|grapes|plums) off\b",  # freeze my nuts off
     r"(brass|blue) balls\b", r"balls of steel\b",
+    # "that took some balls" (Person of Interest); "it took some balls to the park" can't
+    # follow "it/that took"
+    r"(it|that|this|which)( (will|would|must|might|has|had|have))? (take|takes|took|"
+    r"taken|taking)( (some|real|a lot of|big|huge|serious|guts and))? (balls|cojones|cajones)\b",
     # Fruit and vegetables for body parts: only these phrases, never "a melon" or "cherry pie"
     r"(nice|big|huge|giant|great|massive|enormous|perky|lovely) (pair|set) of " + _CHEST + r"\b",
     r"(check|checks|checking|checked|checkin) out (those|them|her|your) " + _BIG + _CHEST + r"\b",
@@ -490,7 +505,8 @@ def unbleep(w):
 # it only counts written as an abbreviation: capitals ("SOB") or dots ("S.O.B.").
 ABBREVIATIONS = [(re.compile(r"[Ss]\.[Oo]\.[Bb]\.?('?s)?|SOB('?S|'?s)?|S-O-B"), "sonofabitch"),
                  (re.compile(r"[Dd][-.]?[Bb][Aa][Gg][Ss]?"), "douchebag"),
-                 (re.compile(r"PO'e?d|[Pp]\.[Oo]\.'?e?d"), "pissed")]   # "PO'd", not "Po'd" (Po would)
+                 (re.compile(r"PO'e?d|[Pp]\.[Oo]\.'?e?d"), "pissed"),   # "PO'd", not "Po'd" (Po would)
+                 (re.compile(r"B\.S\.?|BS"), "bullshit")]   # "BS", "B.S." (Iron Man); not "Bs" (grades)
 
 
 def unabbreviate(w):
@@ -586,6 +602,8 @@ def find_language(words, cats, mine=()):
                        if tuple(words[i:i + len(p)]) == p), None)
             if ph == ("jesus", "christ") and reverent(words, i, i + 2):
                 ph = None                 # "the gospel of Jesus Christ"
+            if ph and ph[-1] == "god" and i + len(ph) < n and words[i + len(ph)] in GOD_NOT_OATH:
+                ph = None                 # "Uh-oh. God save the queen", "oh God, bless us"
             if ph:
                 hits.append((i, i + len(ph), "deity"))
                 i += len(ph)
@@ -601,6 +619,8 @@ def find_language(words, cats, mine=()):
             i += k
             continue
         k = body_slang(words, i, MILD_SLANG) if ("mild" in cats or "moderate" in cats) else 0
+        if k and words[i] == "up" and i and words[i - 1] in UP_YOURS_NOT_AFTER:
+            k = 0                                         # "you hold up yours" (of a deal)
         if k:                                             # "yanking your chain"
             hits.append((i, i + k, "mild" if "mild" in cats else "moderate"))
             i += k
@@ -640,6 +660,8 @@ def find_language(words, cats, mine=()):
             if any(p.match(w) or p.match(wb) for p in CATS[cat]):
                 if w == "bloody" and nxt not in BLOODY_SWEAR_NEXT:
                     break
+                if w in FREAK_WORDS and "out" in words[i + 1:i + 3]:
+                    break        # "you're freaking me out": the verb, not the minced oath
                 if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()) or (
                         wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
                         w in ("jesus", "christ") and reverent(words, i)):
@@ -648,6 +670,13 @@ def find_language(words, cats, mine=()):
                 break
         i += 1
     return with_lead_in(words, hits)
+
+
+# "Hold up yours" (your end of a deal; Chicken Run) isn't "up yours".
+UP_YOURS_NOT_AFTER = {"hold", "holds", "held", "holding", "keep", "keeps", "kept", "keeping"}
+# "Oh God" / "my God" just before these is a prayer or a toast, not an oath.
+GOD_NOT_OATH = {"save", "bless", "blessed", "willing"}
+FREAK_WORDS = {"freaking", "freakin"}
 
 
 # "What the hell", "who the f***", "what in the heck": the words before the swear say what
@@ -674,16 +703,20 @@ def sex_score(words):
     """Score a stretch of text. Only stretches with at least two explicit
     words count at all: kissing, beds and sheets alone never flag a scene
     (romance without explicit content is left alone)."""
-    s, explicit = 0, 0
+    s, explicit = 0, set()
     for k, w in enumerate(words):
         if k and words[k - 1] in NOT_SEX_BEFORE.get(w, ()):
             continue                    # "it's a pleasure", "the fair sex" (Pride and Prejudice)
         for weight, pats in SEX_C.items():
-            if any(p.match(w) for p in pats):
+            hit = next((n for n, p in enumerate(pats) if p.match(w)), None)
+            if hit is not None:
                 s += weight
-                explicit += weight == 3
+                if weight == 3:
+                    explicit.add(hit)
                 break
-    return s if explicit >= 2 else 0
+    # two DIFFERENT explicit words: "thrust" said over and over in flying talk isn't a sex
+    # scene (Chicken Run)
+    return s if len(explicit) >= 2 else 0
 
 
 def is_explicit(words):

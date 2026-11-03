@@ -611,7 +611,8 @@ LOOK = {
                   "required": ["see", "yes"]}),
     "christmas": ("Question: is something about Christmas shown: Santa Claus, a decorated "
                   "Christmas tree, Christmas presents, stockings or Christmas decorations? Snow "
-                  "or an ordinary winter scene is NOT.", _YES),
+                  "or an ordinary winter scene is NOT, and nor is something that is only red "
+                  "and green (a toy, clothes).", _YES),
     "halloween": ("Question: is something about Halloween shown: children trick-or-treating, "
                   "Halloween costumes, a carved jack-o'-lantern or Halloween decorations? A "
                   "plain pumpkin, or a fantasy story's own witches or monsters, is NOT.", _YES),
@@ -634,7 +635,8 @@ LOOK = {
                   "costume or decoration is NOT.", _YES),
     "magic": ("Question: is magic being done: someone casting a spell, a magic wand at work, "
               "glowing magic, a magic potion working, a fairy or genie doing magic? A stage "
-              "magician's trick (cards, a rabbit from a hat) or fireworks is NOT.", _YES),
+              "magician's trick (cards, a rabbit from a hat), fireworks, a science-fiction "
+              "gadget, ray gun or machine, or a film company's logo is NOT.", _YES),
     "vampires": ("Question: is a vampire or a werewolf shown: someone with vampire fangs or a "
                  "Dracula cape, drinking blood, turning into a bat; a wolf-man, or someone "
                  "changing into a wolf? A real bat, or an ordinary wolf or dog, is NOT.", _YES),
@@ -712,22 +714,28 @@ def second_look(cands, frames_for, progress=None, cancel=None):
 # ---------------------------------------------------------------------------
 LINE_TYPES = {
     "sexref": ("talks about sex or sexual body parts, or makes a sexual joke or sexual double "
-               "meaning, including oral sex or touching someone's private parts. NOT: swearing, insults, lying, drinking, drugs, violence, crime, threats, "
+               "meaning, including oral sex or touching someone's private parts, bragging "
+               "about sleeping with women ('twelve for twelve with the models'), brothel talk, "
+               "and lines like 'be gentle, it's my first time' or 'what was his name?' to "
+               "the woman he woke up with. NOT: swearing, insults, lying, drinking, drugs, violence, crime, threats, "
                "compliments, ordinary love and affection, pregnancy or babies, 'sex' meaning men or "
                "women ('the fair sex'), a polite 'it's a pleasure', a body part in a threat, "
                "'sleeps with the pigs' meaning where someone sleeps"),
     "casual": ("says or clearly implies someone had, or wants, sex outside a committed "
                "relationship: hooking up, a one-night stand, an affair, cheating, sleeping with "
                "someone, sleeping around; also talk of cheating on a partner, even with nothing sexual "
-               "said (an engaged or married person kissing someone else). NOT: dating, going out, "
+               "said (an engaged or married person kissing someone else), and planning an affair "
+               "('if we're going to have an affair'). Only the lines about it, not alibis or "
+               "small talk around it. NOT: dating, going out, "
                "setting people up, dating apps, being in love, marriage, family, drinking together"),
     "samesex": ("clearly refers to romance, dating, attraction or a sexual relationship between "
                 "two men or two women (for example a man saying 'my boyfriend', 'her wife', "
                 "'he's gay'). NOT: a man and a woman together (dating, engaged or married), friends, "
                 "coworkers, police or business partners, family, 'gay' "
                 "meaning happy or cheerful (an old song, 'gay apparel')"),
-    "oppsex": ("says an unmarried man and woman live together or sleep together. NOT: married "
-               "couples, dating, roommates, family"),
+    "oppsex": ("says an unmarried man and woman live together or sleep together, now or in "
+               "the past ('my girlfriend kicked me out'). NOT: married couples, dating, "
+               "roommates, family, co-workers sharing a room for work"),
     "crude": ("crude humor: jokes or talk about bodily functions, bathroom or toilet humor, "
               "gross-out jokes, crude jokes about body parts. NOT: ordinary jokes, sarcasm, "
               "plain insults"),
@@ -737,14 +745,18 @@ LINE_TYPES = {
                    "NOT: grown-ups disagreeing with each other, a child politely saying no or "
                    "standing up to something wrong, friendly teasing, a child asking why"),
     "bullying": ("bullying: mocking, taunting or demeaning someone, cruel name-calling, picking "
-                 "on someone weaker, trying to humiliate them. NOT: ordinary arguments, police "
-                 "questioning or warnings, friendly teasing between friends"),
+                 "on someone weaker, trying to humiliate them, mocking someone's catchphrase, "
+                 "a grown-up putting a child down. It must be meant to hurt. NOT: simply "
+                 "disagreeing ('you're wrong'), ordinary arguments, a married couple arguing, "
+                 "police questioning or warnings, friendly teasing between friends, a line whose "
+                 "only problem is a swear word"),
     "religion": ("talks about religion or faith: God, Jesus, prayer or praying, church, the "
                  "Bible, heaven or hell as places, angels, sin, or the beliefs, practices, "
                  "clergy or holidays of any religion. NOT: 'oh my God' or 'Jesus' said as a "
                  "swear or exclamation ('thank God', 'dear God', 'go to hell'), idioms ('a match "
                  "made in heaven', 'get to the church on time'), 'bless you' after a sneeze, "
-                 "'thank heavens', a character's name"),
+                 "'thank heavens', a passing 'God bless you' or 'Merry Christmas', a "
+                 "character's name. Any religion counts, including voodoo or Vodun rituals"),
     "christmas": ("talks about Christmas: Santa, Christmas trees, presents, carols, Christmas "
                   "Eve or Day, 'Merry Christmas'. NOT: winter or snow alone, the word "
                   "'present' meaning now or here"),

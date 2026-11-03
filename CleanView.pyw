@@ -2516,6 +2516,10 @@ class App(tk.Tk):
             if note and m["claude"]["decision"] != "remove":
                 tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap_width(220),
                          justify="left").pack(side="right", padx=4)
+            elif m.get("sub") and not note:      # offered unticked: probably misheard
+                tk.Label(row, text=f"Maybe misheard: the subtitles have “{m['sub']}” "
+                         "here", bg=rbg, fg=MUTED, font=(FONT, 8), wraplength=wrap_width(220),
+                         justify="left").pack(side="right", padx=4)
             line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
                            fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
                            cursor="arrow")

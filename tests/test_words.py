@@ -653,5 +653,28 @@ class ReverentJesus(unittest.TestCase):
                 self.assertIn((phrase, "deity"), found(text))
 
 
+class FromNovemberReports(unittest.TestCase):
+    """Toy Story 4, Iron Man, Chicken Run, Enchanted, Castle, Person of Interest (2026-11)."""
+
+    def test_everyday_uses(self):
+        for text in ("two craps in a row", "the craps table", "you hold up yours",
+                     "you're freaking me out", "she's freaking out", "the gay refrain",
+                     "don we now our gay apparel", "the crud on the floor",
+                     "uh oh god save the queen", "oh god bless you", "a BS degree",
+                     "straight Bs on her report card", "he took some balls to the park"):
+            self.assertEqual(found(text), [], text)
+
+    def test_still_caught(self):
+        for text, word in (("Craps!", "craps"), ("up yours!", "up yours"),
+                           ("that's freaking awesome", "freaking"), ("oh crud", "crud"),
+                           ("that's BS", "bullshit"), ("that's B.S.", "bullshit"),
+                           ("that took some balls", "that took some balls"),
+                           ("I swear by Jesus", "jesus"), ("oh god no", "oh god")):
+            self.assertIn(word, [w for w, _ in found(text)], text)
+
+    def test_reverent_jesus_still_isnt(self):
+        self.assertEqual(found("we are saved by Jesus"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
