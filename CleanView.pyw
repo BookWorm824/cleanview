@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cleanview as engine  # noqa: E402
 import cleanview_claude as cc  # noqa: E402
 import cleanview_learn as learn  # noqa: E402
+import videoqueue as VQ  # noqa: E402  (several videos at once)
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
@@ -159,20 +160,7 @@ def _ai_status(p):
 def plain_error(ex):
     """What went wrong, in everyday words. The technical part is kept out of
     sight, in cleanview_last_error.txt (save_details)."""
-    win = getattr(ex, "winerror", None)
-    if isinstance(ex, PermissionError) or win in (32, 33):
-        return ("A file CleanView needs is open in another program (maybe a video player). "
-                "Close it and try again.")
-    if isinstance(ex, OSError) and (win == 112 or ex.errno == 28):
-        return "The drive is full. Free up some space and try again."
-    text = str(ex).strip()
-    if text and isinstance(ex, (RuntimeError, engine.VideoError, cc.ClaudeError, cc.gpt.GptError,
-                                                cc.gem.GeminiError)):
-        # CleanView's own messages say it plainly first, then add the technical part
-        first = re.split(r":?\s*\n", text, maxsplit=1)[0].strip()
-        first = first[:1].upper() + first[1:]
-        return first if first.endswith((".", "!", "?")) else first + "."
-    return "Something unexpected went wrong."
+    return VQ.plain_error(ex)        # (the workers say it the same way)
 
 
 # Noticing a freeze (Jason, 2026-11-03: CleanView stopped responding during a movie and
@@ -1118,7 +1106,9 @@ class App(tk.Tk):
         try:
             self.profiles[self.profile] = self._filter_values()
             keep = {k: v for k, v in self._current_opts().items() if k not in FILTER_KEYS}
-            keep.update(profile=self.profile, profiles=self.profiles, text_size=self.text_size)
+            keep.update(profile=self.profile, profiles=self.profiles, text_size=self.text_size,
+                        at_once=getattr(self, "at_once", None) or
+                        self._load_settings().get("at_once"))
             APP_DATA.mkdir(parents=True, exist_ok=True)
             path = APP_DATA / "cleanview_settings.json"
             tmp = path.with_suffix(".tmp")
@@ -1275,6 +1265,7 @@ class App(tk.Tk):
             self.jobs.append({"video": v, "work": APP_DATA / "views" / key, "analysis": None,
                               "error": None})
         self.cancel_flag = self.stop_after = False
+        self.at_once = self._at_once()
         self.show_working("Watching and listening…", can_stop=True)
         threading.Thread(target=self._analyze_thread, daemon=True).start()
 
@@ -1308,7 +1299,21 @@ class App(tk.Tk):
         self.overall.pack(anchor="w", pady=(4, 0))
         self._work_n, self._work_t0 = n, None
         self.stop_after = False
-        self.job_rows, self.job_frames = [], []
+        self.job_rows, self.job_frames, self.job_notes = [], [], []
+        if n > 1 and can_stop:           # how many are worked on at the same time
+            top = tk.Frame(p, bg=BG)
+            top.pack(fill="x", pady=(20, 0))
+            tk.Label(top, text="Videos at once:", bg=BG, fg=INK, font=(FONT, 10)).pack(
+                side="left")
+            at_var = tk.StringVar(value=str(getattr(self, "at_once", 1)))
+            box_n = ttk.Combobox(top, values=[str(c) for c in VQ.AT_ONCE_CHOICES], width=3,
+                                 state="readonly", textvariable=at_var, font=(FONT, 10))
+            box_n.pack(side="left", padx=(6, 0))
+            box_n.bind("<<ComboboxSelected>>", lambda e: self._set_at_once(int(at_var.get())))
+            tk.Label(top, text="More at once finishes a season sooner, but each video takes "
+                     "longer and the PC is busier. With Claude, ChatGPT or Gemini it also uses "
+                     "up your plan's limits faster.", bg=BG, fg=MUTED, font=(FONT, 9),
+                     wraplength=wrap_width(520), justify="left").pack(side="left", padx=(12, 0))
         if n > 1:                       # each video, ticked off as it's done
             tk.Label(p, text="Videos", bg=BG, fg=INK, font=(FONT, 11, "bold")).pack(
                 anchor="w", pady=(22, 4))
@@ -1322,14 +1327,17 @@ class App(tk.Tk):
                 name = tk.Label(row, text=short(Path(v).name, 90), bg=BG, fg=MUTED, font=(FONT, 10),
                                 anchor="w")
                 name.pack(side="left")
+                note = tk.Label(row, text="", bg=BG, fg=MUTED, font=(FONT, 9), anchor="w")
+                note.pack(side="left", padx=(12, 0))
                 self.job_rows.append((icon, name))
                 self.job_frames.append(row)
+                self.job_notes.append(note)
         self.cancel_btn = ttk.Button(self.footer, text="Cancel", style="Plain.TButton",
                                      command=self.cancel)
         self.cancel_btn.pack(side="right")
         self.stop_btn = None
         if n > 1 and can_stop:
-            self.stop_btn = ttk.Button(self.footer, text="Stop after this video",
+            self.stop_btn = ttk.Button(self.footer, text=self._stop_label(),
                                        style="Plain.TButton", command=self.toggle_stop_after)
             self.stop_btn.pack(side="right", padx=(0, 8))
 
@@ -1339,10 +1347,12 @@ class App(tk.Tk):
         self.stop_after = not getattr(self, "stop_after", False)
         if self.stop_btn is not None and self.stop_btn.winfo_exists():
             self.stop_btn.config(text="Keep going with all of them" if self.stop_after
-                                 else "Stop after this video")
+                                 else self._stop_label())
         if self.stop_after and getattr(self, "overall", None) is not None and \
                 self.overall.winfo_exists():
-            self.overall.config(text="Stopping after this video, then on to the review. The "
+            now = "this video" if getattr(self, "at_once", 1) == 1 else \
+                "the ones being done now"
+            self.overall.config(text=f"Stopping after {now}, then on to the review. The "
                                      "rest are skipped; start them again later.")
         elif getattr(self, "overall", None) is not None and self.overall.winfo_exists():
             self.overall.config(text="")
@@ -1356,6 +1366,8 @@ class App(tk.Tk):
         if 0 <= k < len(rows) and rows[k][0].winfo_exists():
             sym, col = self.JOB_LOOK[state]
             rows[k][0].config(text=sym, fg=col)
+            if state != "now":
+                self._job_note(k, "")
             rows[k][1].config(fg=INK if state == "now" else col if state == "failed" else MUTED,
                               font=(FONT, 10, "bold") if state == "now" else (FONT, 10))
             if state == "failed" and why:
@@ -1393,35 +1405,146 @@ class App(tk.Tk):
                     save_details(traceback.format_exc())
                     self.q.put(("warn", "Some of the checking tools couldn't be set up, so this "
                                 "run uses the ones that are ready.\n\n" + plain_error(ex)))
-            n = len(self.jobs)
-            for k, j in enumerate(self.jobs):
-                if getattr(self, "stop_after", False):     # "Stop after this video"
-                    j["skipped"] = True
-                    self.q.put(("job", k, "skipped"))
-                    continue
-                self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
-                            short(Path(j["video"]).name, 80)))
-                self.q.put(("job", k, "now"))
-                try:
-                    j["analysis"] = engine.analyze(
-                        j["video"], j["work"], groups=self.groups, opts=self.scan_opts,
-                        progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / n, m, "")),
-                        log=lambda m: None, cancel=lambda: self.cancel_flag)
-                    self.q.put(("job", k, "done"))
-                except engine.VideoError as ex:
-                    j["error"] = str(ex)
-                    j["details"] = f"{j['video']}\n\n{ex}\n\n{traceback.format_exc()}"
-                    self.q.put(("job", k, "failed", j["error"], j["details"]))
-                except Exception as ex:     # one episode going wrong mustn't stop the rest
-                    j["details"] = f"{j['video']}\n\n{traceback.format_exc()}"
-                    save_details(j["details"])
-                    j["error"] = f"{Path(j['video']).name}: {plain_error(ex)}"
-                    self.q.put(("job", k, "failed", j["error"], j["details"]))
+            self._run_workers()
             self.q.put(("analyzed",))
         except KeyboardInterrupt:
             self.q.put(("cancelled",))
         except Exception as ex:
             self.q.put(("error", plain_error(ex), traceback.format_exc()))
+
+    def _run_workers(self):
+        """Watch and listen to every video, up to "Videos at once" at a time, each in its own
+        worker process (videoqueue.py), so a season gets done sooner and one video going
+        wrong never stops the rest or the window. Runs on the analyze thread."""
+        jobs, n = self.jobs, len(self.jobs)
+        try:     # started once here, so the workers don't each try to start it
+            if engine.needs(engine.full_opts(self.scan_opts))["ai"]:
+                engine.ai.start_ollama(wait=20)
+        except Exception:
+            pass
+        events = queue.Queue()
+        workers = self.workers = VQ.Workers(lambda k, m: events.put((k, m)))
+        frac = [0.0] * n
+        todo, running, finished = list(range(n)), set(), set()
+
+        def which():
+            if len(running) == 1:
+                k = next(iter(running))
+                self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
+                            short(Path(jobs[k]["video"]).name, 80)))
+            elif running:
+                self.q.put(("which", f"{len(running)} videos at once  ·  "
+                                     f"{len(finished)} of {n} done"))
+
+        def failed(k, error, details):
+            jobs[k]["error"], jobs[k]["details"] = error, details
+            save_details(details)
+            self.q.put(("job", k, "failed", error, details))
+
+        try:
+            while todo or running:
+                if self.cancel_flag:
+                    raise KeyboardInterrupt
+                if getattr(self, "stop_after", False):     # "Stop after ..."
+                    for k in todo:
+                        jobs[k]["skipped"] = True
+                        self.q.put(("job", k, "skipped"))
+                    todo = []
+                at_once = getattr(self, "at_once", 1)
+                started = False
+                while todo and len(running) < at_once:
+                    k = todo.pop(0)
+                    j = jobs[k]
+                    try:
+                        workers.start(k, {"video": j["video"], "work": str(j["work"]),
+                                          "groups": self.groups, "opts": self.scan_opts,
+                                          "threads": VQ.threads_each(min(at_once, n))})
+                    except Exception as ex:
+                        finished.add(k)
+                        frac[k] = 1.0
+                        failed(k, f"{Path(j['video']).name}: {plain_error(ex)}",
+                               f"{j['video']}\n\n{traceback.format_exc()}")
+                        continue
+                    running.add(k)
+                    started = True
+                    self.q.put(("job", k, "now"))
+                if started:
+                    which()
+                try:
+                    k, msg = events.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+                j = jobs[k]
+                if "p" in msg:
+                    frac[k] = max(frac[k], max(0.0, min(1.0, float(msg["p"]))))
+                    m = str(msg.get("m", ""))
+                    if n > 1:
+                        self.q.put(("jobmsg", k, m))
+                    self.q.put(("progress", sum(frac) / n, m if len(running) < 2 else
+                                f"Working on {len(running)} videos at the same time. How each "
+                                f"one is going is in the list below.", ""))
+                elif msg.get("done"):
+                    try:
+                        j["analysis"] = json.loads(
+                            (Path(j["work"]) / "analysis.json").read_text())
+                        self.q.put(("job", k, "done"))
+                    except Exception as ex:
+                        failed(k, f"{Path(j['video']).name}: {plain_error(ex)}",
+                               f"{j['video']}\n\n{traceback.format_exc()}")
+                elif "error" in msg:
+                    error = (msg.get("raw") or msg["error"]) if msg.get("video_error") else \
+                        f"{Path(j['video']).name}: {msg['error']}"
+                    failed(k, error, f"{j['video']}\n\n{msg.get('details', '')}")
+                elif "exit" in msg:
+                    running.discard(k)
+                    finished.add(k)
+                    frac[k] = 1.0
+                    if not (j["analysis"] or j["error"] or self.cancel_flag):
+                        # it stopped without a word: a hard crash (written to its log)
+                        try:
+                            log = (Path(j["work"]) / "worker_log.txt").read_text(
+                                encoding="utf8", errors="replace")[-4000:]
+                        except OSError:
+                            log = ""
+                        failed(k, f"{Path(j['video']).name}: CleanView stopped working on this "
+                                  f"video unexpectedly.",
+                               f"{j['video']}\n\nThe worker ended (code {msg['exit']}).\n\n{log}")
+                    which()
+        finally:
+            if running:          # Cancel, or something went wrong here: stop the rest
+                workers.stop_all()
+
+    def _at_once(self):
+        """How many videos are worked on at the same time (the working page's choice)."""
+        n = self._load_settings().get("at_once")
+        return n if n in VQ.AT_ONCE_CHOICES else VQ.default_at_once()
+
+    def _set_at_once(self, n):
+        """Changed on the working page: the next videos to start follow it."""
+        self.at_once = n
+        try:
+            s = self._load_settings()
+            s["at_once"] = n
+            APP_DATA.mkdir(parents=True, exist_ok=True)
+            path = APP_DATA / "cleanview_settings.json"
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(s))
+            os.replace(tmp, path)
+        except Exception:
+            pass
+        btn = getattr(self, "stop_btn", None)
+        if btn is not None and btn.winfo_exists() and not getattr(self, "stop_after", False):
+            btn.config(text=self._stop_label())
+
+    def _stop_label(self):
+        return ("Stop after this video" if getattr(self, "at_once", 1) == 1 else
+                "Stop after the ones being done now")
+
+    def _job_note(self, k, text):
+        """How one video is going, beside its name in the list (several at once)."""
+        notes = getattr(self, "job_notes", [])
+        if 0 <= k < len(notes) and notes[k].winfo_exists():
+            notes[k].config(text=short(text, 70))
 
     def _render_thread(self):
         try:
@@ -1602,6 +1725,8 @@ class App(tk.Tk):
             self.which.config(text=msg[1])
         elif kind == "job" and alive:
             self._job_state(*msg[1:])
+        elif kind == "jobmsg" and alive:
+            self._job_note(msg[1], msg[2])
         elif kind == "call":
             msg[1]()
         elif kind == "analyzed":

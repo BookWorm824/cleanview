@@ -9,6 +9,7 @@ import tkinter as tk
 import time
 import types
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import support
@@ -619,36 +620,63 @@ class Window(unittest.TestCase):
 
     def test_stop_after_this_video(self):
         """Pressed while video 1 of 3 is being checked: video 1 finishes, 2 and 3 are
-        skipped, and the review opens with video 1."""
+        skipped, and the review opens with video 1. (The videos are checked in workers
+        running a stand-in engine, tests/fake_engine.py.)"""
         app = self.app
-        sample = app.jobs[0]["analysis"]
-        saved = ui.engine.tools_missing, ui.engine.analyze
-        done = []
+        sample = support.SANDBOX / "stop_sample.json"
+        sample.write_text(json.dumps(app.jobs[0]["analysis"]))
+        saved = ui.engine.tools_missing, app.q.put
+        real_put = app.q.put
 
-        def analyze(video, work, **kw):
-            app.toggle_stop_after()              # she presses it while this one runs
-            done.append(Path(video).name)
-            return sample
-        ui.engine.tools_missing, ui.engine.analyze = (lambda o: False), analyze
+        def put(msg):
+            if msg[:3] == ("job", 0, "now"):
+                app.toggle_stop_after()          # she presses it while this one runs
+            real_put(msg)
+        ui.engine.tools_missing, app.q.put = (lambda o: False), put
+        env = {"CLEANVIEW_ENGINE": "fake_engine", "PYTHONPATH": str(Path(__file__).parent)}
         try:
             app.jobs = [{"video": str(support.SANDBOX / f"Episode {k}.mp4"),
                          "work": support.SANDBOX / f"w{k}", "analysis": None, "error": None}
                         for k in (1, 2, 3)]
-            app.groups, app.scan_opts, app.stop_after = [], {}, False
+            app.groups, app.stop_after, app.at_once = [], False, 1
+            app.scan_opts = {"ai": False, "sample": str(sample)}
             app.show_working("Watching and listening…", can_stop=True)
             app.update()
             self.assertTrue(app.stop_btn.winfo_ismapped())
-            app._analyze_thread()                # (on this thread, for the test)
+            self.assertEqual(app.stop_btn.cget("text"), "Stop after this video")
+            with mock.patch.dict(os.environ, env):
+                app._analyze_thread()            # (on this thread, for the test)
             self.assertEqual(app.stop_btn.cget("text"), "Keep going with all of them")
             self.assertIn("Stopping after this video", app.overall.cget("text"))
             while not app.q.empty():
                 app._handle(app.q.get())
-            self.assertEqual(done, ["Episode 1.mp4"])
+            self.assertEqual([bool(j["analysis"]) for j in app.jobs], [True, False, False])
             self.assertEqual([j.get("skipped", False) for j in app.jobs], [False, True, True])
             self.assertEqual(app.page_name, "review")
             self.assertFalse(any(m for k, m in self.said if "couldn't be cleaned" in m))
         finally:
-            ui.engine.tools_missing, ui.engine.analyze = saved
+            ui.engine.tools_missing, app.q.put = saved
+
+    def test_videos_at_once_on_the_working_page(self):
+        """Several videos: "Videos at once" is on the working page, remembered, and each
+        video's own progress shows beside its name."""
+        app = self.app
+        app.at_once = 2
+        app.show_working("Watching and listening…", [f"Episode {k}.mp4" for k in (1, 2, 3)],
+                         can_stop=True)
+        app.update()
+        self.assertEqual(app.stop_btn.cget("text"), "Stop after the ones being done now")
+        app._set_at_once(3)
+        settings = json.loads((support.APP_DATA / "cleanview_settings.json").read_text())
+        self.assertEqual(settings["at_once"], 3)
+        self.assertEqual(app._at_once(), 3)
+        app._set_at_once(1)
+        self.assertEqual(app.stop_btn.cget("text"), "Stop after this video")
+        app._handle(("job", 1, "now"))
+        app._handle(("jobmsg", 1, "Listening to the dialogue · about 4 min left"))
+        self.assertIn("about 4 min left", app.job_notes[1].cget("text"))
+        app._handle(("job", 1, "done"))
+        self.assertEqual(app.job_notes[1].cget("text"), "")
 
     def test_saving_has_no_stop_button(self):
         self.app.show_working("Saving the clean copies…", ["Episode 1.mp4", "Episode 2.mp4"])

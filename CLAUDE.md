@@ -108,6 +108,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   has no signature, so it's only made while Smart App Control is off, only used after a
   test run of it worked, and never tried again once it failed (`failed.txt`); otherwise
   plain pythonw.exe, as before. CleanListen and CleanRead want the same.
+- Several videos at once (Lauren, 2026-11-04, after CleanListen's book queue): when a
+  season is cleaned, each video is watched and listened to in its own worker process
+  (`videoqueue.py`, started by `App._run_workers` on the analyze thread), 2 at a time by
+  default (1 on a PC with under 12 GB of memory, `default_at_once`; each worker loads its
+  own speech and picture models), 1-4 with "Videos at once" on the working page (saved as
+  `at_once` in the settings; the next video to start follows it). Speech threads are
+  shared out (`threads_each`). Each video's own progress shows beside its name; "Stop
+  after the ones being done now" lets the running ones finish. A worker that crashes only
+  loses its own video ("stopped working on this video unexpectedly", its log in
+  `<work>/worker_log.txt`); Cancel or closing the window writes each worker's stop file,
+  and a worker whose window has gone stops by itself. Ollama is started once by the
+  window, not by each worker. Review and saving work as before (one review page for all).
+  The worker reads `analysis.json` from the work folder, so the review gets the same JSON
+  a resumed review does. Tests run the workers with a stand-in engine
+  (`CLEANVIEW_ENGINE=fake_engine`, `tests/fake_engine.py`).
 - A freeze or a crash is written down (Jason, 2026-11-03: it stopped responding during a
   movie and didn't say why). If the window doesn't answer for 20 s (`STALL_SECS`), what
   every thread was doing, the step and memory go in `stopped_last_time.txt`; a hard crash
@@ -148,6 +163,7 @@ them in. Rules that follow from this:
 | `cleanview_gemini.py` | Gemini through Google's **Gemini CLI** (`gemini -p ... -o json`, signed in with a Google account, no API key), same interface. Installed with npm (needs Node.js 20+). The CLI can't take a schema, so the shape is described in the prompt and the reply is checked (asked again once). The prompt goes in through stdin; pictures are copied into an empty work folder and named with `@picture1.jpg` on the command line. Chats are kept by CleanView (`APP_DATA\gemini\chats`), not the CLI. Provider key `"gemini"` (`cc.OTHERS`). |
 | `cleanview_accounts.py` | Each person's own Claude, ChatGPT or Gemini sign-in inside CleanView ("Use a different account" / "Sign out" on the start page). Claude Code, Codex and the Gemini CLI keep their sign-in in a folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_CLI_HOME`); CleanView's own is `APP_DATA\accounts\<ai>\<n>`, so the PC's own sign-in is never signed out or changed. A new sign-in goes in a new folder and is only used once it worked (`keep()`). With none, the PC's sign-in is used. |
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
+| `videoqueue.py` | Several videos at once: each video is watched and listened to (`analyze`) in its own worker process, "Videos at once" at a time. `Workers` (the window side) and `main()` (the worker, run as `CleanView.exe videoqueue.py <work>/queue_task.json`, one JSON line per message). Also `plain_error`, used by the window too. |
 | `shared_learned.json` | Built-in knowledge merged from users' exports; shipped with every update. Merged with `tools/merge_learned.py`. |
 | `launcher.pyw`, `update.json` | Auto-updater (above). |
 | `installer/` | `install.ps1`, `Install CleanView.bat`, `READ ME FIRST.txt`. Zipped by hand as `CleanView-Setup.zip`. |
@@ -190,6 +206,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   sound-only and talk-only scenes, misheard swears, names in the subtitles, a bare "God!").
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
+- `test_at_once.py`: several videos at once in real worker processes with a stand-in
+  engine: two run together, a third waits, a failure is said plainly and a crash only
+  loses its own video, "Stop after", Cancel.
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every
