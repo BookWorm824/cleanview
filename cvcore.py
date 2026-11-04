@@ -160,7 +160,8 @@ REVERENT_BEFORE = {"about", "accept", "accepted", "accepts", "and", "as", "befor
     "believed", "believes", "bring", "brought", "by", "crucified", "embrace", "embraced",
     "find", "finds", "follow", "followed", "following", "follows", "for", "found", "from",
     "glorify", "her", "his", "in", "into", "jesus", "knew", "know", "knowing", "known",
-    "knows", "like", "lord", "love", "loved", "loves", "loving", "meet", "met", "my", "need",
+    "knows", "let", "lets", "letting",                        # "Had I let Jesus illuminate my path"
+    "like", "lord", "love", "loved", "loves", "loving", "meet", "met", "my", "need",
     "needed", "needs", "of", "our", "please", "praise", "praised", "praising", "preach",
     "preached", "preaching", "proclaim", "proclaimed", "risen", "serve", "served", "serves",
     "serving", "share", "shared", "sharing", "taught", "teach", "tell", "than", "the",
@@ -181,6 +182,8 @@ def reverent(words, i, j=None):
     nxt = words[j] if j < len(words) else ""
     if prev in ("my", "sweet", "dear") and two == "oh":
         return False                                          # "oh my Jesus"
+    if prev == "dear" and two == "please":
+        return True                                           # "Please, please, dear Jesus."
     if prev == "by" and two in ("swear", "swears", "swore", "sworn", "swearing"):
         return False                                          # "I swear by Jesus"
     if nxt in ("is", "was"):                                  # "Christ is risen", not
@@ -623,8 +626,7 @@ def find_language(words, cats, mine=()):
             if ph and ph[-1] == "god" and i + len(ph) < n and words[i + len(ph)] in GOD_NOT_OATH:
                 ph = None                 # "Uh-oh. God save the queen", "oh God, bless us"
             nxt = words[i + len(ph)] if ph and i + len(ph) < n else ""
-            if ph and (ph[-1] == "knows" and nxt in KNOWS_NOT_OATH or
-                       ph[-2:-1] == ("help",) and nxt in HELP_NOT_OATH):
+            if ph and (ph[-1] == "knows" and nxt in KNOWS_NOT_OATH or prayer(words, i, ph)):
                 ph = None                 # "God knows best", "Lord, help me to trust You"
             if ph:
                 hits.append((i, i + len(ph), "deity"))
@@ -701,7 +703,30 @@ GOD_NOT_OATH = {"save", "bless", "blessed", "willing"}
 # "God knows best" is faith, not "God knows!"; "Lord, help me to trust" is a prayer, not
 # "Lord help me, I'll strangle him" (CleanRead: Wings of a Dream)
 KNOWS_NOT_OATH = {"best"}
-HELP_NOT_OATH = {"to"}
+# "Lord, help me to trust", "Oh God. Help me know what to do" (prayers; never "Lord help
+# me, I'll strangle him")
+HELP_NOT_OATH = {"to", "know", "understand", "find", "see", "trust", "forgive", "accept"}
+# "May You never be ashamed that I call You my God", "You are my God" (CleanRead: Wings of
+# a Dream, kept by Lauren 2026-11-04)
+MY_GOD_AFTER = {"are", "art", "be"}
+CALL_YOU = {("call", "you"), ("call", "thee"), ("called", "you"), ("calls", "you")}
+
+
+def prayer(words, i, ph):
+    """True if the God/Lord phrase words[i:i+len(ph)] is said to God, not as an oath."""
+    j = i + len(ph)
+    after = words[j:j + 3]
+    prev, two = (words[i - 1] if i else ""), (words[i - 2] if i > 1 else "")
+    if ph[-2:-1] == ("help",) and after[:1] and after[0] in HELP_NOT_OATH:
+        return True                       # "Lord, help me to trust You"
+    if ph[-1] in ("god", "lord") and after[:2] == ["help", "me"] and len(after) == 3 and \
+            after[2] in HELP_NOT_OATH:
+        return True                       # "Oh God. Help me know what to do."
+    if ph in (("dear", "god"), ("dear", "lord")) and prev == "please":
+        return True                       # "Please, dear God, let him live"
+    if ph == ("my", "god") and (prev in MY_GOD_AFTER or (two, prev) in CALL_YOU):
+        return True                       # "that I call You my God"
+    return False
 FREAK_WORDS = {"freaking", "freakin"}
 
 

@@ -367,6 +367,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   Dickens. From the CleanRead reports, the same in every app: "Camp Dick" (a WWI army
   camp), "a tiny prick of black", "a strip of sod", "God knows best" and "Lord, help me to
   trust" (a prayer) aren't swears (`INNOCENT_PREV`, `KNOWS_NOT_OATH`, `HELP_NOT_OATH`).
+  Prayers Lauren kept in Wings of a Dream (2026-11-04) aren't oaths either (`prayer()`):
+  "Oh God. Help me know what to do", "Please, please, dear Jesus", "Had I let Jesus
+  illuminate my path", "that I call You my God" / "You are my God", "Please, dear God".
+  "Oh Lord Jesus." she left marked, and "Oh God, help me, I'm going to be sick" or "Look at
+  you! My God" are still oaths.
 - Long prompts go to the Claude CLI through stdin (`LONG_ARGS`): Windows refused the final
   review's command line ("WinError 206", Clue). With no AI reading the dialogue, the review
   says plainly that the dialogue choices were only checked against a short list (Enchanted).
