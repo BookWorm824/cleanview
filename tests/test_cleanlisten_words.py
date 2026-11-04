@@ -37,13 +37,8 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # says so: take it off this list.
 # (Empty: CleanListen 1.13.1 has CleanView 1.18.10's words, 2026-11-03.)
 # CleanListen 1.13.5 has CleanView 1.18.11's words (dickens, Camp Dick, sod, God knows best...)
-# the prayers Lauren kept in Wings of a Dream (CleanView 1.18.13, cvcore.prayer)
-WAITING_ON_CLEANLISTEN = {
-    "Oh God. Help me know what to do.", "Please, please, dear Jesus.",
-    "Had I let Jesus illuminate my path", "May You never be ashamed that I call You my God.",
-    "You are my God", "Please, dear God, let him live", "Lord, help me understand",
-    "Oh Lord, help me forgive him",
-}
+# CleanListen 1.14.2 has CleanView 1.18.13's prayer guards (Wings of a Dream)
+WAITING_ON_CLEANLISTEN = set()
 
 
 def load_cleanlisten():
