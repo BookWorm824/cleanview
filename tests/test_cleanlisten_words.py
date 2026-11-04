@@ -36,14 +36,8 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # Things CleanView has that CleanListen still needs. When one is fixed there, the test
 # says so: take it off this list.
 # (Empty: CleanListen 1.13.1 has CleanView 1.18.10's words, 2026-11-03.)
-# CleanView 1.18.11: "dickens" as an oath (Julie & Julia) and the CleanRead reports' guards
-# (Camp Dick, a prick of black, a strip of sod, "God knows best", "Lord help me to trust").
-WAITING_ON_CLEANLISTEN = {
-    "Arthur went to Camp Dick in Texas", "God help us to know", "God knows best",
-    "How the dickens did you get in?", "I felt a jealous prick at my heart",
-    "It hurts like the dickens", "It scared the dickens out of me", "Lord help me to trust you",
-    "a tiny prick of black escaped", "an unending strip of sod", "how the dickens",
-    "like the dickens", "the dickens out of", "they lived in sod houses", "you can prick them"}
+# CleanListen 1.13.5 has CleanView 1.18.11's words (dickens, Camp Dick, sod, God knows best...)
+WAITING_ON_CLEANLISTEN = set()
 
 
 def load_cleanlisten():
