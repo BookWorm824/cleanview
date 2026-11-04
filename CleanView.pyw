@@ -273,7 +273,7 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         if not (os.environ.pop("CLEANVIEW_RESUME", None) and self._resume()):
             self.show_setup()
-        self.after(100, self._poll)
+        self._poll_id = self.after(100, self._poll)
         self._watch_for_freezes()
         self._offer_id = self.after(2500, self._offer_problem_note)
         self.after(4000, self._check_update)
@@ -1496,7 +1496,7 @@ class App(tk.Tk):
 
     def destroy(self):
         self._gone = True            # stops the watcher, and the crash log is closed
-        for name in ("_offer_id", "_beat_id"):
+        for name in ("_offer_id", "_beat_id", "_poll_id"):
             try:
                 self.after_cancel(getattr(self, name))
             except Exception:
@@ -1585,7 +1585,8 @@ class App(tk.Tk):
                     self._problem("Something unexpected went wrong, but CleanView is still "
                                   "running.", traceback.format_exc())
         finally:
-            self.after(150 if len(msgs) < 500 else 10, self._poll)
+            if not getattr(self, "_gone", False):
+                self._poll_id = self.after(150 if len(msgs) < 500 else 10, self._poll)
 
     def _handle(self, msg):
         kind = msg[0]

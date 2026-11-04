@@ -1079,7 +1079,8 @@ def merge_scenes(scenes):
 LINE_WORDS = {   # only phrases that are hard to mistake
     # not "sex" meaning men or women: "your sex", "the fair sex" (Pride and Prejudice)
     "sexref": re.compile(r"\b((?<!your )(?<!our )(?<!her )(?<!his )(?<!fair )(?<!fairer )"
-                         r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
+                         r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )(?<!my )(?<!marvelous )"
+                         r"(?<!stronger )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
                          r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
                          r"have sex|had sex|having sex)\b", re.I),
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
@@ -1760,14 +1761,20 @@ def bounds_sheet(path, a, b, work, name):
     return (str(out), step) if out.exists() else (None, step)
 
 
+SHORT_SCENE = 20.0      # a cut this short is only ever made longer (a brief hit between stills)
+FIGHT_KINDS = ("Violence", "Graphic", "Gore", "Disturbing")
+
+
 def refine_bounds(path, work, dur, scenes, asr, progress=None):
-    """Claude/ChatGPT sets where each scene to cut really starts and ends (the whole
-    fight, not just its worst moment), then the edges snap to changes of shot."""
+    """Claude/ChatGPT sets where each scene to cut really starts and ends, then the edges
+    snap to changes of shot. Only the part where the trouble is on screen is cut (a fight
+    from its first blow to its last), in pieces when it stops and starts again, so they can
+    still follow the story (Lauren 2026-11-03); a short cut is only ever made longer."""
     say = progress or (lambda f, m: None)
     todo = [sc for sc in scenes if sc.get("cut", True)
             and not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", []))]
     windows = {sc["id"]: (max(0.0, sc["s"] - 12), min(dur, sc["e"] + 12)) for sc in todo}
-    widened = 0
+    spans_of = {}
     for rnd in range(2):                 # once, then again for scenes that ran off the edge
         items, steps = [], {}
         for sc in todo:
@@ -1784,25 +1791,39 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
             (rnd + f) / 2, "is checking where each scene starts and ends"))
         windows = {}
         for sc in todo:
-            if sc["id"] not in got or sc["id"] not in steps:
-                continue
-            v = got[sc["id"]]
-            if v is None:
+            if sc["id"] not in got or sc["id"] not in steps or got[sc["id"]] is None:
                 continue
             a, step = steps[sc["id"]]
-            first, last, before, after = v
-            s_new = a + (first - 1) * step - step / 2
-            e_new = a + last * step + step / 2
-            old = (sc["s"], sc["e"])
-            sc["s"], sc["e"] = round(max(0.0, min(sc["s"], s_new)), 2), round(min(dur, max(sc["e"], e_new)), 2)
-            if (sc["s"], sc["e"]) != old:
-                widened += 1
+            parts, before, after = got[sc["id"]]
+            fight = any(k.startswith(FIGHT_KINDS) for k in sc.get("kind", []))
+            pad = step / 2 + (step / 2 if fight else 0)   # a fight's last blow stays cut
+            spans = [(round(max(0.0, a + (f - 1) * step - pad), 2),
+                      round(min(dur, a + z * step + pad), 2)) for f, z in parts]
+            spans_of[sc["id"]] = spans
+            first, last = parts[0][0], parts[-1][1]
             if rnd == 0 and (before and first == 1 or after and last == 30):
-                windows[sc["id"]] = (max(0.0, sc["s"] - 20 if before else sc["s"] - 4),
-                                     min(dur, sc["e"] + 20 if after else sc["e"] + 4))
+                windows[sc["id"]] = (max(0.0, spans[0][0] - (20 if before and first == 1 else 4)),
+                                     min(dur, spans[-1][1] + (20 if after and last == 30 else 4)))
         if not windows:
             break
-    for sc in todo:
+    changed, pieces, out = 0, [], []
+    for sc in scenes:
+        spans = spans_of.get(sc["id"])
+        if not spans:
+            out.append(sc)
+            if any(sc is t for t in todo):
+                pieces.append(sc)
+            continue
+        if sc["e"] - sc["s"] <= SHORT_SCENE:          # only ever longer
+            spans = [(min(sc["s"], spans[0][0]), max(sc["e"], spans[-1][1]))]
+        if spans != [(sc["s"], sc["e"])]:
+            changed += 1
+        for s0, e0 in spans:
+            piece = dict(sc, s=s0, e=e0, kind=list(sc.get("kind", [])))
+            out.append(piece)
+            pieces.append(piece)
+    scenes = out
+    for sc in pieces:
         snap_to_shots(path, sc, dur=dur)
         said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]
         sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
@@ -1822,7 +1843,7 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
             merged.append(sc)
     for k, sc in enumerate(merged, 1):
         sc["id"] = k
-    return merged, widened
+    return merged, changed
 
 
 def heard_between(asr, cues, a, b, limit=240):
@@ -1989,8 +2010,8 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
     who = cc.name()
     note = (f"{who} looked through the whole picture ({len(sheets) * 20} stills): it confirmed "
             f"{confirmed} scene(s), ruled out {ruled_out} false alarm(s) and found {len(new)} "
-            f"the other checks missed" + (f", and stretched {widened} cut(s) to cover the whole "
-                                          f"scene" if widened else "") + ".")
+            f"the other checks missed" + (f", and set where {widened} cut(s) start and end "
+                                          f"(just the part with the problem)" if widened else "") + ".")
     return scenes, note
 
 
@@ -2521,6 +2542,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
+    filled = [l for l in lines if l.get("heard")]
+    if cues and filled:
+        notes.append(f"The subtitles leave out some of the talking (from "
+                     f"{cl.fmt_t(filled[0]['s'])} on, {len(filled)} lines), so those parts "
+                     f"were read from what was heard.")
     genders = None
     key = learned_key(path, o)
     examples = learn.examples(key, on_kinds(o), title_name(path))

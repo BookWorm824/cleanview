@@ -377,19 +377,23 @@ TYPE_TEXT = {
               "the lines that are sexual themselves, not the lines around a joke, but do take "
               "a follow-up that carries the joke on ('there's no need to be gentle' after a "
               "bondage joke) or calls back to it later, bragging about sleeping with women, "
-              "brothel talk, and jokes that need knowing the news (a president and his "
-              "interns). A reply that only reacts to a joke ('ha!', 'that's disgusting') "
+              "brothel talk, jokes that need knowing the news (a president and his "
+              "interns), and innuendo said by hint (a father 'selling' his daughter: 'never "
+              "mind about sending any clothes', 'I sold flowers, I didn't sell myself'). A reply that only reacts to a joke ('ha!', 'that's disgusting') "
               "isn't one. Not: plainly "
               "mentioning underwear ('can you see my underwear?'), "
               "pregnancy or babies, 'sex' "
-              "meaning men or women ('the fair sex'), a polite 'it's a pleasure', a body part "
+              "meaning men or women ('the fair sex', 'others of my sex'), 'make love to' in an "
+              "old film or period story, where it means court or woo, a polite 'it's a "
+              "pleasure', a body part "
               "in a threat; read the lines around it first (a line that sounds suggestive alone "
               "may be about a pager or a phobia)",
     "casual": "sleeping around: casual sex, hooking up, affairs, cheating, including talk "
               "of cheating with nothing sexual said (an engaged or married person kissing "
               "someone else). Only the lines that are about the affair or the cheating: not "
               "the alibis, train times, 'What?' or 'Sorry to bother you' around it, nor "
-              "questions that only lead up to it being revealed. Not: dating, setting people "
+              "questions that only lead up to it being revealed, nor a song's refrain "
+              "between the affair lines ('with a little bit of luck'). Not: dating, setting people "
               "up, dating apps, being in love, flirting with nothing sexual said",
     "samesex": "same-sex romance or relationships, including flirting or romantic interest "
                "between two men or two women, including their tender lines to each other "
@@ -407,8 +411,10 @@ TYPE_TEXT = {
                 "you a ...'), mocking someone's catchphrase, and grown-ups putting children "
                 "down; the whole line. It must be meant to hurt or belittle. Not: simply "
                 "disagreeing ('you're wrong!'), friendly ribbing between grown-up friends, a "
-                "married couple arguing, a villain's one-off threat, or a line whose only "
-                "problem is a swear word (that's 'just the word')",
+                "married couple arguing, a villain's one-off threat, a song or grumble about "
+                "someone who isn't there, a customer being rude, or a line whose only "
+                "problem is a swear word or one rude word ('you idiot!', 'the little tramp!', "
+                "'you pitiful fool'): that's 'just the word'",
     "disrespect": "disrespect: a child or teen being bratty or disrespectful to a parent, "
                   "teacher or other grown-up: talking back, sassing, eye-rolling replies "
                   "('whatever', 'you can't tell me what to do'), mocking or insulting them, "
@@ -879,7 +885,10 @@ PIC_RULES = (
     "fight between armed men is \"violence\"; when a captive is hit, start where the first "
     "blow lands, not after it. A killing that happens "
     "off screen but is clearly heard or shown by what follows (a gunshot and the character "
-    "is gone, a scream and then a body) IS \"violence\". A body with "
+    "is gone, a scream and then a body) IS \"violence\". Food and cooking are none of these: boiling or "
+    "steaming live lobsters, cutting up meat or fish, a butcher at work. Neither is a small "
+    "accidental cut while cooking (a cook nicking a finger), nor a fake or comic injury in "
+    "an obvious joke, parody or sketch. A body with "
     "no visible blood (covered, or just lying there) is none of these. Cartoon and slapstick "
     "fighting IS \"violence\" too, and so is a gun fired at a person or an animal "
     "even when the stills only show what comes after (animals fleeing, someone falling); "
@@ -891,7 +900,11 @@ PIC_RULES = (
     "buttocks or genitals actually shown; implied nudity means someone undressed but covered "
     "(under a sheet, in a towel, a bare back or shoulders, a shower from the shoulders up, "
     "private parts hidden by an object or the camera angle). A shirtless man or swimwear is "
-    "neither. Shorts, a tank top or a sports top on their own are not immodest or implied "
+    "neither, and neither is someone alone in a bath with only their shoulders above the "
+    "water or bubbles and nothing else happening, or a picture of a couple's bare shoulders "
+    "(a postcard) with nothing sexual happening. A mermaid's seashell top or a cartoon "
+    "character's swimwear is not immodest: judge drawn characters' clothes more lightly "
+    "than real people's, and by the setting (the sea, a beach, a pool). Shorts, a tank top or a sports top on their own are not immodest or implied "
     "nudity. A sex scene is judged by what's happening and by the context, not by the bed "
     "or the clothes: use the stills before and after, what's said and the sounds the "
     "subtitles describe. It IS one when there's sex (even fully clothed, sitting, standing, "
@@ -1023,17 +1036,22 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
 
 def scene_bounds(items, per_request=8, progress=None):
     """items: [(scene_id, kind_text, sheet_path)], each sheet 30 stills (6 across, 5 down),
-    evenly spaced from well before to well after a scene that will be cut. Returns
-    {scene_id: (first_tile, last_tile, continues_before, continues_after)} or None for a
-    scene where the trouble isn't seen at all."""
+    evenly spaced from before to after a scene that will be cut. Returns
+    {scene_id: ([(first_tile, last_tile), ...], continues_before, continues_after)} or None
+    for a scene where the trouble isn't seen at all. Several parts when the trouble stops
+    and starts again: cut only those, so the story in between can still be followed
+    (Lauren 2026-11-03: a 6-minute cut of The Little Mermaid's ending; a phone ringing and
+    a cat after a sex scene in Julie & Julia)."""
     schema = {"type": "object", "properties": {"scenes": {"type": "array", "items": {
         "type": "object", "properties": {
             "scene": {"type": "integer"},
             "seen": {"type": "boolean"},
-            "first_tile": {"type": "integer"}, "last_tile": {"type": "integer"},
+            "parts": {"type": "array", "items": {"type": "object", "properties": {
+                "first_tile": {"type": "integer"}, "last_tile": {"type": "integer"}},
+                "required": ["first_tile", "last_tile"]}},
             "continues_before": {"type": "boolean"}, "continues_after": {"type": "boolean"}},
-        "required": ["scene", "seen", "first_tile", "last_tile", "continues_before",
-                     "continues_after"]}}}, "required": ["scenes"]}
+        "required": ["scene", "seen", "parts", "continues_before", "continues_after"]}}},
+        "required": ["scenes"]}
     out = {}
     batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
     for b, batch in enumerate(batches):
@@ -1043,24 +1061,41 @@ def scene_bounds(items, per_request=8, progress=None):
                  f"right and top to bottom:", p) for k, (_, kind, p) in enumerate(batch)]
         prompt = (
             "Each numbered scene above is going to be cut out of a family's copy of a show. The "
-            "stills run from well before the scene to well after it. For each one, find the "
-            "WHOLE stretch to cut: from the first still where that trouble starts (including "
-            "the start of a fight, a grab, or someone being attacked or pulled down) to the last "
-            "still where it's over (people still struggling, someone still being hurt or in "
-            "danger, the attacker still at it). It's better to include a little too much than "
-            "leave part of it in. Give first_tile and last_tile. Set continues_before if it "
-            "was already going on in tile 1, and continues_after if it's still going on in tile "
-            "30. Set seen to false if none of the stills show it.")
+            "stills run from before the scene to after it. Cut as little as possible, so they "
+            "can still follow the story, but all of the trouble itself. For each scene give "
+            "the parts to cut: each part runs from the first still where the trouble is on "
+            "screen to the last one. For fighting or someone being attacked, a part runs from "
+            "the first blow, grab or lunge to the last (people still struggling or still being "
+            "hurt count; the build-up and the aftermath don't). Leave out stills before, after "
+            "and between where nothing they want removed is shown: people talking, walking "
+            "away, a phone ringing, a pet, the scenery. Give two or more parts only when the "
+            "trouble stops for at least 3 stills in a row and starts again; otherwise one. Set "
+            "continues_before if it was already going on in tile 1, and continues_after if "
+            "it's still going on in tile 30. Set seen to false (and no parts) if none of the "
+            "stills show it.")
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
         for d in res.get("scenes", []):
             k = int(d.get("scene", 0)) - 1
             if not 0 <= k < len(batch):
                 continue
-            if not d.get("seen", True):
+            parts = []
+            for part in d.get("parts") or []:
+                try:
+                    a = max(1, min(30, int(part.get("first_tile", 1))))
+                    z = max(a, min(30, int(part.get("last_tile", 30))))
+                except (TypeError, ValueError, AttributeError):
+                    continue
+                parts.append((a, z))
+            if not d.get("seen", True) or not parts:
                 out[batch[k][0]] = None
                 continue
-            a = max(1, min(30, int(d.get("first_tile", 1))))
-            z = max(a, min(30, int(d.get("last_tile", 30))))
-            out[batch[k][0]] = (a, z, bool(d.get("continues_before")),
+            parts.sort()
+            joined = [parts[0]]
+            for a, z in parts[1:]:          # overlapping or nearly touching: one part
+                if a <= joined[-1][1] + 3:
+                    joined[-1] = (joined[-1][0], max(joined[-1][1], z))
+                else:
+                    joined.append((a, z))
+            out[batch[k][0]] = (joined, bool(d.get("continues_before")),
                                 bool(d.get("continues_after")))
     return out

@@ -566,7 +566,8 @@ LOOK = {
              "shown on the outside: organs, entrails, brains, bone through skin, a severed body "
              "part. Answer \"blood\" if there is visible blood, a bloody wound or a bloody body "
              "but nothing inside showing. Answer \"none\" if there's no visible blood (a covered "
-             "body, a crime scene without blood, a dark red object).",
+             "body, a crime scene without blood, a dark red object, cooking: raw meat, a lobster, a "
+             "small kitchen cut).",
              {"type": "object", "properties": {
                  "see": {"type": "string"},
                  "level": {"type": "string", "enum": ["insides", "blood", "none"]}},
@@ -596,8 +597,9 @@ LOOK = {
     "nudity": ("Question: is anyone naked? Answer \"shown\" only if bare breasts, bare buttocks "
                "or genitals are clearly visible. Answer \"implied\" if someone is undressed but "
                "covered: under a sheet or blanket, in a towel, a bare back or shoulders, a shower "
-               "or bath shown from the shoulders up, or private parts hidden by an object or the "
-               "camera angle. Answer \"none\" if everyone is dressed, or it's a shirtless man, "
+               "shown from the shoulders up, or private parts hidden by an object or the "
+               "camera angle. Answer \"none\" if everyone is dressed, someone is alone in a bath with only "
+               "their shoulders above the water or bubbles, or it's a shirtless man, "
                "swimwear, or just skin-toned objects.",
                {"type": "object", "properties": {
                    "see": {"type": "string"},
@@ -719,7 +721,8 @@ LINE_TYPES = {
                "and lines like 'be gentle, it's my first time' or 'what was his name?' to "
                "the woman he woke up with. NOT: swearing, insults, lying, drinking, drugs, violence, crime, threats, "
                "compliments, ordinary love and affection, pregnancy or babies, 'sex' meaning men or "
-               "women ('the fair sex'), a polite 'it's a pleasure', a body part in a threat, "
+               "women ('the fair sex', 'others of my sex'), 'make love to' in an old film "
+               "(courting), a polite 'it's a pleasure', a body part in a threat, "
                "'sleeps with the pigs' meaning where someone sleeps"),
     "casual": ("says or clearly implies someone had, or wants, sex outside a committed "
                "relationship: hooking up, a one-night stand, an affair, cheating, sleeping with "
@@ -748,8 +751,9 @@ LINE_TYPES = {
                  "on someone weaker, trying to humiliate them, mocking someone's catchphrase, "
                  "a grown-up putting a child down. It must be meant to hurt. NOT: simply "
                  "disagreeing ('you're wrong'), ordinary arguments, a married couple arguing, "
-                 "police questioning or warnings, friendly teasing between friends, a line whose "
-                 "only problem is a swear word"),
+                 "police questioning or warnings, friendly teasing between friends, a song or "
+                 "grumble about someone who isn't there, a rude customer, a line whose "
+                 "only problem is a swear word or one rude word ('you idiot!')"),
     "religion": ("talks about religion or faith: God, Jesus, prayer or praying, church, the "
                  "Bible, heaven or hell as places, angels, sin, or the beliefs, practices, "
                  "clergy or holidays of any religion. NOT: 'oh my God' or 'Jesus' said as a "
@@ -820,9 +824,15 @@ def _tag(l, v):
     return f"({', '.join(bits)}) " if bits else ""
 
 
+SUBTITLE_GAP = 90.0     # this long with talking but no subtitles: the subtitles are missing it
+
+
 def dialogue_lines(cues, asr, spoken):
     """Lines of dialogue with times: subtitle lines when there are subtitles,
-    otherwise sentences from what was heard."""
+    otherwise sentences from what was heard. Where the subtitles leave out a long
+    stretch that has talking in it, the heard sentences fill it (Julie & Julia: the
+    subtitles found were only the first half of the movie, "CD1", so nothing said after
+    0:59 was read)."""
     lines = []
     if cues:
         for c in cues:
@@ -831,6 +841,22 @@ def dialogue_lines(cues, asr, spoken):
                 m = re.match(r"\s*-?\s*([A-Z][A-Za-z .'-]{1,20}):", c["text"])
                 lines.append({"s": c["s"], "e": c["e"], "text": txt,
                               "who": m.group(1).strip().title() if m else ""})
+        if lines:
+            gaps, last = [], float("-inf")
+            for l in sorted(lines, key=lambda l: l["s"]) + [{"s": float("inf"), "e": 0}]:
+                if l["s"] - last > SUBTITLE_GAP:
+                    gaps.append((last + 2.0, l["s"] - 2.0))
+                last = max(last, l["e"])
+            heard = []
+            for a, b in gaps:               # a minute or more of talking: not a stray word
+                ws = [w for w in asr if a <= w["s"] and w["e"] <= b]
+                if len(ws) >= 20 and ws[-1]["e"] - ws[0]["s"] >= 60:
+                    heard += ws
+            if heard:
+                extra = dialogue_lines([], heard, spoken)
+                for l in extra:
+                    l["heard"] = True       # from listening, not the subtitles
+                lines = sorted(lines + extra, key=lambda l: l["s"])
         return lines
     cur = []
     for w in asr:

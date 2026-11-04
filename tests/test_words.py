@@ -676,5 +676,30 @@ class FromNovemberReports(unittest.TestCase):
         self.assertEqual(found("we are saved by Jesus"), [])
 
 
+class FromCleanReadReports(unittest.TestCase):
+    """Wings of a Dream, Playing by Heart, All That Glitters (CleanRead, 2026-10-30 to 11-03):
+    the same words in every app."""
+
+    def test_everyday_uses(self):
+        for text in ("Arthur went to Camp Dick in Texas", "a tiny prick of black escaped",
+                     "I felt a jealous prick at my heart", "you can prick them",
+                     "an unending strip of sod", "they lived in sod houses", "God knows best",
+                     "Lord help me to trust you", "God help us to know", "a Dick Francis novel",
+                     "the dickens novel", "Charles Dickens"):
+            self.assertEqual(found(text), [], text)
+
+    def test_still_caught(self):
+        for text, word in (("what a dick", "dick"), ("you little prick", "prick"),
+                           ("that prick at the office", "prick"), ("sod it", "sod"),
+                           ("you lucky sod", "sod"), ("the poor sod", "sod"),
+                           ("God knows where he went", "god knows"),
+                           ("Lord help me, I will strangle him", "lord help me"),
+                           ("God help us, they are here", "god help us"),
+                           ("How the dickens did you get in?", "how the dickens"),
+                           ("It scared the dickens out of me", "the dickens out of"),
+                           ("It hurts like the dickens", "like the dickens")):
+            self.assertIn(word, [w for w, _ in found(text)], text)
+
+
 if __name__ == "__main__":
     unittest.main()

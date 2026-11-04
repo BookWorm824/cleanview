@@ -266,9 +266,15 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
         if n in muted and len(n.split()) >= LEARNED_SHORTEST:
             added.append(dict(l, learned_from="you" if n in mine_muted else "shared"))
     n_sc = 0
+    def usually_kept(kind):
+        s = d["scenes"].get(kind)
+        return bool(s) and s["kept"] >= 3 and s["kept"] >= 0.75 * (s["kept"] + s["cut"])
+
     for sc in scenes:
-        s = d["scenes"].get(scene_kind(sc))
-        if s and s["kept"] >= 3 and s["kept"] >= 0.75 * (s["kept"] + s["cut"]):
+        # every kind in it, not just the first: a drinking scene joined to a sex scene stays
+        # cut (Julie & Julia: "you usually keep these" left the whole sex scene in)
+        kinds = {k.split(" · ")[0] for k in sc.get("kind") or ["scene"]}
+        if all(usually_kept(k) for k in kinds):
             if sc.get("cut", True):
                 sc["cut"] = False
                 sc["learned"] = "you usually keep these in this show"

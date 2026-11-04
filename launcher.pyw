@@ -245,6 +245,9 @@ def as_own_exe():
         return False
 
 
+LAUNCHER_CHANGED = False      # the update brought a new launcher.pyw
+
+
 def update():
     local = json.loads((HERE / "version.json").read_text())
     with urllib.request.urlopen(RAW + "version.json", timeout=4) as r:
@@ -263,6 +266,10 @@ def update():
         staged[name] = data
     if "CleanView.pyw" not in staged and not (HERE / "CleanView.pyw").exists():
         raise ValueError("update is missing CleanView.pyw")
+    global LAUNCHER_CHANGED
+    old = HERE / "launcher.pyw"
+    LAUNCHER_CHANGED = "launcher.pyw" in staged and (
+        not old.exists() or old.read_bytes() != staged["launcher.pyw"])
     for name, data in staged.items():
         fd, tmp = tempfile.mkstemp(dir=HERE)
         with os.fdopen(fd, "wb") as f:
@@ -278,7 +285,7 @@ if __name__ == "__main__":
             sys.exit(0)
     except Exception:      # never block the app over its name
         pass
-    note = None
+    note = new = None
     try:
         new = update()
         if new:
@@ -290,5 +297,11 @@ if __name__ == "__main__":
             pass
     if note:
         os.environ["CLEANVIEW_UPDATED"] = note
+    if new and LAUNCHER_CHANGED:
+        # start the new launcher, not this old one already running: what it does differently
+        # (its own name in Task Manager, 1.18.9) then works from this start, not the next
+        sys.argv = [str(HERE / "launcher.pyw")]
+        runpy.run_path(str(HERE / "launcher.pyw"), run_name="__main__")
+        sys.exit(0)
     sys.argv = [str(HERE / "CleanView.pyw")]
     runpy.run_path(str(HERE / "CleanView.pyw"), run_name="__main__")

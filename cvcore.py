@@ -190,7 +190,10 @@ def reverent(words, i, j=None):
 # cum laude", "General Hooker". (The word before or after, normalised.)
 INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"},
                  "dick": {"grayson", "tracy", "van", "whittington", "cheney", "clark", "york",
-                          "turpin", "dastardly", "smith", "jones", "johnson", "and"},
+                          "turpin", "dastardly", "smith", "jones", "johnson", "and",
+                          "francis"},
+                 # turf: "sod houses", "a sod roof"
+                 "sod": {"house", "houses", "roof", "roofs", "hut", "huts", "buster", "busters"},
                  "cum": {"laude"},
                  "peckers": {"up"}, "pecker": {"up"}, "horny": {"toad", "toads"},
                  "retard": {"the", "its", "their", "growth"},
@@ -209,7 +212,15 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  # "gay" meaning happy (Enchanted's "gay refrain", "don we now our gay apparel")
                  "gay": {"refrain", "apparel", "abandon", "laughter", "nineties", "paree"},
                  "bullshit": {"degree", "degrees"}}                 # "a BS degree"
-INNOCENT_PREV = {"dick": {"moby", "uncle", "big"}, "cum": {"summa", "magna"},
+INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WWI army camp
+                 "cum": {"summa", "magna"},
+                 # a small sting: "a tiny prick of black", "a jealous prick at my heart",
+                 # "you can prick them" (never "you little prick", "that prick")
+                 "prick": {"tiny", "jealous", "sharp", "slight", "faint", "sudden", "pin",
+                           "needle", "to", "can", "could", "will", "would", "may", "might"},
+                 # turf: "an unending strip of sod" (never "sod it", "you lucky sod")
+                 "sod": {"of", "with", "some", "fresh", "green", "new", "lay", "laid",
+                         "laying", "cut", "grass"},
                  "hooker": {"general", "john", "joe"}, "hookers": {"general"},
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
@@ -308,6 +319,11 @@ MILD_SLANG = [re.compile(p) for p in (
 # And the same for God's name, Jesus and son of a bitch: "good grief", "for Pete's sake".
 MINCED_SLANG = [re.compile(p) for p in (
     r"what the (fudge|flip|fork|frack|fuh|devil|dickens|deuce|blazes)\b",
+    # "how the dickens", "scared the dickens out of me", "hurts like the dickens" (Julie &
+    # Julia; Lauren 2026-11-03), never "Charles Dickens" or "the Dickens novel"
+    r"(how|who|where|why|when) (in )?the (dickens|deuce|blazes)\b",
+    r"the (dickens|deuce) out of\b", r"like the (dickens|deuce|blazes)\b",
+    r"(oh|aw|ah) (the )?dickens\b(?! (novel|book|story|stories|museum|fan))",
     r"(oh|aw|ah|ahh|aww) (fudge|shoot|sugar)\b",
     r"gee (whiz|whizz|willikers|whillikers|wilikers)\b", r"jeepers creepers\b",
     r"(diddly|diddley|diddlee|doodly|jack) squat\b",          # "jack squat" = "jack shit"
@@ -452,7 +468,9 @@ SEX_TERMS = {
 NOT_SEX_BEFORE = {
     "pleasure": {"a", "my", "the", "our", "great", "such", "real", "your", "true"},
     "sex": {"your", "our", "her", "his", "their", "fair", "fairer", "weaker", "gentle",
-            "gentler", "opposite", "same", "other", "either", "each", "whose"},
+            "gentler", "opposite", "same", "other", "either", "each", "whose",
+            # "the others of my sex", "we are a marvelous sex" (My Fair Lady)
+            "my", "marvelous", "marvellous", "stronger", "superior", "inferior", "noble"},
 }
 SEX_WINDOW_SCORE = 9   # a stretch of ~3 paragraphs (or ~60s) scoring this much gets flagged
 SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score this to be cut
@@ -604,6 +622,10 @@ def find_language(words, cats, mine=()):
                 ph = None                 # "the gospel of Jesus Christ"
             if ph and ph[-1] == "god" and i + len(ph) < n and words[i + len(ph)] in GOD_NOT_OATH:
                 ph = None                 # "Uh-oh. God save the queen", "oh God, bless us"
+            nxt = words[i + len(ph)] if ph and i + len(ph) < n else ""
+            if ph and (ph[-1] == "knows" and nxt in KNOWS_NOT_OATH or
+                       ph[-2:-1] == ("help",) and nxt in HELP_NOT_OATH):
+                ph = None                 # "God knows best", "Lord, help me to trust You"
             if ph:
                 hits.append((i, i + len(ph), "deity"))
                 i += len(ph)
@@ -676,6 +698,10 @@ def find_language(words, cats, mine=()):
 UP_YOURS_NOT_AFTER = {"hold", "holds", "held", "holding", "keep", "keeps", "kept", "keeping"}
 # "Oh God" / "my God" just before these is a prayer or a toast, not an oath.
 GOD_NOT_OATH = {"save", "bless", "blessed", "willing"}
+# "God knows best" is faith, not "God knows!"; "Lord, help me to trust" is a prayer, not
+# "Lord help me, I'll strangle him" (CleanRead: Wings of a Dream)
+KNOWS_NOT_OATH = {"best"}
+HELP_NOT_OATH = {"to"}
 FREAK_WORDS = {"freaking", "freakin"}
 
 

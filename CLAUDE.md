@@ -188,6 +188,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_freeze.py`: the freeze and crash notes, sending one in, and `_poll` under a flood.
 - `test_reports_nov.py`: lessons from the November reports (long prompts through stdin,
   sound-only and talk-only scenes, misheard swears, names in the subtitles, a bare "God!").
+- `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
+  split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every
@@ -323,6 +325,29 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   alone is offered unticked too (`TALK_ONLY`: the lines are muted on their own; a coroner's
   findings in Castle), and needs two different explicit words (`sex_score`: "thrust" said
   over and over in Chicken Run's flying talk).
+- Subtitles that leave out a minute or more of talking (only "CD1" of a two-part
+  download: Julie & Julia's stopped at 0:59 of 2 hours) are filled in from what was heard
+  (`cleanview_ai.dialogue_lines`, `SUBTITLE_GAP`; lines marked `heard`), with a note in the
+  review. Before, nothing said after that was read, and the chat couldn't see it.
+- Scene cuts are as short as the trouble (Lauren 2026-11-03: "a shorter cut for all found
+  scenes in general... that way you can tell more what is happening"; a 6½-minute cut of
+  The Little Mermaid's ending). The bounds sheet now asks for the parts where the trouble
+  is on screen (`scene_bounds` returns parts) and `refine_bounds` can shrink a cut or split
+  it in pieces (the phone ringing and the cat after Julie & Julia's sex scene stay in). A
+  fight runs from the first blow to the last, with a wider edge (`FIGHT_KINDS`), and a cut
+  of 20 s or less (`SHORT_SCENE`) is only ever made longer, since a brief hit can fall
+  between stills.
+- "You usually keep these" only keeps a scene when she usually keeps every kind in it (a
+  drinking scene joined to a sex scene left the sex scene in; `learn.apply`).
+- Picture rules (`PIC_RULES`, local `LOOK`): cooking isn't violence (boiling lobsters, a
+  small kitchen cut), nor is a comic fake injury in a parody; someone alone in a bath with
+  only their shoulders showing, or a postcard of a couple's shoulders, isn't implied
+  nudity; a mermaid's seashell top or a cartoon's swimwear isn't immodest (drawn
+  characters are judged more lightly). "dickens" said as an oath is a minced oath ("how
+  the dickens", "scared the dickens out of", "hurts like the dickens"), never Charles
+  Dickens. From the CleanRead reports, the same in every app: "Camp Dick" (a WWI army
+  camp), "a tiny prick of black", "a strip of sod", "God knows best" and "Lord, help me to
+  trust" (a prayer) aren't swears (`INNOCENT_PREV`, `KNOWS_NOT_OATH`, `HELP_NOT_OATH`).
 - Long prompts go to the Claude CLI through stdin (`LONG_ARGS`): Windows refused the final
   review's command line ("WinError 206", Clue). With no AI reading the dialogue, the review
   says plainly that the dialogue choices were only checked against a short list (Enchanted).
