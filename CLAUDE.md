@@ -123,6 +123,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   The worker reads `analysis.json` from the work folder, so the review gets the same JSON
   a resumed review does. Tests run the workers with a stand-in engine
   (`CLEANVIEW_ENGINE=fake_engine`, `tests/fake_engine.py`).
+- Low memory (CleanListen 1.14.4-1.14.5, 2026-11-04: "bad allocation", "[WinError 1455] The
+  paging file is too small"): `cvcore.run`/`popen` wait 5, 15 and 30 s and try again when
+  Windows can't start a program for lack of memory (`LOW_MEMORY_ERRORS`); `analyze` calls
+  `cleanview_ai.free_memory()` once the AI helper's part is done (Ollama `keep_alive: 0` for
+  the loaded models, instead of holding several GB for 5 minutes); `videoqueue.plain_error`
+  (and a worker whose log says so) shows `OUT_OF_MEMORY` ("Set 'Videos at once' to 1...").
+  `launcher.pyw` falls back to `BookWorm824/cleanview` when `update.json` is missing or broken.
 - A freeze or a crash is written down (Jason, 2026-11-03: it stopped responding during a
   movie and didn't say why). If the window doesn't answer for 20 s (`STALL_SECS`), what
   every thread was doing, the step and memory go in `stopped_last_time.txt`; a hard crash
@@ -209,6 +216,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in
   engine: two run together, a third waits, a failure is said plainly and a crash only
   loses its own video, "Stop after", Cancel.
+- `test_low_memory.py`: ffmpeg waits for memory, the AI helper lets go of its models,
+  running out said plainly (also from a worker that crashed), the launcher without
+  `update.json`.
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every

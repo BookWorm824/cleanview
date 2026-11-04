@@ -2660,6 +2660,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                                                           if f["between"] in WHO_LABEL else "")],
                            "why": f["what"] or "flirting or romantic interest", "sure": True})
     scenes = merge_scenes(scenes)
+    if have_ai:                         # done with the AI helper: free its memory now
+        ai.free_memory()
     for n, sc in enumerate(scenes, 1):
         sc["id"], sc["cut"] = n, sc.get("sure", True)
         sc["e"] = min(sc["e"], dur)

@@ -44,12 +44,30 @@ def _tool(name):
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
 
 
+# Windows' "not enough memory" errors when starting a program: 1455 "The paging file is too
+# small", 1450/1453 "Insufficient system resources/quota", 8/14 "Not enough storage/memory".
+# CleanListen saw 1455 saving a 4.5-hour book on a smaller PC (2026-11-04); with several
+# videos at once CleanView can too. Memory frees up as other work ends, so wait and try again.
+LOW_MEMORY_ERRORS = {8, 14, 1450, 1453, 1455}
+LOW_MEMORY_WAITS = (5, 15, 30)
+
+
+def _start(start, cmd, kw):
+    for wait in LOW_MEMORY_WAITS + (None,):
+        try:
+            return start(cmd, **_NOWIN, **kw)
+        except OSError as ex:
+            if wait is None or getattr(ex, "winerror", None) not in LOW_MEMORY_ERRORS:
+                raise
+            time.sleep(wait)
+
+
 def run(cmd, **kw):
-    return subprocess.run(cmd, **_NOWIN, **kw)
+    return _start(subprocess.run, cmd, kw)
 
 
 def popen(cmd, **kw):
-    return subprocess.Popen(cmd, **_NOWIN, **kw)
+    return _start(subprocess.Popen, cmd, kw)
 
 
 def probe_duration(path):

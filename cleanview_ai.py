@@ -349,6 +349,21 @@ def _api(path, payload=None, timeout=10):
     return urllib.request.urlopen(req, timeout=timeout)
 
 
+def free_memory():
+    """Ask Ollama to let go of the AI helper's models now instead of 5 minutes later: they hold
+    several GB, and on a smaller PC the cloud review, the saving or the next video needs them
+    (CleanListen, "The paging file is too small", 2026-11-04). Only models that are loaded are
+    asked (asking about one that isn't could load it); a video still using one just loads it
+    again. Never a problem of its own."""
+    try:
+        with _api("/api/ps", timeout=5) as r:
+            loaded = {m.get("name") or m.get("model") for m in json.load(r).get("models", [])}
+        for m in sorted(loaded & set(VISION_MODELS + TEXT_MODELS)):
+            _api("/api/generate", {"model": m, "keep_alive": 0}, timeout=10).close()
+    except Exception:
+        pass
+
+
 def ollama_running():
     try:
         with _api("/api/tags", timeout=3) as r:

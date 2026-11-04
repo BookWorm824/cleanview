@@ -1,6 +1,7 @@
 """A stand-in for cleanview.analyze, for the video workers in the tests (videoqueue.py loads
 it when CLEANVIEW_ENGINE=fake_engine). What it does depends on the video's name:
-"bad" fails with a message, "crash" ends the process without a word, "slow" runs until it's
+"bad" fails with a message, "crash" ends the process without a word ("nomemory": after
+writing the speech recognizer's "bad allocation" to its log), "slow" runs until it's
 asked to stop; anything else takes a moment and writes an analysis (opts["sample"]: a file
 to copy as the analysis). Each run writes when it started and ended to <work>/times.json."""
 import json
@@ -21,6 +22,12 @@ def analyze(path, workdir, groups=(), opts=None, progress=None, log=None, cancel
     work = Path(workdir)
     t0 = time.time()
     progress(0.1, f"Listening to {name}")
+    if "nomemory" in name:
+        import sys
+        sys.stderr.write("terminate called after throwing an instance of 'std::bad_alloc'\n"
+                         "  what():  bad allocation\n")
+        sys.stderr.flush()
+        os._exit(3)
     if "crash" in name:
         os._exit(3)
     if "bad" in name:

@@ -10,7 +10,11 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-CONFIG = json.loads((HERE / "update.json").read_text())   # {"repo": "...", "branch": "main"}
+try:                    # {"repo": "...", "branch": "main"}; a missing or broken file
+    CONFIG = json.loads((HERE / "update.json").read_text())   # mustn't stop CleanView opening
+    CONFIG["repo"]          # (CleanListen 1.14.3: a fresh install had none)
+except Exception:
+    CONFIG = {"repo": "BookWorm824/cleanview", "branch": "main"}
 RAW = f"https://raw.githubusercontent.com/{CONFIG['repo']}/{CONFIG.get('branch', 'main')}/"
 
 

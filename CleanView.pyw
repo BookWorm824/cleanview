@@ -1506,8 +1506,9 @@ class App(tk.Tk):
                                 encoding="utf8", errors="replace")[-4000:]
                         except OSError:
                             log = ""
-                        failed(k, f"{Path(j['video']).name}: CleanView stopped working on this "
-                                  f"video unexpectedly.",
+                        why = (VQ.OUT_OF_MEMORY if VQ.memory_trouble(log) else
+                               "CleanView stopped working on this video unexpectedly.")
+                        failed(k, f"{Path(j['video']).name}: {why}",
                                f"{j['video']}\n\nThe worker ended (code {msg['exit']}).\n\n{log}")
                     which()
         finally:

@@ -73,10 +73,30 @@ def threads_each(at_once, cpus=None):
 
 _PLAIN_KINDS = {"RuntimeError", "VideoError", "ClaudeError", "GptError", "GeminiError"}
 
+# Running out of memory, as the speech recognizer ("bad allocation"), Python, ffmpeg and
+# Windows (WinError 1455, 1450, 8) say it (CleanListen 1.14.4-1.14.5, 2026-11-04). More
+# videos at once is the likeliest cause, so that's the first thing to try.
+OUT_OF_MEMORY = ("This computer ran out of memory. Set \u201cVideos at once\u201d to 1, close "
+                 "other programs, and try again.")
+_MEMORY_WORDS = ("bad allocation", "bad_alloc", "memoryerror", "out of memory",
+                 "not enough memory", "failed to allocate", "unable to allocate",
+                 "cannot allocate memory", "paging file is too small",
+                 "insufficient system resources", "not enough storage is available")
+_MEMORY_WINERRORS = {8, 14, 1450, 1453, 1455}
+
+
+def memory_trouble(text):
+    """Does this error message (or a worker's log) say memory ran out?"""
+    t = str(text or "").lower()
+    return any(w in t for w in _MEMORY_WORDS)
+
 
 def plain_error(ex):
     """What went wrong, in everyday words. The technical part is kept out of sight."""
     win = getattr(ex, "winerror", None)
+    if (isinstance(ex, MemoryError) or win in _MEMORY_WINERRORS
+            or memory_trouble(f"{type(ex).__name__}: {ex}")):
+        return OUT_OF_MEMORY
     if isinstance(ex, PermissionError) or win in (32, 33):
         return ("A file CleanView needs is open in another program (maybe a video player). "
                 "Close it and try again.")
