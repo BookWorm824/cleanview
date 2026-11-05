@@ -675,9 +675,21 @@ UNCLEAR = re.compile(r"\b(too (dark|blurr?y)|blurr?y|unclear|"
 WHO_KEY = {"man and woman": "mf", "two men": "mm", "two women": "ff"}
 
 
-def second_look(cands, frames_for, progress=None, cancel=None):
+def family_said(notes):
+    """What they told the chat to keep in mind (learn.notes), for the picture check: Jason
+    (2026-11-04) corrects scenes in the chat to teach the AI on this PC."""
+    if not notes:
+        return ""
+    return (" The family has told CleanView to keep these in mind (only some may be about "
+            "what's on screen; follow the ones that are): " +
+            " ".join(f"- {t.strip()}" for t in notes[:20]))
+
+
+def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
     """Ask the local model about each candidate. Adds "verdict" to each:
-    {"keep": bool, "who": "mf|mm|ff|?", "level": "light|passionate|?", "what": str}."""
+    {"keep": bool, "who": "mf|mm|ff|?", "level": "light|passionate|?", "what": str}.
+    notes: what they told the chat to keep in mind (followed here too)."""
+    said = family_said(notes)
     for n, c in enumerate(cands):
         if cancel and cancel():
             raise KeyboardInterrupt
@@ -691,7 +703,8 @@ def second_look(cands, frames_for, progress=None, cancel=None):
             c["verdict"] = {"keep": True, "who": "?", "level": "?", "what": "", "error": "no frames"}
             continue
         try:
-            a = chat(PREFACE + q + CLEAR_ASK + " Answer in JSON.", imgs, schema, timeout=240)
+            a = chat(PREFACE + q + said + CLEAR_ASK + " Answer in JSON.", imgs, schema,
+                     timeout=240)
         except Exception as ex:
             c["verdict"] = {"keep": True, "who": "?", "level": "?", "what": "", "error": str(ex)}
             continue

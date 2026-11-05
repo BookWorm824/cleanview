@@ -220,6 +220,40 @@ class CountedOnce(unittest.TestCase):
         self.assertEqual(d["scenes"]["Sex scene"], {"cut": 1, "kept": 0})
 
 
+class PictureCheckFollowsNotes(unittest.TestCase):
+    """Jason, 2026-11-04: he corrects scenes in the chat to teach the AI on this PC, so the
+    local picture check gets what the chat was told too."""
+
+    def look(self, notes):
+        import cleanview_ai as ai
+        asked, real = [], ai.chat
+        ai.chat = lambda prompt, images=None, schema=None, **k: (
+            asked.append(prompt) or {"see": "a crime scene", "level": "blood", "clear": True})
+        try:
+            c = {"cat": "gore", "frames": [1.0]}
+            ai.second_look([c], lambda c: ["frame"], notes=notes)
+        finally:
+            ai.chat = real
+        return asked[0], c["verdict"]
+
+    def test_notes_go_to_the_picture_check(self):
+        prompt, verdict = self.look(["Crime scenes with blood are Graphic, not Gore."])
+        self.assertIn("Crime scenes with blood are Graphic, not Gore.", prompt)
+        self.assertEqual(verdict["level"], "graphic")
+
+    def test_no_notes_same_question_as_before(self):
+        import cleanview_ai as ai
+        prompt, _ = self.look([])
+        self.assertNotIn("The family has told", prompt)
+        self.assertTrue(prompt.startswith(ai.PREFACE + ai.LOOK["gore"][0] + ai.CLEAR_ASK))
+
+    def test_analyze_passes_them(self):
+        import inspect
+        src = inspect.getsource(engine.analyze)
+        self.assertIn("told = learn.notes(", src)
+        self.assertEqual(src.count("notes=told"), 2, "the closer look and the nudity check")
+
+
 class BackToStart(unittest.TestCase):
 
     def test_back_to_start_keeps_the_review(self):

@@ -2527,6 +2527,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
     look_job = None
+    # what they told the chat to keep in mind: the AI helper follows it too (Jason, 2026-11-04)
+    told = learn.notes(learned_key(path, o), title_name(path))
     if use_clip and vis and vis.get("clip"):
         cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"])
         if local_look and cands:
@@ -2535,7 +2537,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
             def look(progress):
                 ai.second_look(todo, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
-                               progress, cancel)
+                               progress, cancel, notes=told)
             if together:                # while Claude reads the dialogue (see closer_looks)
                 look_job = in_background(look)
             else:
@@ -2646,7 +2648,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             say(at("end", 0.65), "Taking a closer look at the nudity found…")
             ff = cl._tool("ffmpeg")
             nude = check_nudity(nude, o, lambda checks: ai.second_look(
-                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run), None, cancel),
+                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run), None, cancel,
+                notes=told),
                 notes)
         elif not o["nudity"]:
             nude = []
