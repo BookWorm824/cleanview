@@ -81,8 +81,8 @@ class TwoAtOnce(unittest.TestCase):
     def test_the_cores_are_shared(self):
         jobs, _ = run_workers(["Cores 1.mp4", "Cores 2.mp4"], at_once=2)
         self.assertEqual(times(jobs[0])["threads"], VQ.threads_each(2))
-        self.assertEqual(VQ.threads_each(2, cpus=16), 8)
-        self.assertEqual(VQ.threads_each(4, cpus=8), 2)
+        self.assertEqual(VQ.threads_each(2, cpus=16), 7)       # one core left free
+        self.assertEqual(VQ.threads_each(4, cpus=8), 1)
         self.assertEqual(VQ.threads_each(1, cpus=32), 8)
 
     def test_less_memory_one_at_a_time(self):

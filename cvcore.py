@@ -41,7 +41,9 @@ def _tool(name):
     return found
 
 
-_NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
+# no console window, and below normal priority: making the clean copy with ffmpeg runs from
+# the window's own process, and the window must stay quick to answer (CleanListen 1.15.1)
+_NOWIN = {"creationflags": 0x08000000 | 0x00004000} if os.name == "nt" else {}
 
 
 # Windows' "not enough memory" errors when starting a program: 1455 "The paging file is too

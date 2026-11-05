@@ -66,9 +66,11 @@ def memory_gb():
 
 def threads_each(at_once, cpus=None):
     """Speech-recognition threads for each video, so the ones running together share the
-    PC's cores (one video uses at most 8)."""
+    PC's cores (one video uses at most 8). One core is left for the window and the rest of the
+    PC (CleanListen 1.15.1, 2026-11-05: a book took all 6 cores of a 6-core PC and the window
+    looked frozen)."""
     cpus = cpus or os.cpu_count() or 2
-    return max(2, min(8, cpus // max(1, at_once)))
+    return max(1, min(8, max(1, cpus - 1) // max(1, at_once)))
 
 
 _PLAIN_KINDS = {"RuntimeError", "VideoError", "ClaudeError", "GptError", "GeminiError"}
@@ -118,6 +120,11 @@ def _no_window():
     return getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
 
+# The video workers (and the ffmpeg, speech and picture work they start) run below normal
+# priority, so the window always gets its turn first (CleanListen 1.15.1, 2026-11-05)
+BELOW_NORMAL = 0x00004000 if os.name == "nt" else 0
+
+
 def kill_tree(proc):
     """Stop a worker and everything it started (ffmpeg, the picture scan, Claude...)."""
     if proc.poll() is not None:
@@ -161,7 +168,7 @@ class Workers:
             proc = subprocess.Popen([self.python, str(HERE / "videoqueue.py"), str(spec_path)],
                                     cwd=str(HERE), stdin=subprocess.DEVNULL,
                                     stdout=subprocess.PIPE, stderr=err, env=env,
-                                    creationflags=_no_window())
+                                    creationflags=_no_window() | BELOW_NORMAL)
         finally:
             err.close()
         proc.stop_file = stop_file

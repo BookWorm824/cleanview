@@ -2935,5 +2935,26 @@ class App(tk.Tk):
         self.show_setup()
 
 
+def _installed_copy():
+    try:
+        return Path(__file__).resolve().parent == (APP_DATA / "app").resolve()
+    except OSError:
+        return False
+
+
+def _ollama_care(what):
+    """Ollama (the AI on this PC) only while CleanView, CleanListen or CleanRead are open
+    (Lauren, 2026-11-05): not started with Windows, and stopped once they've all closed. The
+    installed copy only, so a test copy never changes the PC."""
+    try:
+        import ollama_care
+        if _installed_copy():
+            getattr(ollama_care, what)()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
+    _ollama_care("autostart_off")
     App().mainloop()
+    _ollama_care("stop_later")

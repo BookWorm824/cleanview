@@ -137,6 +137,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `cleanview_ai.free_memory()` once the AI helper's part is done (Ollama `keep_alive: 0` for
   the loaded models, instead of holding several GB for 5 minutes); `videoqueue.plain_error`
   (and a worker whose log says so) shows `OUT_OF_MEMORY` ("Set 'Videos at once' to 1...").
+- The window stays quick to answer (CleanListen 1.15.1, 2026-11-05: a book took all 6 cores
+  and the window looked frozen): `threads_each` leaves one core free, the video workers start
+  below normal priority (`videoqueue.BELOW_NORMAL`, inherited by what they start), and so does
+  everything started through `cvcore.run`/`popen` (`_NOWIN`), including ffmpeg making the clean
+  copy from the window's process.
+- Ollama only while CleanView, CleanListen or CleanRead are open (Lauren, 2026-11-05; it held
+  ~4 GB all day): `ollama_care.py` is CleanListen's (1.15.2), with `videoqueue.py` added to
+  `CLEAN_APPS`; keep the two copies the same. The installed copy (`_installed_copy`) calls
+  `autostart_off()` on every opening (removes `Startup\Ollama.lnk`, which Ollama's updates put
+  back) and `stop_later()` after `mainloop()` (a detached helper stops Ollama once no app or
+  worker is running and no model is loaded; if it can't tell, Ollama is left alone).
   `launcher.pyw` falls back to `BookWorm824/cleanview` when `update.json` is missing or broken.
 - A freeze or a crash is written down (Jason, 2026-11-03: it stopped responding during a
   movie and didn't say why). If the window doesn't answer for 20 s (`STALL_SECS`), what
@@ -179,6 +190,7 @@ them in. Rules that follow from this:
 | `cleanview_accounts.py` | Each person's own Claude, ChatGPT or Gemini sign-in inside CleanView ("Use a different account" / "Sign out" on the start page). Claude Code, Codex and the Gemini CLI keep their sign-in in a folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_CLI_HOME`); CleanView's own is `APP_DATA\accounts\<ai>\<n>`, so the PC's own sign-in is never signed out or changed. A new sign-in goes in a new folder and is only used once it worked (`keep()`). With none, the PC's sign-in is used. |
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
 | `videoqueue.py` | Several videos at once: each video is watched and listened to (`analyze`) in its own worker process, "Videos at once" at a time. `Workers` (the window side) and `main()` (the worker, run as `CleanView.exe videoqueue.py <work>/queue_task.json`, one JSON line per message). Also `plain_error`, used by the window too. |
+| `ollama_care.py` | Ollama only while the apps are open: out of Windows startup, stopped after the last one closes (same file as CleanListen's, plus `videoqueue.py` in `CLEAN_APPS`). Standard library only. |
 | `shared_learned.json` | Built-in knowledge merged from users' exports; shipped with every update. Merged with `tools/merge_learned.py`. |
 | `launcher.pyw`, `update.json` | Auto-updater (above). |
 | `installer/` | `install.ps1`, `Install CleanView.bat`, `READ ME FIRST.txt`. Zipped by hand as `CleanView-Setup.zip`. |

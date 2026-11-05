@@ -717,7 +717,7 @@ SOUND_WIN, SOUND_HOP = 3.0, 1.5
 
 def load_tagger(threads=None):
     import sherpa_onnx
-    threads = threads or max(1, min(4, (os.cpu_count() or 2)))
+    threads = threads or max(1, min(4, (os.cpu_count() or 2) - 1))     # one core left free
     cfg = sherpa_onnx.AudioTaggingConfig(
         model=sherpa_onnx.AudioTaggingModelConfig(ced=str(TAG_DIR / "model.int8.onnx"),
                                                   num_threads=threads),

@@ -1045,7 +1045,7 @@ def install_speakers(progress=None):
 def separate_speakers(audio, threads=None, threshold=0.95):
     """[(start, end, speaker_number)] for 16 kHz mono audio."""
     import sherpa_onnx
-    threads = threads or max(1, min(4, (os.cpu_count() or 2)))
+    threads = threads or max(1, min(4, (os.cpu_count() or 2) - 1))     # one core left free
     cfg = sherpa_onnx.OfflineSpeakerDiarizationConfig(
         segmentation=sherpa_onnx.OfflineSpeakerSegmentationModelConfig(
             pyannote=sherpa_onnx.OfflineSpeakerSegmentationPyannoteModelConfig(
