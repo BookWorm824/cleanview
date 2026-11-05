@@ -980,6 +980,29 @@ class App(tk.Tk):
             self.q.put(("claude_status", _ai_status(p)))
         threading.Thread(target=go, daemon=True).start()
 
+    def _check_every_ai(self):
+        """Find out in the background which of Claude, ChatGPT and Gemini are set up, so the
+        review page can offer the chat even when the AI on this PC read the dialogue."""
+        self.ai_state = getattr(self, "ai_state", {})
+        asked = self.__dict__.setdefault("_ai_asked", set())
+        for p in cc.NAMES:
+            if p not in self.ai_state and p not in asked:
+                asked.add(p)
+                self.check_claude(p)
+
+    def _ai_checking(self):
+        return bool(getattr(self, "_ai_asked", set()) - set(getattr(self, "ai_state", {})))
+
+    def _offer_chat(self):
+        """One turned out to be set up: build the review page again with the chat."""
+        if self.page_name != "review" or getattr(self, "review_ai", None):
+            return
+        try:
+            tab = self._nb.index("current")
+        except Exception:
+            tab = 0
+        self.show_review(tab=tab)
+
     def _show_claude_status(self, msg):
         p, st, *rest = msg if isinstance(msg, tuple) else ("claude", msg)
         self.ai_state = getattr(self, "ai_state", {})
@@ -989,6 +1012,9 @@ class App(tk.Tk):
             self.ai_who[p] = rest[0]
         if p == "claude":
             self.claude_state = st
+        if getattr(self, "page_name", "") == "review" and not getattr(self, "review_ai", None) \
+                and (st == "ready" or not self._ai_checking()):
+            self.after_idle(self._offer_chat)
         lbl = getattr(self, "claude_lbl", None)
         if lbl is None or not lbl.winfo_exists() or self._cloud() != p:
             return
@@ -1266,6 +1292,7 @@ class App(tk.Tk):
                               "error": None})
         self.cancel_flag = self.stop_after = False
         self.at_once = self._at_once()
+        self._check_every_ai()
         self.show_working("Watching and listening…", can_stop=True)
         threading.Thread(target=self._analyze_thread, daemon=True).start()
 
@@ -1807,8 +1834,11 @@ class App(tk.Tk):
         r = self._cloud() if hasattr(self, "opts") else None
         if r:
             return r
-        for p, stt in getattr(self, "ai_state", {}).items():
-            if stt == "ready":
+        # (Jason, 2026-11-04: with the AI on this PC reading the dialogue there was no chat,
+        # so he couldn't tell it what it got wrong) any one that's set up will do
+        state = getattr(self, "ai_state", {})
+        for p in cc.NAMES:
+            if state.get(p) == "ready":
                 return p
         return None
 
@@ -1823,6 +1853,8 @@ class App(tk.Tk):
         self.page_name = "review"
         good = [j for j in self.jobs if j["analysis"]]
         self.review_ai = self._pick_review_ai(good)
+        if not self.review_ai:
+            self._check_every_ai()
         AI_NAME = cc.name(self.review_ai)
         if self.review_ai:
             cc.use(self.review_ai)
@@ -2227,10 +2259,15 @@ class App(tk.Tk):
         p = self.review_ai
         n = cc.name(p)
         state = (getattr(self, "ai_state", {}).get(p) or cc.status(p)) if p else "none"
+        if state == "none" and self._ai_checking():
+            state = "checking"
         if state != "ready":
-            msg = {"none": "This needs Claude, ChatGPT or Gemini. If you have one of them, "
+            msg = {"checking": "Checking whether Claude, ChatGPT or Gemini is set up on this "
+                               "PC\u2026",
+                   "none": "This needs Claude, ChatGPT or Gemini. If you have one of them, "
                            "pick it under \u201cWho reads the dialogue\u201d on the start page "
-                           "and set it up. "
+                           "and set it up. After that you can chat with it here even when the "
+                           "AI on this PC reads the dialogue. "
                            "Everything else works without them.",
                    "missing": f"{n} isn't set up yet. Go back to the start page and use "
                               f"\u201cSet up {n}\u201d under AI helper, then run this again."}.get(

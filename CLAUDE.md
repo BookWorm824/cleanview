@@ -96,6 +96,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   what's said and the subtitles' sounds with each sheet and scene (`heard_between`,
   `picture_review(context=)`, `CONTEXT_HOW`); the old wanted text "a couple in bed" made
   it cut every couple in bed.
+- The chat (and "Ask ... about this") is offered whenever Claude, ChatGPT or Gemini is set
+  up, even when the AI on this PC read the dialogue (Jason, 2026-11-04: he cleaned with the
+  local AI and couldn't tell Claude what it got wrong, to teach it). `_check_every_ai` checks
+  all three in the background when cleaning starts and when the review opens without one;
+  `_pick_review_ai` takes the first that's ready (Claude first); `_offer_chat` builds the
+  review page again once one turns out to be. What the chat is told to remember goes to the
+  local reader too (`learn.notes`).
 - Learned lines under 5 words (`learn.LEARNED_SHORTEST`) are never muted again just
   because they were learned: a muted conversation is learned line by line, and "What do
   you think?" was then muted in every later episode (The Resident).

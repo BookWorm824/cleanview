@@ -92,6 +92,9 @@ class Window(unittest.TestCase):
         mb.showinfo = lambda t, m, **k: cls.said.append(("info", m))
         mb.askyesno = lambda t, m, **k: cls.said.append(("ask", m)) or cls.answer["yes"]
         ui.App._check_update = lambda self, manual=False: None     # no looking online
+        # no asking the real Claude, ChatGPT and Gemini on this PC (one test does, faked)
+        cls.real = {"check_every_ai": ui.App._check_every_ai}
+        ui.App._check_every_ai = lambda self: None
         cls.work = support.write_review()
         try:
             cls.app = ui.App()
@@ -107,6 +110,7 @@ class Window(unittest.TestCase):
             pass
         for k, f in cls.saved_mb.items():
             setattr(ui.messagebox, k, f)
+        ui.App._check_every_ai = cls.real["check_every_ai"]   # (other tests open it again)
 
     def setUp(self):
         self.said.clear()
@@ -488,6 +492,36 @@ class Window(unittest.TestCase):
             for k, f in saved.items():
                 setattr(cc, k, f)
             app.opts["reader"].set("local")
+
+    def test_chat_when_the_ai_on_this_pc_read_it(self):
+        """Jason, 2026-11-04: cleaned with the AI on this PC, he couldn't tell Claude what it
+        got wrong. Any one that's set up is offered on the review page."""
+        app, cc = self.app, ui.cc
+        saved = cc.status, cc.who, ui.App._check_every_ai
+        cc.status = lambda p=None: "ready" if p == "chatgpt" else "missing"
+        cc.who = lambda p=None: ""
+        ui.App._check_every_ai = self.real["check_every_ai"]
+        try:
+            if "reader" in getattr(app, "opts", {}):
+                app.opts["reader"].set("local")
+            app.ai_state, app._ai_asked = {}, set()
+            app.show_review(tab=2)
+            for _ in range(200):
+                app.update()
+                if app.review_ai:
+                    break
+                time.sleep(0.02)
+            app.update()
+            self.assertEqual(app.review_ai, "chatgpt")
+            self.assertIn("Ask ChatGPT", app._nb.tab(2, "text"))
+            self.assertEqual(app._nb.index("current"), 2, "still on the chat tab")
+            self.assertTrue(app.chat_entry.winfo_exists())
+            app.ai_state = {"gemini": "ready", "claude": "ready"}
+            self.assertEqual(app._pick_review_ai([]), "claude", "Claude first")
+        finally:
+            cc.status, cc.who, ui.App._check_every_ai = saved
+            app.ai_state, app._ai_asked = {}, set()
+            app.show_review()
 
     def test_loud_music_box_off_to_start(self):
         self.app.show_setup()
