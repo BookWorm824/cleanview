@@ -297,6 +297,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   Crime scenes are Graphic, not Gore. Blood and injuries from an accident (a car crash, a
   fall) are Disturbing, never Violence or Graphic (Lauren 2026-10-30, The Blind Side). A
   killing that happens off screen but is clearly heard (Bambi's mother) is Violence.
+- Sex drugs are sexual references (Lauren, 2026-11-04): Viagra, Cialis, "the little blue
+  pill", erectile dysfunction, aphrodisiacs ("Spanish fly"), drugging someone for sex. In the
+  word list (`LINE_WORDS["sexref"]`, only hard-to-mistake names) and in both readers'
+  descriptions (`cleanview_claude.TYPE_TEXT`, `cleanview_ai.LINE_TYPES`).
 - Nudity (actually shown) is separate from Implied nudity (sheets, towels, bare backs).
 - Kissing: man & woman and same-sex, each keep / cut passionate / cut all.
 - When one word is the only problem in a line, mute just the word, not the whole line. But

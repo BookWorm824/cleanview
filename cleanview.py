@@ -1082,7 +1082,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )(?<!my )(?<!marvelous )"
                          r"(?<!stronger )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
                          r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
-                         r"have sex|had sex|having sex)\b", re.I),
+                         r"have sex|had sex|having sex|"
+                         # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
+                         r"viagra|cialis|levitra|erectile dysfunction|little blue pills?|"
+                         r"(boner|sex) pills?|aphrodisiacs?|spanish fly)\b", re.I),
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
                          r"on (him|her|me|you)|booty call|friends with benefits)\b", re.I),
