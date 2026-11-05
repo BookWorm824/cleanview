@@ -501,9 +501,13 @@ def _examples(examples):
     return txt + "\n"
 
 
-def check_dialogue(lines, voices, wanted, examples=None, chunk=500):
+def check_dialogue(lines, voices, wanted, examples=None, chunk=500, unread=None):
     """Flag lines and conversations. Returns ({line_index: set(types)}, scenes) where
-    scenes are [{"from": i, "to": j, "type": t, "why": str}]."""
+    scenes are [{"from": i, "to": j, "type": t, "why": str}].
+    A part that fails is asked once more. unread: a list for the (first, end) line numbers of
+    parts that failed again, and the rest of the reading is kept (CleanListen 1.15.3: one
+    failed part threw the whole reading away). Without it, or when the first two parts both
+    fail (it isn't working at all), the error is raised."""
     if not lines or not wanted:
         return {}, []
     kinds = [k for k in wanted if k in TYPE_TEXT]
@@ -517,7 +521,7 @@ def check_dialogue(lines, voices, wanted, examples=None, chunk=500):
             "type": {"type": "string", "enum": kinds}, "why": {"type": "string"}},
             "required": ["from_line", "to_line", "type", "why"]}}},
         "required": ["lines", "scenes"]}
-    found, scenes = {}, []
+    found, scenes, done = {}, [], 0
     for a in range(0, len(lines), chunk):
         part = lines[a:a + chunk + 20]
         prompt = (
@@ -529,8 +533,19 @@ def check_dialogue(lines, voices, wanted, examples=None, chunk=500):
             "conversation where it runs across several lines, such as one person flirting with "
             "another (\"scenes\", from the first to the last line of that part). Use the line "
             "numbers from the input. Keep each \"why\" to a few plain words.")
-        res, _ = ask(prompt, schema, numbered(part, (voices or [])[a:a + len(part)]),
-                     system=SYSTEM)
+        text = numbered(part, (voices or [])[a:a + len(part)])
+        try:
+            try:
+                res, _ = ask(prompt, schema, text, system=SYSTEM)
+            except ClaudeError:
+                res, _ = ask(prompt, schema, text, system=SYSTEM)       # once more
+        except ClaudeError as ex:
+            if unread is None or (unread and not done):
+                raise
+            unread.append((a, min(a + chunk, len(lines))))
+            last = ex
+            continue
+        done += 1
         for f in res.get("lines", []):
             i = a + int(f.get("line", 0)) - 1
             if a <= i < a + len(part) and f.get("type") in kinds:
@@ -540,6 +555,8 @@ def check_dialogue(lines, voices, wanted, examples=None, chunk=500):
             if a <= i <= j < a + len(part) and s.get("type") in kinds:
                 scenes.append({"from": i, "to": j, "type": s["type"],
                                "why": str(s.get("why", ""))[:120]})
+    if unread and not done:                 # nothing read at all
+        raise last
     return found, scenes
 
 

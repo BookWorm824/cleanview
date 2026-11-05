@@ -364,19 +364,20 @@ def notes(key, title=""):
 
 
 def examples(key, on=None, title=""):
-    """Some of your past choices, and Claude's, for the dialogue readers, plus what
-    they told the chat to keep in mind. Yours come first; Claude's fill the rest.
-    on: the dialogue kinds ticked now."""
+    """Some of your past choices for the dialogue readers, plus what they told the chat to
+    keep in mind. Yours come first; the built-in ones fill the rest. on: the dialogue kinds
+    ticked now. Claude's own past answers are never among them: they were shown to it as
+    "this family has muted / chose not to mute", so a mistake it made once came back as her
+    choice and was made again (CleanListen 1.15.3, Blue Ridge, 2026-11-05)."""
     d = load(key)
     out = {"notes": notes(key, title)}
     for k in ("muted", "kept"):
         mine = d[k][-15:]
-        theirs = [t for t in d["claude_" + k][::-1] if t not in mine][:15 - len(mine)]
         sh = _sh(key, k)
         if k == "muted":
             sh = _for_filters(key, sh, on)
-        built_in = [t for t in sh[::-1] if t not in mine + theirs]
-        out[k] = (mine + theirs + built_in)[:15]
+        built_in = [t for t in sh[::-1] if t not in mine]
+        out[k] = (mine + built_in)[:15]
     return out
 
 

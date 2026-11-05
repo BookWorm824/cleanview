@@ -142,6 +142,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   below normal priority (`videoqueue.BELOW_NORMAL`, inherited by what they start), and so does
   everything started through `cvcore.run`/`popen` (`_NOWIN`), including ffmpeg making the clean
   copy from the window's process.
+- Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
+  `learn.examples` (what the dialogue readers and the final review are shown as "they have
+  muted / chose NOT to mute") holds only her choices and the shared ones, never
+  `claude_muted`/`claude_kept`; `tools/merge_learned.py` no longer puts Claude's verdicts
+  in the shared lines either. (Claude's past "fine" is still a hint on the review page.)
+- A part of Claude's dialogue reading (500 lines) that fails is asked once more; if it fails
+  again its lines go in `unread` and the AI on this PC reads just those (`find_lines`), the
+  rest of Claude's reading is kept, and the report says which parts. The first two parts
+  both failing still means it isn't working: the error is raised as before.
 - Ollama only while CleanView, CleanListen or CleanRead are open (Lauren, 2026-11-05; it held
   ~4 GB all day): `ollama_care.py` is CleanListen's (1.15.2), with `videoqueue.py` added to
   `CLEAN_APPS`; keep the two copies the same. The installed copy (`_installed_copy`) calls

@@ -2175,7 +2175,9 @@ def find_voices(path, info, work, lines, cancel=None):
 
 
 def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, claude_found=None,
-               examples=None):
+               examples=None, unread=()):
+    """unread: (first, end) line numbers of parts Claude couldn't read: the AI on this PC
+    reads just those (the word lists always read everything)."""
     wanted = [k for k in LINE_KINDS if o[k]]
     if not wanted or not lines:
         return [], ""
@@ -2183,6 +2185,19 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
     if claude_found is not None:
         found = {i: set(t) for i, t in claude_found.items()}
         how = cc.name()
+        if have_ai and unread:
+            for a, b in unread:
+                try:
+                    part = ai.classify_dialogue(lines[a:b], wanted, None, cancel,
+                                                genders=genders[a:b] if genders else None,
+                                                examples=examples)
+                except KeyboardInterrupt:
+                    raise
+                except Exception:
+                    continue
+                for i, t in part.items():
+                    found.setdefault(a + i, set()).update(t)
+            how += " and the AI helper"
     elif have_ai:
         try:
             found = ai.classify_dialogue(lines, wanted, progress, cancel, genders=genders,
@@ -2581,29 +2596,37 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         except Exception as ex:
             genders = None
             notes.append(f"Voices couldn't be told apart this time ({str(ex)[:80]}).")
-    claude_found, claude_scenes = None, []
+    claude_found, claude_scenes, unread = None, [], []
     if use_claude:
         say(at("lines", 0.1), f"{who} is reading the dialogue…")
         try:
             claude_found, claude_scenes = cc.check_dialogue(
-                lines, genders, [k for k in LINE_KINDS if o[k]], examples)
+                lines, genders, [k for k in LINE_KINDS if o[k]], examples, unread=unread)
+            if unread:
+                parts = -(-len(lines) // 500)
+                spans = ", ".join(f"{cl.fmt_t(lines[a]['s'])}\u2013{cl.fmt_t(lines[b - 1]['e'])}"
+                                  for a, b in unread)
+                notes.append(f"{who} couldn't read {len(unread)} of {parts} parts of the dialogue "
+                             f"({spans}), so " + ("the AI on this PC and the word lists"
+                                                  if have_ai else "the word lists") +
+                             " read those parts.")
             for c in claude_scenes:          # talk spread over a few lines: mute those lines
                 if c["type"] != "samesex":
                     for i in range(c["from"], c["to"] + 1):
                         claude_found.setdefault(i, set()).add(c["type"])
         except cc.ClaudeError as ex:
-            claude_found = None
+            claude_found, unread = None, []
             notes.append(f"{who} couldn't read the dialogue this time: {ex}")
-    if look_job and have_ai and claude_found is None:
+    if look_job and have_ai and (claude_found is None or unread):
         # the AI on this PC reads it instead: let it finish its closer look at the picture
         # first, so the two never share the graphics card
         wait_for(look_job, lambda f: say(at("look", f), "Finishing the closer look at the "
                                                         f"scenes found · {eta(at('look', f))}"),
                  cancel)
     line_mutes, line_how = find_lines(
-        lines, o, have_ai and claude_found is None,
+        lines, o, have_ai and (claude_found is None or bool(unread)),
         lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
-        cancel, genders, claude_found, examples)
+        cancel, genders, claude_found, examples, unread)
     flirts = []
     for c in claude_scenes:
         if c["type"] == "samesex":

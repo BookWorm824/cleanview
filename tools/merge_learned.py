@@ -3,9 +3,9 @@ the app's shared_learned.json.
 
     python merge_learned.py app/shared_learned.json "CleanView learned 2026-10-24.json" [...]
 
-Per show: lines the person muted (or Claude said to remove, unless the
-person kept them) and lines they kept (or Claude said were fine, unless they
-muted them). Phrases where a word was fine ("dinner at hell") go to
+Per show: lines the person muted and lines they kept. Claude's own verdicts are
+left out: the shared lines are shown to the AIs as what families chose, so Claude's
+answers would come back to it as theirs (CleanListen 1.15.3, 2026-11-05). Phrases where a word was fine ("dinner at hell") go to
 "general" for every show. Later files win over earlier ones on conflicts.
 """
 import json
@@ -37,8 +37,7 @@ def merge(shared, export):
     for key, d in export.get("shows", {}).items():
         sh = shows.setdefault(key, {"muted": [], "kept": [], "ok_words": []})
         mine_m, mine_k = d.get("muted", []), d.get("kept", [])
-        muted = mine_m + [t for t in d.get("claude_muted", []) if t not in mine_k]
-        kept = mine_k + [t for t in d.get("claude_kept", []) if t not in mine_m]
+        muted, kept = list(mine_m), [t for t in mine_k if t not in mine_m]
         sh["kept"] = [t for t in sh["kept"] if t not in muted]
         sh["muted"] = [t for t in sh["muted"] if t not in kept]
         add(sh["muted"], muted)
