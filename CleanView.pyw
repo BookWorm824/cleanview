@@ -1315,8 +1315,9 @@ class App(tk.Tk):
             text=f"{what} {'are' if n > 1 else 'is'} {fmt_len(dur)} long."))
         box = tk.Frame(p, bg=BG)
         box.pack(fill="x", pady=(24, 0))
-        self.which = tk.Label(box, text="", bg=BG, fg=MUTED, font=(FONT, 10))
-        self.which.pack(anchor="w", pady=(0, 6))
+        self.which = tk.Label(box, text="", bg=BG, fg=INK, font=(FONT, 15, "bold"),
+                              wraplength=wrap_width(760), justify="left")   # the title
+        self.which.pack(anchor="w", pady=(0, 8))
         self.pb = ttk.Progressbar(box, style="Green.Horizontal.TProgressbar", maximum=1000,
                                   length=640)
         self.pb.pack(fill="x")
@@ -1458,7 +1459,7 @@ class App(tk.Tk):
             if len(running) == 1:
                 k = next(iter(running))
                 self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
-                            short(Path(jobs[k]["video"]).name, 80)))
+                            short(Path(jobs[k]["video"]).stem, 80)))
             elif running:
                 self.q.put(("which", f"{len(running)} videos at once  ·  "
                                      f"{len(finished)} of {n} done"))
@@ -1584,7 +1585,7 @@ class App(tk.Tk):
             results, failed = [], []
             for k, j in enumerate(todo):
                 self.q.put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
-                            + short(Path(j["video"]).name, 80)))
+                            + short(Path(j["video"]).stem, 80)))
                 self.q.put(("job", k, "now"))
                 try:
                     results.append(engine.render(

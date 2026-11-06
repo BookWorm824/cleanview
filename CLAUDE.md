@@ -160,6 +160,8 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   ticked. One moan or pant in the subtitles near bare skin is offered, not cut (`ONE_MOAN`;
   The Resident S3: an injured patient, a girl singing in surgery). The "double check" he kept
   asking the chat for is the AI helper's second look, which he has off.
+- The title on the progress page (1.18.22, Jason): the video's name without ".m4v", big and
+  bold (`self.which`), instead of small grey text.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -260,6 +262,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   sound-only and talk-only scenes, misheard swears, names in the subtitles, a bare "God!").
 - `test_reports_nov6.py`: Jason's word-only after an old keep, remembered scenes' wording,
   one moan offered, the Resident S3 lessons and the drug store note built in.
+- `test_title_big.py`: the progress page's title is the name without the extension, big
+  and bold.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in
