@@ -152,6 +152,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   unticked (`SDH_HARD_VIOLENCE` cuts); the AI helper's flirting check gets the notes and
   its "two men"/"two women" yields to its own sentence naming a man and a woman
   (`_between_checked`).
+- His next runs (2026-11-06, 1.18.21): a line kept on an older version and then muted just a
+  word of is learned as `word_only` too (the line starts unticked then, not by him: "Jiminy
+  Christmas"); a scene set as she chose before loses its "(not double-checked, ...)" and the
+  note says "Ticked to cut again" instead of counting it as "left unticked" (`UNSETTLED`);
+  an unchecked picture scene says "so only cut if you tick it", which stays true when it's
+  ticked. One moan or pant in the subtitles near bare skin is offered, not cut (`ONE_MOAN`;
+  The Resident S3: an injured patient, a girl singing in surgery). The "double check" he kept
+  asking the chat for is the AI helper's second look, which he has off.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -250,6 +258,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_freeze.py`: the freeze and crash notes, sending one in, and `_poll` under a flood.
 - `test_reports_nov.py`: lessons from the November reports (long prompts through stdin,
   sound-only and talk-only scenes, misheard swears, names in the subtitles, a bare "God!").
+- `test_reports_nov6.py`: Jason's word-only after an old keep, remembered scenes' wording,
+  one moan offered, the Resident S3 lessons and the drug store note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in

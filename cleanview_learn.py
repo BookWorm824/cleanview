@@ -250,7 +250,11 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
     d = load(key)
     for l, on in zip(flagged_lines, line_choice):
         n = norm(l.get("plain") or l["text"])
-        just = _word_only(l, on, mutes, word_choice) if _changed(l, on) else []
+        # ...also when the line started unticked because she kept it before: Jason's
+        # "Jiminy Christmas" was learned as fine on 1.18.19, so it came back unticked and
+        # his "just the word" in the chat never counted (2026-11-06)
+        just = _word_only(l, on, mutes, word_choice) \
+            if _changed(l, on) or (not on and n in d["kept"]) else []
         if on:
             _remember(d["muted"], n)
             if n in d["kept"]:
@@ -333,7 +337,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
         n = norm(l["text"])
         if n in muted and len(n.split()) >= LEARNED_SHORTEST:
             added.append(dict(l, learned_from="you" if n in mine_muted else "shared"))
-    n_sc = 0
+    n_sc = n_again = 0
     def usually_kept(kind):
         s = d["scenes"].get(kind)
         return bool(s) and s["kept"] >= 3 and s["kept"] >= 0.75 * (s["kept"] + s["cut"])
@@ -346,7 +350,13 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
             sc["cut"] = mine["cut"]
             sc["learned"] = "you cut this scene before" if mine["cut"] else \
                 "you kept this scene before"
-            n_sc += 1
+            # settled by her: "(not double-checked, so ...)" no longer says why it's set so
+            # (Jason, 2026-11-06: "the kisses are ticked... why are you saying left unticked?")
+            sc["why"] = UNSETTLED.sub("", sc.get("why") or "")
+            if mine["cut"]:
+                n_again += 1
+            else:
+                n_sc += 1
             continue
         # every kind in it, not just the first: a drinking scene joined to a sex scene stays
         # cut (Julie & Julia: "you usually keep these" left the whole sex scene in)
@@ -383,7 +393,14 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
                 f"{n_w} word(s)" if n_w else ""]
         notes.append("Left unticked because of what CleanView has learned: " +
                      ", ".join(b for b in bits if b) + ".")
+    if n_again:
+        notes.append(f"Ticked to cut again because you cut them before: {n_again} scene(s).")
     return added, notes
+
+
+# What a scene's "why" says about its starting tick, which her own choice replaces.
+UNSETTLED = re.compile(r" \((?:not double-checked|hard to see), so (?:left unticked|only cut "
+                       r"if you tick it)\)")
 
 
 def _phrase(m):

@@ -15,6 +15,11 @@ class Notes(unittest.TestCase):
     def setUp(self):
         for f in learn.DIR.glob("*.json"):
             f.unlink()
+        # their own notes only: the built-in ones for everyone (shared_learned.json's
+        # general notes, e.g. the drug store one) come first and are tested elsewhere
+        gen = learn.shared()["general"]
+        had = gen.pop("notes", None)
+        self.addCleanup(lambda: gen.__setitem__("notes", had) if had is not None else None)
 
     def test_a_movie_note_is_for_that_movie(self):
         self.assertTrue(learn.add_note("_movies@kids", "The Genie's magic is fine.", "Aladdin (1992)"))

@@ -978,20 +978,31 @@ def sex_scenes(snd, cues, asr_n, asr, skin, nude):
         k = j if j > k else k + 1
     marks.sort()
     scenes = []
+    marks_in = []
     for s, e, w in marks:
         if scenes and s - scenes[-1]["e"] <= 10:
             scenes[-1]["e"] = max(scenes[-1]["e"], e)
+            marks_in[-1] += 1
             if w not in scenes[-1]["why"]:
                 scenes[-1]["why"] += ", " + w
         else:
             scenes.append({"s": max(0.0, s - 1.0), "e": e + 1.0, "kind": ["Sex scene"], "why": w})
-    for sc in scenes:
+            marks_in.append(1)
+    for sc, n in zip(scenes, marks_in):
         # talk alone (a coroner's findings, an interrogation, "thrust" in flying talk; Castle,
         # Chicken Run) is muted as lines, not cut: offered unticked for her to look at
         if sc["why"] == "explicit dialogue":
             sc["sure"] = False
             sc["why"] += TALK_ONLY
+        # one moan or pant in the subtitles near bare skin is a hurt patient as often as not
+        # (The Resident S3: an injured man, a girl singing in surgery): offered, not cut
+        elif sc["why"] == "subtitles describe it, with bare skin" and n == 1:
+            sc["sure"] = False
+            sc["why"] += ONE_MOAN
     return scenes
+
+
+ONE_MOAN = " (just one moan or panting in the subtitles: check it)"
 
 
 TALK_ONLY = " (only talk, nothing seen: the lines are muted on their own; check it)"
@@ -2142,8 +2153,10 @@ def decide_picture_scenes(cands, o, have_ai):
                 who = w.replace("kiss_", "")
         level = v.get("level", "?") if v else "?"
         checked = bool(v) and not v.get("error") and not v.get("unclear")
-        note = ("" if checked else " (hard to see, so left unticked)" if v.get("unclear")
-                else " (not double-checked, so left unticked)")
+        # "so only cut if you tick it", not "so left unticked": it reads true once she ticks
+        # it too (Jason, 2026-11-06, about kisses he had cut)
+        note = ("" if checked else " (hard to see, so only cut if you tick it)"
+                if v.get("unclear") else " (not double-checked, so only cut if you tick it)")
         if c["cat"] == "kiss":
             if who == "mf":
                 setting = o["kiss_os"]
