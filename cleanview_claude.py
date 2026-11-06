@@ -437,7 +437,8 @@ TYPE_TEXT = {
                 "counts: a whole conversation about Vodun or voodoo rituals, Buddhism or Wicca "
                 "is religious talk too",
     "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents or "
-                 "carols; the whole conversation. Not: winter or snow alone",
+                 "carols; the whole conversation. Not: winter or snow alone, or a place named "
+                 "Santa something (Santa Anita, Santa Monica) or Christmas Island",
     "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
                  "or jack-o'-lanterns; the whole conversation. Not: a story's own witches, "
                  "ghosts or monsters",

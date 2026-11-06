@@ -791,7 +791,8 @@ LINE_TYPES = {
                  "'thank heavens', a passing 'God bless you' or 'Merry Christmas', a "
                  "character's name. Any religion counts, including voodoo or Vodun rituals"),
     "christmas": ("talks about Christmas: Santa, Christmas trees, presents, carols, Christmas "
-                  "Eve or Day, 'Merry Christmas'. NOT: winter or snow alone, the word "
+                  "Eve or Day, 'Merry Christmas'. NOT: a place named Santa something (Santa "
+                  "Anita, Santa Monica) or Christmas Island, winter or snow alone, the word "
                   "'present' meaning now or here"),
     "halloween": ("talks about Halloween: trick-or-treating, Halloween costumes or parties, "
                   "jack-o'-lanterns. NOT: a story's own witches, ghosts or monsters, costumes "
@@ -1135,11 +1136,30 @@ def line_voices(audio, lines, tagger, segs=None):
 BETWEEN = {"two men": "mm", "two women": "ff", "a man and a woman": "mf"}
 
 
-def romance_scenes(lines, genders, progress=None, cancel=None):
+_MALE = re.compile(r"\b(man|men|guy|guys|boy|boys|he|him|his|husband|boyfriend|father|son)\b",
+                   re.I)
+_FEMALE = re.compile(r"\b(woman|women|girl|girls|she|her|hers|wife|girlfriend|lady|ladies|"
+                     r"mother|daughter)\b", re.I)
+
+
+def _between_checked(between, what):
+    """The small model often says "two men" while its own words say a man and a woman
+    (That Thing You Do, Jason 2026-11-05: 8 "Same-sex romance · two men" scenes, each "the
+    man ... the woman"). Its own sentence wins."""
+    if between == "mm" and _FEMALE.search(what or ""):
+        return "mf"
+    if between == "ff" and _MALE.search(what or ""):
+        return "mf"
+    return between
+
+
+def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
     """Conversations where someone flirts or shows romantic or sexual interest.
-    Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice."""
+    Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice.
+    notes: what they told the chat to keep in mind (followed here too)."""
     if not lines:
         return []
+    said = family_said(notes)
     genders = genders or [{}] * len(lines)
     # split the dialogue into conversations at long pauses, at most 30 lines each
     convs, cur = [], [0]
@@ -1180,7 +1200,7 @@ def romance_scenes(lines, genders, progress=None, cancel=None):
                   "questioning and family love do NOT count. If yes, say who it is between (two "
                   "men, two women, or a man and a woman), the numbers of the flirting lines, the "
                   "exact words of one of them, and one sentence on what happens. If unsure, "
-                  "answer no. Answer in JSON.")
+                  "answer no." + said + " Answer in JSON.")
         try:
             a = chat(prompt, schema=schema, timeout=300)
         except Exception:
@@ -1200,13 +1220,14 @@ def romance_scenes(lines, genders, progress=None, cancel=None):
                      "voice guesses in brackets may be wrong):\n\n" + excerpt + "\n\n"
                      "Is someone clearly flirting with, or showing romantic or sexual interest "
                      "in, someone else here? If so, is it between two men, two women, or a man "
-                     "and a woman? Answer false if it's friendly, work talk, or you're unsure.",
-                     schema=yes, timeout=180)
+                     "and a woman? Answer false if it's friendly, work talk, or you're unsure." +
+                     said, schema=yes, timeout=180)
         except Exception:
             continue
         if b.get("romance") is not True:
             continue
         between = BETWEEN.get(b.get("between")) or BETWEEN.get(a.get("between")) or "?"
+        between = _between_checked(between, str(a.get("what", "")))
         found.append({"s": lines[min(idx)]["s"], "e": lines[max(idx)]["e"], "between": between,
                       "what": str(a.get("what", ""))[:120]})
     if progress:

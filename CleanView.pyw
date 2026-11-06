@@ -2021,7 +2021,8 @@ class App(tk.Tk):
                              [sc for _, sc in scs if not sc.get("added")],
                              [v.get() for v, sc in scs if not sc.get("added")],
                              [sc for v, sc in scs if sc.get("added") and v.get()],
-                             [m for _, m in wds], [v.get() for v, _ in wds])
+                             [m for _, m in wds], [v.get() for v, _ in wds],
+                             video=j["analysis"].get("path"))
             except Exception:
                 pass
 

@@ -604,6 +604,13 @@ def sync_cues(cues, asr, min_match=0.25):
 SPOKEN_STRIP = re.compile(r"\[[^\]]*\]|\([^)]*\)|^[A-Z][A-Z .'-]{1,20}:|^\s*-\s*|♪", re.M)
 SDH_VIOLENCE = re.compile(r"gun|shot|scream|explo|punch|stab|groan|grunt|gasp|shriek|thud|"
                           r"fight|struggl|body falls|bones? crack|blood|machine gun", re.I)
+# What only says someone screams, gasps or a thud (a band hearing their song on the radio,
+# That Thing You Do: "she is screaming from joy") is offered unticked like the screaming
+# heard; gunfire, blows, fighting or blood in the subtitles still cut.
+SDH_HARD_VIOLENCE = re.compile(r"gun|shot|explo|punch|stab|fight|struggl|body falls|"
+                               r"bones? crack|blood|machine gun", re.I)
+SANTA_PLACES = (r"(anita|monica|barbara|fe|cruz|clara|clarita|rosa|ana|maria|catalina|ynez|"
+                r"paula|teresa|lucia|marta|isabel|elena|cecilia)")
 SDH_SEX = re.compile(r"sexual|climax|orgasm|kissing passionately|bed creak|making love|"
                      r"love ?making|having sex|moans? (with|in) pleasure|ecstasy", re.I)
 # Panting and moaning are also running, fear and pain (The Resident: a woman fleeing, a
@@ -913,7 +920,8 @@ def violence_scenes(snd, cues):
         if tags and SDH_VIOLENCE.search(tags):
             for t in np.arange(c["s"], max(c["s"], c["e"] - SOUND_WIN) + 0.01, SOUND_HOP):
                 flagged.append(round(float(t), 2))   # the whole time the tag is on screen
-                hard.add(round(float(t), 2))
+                if SDH_HARD_VIOLENCE.search(tags):
+                    hard.add(round(float(t), 2))
             why.setdefault(round(float(c["s"]), 2), tags.lower()[:30])
     flagged.sort()
     scenes = []
@@ -1112,7 +1120,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"born again|sunday school|bible study)\b", re.I),
     # not "elves", "stockings" or "make a wish": too often something else; not "Rudolph" alone
     # (a character "Rudolph Hill" in Lauren's sentences), only the reindeer
-    "christmas": re.compile(r"\b(christmas|x-?mas|santa( claus)?|saint nick|north pole|"
+    # not "Santa" in a place name or "Christmas Island" (Jason, That Thing You Do: "Santa
+    # Anita is a city")
+    "christmas": re.compile(r"\b(christmas(?! island)|x-?mas|santa(?! " + SANTA_PLACES + r"\b)"
+                            r"( claus)?|saint nick|north pole|"
                             r"reindeer|rudolph the|rudolph's( red)? nose|mistletoe|yuletide|"
                             r"jingle bells)\b", re.I),
     "halloween": re.compile(r"\b(hallowe'?en|trick[- ]or[- ]treat\w*|jack[- ]?o[-' ]*lanterns?|"
@@ -1334,6 +1345,32 @@ def word_mute(st, line, word, why):
     st.setdefault("mutes", []).append(m)
     st["mutes"].sort(key=lambda x: x["s"])
     return m
+
+
+def learned_word_only(st, key):
+    """Lines she muted just one word of before (the chat's "just the word"; Jason, 2026-11-05:
+    "only mute the word christmas from now on"): start that way again, the line unticked and
+    the word muted. Returns how many lines."""
+    wo = learn.word_only(key)
+    n = 0
+    for l in st.get("lines", []):
+        words = wo.get(learn.norm(l.get("plain") or l["text"]))
+        if not words:
+            continue
+        done = []
+        for w in words:
+            m = word_mute(st, l, w, "you muted just this word here before")
+            if m is not None:
+                m["keep"] = False
+                m["learned"] = "you muted just this word here before"
+                done.append(w)
+        if done:
+            l["mute"] = False
+            l.pop("hint", None)
+            l["learned"] = "you muted just " + ", ".join(f"\u201c{w}\u201d" for w in done) + \
+                " here before"
+            n += 1
+    return n
 
 
 def _set_on(kind, it, on):
@@ -2636,7 +2673,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         flirts = ai.romance_scenes(
             lines, genders,
             lambda f: say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation · "
-                                                     f"{eta(at('lines', 0.6 + 0.4 * f))}"), cancel)
+                                                     f"{eta(at('lines', 0.6 + 0.4 * f))}"), cancel,
+            notes=told)
     if nd["lines"] and line_how == "word lists":
         # no AI read it (Enchanted): say plainly that most dialogue filters barely ran
         notes.append("No AI read the dialogue, so the dialogue choices (jokes, bullying, "
@@ -2716,7 +2754,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             if not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", [])):
                 snap_to_shots(path, sc, dur=dur)
     learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes,
-                                                 on=on_kinds(o))
+                                                 on=on_kinds(o), video=path)
     for l in learned_lines:
         yours = l.get("learned_from") == "you"
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),
@@ -2745,6 +2783,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
           "asr": [[w["t"], round(w["s"], 2), round(w["e"], 2)] for w in asr],
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
           "used_clip": use_clip}
+    n_wo = learned_word_only(st, key)
+    if n_wo:
+        notes.append(f"Muted just the word in {n_wo} line(s), as you did before.")
     # Claude's final review: everything above, judged together in context
     if o.get("reader") in CLOUD and (lines or scenes or mutes):
         say(at("end", 0.75), f"{who} is reviewing everything that was found…")

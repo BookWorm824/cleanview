@@ -142,6 +142,16 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   below normal priority (`videoqueue.BELOW_NORMAL`, inherited by what they start), and so does
   everything started through `cvcore.run`/`popen` (`_NOWIN`), including ffmpeg making the clean
   copy from the window's process.
+- Jason's That Thing You Do runs (2026-11-05, 1.18.20): without an AI his chat notes reach
+  nothing (word lists, NudeNet and the sound tagger can't read them), so what he chooses has
+  to stick by itself: her own choices on a video's scenes are kept per file
+  (`learn.record(video=)`, `d["videos"]`, matched by overlap and kind) and win on the next
+  scan; a line unticked with a word in it muted is learned as `word_only` and starts that way
+  (`learned_word_only`); "Santa" before a place name and "Christmas Island" aren't
+  Christmas (`SANTA_PLACES`); subtitles that only say screaming/gasping/a thud are offered
+  unticked (`SDH_HARD_VIOLENCE` cuts); the AI helper's flirting check gets the notes and
+  its "two men"/"two women" yields to its own sentence naming a man and a woman
+  (`_between_checked`).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never

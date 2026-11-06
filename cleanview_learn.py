@@ -125,7 +125,8 @@ def load(key):
     except Exception:
         d = {}
     for k, v in (("muted", []), ("kept", []), ("scenes", {}), ("words", {}), ("old_kept", []),
-                 ("claude_muted", []), ("claude_kept", []), ("claude_ok_words", [])):
+                 ("claude_muted", []), ("claude_kept", []), ("claude_ok_words", []),
+                 ("videos", {}), ("word_only", {})):
         d.setdefault(k, v)
     if not d.get("v2"):     # "Gore" used to mean any blood; that's "Graphic violence" now
         if "Gore" in d["scenes"]:
@@ -173,6 +174,58 @@ def scene_kind(sc):
     return (sc.get("kind") or ["scene"])[0].split(" · ")[0]
 
 
+MAX_VIDEOS = 300
+
+
+def video_key(path):
+    """One movie or episode, by its file name (her choices on its scenes are kept for it)."""
+    return norm(Path(str(path or "")).stem) if path else ""
+
+
+def _kinds(sc):
+    if sc.get("kinds"):                 # as remembered
+        return set(sc["kinds"])
+    return {k.split(" · ")[0] for k in sc.get("kind") or ["scene"]}
+
+
+def _same_scene(a, b):
+    """The same scene found again: it overlaps by half of the shorter one, of the same kind."""
+    over = min(a["e"], b["e"]) - max(a["s"], b["s"])
+    short = max(0.5, min(a["e"] - a["s"], b["e"] - b["s"]))
+    return over >= 0.5 * short and bool(_kinds(a) & _kinds(b))
+
+
+def _remember_scene(d, video, sc, cut):
+    """Her choice on one scene of this video (Jason, 2026-11-05: a phone slam he kept, a
+    shirt he said wasn't nudity, joyful screaming: back again on the next scan of the same
+    movie when no AI read his notes)."""
+    vk = video_key(video)
+    if not vk or "s" not in sc or "e" not in sc:
+        return
+    lst = d["videos"].pop(vk, [])            # most recent last (the oldest go first)
+    new = {"s": round(sc["s"], 2), "e": round(sc["e"], 2), "kinds": sorted(_kinds(sc)),
+           "cut": bool(cut)}
+    lst = [x for x in lst if not _same_scene(new, x)] + [new]
+    d["videos"][vk] = lst
+    while len(d["videos"]) > MAX_VIDEOS:
+        d["videos"].pop(next(iter(d["videos"])))
+
+
+def _word_only(l, on, mutes, word_choice):
+    """The words she (or the chat, for her) muted in this line instead of the whole line."""
+    if on or "s" not in l or "e" not in l:
+        return []
+    return sorted({(m.get("raw") or m.get("word", "")).lower()
+                   for m, mon in zip(mutes, word_choice)
+                   if mon and (m.get("by_you") or _changed(m, mon))
+                   and l["s"] - 1.0 <= m.get("s", -99) <= l["e"] + 1.0} - {""})
+
+
+def word_only(key):
+    """Lines she muted just a word of: {line (norm): [words]}."""
+    return dict(load(key)["word_only"])
+
+
 def _remember(lst, text):
     n = norm(text)
     if len(n.split()) >= 2 and n not in lst:
@@ -186,27 +239,40 @@ def _changed(it, on):
 
 
 def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, added_scenes,
-           mutes, word_choice):
+           mutes, word_choice, video=None):
     """Store what you did. *_choice are parallel lists of True (mute/cut) / False.
     Something ticked and left ticked counts as yours (you let it be changed);
     something left unticked only counts if you unticked it yourself, since the AI
-    or what was learned before may have unticked it."""
+    or what was learned before may have unticked it. video: the file, so her own choices
+    on its scenes are used again when the same one is scanned again.
+    A line she unticked while a word in it stays muted ("just the word", Jason 2026-11-05:
+    "only mute the word christmas") is learned as that, not as a line that's fine."""
     d = load(key)
     for l, on in zip(flagged_lines, line_choice):
         n = norm(l.get("plain") or l["text"])
+        just = _word_only(l, on, mutes, word_choice) if _changed(l, on) else []
         if on:
             _remember(d["muted"], n)
             if n in d["kept"]:
                 d["kept"].remove(n)
+            d["word_only"].pop(n, None)
+        elif just and len(n.split()) >= 2:
+            d["word_only"][n] = just
+            for k in ("kept", "muted"):
+                if n in d[k]:
+                    d[k].remove(n)
         elif _changed(l, on):
             _remember(d["kept"], n)
             if n in d["muted"]:
                 d["muted"].remove(n)
+            d["word_only"].pop(n, None)
     for l in extra_lines:
         _remember(d["muted"], l.get("plain") or l["text"])
     for sc, on in zip(scenes, scene_choice):
         _count(d["scenes"], scene_kind(sc), sc, on if on or _changed(sc, on) else None,
                "cut", "kept")
+        if video and _changed(sc, on):
+            _remember_scene(d, video, sc, on)
     for sc in added_scenes:
         _count(d["scenes"], "Added by you", sc, True, "cut", "kept")
     for m, on in zip(mutes, word_choice):
@@ -230,9 +296,11 @@ def _count(table, name, it, now, yes, no):
     it["_learned_as"] = now
 
 
-def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=None):
+def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=None,
+          video=None):
     """Use what was learned. Changes line_flags / scenes / mutes in place and
-    returns (added_lines, notes). on: the dialogue kinds ticked now (None: all)."""
+    returns (added_lines, notes). on: the dialogue kinds ticked now (None: all).
+    video: the file; her own choices on its scenes last time come first."""
     d = load(key)
     notes = []
     muted, mine_kept = set(d["muted"]), set(d["kept"])
@@ -270,7 +338,16 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
         s = d["scenes"].get(kind)
         return bool(s) and s["kept"] >= 3 and s["kept"] >= 0.75 * (s["kept"] + s["cut"])
 
+    before = d["videos"].get(video_key(video), []) if video else []
     for sc in scenes:
+        mine = next((x for x in reversed(before) if _same_scene(sc, x)), None) \
+            if "s" in sc and "e" in sc else None
+        if mine is not None:            # her own choice on this very scene last time
+            sc["cut"] = mine["cut"]
+            sc["learned"] = "you cut this scene before" if mine["cut"] else \
+                "you kept this scene before"
+            n_sc += 1
+            continue
         # every kind in it, not just the first: a drinking scene joined to a sex scene stays
         # cut (Julie & Julia: "you usually keep these" left the whole sex scene in)
         kinds = {k.split(" · ")[0] for k in sc.get("kind") or ["scene"]}

@@ -251,7 +251,8 @@ class PictureCheckFollowsNotes(unittest.TestCase):
         import inspect
         src = inspect.getsource(engine.analyze)
         self.assertIn("told = learn.notes(", src)
-        self.assertEqual(src.count("notes=told"), 2, "the closer look and the nudity check")
+        self.assertEqual(src.count("notes=told"), 3,
+                         "the closer look, the nudity check and the flirting check")
 
 
 class BackToStart(unittest.TestCase):
@@ -270,7 +271,7 @@ class BackToStart(unittest.TestCase):
             app._forget_session()
             learned = []
             real = ui.learn.record
-            ui.learn.record = lambda key, *a: learned.append(key)
+            ui.learn.record = lambda key, *a, **k: learned.append((key, k.get("video")))
             try:
                 app._back_to_start()
             finally:
@@ -279,6 +280,7 @@ class BackToStart(unittest.TestCase):
             self.assertEqual(app.page_name, "setup")
             self.assertTrue(app.SESSION.exists(), "Pick up where I left off opens it again")
             self.assertTrue(learned, "her ticks are learned without saving a copy")
+            self.assertTrue(all(v for _, v in learned), "for that video too (its scenes)")
         finally:
             Window.tearDownClass()
 
