@@ -1612,6 +1612,7 @@ class App(tk.Tk):
                 self.q.put(("progress", 0.0, "Checking the fastest way to save video…", ""))
                 encs = engine.working_encoders()
             results, failed = [], []
+            self._save_failures = []
             for k, j in enumerate(todo):
                 self.q.put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
                             + short(Path(j["video"]).stem, 80)))
@@ -1626,6 +1627,7 @@ class App(tk.Tk):
                 except Exception as ex:     # carry on with the other episodes
                     details = f"{j['video']}\n\n{traceback.format_exc()}"
                     save_details(details)
+                    self._save_failures.append(details)
                     failed.append(f"{Path(j['video']).name}: {plain_error(ex)}")
                     self.q.put(("job", k, "failed", failed[-1], details))
             self.q.put(("rendered", results, failed))
@@ -1830,14 +1832,49 @@ class App(tk.Tk):
             return
         listing = "\n\n".join(failed)
         if not results:
-            messagebox.showwarning("CleanView", "The clean copy couldn't be saved:\n\n" + listing +
+            self._tell_save_failed("The clean copy couldn't be saved:\n\n" + listing +
                                    "\n\nYour review is just as you left it, so you can try again.")
             self.show_review()
             return
-        messagebox.showwarning("CleanView", "These couldn't be saved:\n\n" + listing +
+        self._tell_save_failed("These couldn't be saved:\n\n" + listing +
                                "\n\nThe others are done. Your review is still saved: use “Pick "
                                "up where I left off” on the start page to try these again.")
         self.show_done(results, keep_review=True)
+
+    def _tell_save_failed(self, text):
+        """Say what couldn't be saved, and offer to send in what went wrong (Jason,
+        2026-11-07: Snow White failed four times at about the same spot, and nobody
+        could see why)."""
+        details = "\n\n----------\n\n".join(getattr(self, "_save_failures", []))
+        if not details or not learn.send_url():
+            messagebox.showwarning("CleanView", text, parent=self)
+            return
+        chime()
+        if not messagebox.askyesno(
+                "CleanView", text + "\n\nSend a note about what went wrong, so it can be fixed? "
+                "It has the video's name and the error. No video or sound.", parent=self):
+            return
+        path = APP_DATA / f"CleanView couldn't save {time.strftime('%Y-%m-%d %H-%M')}.json"
+        try:
+            path.write_text(json.dumps({"app": "CleanView", "version": _app_version(),
+                                        "what": "couldn't save the clean copy",
+                                        "note": details.replace(str(Path.home()), "~")},
+                                       indent=1), encoding="utf8")
+        except OSError:
+            return
+
+        def go():
+            try:
+                learn.send(path, "problem")
+                self.q.put(("call", lambda: messagebox.showinfo(
+                    "CleanView", "Sent. Thank you!", parent=self)))
+            except Exception as ex:
+                save_details(f"Sending {path}\n\n{traceback.format_exc()}")
+                why = plain_error(ex)
+                self.q.put(("call", lambda: self._send_by_hand(
+                    path, f"Couldn't send it ({why[:1].lower() + why[1:].rstrip('.')}). "
+                          f"Check the internet connection.\n\n")))
+        threading.Thread(target=go, daemon=True).start()
 
     def after_analyze(self):
         bad = [j for j in self.jobs if j["error"]]

@@ -2860,6 +2860,23 @@ ENCODERS = [
 ]
 
 
+def save_trouble(err):
+    """What ffmpeg's error says about why the clean copy couldn't be written, when it's
+    something on the PC rather than in the video: "full" (raised as a full drive), a plain
+    sentence, or None."""
+    e = (err or "").lower()
+    if "no space left" in e or "not enough space" in e or "disk full" in e:
+        return "full"
+    if "file too large" in e:
+        return ("The drive the clean copy goes to can't hold a file this big (it only "
+                "takes files up to 4 GB). Save it to another drive")
+    if "permission denied" in e:
+        return ("CleanView wasn't allowed to write the clean copy there. It may be open in a "
+                "video player, or the folder may be protected. Close the player, or save it "
+                "to another folder")
+    return None
+
+
 def working_encoders():
     """Hardware video encoders that actually work on this PC, fastest first;
     libx264 (always works, slower) last."""
@@ -3020,16 +3037,23 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     expected = max(1.0, dur - sum(e - s for s, e in cut_rs))
     tmp = dst.with_name(dst.stem + ".partial" + dst.suffix)
 
-    def build(vname, vargs, new_style):
+    def build(vname, vargs, new_style, careful=False):
+        """careful: the last try, after every way failed (Jason, Snow White 2026-11-07, four
+        times at about the same spot): read past damaged bits of the video, give the
+        streams more room to wait for each other, and leave the subtitles out."""
         def fopt(kind):  # ffmpeg 7+ spells it "-/filter:a"; older builds "-filter_script:a"
             return f"-/filter:{kind}" if new_style else f"-filter_script:{kind}"
-        cmd = [cl._tool("ffmpeg"), "-y", "-v", "error", "-nostats", "-progress", "pipe:1",
-               "-i", str(src)]
-        if srt:
+        cmd = [cl._tool("ffmpeg"), "-y", "-v", "error", "-nostats", "-progress", "pipe:1"]
+        if careful:
+            cmd += ["-err_detect", "ignore_err", "-fflags", "+discardcorrupt+genpts"]
+        cmd += ["-i", str(src)]
+        if srt and not careful:
             cmd += ["-i", str(srt)]
         cmd += ["-map", f"0:{info['video']['index']}", "-map", f"0:{a['index']}",
                 "-disposition:v:0", "default", "-disposition:a:0", "default"]
-        if srt:
+        if careful:
+            cmd += ["-max_muxing_queue_size", "9999"]
+        elif srt:
             cmd += ["-map", "1:0", "-c:s", "mov_text" if mp4 else "srt",
                     "-metadata:s:s:0", "language=eng",
                     "-disposition:s:0", "0"]      # there if wanted, but off unless turned on
@@ -3090,19 +3114,34 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
             pass
         return False, errf.read_text("utf8", "replace")
 
-    done, last_err = False, ""
+    def tries(vname, vargs, label, careful=False):
+        for new_style in (True, False):
+            ok, err = attempt(build(vname, vargs, new_style, careful), label)
+            if ok or ("Unrecognized option" not in err and "Option not found" not in err):
+                return ok, err
+        return ok, err
+
+    done, last_err, errors, careful = False, "", [], False
     for vname, vargs in encs:
         label = "Saving the clean copy" + (" (using your graphics card)"
                                           if vname.endswith(("nvenc", "qsv", "amf")) else "")
-        for new_style in (True, False):
-            done, last_err = attempt(build(vname, vargs, new_style), label)
-            if done or ("Unrecognized option" not in last_err and "Option not found" not in last_err):
-                break
+        done, last_err = tries(vname, vargs, label)
         if done:
             break
+        errors.append(f"{vname}: {last_err.strip()[-700:]}")
         log(f"{vname} didn't work, trying the next way: {last_err[-200:]}")
+    if not done and save_trouble(last_err) is None:
+        careful = True
+        done, last_err = tries(*encs[-1], "Saving the clean copy (trying a more careful way)",
+                               careful=True)
+        if not done:
+            errors.append(f"careful {encs[-1][0]}: {last_err.strip()[-700:]}")
     if not done:
-        raise RuntimeError(f"Couldn't save the clean copy of {src.name}:\n{last_err[-800:]}")
+        why = save_trouble(last_err)
+        if why == "full":
+            raise OSError(28, "No space left on device: " + last_err.strip()[-300:])
+        raise RuntimeError((why or f"Couldn't save the clean copy of {src.name}") + ":\n"
+                           + "\n\n".join(errors)[-2500:])
 
     # no separate .srt file next to the video: players show those automatically
     removed = sum(e - s for s, e in cut_rs)
@@ -3111,6 +3150,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
            f"scenes cut ({removed / 60:.1f} minutes removed)."]
     if st.get("sub_note"):
         rep.append(st["sub_note"])
+    if careful:
+        rep.append("It was saved the careful way, after the usual way didn't work, so the "
+                   "clean copy has no subtitle track.")
     rep += st.get("notes", [])
     if info.get("audio_tracks", 1) > 1:
         rep.append("Only the main soundtrack was kept (other languages and commentary "

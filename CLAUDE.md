@@ -168,6 +168,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
   all, newest first.
+- A clean copy that won't save (1.18.24, Jason's Snow White, 2026-11-07: four times at
+  about the same spot, and nobody could see why; a made-up 83-minute copy with his cuts
+  saved fine, so it's his file or PC): after every encoder fails, `render` tries once
+  more the careful way (`build(careful=True)`: `-err_detect ignore_err`, `-fflags
+  +discardcorrupt+genpts`, `-max_muxing_queue_size 9999`, no subtitles; the report says
+  so). `save_trouble` says a full drive, a 4 GB (FAT32) drive or a locked file plainly
+  instead; the error keeps every encoder's message, and the window offers to send it in
+  (`_tell_save_failed`, kind "problem").
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -272,6 +280,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   and bold.
 - `test_jason_nov7.py`: the findings spreadsheet for just this video, newest first, and
   the logo on the progress page.
+- `test_save_fails.py`: the careful last try, plain reasons from ffmpeg's errors, and
+  offering to send in what went wrong.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in
