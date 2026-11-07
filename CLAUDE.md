@@ -175,7 +175,16 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   +discardcorrupt+genpts`, `-max_muxing_queue_size 9999`, no subtitles; the report says
   so). `save_trouble` says a full drive, a 4 GB (FAT32) drive or a locked file plainly
   instead; the error keeps every encoder's message, and the window offers to send it in
-  (`_tell_save_failed`, kind "problem").
+  (`_tell_save_failed`, kind "problem"). It was a full drive.
+- Where it saves and the room there (1.18.25, Jason: "being able to tell it where to save",
+  "estimate how many megabytes the clean copy will take... show it in the screen"): beside
+  "Save clean copy" the review page says where it saves, about how big it'll be and how much
+  is free there (red when it won't fit), with "Change..." (`_show_space`,
+  `_change_save_folder`; it follows the cut ticks). `engine.clean_size`: the original's size
+  without cuts (copied), with cuts the bigger of that share of it and 0.07 bits a pixel at
+  24 fps (made again at a set quality). Saving asks first when there isn't the size plus a
+  tenth and 200 MB free (`_room_to_save`, `room_needed`: choose a folder / save anyway /
+  back).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -282,6 +291,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   the logo on the progress page.
 - `test_save_fails.py`: the careful last try, plain reasons from ffmpeg's errors, and
   offering to send in what went wrong.
+- `test_save_space.py`: the size estimate, the save folder and room on the review page,
+  and asking before saving when it won't fit.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in

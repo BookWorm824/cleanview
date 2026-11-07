@@ -155,6 +155,17 @@ def logo_png(px=128):
         return None
 
 
+def fmt_bytes(n):
+    """1.4 GB, 650 MB."""
+    gb = n / 1024 ** 3
+    return f"{gb:.1f} GB" if gb >= 1 else f"{max(1, round(n / 1024 ** 2))} MB"
+
+
+def room_needed(n):
+    """What a clean copy of about n bytes needs free: a tenth more, and 200 MB to spare."""
+    return int(n * 1.1) + 200 * 1024 ** 2
+
+
 def open_path(p):
     if os.name == "nt":
         os.startfile(p)  # noqa
@@ -2058,6 +2069,16 @@ class App(tk.Tk):
         self._chat_tab(t_chat, good)
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
+        # where it goes, how big it'll be and the room there (Jason, 2026-11-07: the drive
+        # filled up, and he didn't know he could choose where it saves)
+        ttk.Button(self.footer, text="Change…", style="Small.TButton",
+                   command=self._change_save_folder).pack(side="right", padx=(0, 12))
+        self.space_lbl = tk.Label(self.footer, text="", bg=BG, fg=MUTED, font=(FONT, 9),
+                                  justify="right", anchor="e")
+        self.space_lbl.pack(side="right", padx=(0, 6))
+        self._show_space()
+        for v, _, _ in self.scene_vars:          # a cut ticked or unticked changes the size
+            v.trace_add("write", lambda *a: self.after_idle(self._show_space))
         # back to the start page without saving (Jason: just checking what's in it);
         # the review is kept, so "Pick up where I left off" opens it again
         ttk.Button(self.footer, text="\u25c0 Back to start", style="Plain.TButton",
@@ -2065,6 +2086,68 @@ class App(tk.Tk):
         # what was refined, sent in before saving too (Lauren): the ticks as they are now
         ttk.Button(self.footer, text="Send what we refined…", style="Plain.TButton",
                    command=self._send_report_now).pack(side="left")
+
+    def _save_folder(self):
+        good = [j for j in self.jobs if j.get("analysis")]
+        return self.outdir or (str(Path(good[0]["video"]).parent / "Clean") if good else "")
+
+    def _clean_bytes(self):
+        """About how big the clean copies will be, with the scenes ticked now."""
+        total = 0
+        for j in [j for j in self.jobs if j.get("analysis")]:
+            st = j["analysis"]
+            cut = sum(sc["e"] - sc["s"] for v, jj, sc in getattr(self, "scene_vars", [])
+                      if jj is j and v.get())
+            v = (st.get("info") or {}).get("video") or {}
+            total += engine.clean_size(j["video"], st.get("duration") or 0, cut,
+                                       v.get("width"), v.get("height"))
+        return total
+
+    def _show_space(self):
+        lbl = getattr(self, "space_lbl", None)
+        if lbl is None or not lbl.winfo_exists():
+            return
+        folder = self._save_folder()
+        free = engine.free_space(folder) if folder else None
+        need = self._clean_bytes()
+        path = os.path.normpath(folder)               # the end of it says the most
+        path = path if len(path) <= 48 else path[:3] + "…" + path[-44:]
+        text = f"Saves to  {path}\nAbout {fmt_bytes(need)}"
+        if free is not None:
+            text += f"  ·  {fmt_bytes(free)} free there"
+        lbl.config(text=text, fg="#B5523B" if free is not None and free < room_needed(need)
+                   else MUTED)
+
+    def _change_save_folder(self):
+        d = filedialog.askdirectory(title="Where should the clean copies go?",
+                                    initialdir=self._save_folder() or None, parent=self)
+        if d:
+            self.outdir = d
+            self._save_session()
+            self._show_space()
+        return bool(d)
+
+    def _room_to_save(self):
+        """Enough room on the drive? If not, offer to choose somewhere else. False: don't
+        save now."""
+        while True:
+            folder = self._save_folder()
+            free, need = engine.free_space(folder), self._clean_bytes()
+            if free is None or free >= room_needed(need):
+                return True
+            chime()
+            ans = messagebox.askyesnocancel(
+                "CleanView", f"The clean copy needs about {fmt_bytes(need)}, but there's only "
+                f"{fmt_bytes(free)} free where it's being saved:\n\n{os.path.normpath(folder)}"
+                "\n\nChoose somewhere else to save it?\n\nYes: choose a folder (another drive "
+                "works too).\nNo: save it there anyway.\nCancel: go back to the review.",
+                parent=self)
+            if ans is None:
+                return False
+            if ans is False:
+                return True
+            if not self._change_save_folder():
+                return False
 
     def _back_to_start(self):
         self._learn_choices()           # learned without saving a copy too (Jason)
@@ -2939,6 +3022,9 @@ class App(tk.Tk):
                 (Path(j["work"]) / "analysis.json").write_text(json.dumps(j["analysis"], indent=1))
             except Exception:
                 pass
+        if not self._room_to_save():
+            return
+        self.outdir = self._save_folder()
         self.save()
 
     def save(self):

@@ -2860,6 +2860,33 @@ ENCODERS = [
 ]
 
 
+def clean_size(video, duration, cut_secs=0.0, width=None, height=None):
+    """About how many bytes the clean copy of `video` takes (Jason, 2026-11-07: the drive
+    filled up while saving). Without cuts the picture is copied, so it's the original's size;
+    with cuts it's made again at a set quality, which can come out bigger than a small,
+    squeezed original (about 0.07 bits a pixel, 24 frames a second)."""
+    try:
+        size = os.path.getsize(video)
+    except OSError:
+        size = 0
+    keep = max(0.0, 1.0 - cut_secs / duration) if duration else 1.0
+    est = size * keep
+    if cut_secs > 0 and duration:
+        est = max(est, (width or 1280) * (height or 720) * 24 * 0.07 / 8 * duration * keep)
+    return int(est)
+
+
+def free_space(folder):
+    """Bytes free on the drive `folder` is on (it may not exist yet), or None."""
+    p = Path(folder)
+    while not p.exists() and p.parent != p:
+        p = p.parent
+    try:
+        return shutil.disk_usage(p).free
+    except OSError:
+        return None
+
+
 def save_trouble(err):
     """What ffmpeg's error says about why the clean copy couldn't be written, when it's
     something on the PC rather than in the video: "full" (raised as a full drive), a plain
