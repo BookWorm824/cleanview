@@ -1,4 +1,5 @@
 """CleanView — a simple window for cleaning up movies and TV episodes you own."""
+import base64
 import copy
 import hashlib
 import json
@@ -136,6 +137,22 @@ def natural_key(p):
 def fmt_len(sec):
     h, m = int(sec // 3600), int(sec % 3600 // 60)
     return f"{h} hr {m} min" if h else f"{m} min"
+
+
+def logo_png(px=128):
+    """CleanView's logo as PNG bytes, the size nearest px, taken from cleanview.ico (its
+    pictures are PNGs, which tk can show). None if it can't be read."""
+    import struct
+    try:
+        d = (Path(__file__).resolve().parent / "cleanview.ico").read_bytes()
+        found = []
+        for i in range(struct.unpack("<H", d[4:6])[0]):
+            w, _, _, _, _, _, size, off = struct.unpack("<BBBBHHII", d[6 + 16 * i:22 + 16 * i])
+            if d[off:off + 4] == b"\x89PNG":
+                found.append((abs((w or 256) - px), d[off:off + size]))
+        return min(found)[1] if found else None
+    except (OSError, struct.error):
+        return None
 
 
 def open_path(p):
@@ -1325,6 +1342,18 @@ class App(tk.Tk):
         self.status.pack(anchor="w", pady=(12, 0))
         self.overall = tk.Label(box, text="", bg=BG, fg=ACCENT_DK, font=(FONT, 11, "bold"))
         self.overall.pack(anchor="w", pady=(4, 0))
+        if n == 1:                      # the logo in the empty space (Jason, 2026-11-07)
+            png = logo_png(128)
+            try:
+                img = tk.PhotoImage(data=base64.b64encode(png).decode()) if png else None
+            except tk.TclError:
+                img = None
+            if img is not None:
+                self._imgs.append(img)
+                mid = tk.Frame(p, bg=BG)
+                mid.pack(fill="both", expand=True)
+                self.logo = tk.Label(mid, image=img, bg=BG)
+                self.logo.place(relx=0.5, rely=0.45, anchor="center")
         self._work_n, self._work_t0 = n, None
         self.stop_after = False
         self.job_rows, self.job_frames, self.job_notes = [], [], []
@@ -2284,7 +2313,9 @@ class App(tk.Tk):
                    command=self._undo_chat,
                    state="normal" if self.undo_stack else "disabled").pack(side="right",
                                                                          padx=(0, 8))
-        ttk.Button(top, text=f"{n}'s findings (spreadsheet)", style="Small.TButton",
+        several = sum(1 for j in self.jobs if j.get("analysis")) > 1
+        ttk.Button(top, text=f"{n}'s findings on {'these videos' if several else 'this video'}",
+                   style="Small.TButton",
                    command=self._open_findings).pack(side="right", padx=(0, 8))
         tk.Label(tab, text=f"\u201cReview everything again\u201d has {n} look over every scene, "
                  "line and word on the Found tab (including what you've added or unticked) "
@@ -2318,11 +2349,24 @@ class App(tk.Tk):
         self.chat_btn.pack(side="left", padx=(6, 0))
 
     def _open_findings(self):
-        if learn.CSV_PATH.exists():
-            open_path(str(learn.CSV_PATH))
-        else:
-            messagebox.showinfo("CleanView", "Nothing saved yet. Findings are saved each time "
-                                "Claude, ChatGPT or Gemini reviews an episode.")
+        """A spreadsheet of what Claude, ChatGPT or Gemini found in the videos on this review
+        page only (Jason, 2026-11-07: it had every movie he'd done, not the one he was on).
+        The one with every video is still claude_findings.csv in CleanView's folder."""
+        vids = [j["video"] for j in self.jobs if j.get("analysis")]
+        if not learn.findings_rows(vids):
+            messagebox.showinfo("CleanView", "Nothing saved for this video yet. Findings are "
+                                "saved each time Claude, ChatGPT or Gemini reviews a video.")
+            return
+        for name in ("Findings for this video.csv",       # (a copy still open in Excel is locked)
+                     f"Findings for this video {time.strftime('%H%M%S')}.csv"):
+            try:
+                learn.write_findings(APP_DATA / name, vids)
+            except OSError:
+                continue
+            open_path(str(APP_DATA / name))
+            return
+        messagebox.showinfo("CleanView", "Couldn't make the spreadsheet. Close Excel and try "
+                            "again.")
 
     def _sync_job(self, job):
         """Copy the ticks on screen (and anything added) back into the analysis,

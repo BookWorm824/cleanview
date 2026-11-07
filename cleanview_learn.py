@@ -553,23 +553,43 @@ def record_claude(st):
         (FINDINGS / f"{name}.json").write_text(json.dumps(
             {"show": key, "date": date.today().isoformat(), "rows": rows,
              "reviewer": st.get("reviewer") or "Claude"}), encoding="utf8")
-        allrows = []
-        for f in sorted(FINDINGS.glob("*.json")):
-            try:
-                j = json.loads(f.read_text("utf8"))
-            except Exception:
-                continue
-            allrows += [[j.get("date", ""), j.get("show", ""), r[0], j.get("reviewer", "Claude")]
-                        + r[1:] for r in j.get("rows", [])]
-        tmp = CSV_PATH.with_suffix(".tmp")
-        with open(tmp, "w", newline="", encoding="utf-8-sig") as fh:
-            w = csv.writer(fh)
-            w.writerow(["Date", "Show", "Video", "Reviewer", "Time", "What", "Flagged as",
-                        "Text", "Verdict", "Word", "Why"])
-            w.writerows(allrows)
-        os.replace(tmp, CSV_PATH)
+        write_findings(CSV_PATH)
     except OSError:
         pass
+
+
+def findings_rows(videos=None):
+    """Every saved finding, newest video first. videos: just these (file names, or full
+    paths), for the videos being reviewed now (Jason, 2026-11-07: the spreadsheet had every
+    movie he'd ever done, and he wanted the one he's working on)."""
+    want = None if videos is None else {os.path.basename(v) for v in videos}
+    out = []
+    for f in sorted(FINDINGS.glob("*.json")) if FINDINGS.exists() else []:
+        try:
+            j = json.loads(f.read_text("utf8"))
+            when = f.stat().st_mtime
+        except Exception:
+            continue
+        rows = [[j.get("date", ""), j.get("show", ""), r[0], j.get("reviewer", "Claude")]
+                + r[1:] for r in j.get("rows", []) if want is None or r[0] in want]
+        if rows:
+            out.append((when, rows))
+    out.sort(key=lambda x: -x[0])
+    return [r for _, rows in out for r in rows]
+
+
+def write_findings(path, videos=None):
+    """The findings spreadsheet (opens in Excel). Returns how many rows it has."""
+    rows = findings_rows(videos)
+    path = Path(path)
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "w", newline="", encoding="utf-8-sig") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Date", "Show", "Video", "Reviewer", "Time", "What", "Flagged as",
+                    "Text", "Verdict", "Word", "Why"])
+        w.writerows(rows)
+    os.replace(tmp, path)
+    return len(rows)
 
 
 def export_refined(analyses, chat=None, dest_dir=None):

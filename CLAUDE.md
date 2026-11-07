@@ -161,7 +161,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   The Resident S3: an injured patient, a girl singing in surgery). The "double check" he kept
   asking the chat for is the AI helper's second look, which he has off.
 - The title on the progress page (1.18.22, Jason): the video's name without ".m4v", big and
-  bold (`self.which`), instead of small grey text.
+  bold (`self.which`), instead of small grey text. With one video, CleanView's logo sits in
+  the empty space below (1.18.23, Jason: "a lot of dead space"; `logo_png` takes the PNG out
+  of `cleanview.ico`, so no PIL is needed).
+- "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
+  done) writes `Findings for this video.csv` with only the videos on the review page
+  (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
+  all, newest first.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -264,6 +270,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   one moan offered, the Resident S3 lessons and the drug store note built in.
 - `test_title_big.py`: the progress page's title is the name without the extension, big
   and bold.
+- `test_jason_nov7.py`: the findings spreadsheet for just this video, newest first, and
+  the logo on the progress page.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in
