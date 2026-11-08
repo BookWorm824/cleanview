@@ -94,6 +94,26 @@ class TryOtherSubtitles(unittest.TestCase):
                          "hearing-impaired subtitles (1961) downloaded from opensubtitles")
 
 
+class NoAIPhraseList(unittest.TestCase):
+    """The short list that works without an AI (LINE_WORDS) agrees with the word lists."""
+
+    def test_gay_meaning_happy_isnt_a_same_sex_line(self):
+        r = engine.LINE_WORDS["samesex"]
+        for text in ("I feel pretty and witty and gay, and I pity any girl who isn't me tonight",
+                     "Pretty and Witty and Gay", "so gay and carefree"):
+            with self.subTest(text=text):
+                self.assertIsNone(r.search(text))
+        for text in ("He's gay and proud", "a gay couple", "Her brother is gay."):
+            with self.subTest(text=text):
+                self.assertIsNotNone(r.search(text))
+
+    def test_thanks_for_the_quickie(self):
+        # Red Eye (2026-11-08), after the airplane bathroom
+        self.assertIsNotNone(engine.LINE_WORDS["sexref"].search("Well, thanks for the quickie."))
+        self.assertIsNone(engine.LINE_WORDS["sexref"].search(
+            "I thought he came down here for a quickie divorce"))
+
+
 class LessonsBuiltIn(unittest.TestCase):
     def test_lines_taught(self):
         import json

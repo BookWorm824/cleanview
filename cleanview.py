@@ -1215,11 +1215,18 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
                          r"viagra|cialis|levitra|erectile dysfunction|little blue pills?|"
-                         r"(boner|sex) pills?|aphrodisiacs?|spanish fly)\b", re.I),
+                         r"(boner|sex) pills?|aphrodisiacs?|spanish fly|"
+                         # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
+                         # quickie divorce" (a learned line she kept)
+                         r"thanks for the quickie)\b", re.I),
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
                          r"on (him|her|me|you)|booty call|friends with benefits)\b", re.I),
-    "samesex": re.compile(r"\b(gay(?! (refrain|apparel|abandon|laughter|nineties|paree)\b)|"
+    # "gay" beside another happy word is the old word for happy (cvcore.gay_happy): "I feel
+    # pretty and witty and gay" (West Side Story, 2026-11-08)
+    "samesex": re.compile(r"\b(" + "".join(f"(?<!{w} and )" for w in sorted(cl.GAY_HAPPY))
+                          + r"gay(?! (refrain|apparel|abandon|laughter|nineties|paree)\b)"
+                          + r"(?! and (" + "|".join(sorted(cl.GAY_HAPPY)) + r")\b)|"
                           r"lesbians?|homosexual|bisexual|same[- ]sex|"
                           r"husband and husband|wife and wife)\b", re.I),
     "oppsex": re.compile(r"\b(moved in together|living together|shacking up|"

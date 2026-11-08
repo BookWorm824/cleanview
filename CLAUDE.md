@@ -225,6 +225,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   walk the streets like your sister", "How's the action on your mother's side of the
   street"; a title note says the rumble's knife fight, Anita's attack and Tony's shooting.
   The local picture checks found only the last of those (weak spot 2).
+- Lauren's Red Eye report (1.18.31, 2026-11-08, word lists only, adults): every mute was
+  right; the picture check's nudity, kissing and gesture scenes were false (the film has
+  none) but all offered unticked, and left so. Missed: "Well, thanks for the quickie"
+  (sexref), now in `LINE_WORDS` (not "quickie" alone: "a quickie divorce" is a line she
+  kept). `LINE_WORDS["samesex"]` leaves "gay" beside a happy word alone too, like the word
+  lists (`cl.GAY_HAPPY`).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
