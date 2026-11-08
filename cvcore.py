@@ -89,20 +89,24 @@ STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing", r"effin'?", r"
           # racial slurs (the unmistakable ones; "cracker", "coon", "chink" etc. have
           # everyday meanings too, so they're left to the AI review)
           r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
-          r"ragheads?", r"beaners?"]
+          r"ragheads?", r"beaners?",
+          # West Side Story (Lauren, 2026-11-08): "You lyin' Spic!", "that Polack", "Wop!"
+          r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?"]
 # Never "fine in context", whatever an AI says: slurs, and "retarded" even said as a plain
 # description ("a severely retarded boy", Radio). An AI's "not an issue" on these is ignored.
 NEVER_FINE = [re.compile(p) for p in (
     r"retard(s|ed|os?)?", r"retart(s|ed)?", r"tards?", r"libtards?", r"re tard(s|ed)?",
     r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
-    r"ragheads?", r"beaners?")]       # not "fag", "dyke": cigarettes, sea walls
+    r"ragheads?", r"beaners?",        # not "fag", "dyke": cigarettes, sea walls
+    r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?")]
 
 
 def never_fine(text):
     """True if text (a word or a short phrase) has a word no AI may call fine."""
     words = [norm(w) for w in str(text).split()]
     words = [w for w in words if w]
-    return any(p.fullmatch(w) for p in NEVER_FINE for w in words) or \
+    bases = words + [_base(w) for w in words]          # "a greaseball's got feelings"
+    return any(p.fullmatch(w) for p in NEVER_FINE for w in bases) or \
         any(p.fullmatch(" ".join(words[k:k + 2])) for p in NEVER_FINE for k in range(len(words)))
 MODERATE = [
     r".*shit.*", r"bitch.*", r"son(of|ofa|uva|na)?bitch.*", r"sumbitch.*", r"ass", r"asses",
@@ -234,6 +238,8 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  "craps": {"table", "tables", "game", "games", "shooter", "shooters", "dealer"},
                  # "gay" meaning happy (Enchanted's "gay refrain", "don we now our gay apparel")
                  "gay": {"refrain", "apparel", "abandon", "laughter", "nineties", "paree"},
+                 # "spic and span" (clean); "a wop bop a loo bop" (Tutti Frutti)
+                 "spic": {"and", "n"}, "spick": {"and", "n"}, "wop": {"bop", "bam", "doo"},
                  # "queer" meaning strange, in older stories (CleanRead, The Boxcar Children,
                  # 2026-11-07): "a queer noise in the night", "looked at Henry in a queer way"
                  "queer": {"noise", "noises", "sound", "sounds", "way", "look", "looks", "looking", "feeling", "feelings", "smell", "sort", "kind", "thing", "things", "sensation", "notion", "idea", "business", "light", "taste", "dream", "dreams", "turn", "start", "fish", "old", "little"},
@@ -252,6 +258,7 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
                  "butts": {"cigarette", "cigar", "rifle", "gun"},
                  "dumb": {"deaf", "struck"}, "dummy": {"test", "ventriloquist", "ventriloquist's"},
+                 "wop": {"doo", "do", "shoo", "be", "bop"},      # "doo wop"
                  # "it looked rather queer", "I feel queer" (never "a queer", "so queer")
                  "queer": {"rather", "very", "mighty", "awfully", "uncommonly", "most", "how", "looked", "seemed", "felt", "sounded", "look", "looks", "seem", "seems", "feel", "feels", "sound", "sounds"},
                  "dummies": {"test", "crash"}, "brat": {"army", "navy", "military"},
@@ -450,6 +457,21 @@ def body_slang(words, i, pats=BODY_SLANG):
 # Shawshank" (Jason, 2026-11-07), "a screw that", "every screw that"...
 SCREW_NOUN_AFTER = {"the", "a", "that", "this", "loose", "one", "each", "every", "of",
                     "tighten", "any", "no", "another", "prison"}
+
+
+# "gay" meaning happy, beside another happy word: "I feel pretty and witty and gay" (West
+# Side Story; Lauren kept the line, 2026-11-08), "merry and gay", "gay and carefree".
+GAY_HAPPY = {"witty", "pretty", "merry", "bright", "happy", "light", "lighthearted",
+             "carefree", "cheerful", "lively", "sunny", "jolly", "glad", "festive", "colorful",
+             "colourful", "giddy", "laughing", "charming", "sparkling", "blithe", "joyful",
+             "joyous", "gladsome", "frolicsome"}
+
+
+def gay_happy(words, i):
+    """Is words[i] ("gay") the old word for happy, going by a happy word beside it?"""
+    before = i >= 2 and words[i - 1] == "and" and words[i - 2] in GAY_HAPPY
+    after = i + 2 < len(words) and words[i + 1] == "and" and words[i + 2] in GAY_HAPPY
+    return before or after
 
 
 def screw_noun(words, i):
@@ -727,7 +749,8 @@ def find_language(words, cats, mine=()):
                     break        # "you're freaking me out": the verb, not the minced oath
                 if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()) or (
                         wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
-                        w in ("jesus", "christ") and reverent(words, i)):
+                        w in ("jesus", "christ") and reverent(words, i)) or (
+                        w == "gay" and gay_happy(words, i)):
                     break        # "pussy cat", "Moby Dick", "summa cum laude", "deaf and dumb"
                 hits.append((i, i + 1, cat))
                 break

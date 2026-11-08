@@ -38,7 +38,11 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # (Empty: CleanListen 1.13.1 has CleanView 1.18.10's words, 2026-11-03.)
 # CleanListen 1.13.5 has CleanView 1.18.11's words (dickens, Camp Dick, sod, God knows best...)
 # CleanListen 1.14.2 has CleanView 1.18.13's prayer guards (Wings of a Dream)
-WAITING_ON_CLEANLISTEN = set()
+# CleanView 1.18.30's slurs from West Side Story (spic, Polack, wop, greaseball), 2026-11-08
+WAITING_ON_CLEANLISTEN = {
+    "Back where you came from. Spics.", "Even a greaseball's got feelings.",
+    "I'm gonna get that Polack.", "Mick! Wop!", "Says the Spic.", "Wop!", "You lyin' Spic!",
+    "greaseball's", "polack", "spic", "spics", "that Polack", "wop"}
 
 
 def load_cleanlisten():

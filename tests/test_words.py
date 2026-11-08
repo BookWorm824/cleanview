@@ -112,6 +112,29 @@ class Phrases(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(found(text, ["samesex"]), [(word, "samesex")])
 
+    def test_gay_meaning_happy(self):
+        # West Side Story 2026-11-08: Lauren kept "I feel pretty and witty and gay"
+        for text in ("I feel pretty and witty and gay", "we were merry and gay",
+                     "so gay and carefree all summer"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["samesex"]), [])
+        for text in ("he is gay", "a gay couple", "tall and gay", "gay and proud"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["samesex"]), [("gay", "samesex")])
+
+    def test_west_side_story_slurs(self):
+        # the 1961 subtitles: "Says the Spic.", "You lyin' Spic!", "that Polack", "Mick! Wop!"
+        for text, word in (("Says the Spic.", "spic"), ("Back where you came from. Spics.", "spics"),
+                           ("I'm gonna get that Polack.", "polack"), ("Wop!", "wop"),
+                           ("Even a greaseball's got feelings.", "greaseball's")):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["strong"]), [(word, "strong")])
+                self.assertTrue(cl.never_fine(word))       # no AI may call it fine
+        for text in ("keep the kitchen spic and span", "Spic 'n' Span", "a wop bop a loo bop",
+                     "doo wop music", "Mick Jagger sang", "Jackson Pollock painted it"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["strong"]), [])
+
 
 class FromCleanListen(unittest.TestCase):
     """Words and guards CleanListen had that CleanView didn't (tests/test_cleanlisten_words.py

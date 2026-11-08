@@ -212,6 +212,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   that cut; they never make one alone. The shooting at the car started 3 s before the cut.
   Her gunshot training sounds and 2,000 everyday sounds (ESC-50) showed the sound check
   already leaves doors, knocks and typing alone (`test_gunshots.py`).
+- Lauren's West Side Story report (1.18.30, 2026-11-08, AI helper, no Claude): "West Side
+  Story.m4v" has no year, so every movie of that name scored the same online and the 2021
+  remake's subtitles came first (22% lined up, none used: "every last buggin' gang" was
+  heard as a swear, and the slurs went unheard). When the first subtitles don't line up,
+  the best of each movie (name and year, hearing-impaired first) is tried in turn, up to
+  `SUB_TRIES`, once per video (`other_subtitles_tried.txt`; `subtitle_order`,
+  `other_subtitles`, `pick_subtitles`); the 1961 film's lined up 89%. Slurs added (strong,
+  never fine): spic, Polack, wop, greaseball ("spic and span", "doo wop" and "a wop bop"
+  aren't). "gay" beside another happy word ("pretty and witty and gay", "merry and gay") is
+  the old word for happy (`gay_happy`). Taught (sexref): "'Cause your ma's hot for me", "Go
+  walk the streets like your sister", "How's the action on your mother's side of the
+  street"; a title note says the rumble's knife fight, Anita's attack and Tony's shooting.
+  The local picture checks found only the last of those (weak spot 2).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -330,6 +343,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   ("cap gun", "chop") aren't found by sound: counting those labels or matching against
   these gunshots cut soda cans, clapping, glass and footsteps among 2,000 everyday sounds
   (ESC-50, tested on this PC only), which also showed no doors, knocks or typing cut.
+- `test_west_side_story.py`: other subtitles tried when the first don't line up (each
+  movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in

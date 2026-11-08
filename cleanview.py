@@ -505,6 +505,19 @@ def title_name(path):
 MISS_REMEMBER = "no matching subtitles were found online"
 
 
+def _load_subtitle_finder(log=print):
+    """Load subliminal once; returns why it won't load, or None."""
+    if "subliminal" in sys.modules:
+        return None
+    ok, err = subtitle_finder_loads(log)
+    if not ok:
+        return err
+    for k in [k for k in sys.modules if k.split(".")[0] in ("chardet", "charset_normalizer")]:
+        sys.modules.pop(k, None)      # half-loaded by an earlier failed try
+    importlib.invalidate_caches()
+    return None
+
+
 def download_subtitles(path, workdir, log=print):
     """Look up English subtitles online (hearing-impaired ones first). Returns
     (srt_text, where_from) or (None, reason)."""
@@ -513,13 +526,9 @@ def download_subtitles(path, workdir, log=print):
     t = guess_title(path)
     if not t:
         return None, "couldn't tell which episode this is from its name"
-    if "subliminal" not in sys.modules:
-        ok, err = subtitle_finder_loads(log)
-        if not ok:
-            return None, f"the subtitle finder won't load ({err})"
-        for k in [k for k in sys.modules if k.split(".")[0] in ("chardet", "charset_normalizer")]:
-            sys.modules.pop(k, None)      # half-loaded by an earlier failed try
-        importlib.invalidate_caches()
+    err = _load_subtitle_finder(log)
+    if err:
+        return None, f"the subtitle finder won't load ({err})"
     import subliminal
     from babelfish import Language
     try:
@@ -545,9 +554,78 @@ def download_subtitles(path, workdir, log=print):
     for sub in subs:
         text = getattr(sub, "text", None)
         if text and "-->" in text:
-            label = "hearing-impaired " if getattr(sub, "hearing_impaired", False) else ""
-            return text, f"{label}subtitles downloaded from {sub.provider_name}"
+            return text, _sub_where(sub)
     return None, "no matching subtitles were found online"
+
+
+def _sub_where(sub):
+    label = "hearing-impaired " if getattr(sub, "hearing_impaired", False) else ""
+    year = getattr(sub, "movie_year", None) or getattr(sub, "year", None)
+    return f"{label}subtitles{f' ({year})' if year else ''} downloaded from {sub.provider_name}"
+
+
+# When the first subtitles don't match what's heard, try this many others. A name without a
+# year matches every movie of that name, all scored the same: "West Side Story.m4v" got the
+# 2021 remake's subtitles for the 1961 film (Lauren, 2026-11-08: 22% lined up, none used).
+SUB_TRIES = 6
+
+
+def subtitle_order(subs, score):
+    """The order to try subtitles in: the best one of each movie (name and year) first,
+    hearing-impaired first, so a remake's can't hide the right ones; then the rest."""
+    ranked = sorted(subs, key=lambda s: (-score(s), not getattr(s, "hearing_impaired", False)))
+    first, rest, seen = [], [], set()
+    for s in ranked:
+        key = (getattr(s, "movie_name", None) or getattr(s, "title", None),
+               getattr(s, "movie_year", None) or getattr(s, "year", None))
+        (rest if key in seen else first).append(s)
+        seen.add(key)
+    return first + rest
+
+
+def other_subtitles(path, log=print, tries=SUB_TRIES):
+    """Other subtitles online for this video, one download at a time: (srt_text, where_from)."""
+    if importlib.util.find_spec("subliminal") is None or _load_subtitle_finder(log):
+        return
+    import subliminal
+    from babelfish import Language
+    t = guess_title(path)
+    if not t:
+        return
+    ext = Path(path).suffix or ".mkv"
+    video = subliminal.Video.fromname(f"{t[0]}.S{t[1]:02d}E{t[2]:02d}{ext}" if t[1] is not None
+                                      else f"{t[0]}{ext}")
+    try:
+        subs = subliminal.list_subtitles({video}, {Language("eng")}).get(video) or []
+    except Exception as ex:
+        log(f"other subtitles: {ex}")
+        return
+    for sub in subtitle_order(subs, lambda s: subliminal.compute_score(s, video))[:tries]:
+        try:
+            subliminal.download_subtitles([sub])
+        except Exception:
+            continue
+        text = getattr(sub, "text", None)
+        if text and "-->" in text:
+            yield text, _sub_where(sub)
+
+
+def pick_subtitles(text, why, asr, others):
+    """The first subtitles that line up with what was heard: these, else each of `others`
+    ((text, where_from) pairs, fetched only as needed). Returns (cues, frac, text, why);
+    cues is [] when none did, and frac is then the best share of words that lined up."""
+    synced, frac = sync_cues(parse_srt(text), asr)
+    if synced:
+        return synced, frac, text, why
+    best = frac
+    for t2, w2 in others:
+        if t2 == text:
+            continue
+        s2, f2 = sync_cues(parse_srt(t2), asr)
+        if s2:
+            return s2, f2, t2, w2
+        best = max(best, f2)
+    return [], best, text, why
 
 
 def sync_cues(cues, asr, min_match=0.25):
@@ -2557,7 +2635,23 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         else:
             why = miss.read_text("utf8", "replace")
         if text:
-            synced, frac = sync_cues(parse_srt(text), asr)
+            tried = work / "other_subtitles_tried.txt"     # once per video, not every run
+            others = ()
+            if not tried.exists():
+                tried.write_text(why, encoding="utf8")
+
+                def others():
+                    say(at("end", 0.1), "Trying other subtitles…")
+                    try:
+                        yield from other_subtitles(path, log)
+                    except Exception as ex:      # the first ones' note stands
+                        log(f"other subtitles: {ex}")
+                others = others()
+            first = text
+            synced, frac, text, why = pick_subtitles(text, why, asr, others)
+            if synced and text != first:
+                dl.write_text(text, encoding="utf8")
+                (work / "downloaded.txt").write_text(why, encoding="utf8")
             if synced:
                 cues = synced
                 sub_note = f"{why} and matched to the sound ({frac:.0%} of words lined up)"

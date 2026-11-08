@@ -462,6 +462,10 @@
     {
      "text": "The 'dummies' are Benson and the other ventriloquist dummy toys: 'the dummies' is what they are, not an insult. A red-and-green toy isn't Christmas.",
      "title": "Toy Story 4"
+    },
+    {
+     "title": "West Side Story",
+     "text": "The rumble under the highway is a knife fight in which Riff and Bernardo are stabbed to death (Violence); the Jets shoving and attacking Anita in Doc's store is Disturbing (an attempted rape); Chino shooting Tony at the end is Violence. The street scuffles between the Jets and the Sharks at the start are fighting (Violence). 'Gay' in 'I feel pretty and witty and gay' means happy."
     }
    ]
   },
@@ -526,7 +530,10 @@
     "bogs didn't put anything in andy's mouth",
     "playing cards with naked ladies on them you name it",
     "and cast you down with the sodomites",
-    "we went there for a picnic and made love under that oak"
+    "we went there for a picnic and made love under that oak",
+    "'cause your ma's hot for me",
+    "go walk the streets like your sister",
+    "how's the action on your mother's side of the street action"
    ],
    "kept": [
     "l thought he came down here for a quickie divorce",
@@ -635,7 +642,10 @@
     "bogs didn't put anything in andy's mouth": "sexref",
     "playing cards with naked ladies on them you name it": "sexref",
     "and cast you down with the sodomites": "sexref",
-    "we went there for a picnic and made love under that oak": "sexref"
+    "we went there for a picnic and made love under that oak": "sexref",
+    "'cause your ma's hot for me": "sexref",
+    "go walk the streets like your sister": "sexref",
+    "how's the action on your mother's side of the street action": "sexref"
    }
   },
   "the-resident": {
