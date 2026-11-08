@@ -192,6 +192,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   quieter music get a filter for each 500 (`_mute_filters`, `_chunks`; tested to 20,000).
   The same in `cvcore._ranges`, which CleanListen shares. `videoqueue.memory_trouble`
   doesn't count ffmpeg's filter errors as running out of memory.
+- Jason's Shawshank review (1.18.27, 2026-11-07, word lists only, no AI): four of the five
+  "gunshot-like bangs" were cell doors, a typewriter, sobbing and a door. The tagger now
+  also listens for those (`LOOK_ALIKE_SOUNDS`); in a window where one is heard more clearly
+  than the gunfire or hitting (`MISTAKEN_SOUNDS`), it isn't counted. Older sound scans are
+  redone once when violence is ticked. "the hardest screw that ever walked a turn" (the
+  guard) isn't "screw that" (`screw_noun`: after "-est" words, "any", "no", "another",
+  "prison"...). His 0:58:07 untick was Brooks's knife at Heywood's neck: his choice, not a
+  false alarm. The Sisters/Bogs lines, the playing cards and "the Sodomites" were taught
+  (sexref); "a bag of reefer" has no dialogue filter (drugs is picture-only).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -302,6 +311,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   and asking before saving when it won't fit.
 - `test_many_mutes.py`: saving with 150 mutes and 120 cuts, the bracketed groups, and
   ffmpeg's "Cannot allocate memory" for a filter not said as running out of memory.
+- `test_shawshank.py`: doors, slams, a typewriter and sobbing heard more clearly than
+  gunfire aren't gunfire; real gunshots and screams still count; older scans as before.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in

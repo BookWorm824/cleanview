@@ -441,6 +441,21 @@ def body_slang(words, i, pats=BODY_SLANG):
     return 0
 
 
+# "screw" the prison guard, not the swear: "the hardest screw that ever walked a turn at
+# Shawshank" (Jason, 2026-11-07), "a screw that", "every screw that"...
+SCREW_NOUN_AFTER = {"the", "a", "that", "this", "loose", "one", "each", "every", "of",
+                    "tighten", "any", "no", "another", "prison"}
+
+
+def screw_noun(words, i):
+    """Is words[i] ("screw") a thing or a guard here, going by the word before it?"""
+    if not i:
+        return False
+    prev = words[i - 1]
+    return prev in SCREW_NOUN_AFTER or (len(prev) > 4 and prev.endswith("est")
+                                        and prev not in ("honest", "modest"))
+
+
 # "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
 # these isn't counted when one of NOT_RUDE_NEXT comes straight after it.
 PHRASE_OBJECTS = {"it", "them", "that", "this", "him", "her", "me"}
@@ -670,8 +685,7 @@ def find_language(words, cats, mine=()):
             i += k
             continue
         if (("mild" in cats or "moderate" in cats) and words[i] == "screw"
-                and (i == 0 or words[i - 1] not in ("the", "a", "that", "this", "loose", "one",
-                                                     "each", "every", "of", "tighten"))):
+                and not screw_noun(words, i)):
             ph = next((p for p in CRUDE_PHRASES if tuple(words[i:i + len(p)]) == p
                        and rude_use(p)), None)
             if ph:

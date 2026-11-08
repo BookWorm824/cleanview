@@ -89,6 +89,17 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("shut up", ["rude"]), [("shut up", "rude")])
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
 
+    def test_screw_the_prison_guard(self):
+        # Jason, The Shawshank Redemption 2026-11-07: "screw that" was muted here
+        for text in ("courtesy of the hardest screw that ever walked a turn at Shawshank",
+                     "the meanest screw that ever lived", "no screw that I know of",
+                     "another screw that owed him a favor"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["mild"]), [])
+        self.assertEqual(found("oh screw that I'm going home", ["mild"]),
+                         [("screw that", "mild")])
+        self.assertEqual(found("to be honest screw that", ["mild"]), [("screw that", "mild")])
+
 
 class FromCleanListen(unittest.TestCase):
     """Words and guards CleanListen had that CleanView didn't (tests/test_cleanlisten_words.py

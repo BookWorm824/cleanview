@@ -38,7 +38,12 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # (Empty: CleanListen 1.13.1 has CleanView 1.18.10's words, 2026-11-03.)
 # CleanListen 1.13.5 has CleanView 1.18.11's words (dickens, Camp Dick, sod, God knows best...)
 # CleanListen 1.14.2 has CleanView 1.18.13's prayer guards (Wings of a Dream)
-WAITING_ON_CLEANLISTEN = set()
+WAITING_ON_CLEANLISTEN = {
+    # "screw" the prison guard (CleanView 1.18.27, Shawshank): sent to CleanListen
+    "courtesy of the hardest screw that ever walked a turn at Shawshank",
+    "the meanest screw that ever lived", "no screw that I know of",
+    "another screw that owed him a favor",
+}
 
 
 def load_cleanlisten():

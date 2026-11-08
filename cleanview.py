@@ -709,6 +709,15 @@ INTIMATE_SOUNDS = {"Breathing": 0.6, "Pant": 0.8, "Gasp": 0.5, "Sigh": 0.4,
 # describe violence still cut.
 SOFT_VIOLENCE_SOUNDS = {"Screaming", "Battle cry", "Smash, crash"}
 SOUND_ONLY = " (only heard, not seen: check it)"
+# Sounds the tagger can take for gunshots or blows. When one of these is heard more clearly
+# than the gunfire or hitting in the same 3 seconds, that's what it was (Jason, The
+# Shawshank Redemption 2026-11-07: cell doors clanking, Andy at a typewriter and sobbing
+# were all cut as "gunshot-like bangs"; only one of the five really was).
+LOOK_ALIKE_SOUNDS = ("Door", "Sliding door", "Slam", "Knock", "Typewriter", "Typing",
+                     "Crying, sobbing", "Clapping", "Hammer", "Jackhammer", "Snare drum",
+                     "Clang", "Clatter", "Ratchet, pawl")
+MISTAKEN_SOUNDS = {"Gunshot, gunfire", "Machine gun", "Fusillade", "Artillery fire",
+                   "Slap, smack", "Whack, thwack"}
 SOUND_WORDS = {"Gunshot, gunfire": "gunshot-like bangs", "Machine gun": "gunfire-like bursts",
                "Fusillade": "gunfire-like bursts", "Artillery fire": "heavy bangs",
                "Explosion": "an explosion", "Screaming": "screaming", "Battle cry": "shouting",
@@ -718,7 +727,8 @@ ROCK_SOUNDS = ("Rock music", "Heavy metal", "Punk rock", "Grunge")
 RAP_SOUNDS = ("Hip hop music", "Rapping")
 LYRIC_SOUNDS = ("Singing", "Rapping")       # words heard over these are lyrics, not talk
 MUSIC_SOUNDS = tuple(dict.fromkeys(ROCK_SOUNDS + RAP_SOUNDS + LYRIC_SOUNDS + ("Speech", "Music")))
-TRACKED = list(dict.fromkeys(list(VIOLENCE_SOUNDS) + list(INTIMATE_SOUNDS) + list(MUSIC_SOUNDS)))
+TRACKED = list(dict.fromkeys(list(VIOLENCE_SOUNDS) + list(INTIMATE_SOUNDS) + list(MUSIC_SOUNDS)
+                             + list(LOOK_ALIKE_SOUNDS)))
 SOUND_WIN, SOUND_HOP = 3.0, 1.5
 
 
@@ -903,9 +913,14 @@ def violence_scenes(snd, cues):
         return []
     labels = snd["labels"]
     vi = [(labels.index(k), w) for k, w in VIOLENCE_SOUNDS.items()]
+    alike = [labels.index(k) for k in LOOK_ALIKE_SOUNDS if k in labels]   # (older scans: none)
     flagged, why, strong, hard = [], {}, set(), set()
     for t, row in zip(snd["t"], snd["p"]):
         score = sum(row[i] * w for i, w in vi)
+        if score >= 0.45 and alike:
+            top_i = max(vi, key=lambda iw: row[iw[0]] * iw[1])[0]
+            if labels[top_i] in MISTAKEN_SOUNDS and max(row[i] for i in alike) > row[top_i]:
+                continue                     # a door, a typewriter, sobbing... heard better
         if score >= 0.45:
             flagged.append(t)
             if score >= 0.55:
@@ -2464,6 +2479,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             snd = json.loads(sfile.read_text())
             if o["loudmusic"] and not all(k in snd.get("labels", []) for k in MUSIC_SOUNDS):
                 snd = None           # saved before CleanView listened for music: again
+            elif (o.get("violence") and
+                  not all(k in snd.get("labels", []) for k in LOOK_ALIKE_SOUNDS)):
+                snd = None           # saved before it told doors and typewriters from gunfire
         if snd is None:
             say(at("snd", 0), "Listening for fights, gunfire and other sounds…")
             tagger = load_tagger()
