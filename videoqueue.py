@@ -90,6 +90,10 @@ _MEMORY_WINERRORS = {8, 14, 1450, 1453, 1455}
 def memory_trouble(text):
     """Does this error message (or a worker's log) say memory ran out?"""
     t = str(text or "").lower()
+    if "error initializing filters" in t or "' for enable" in t:
+        # ffmpeg says "Cannot allocate memory" when it can't read a list of changes that's
+        # too long; that isn't the PC running out (Jason, Shawshank 2026-11-07: 33% used)
+        return False
     return any(w in t for w in _MEMORY_WORDS)
 
 

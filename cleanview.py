@@ -2917,12 +2917,39 @@ def working_encoders():
     return ok + [ENCODERS[-1]]
 
 
+# ffmpeg won't read more than 100 terms added up in a row in one expression: the 101st
+# fails as "Cannot allocate memory" (Jason, Shawshank Redemption 2026-11-07: every way of
+# saving failed, and it was told the PC ran out of memory). In brackets of 50 it reads a
+# couple of thousand, and mutes and quieter music go in their own filter for each 500.
+SUM_GROUP = 50
+FILTER_CHUNK = 500
+
+
+def _sum(terms):
+    """terms added up, bracketed in groups so ffmpeg will read them all."""
+    terms = list(terms)
+    while len(terms) > SUM_GROUP:
+        terms = ["(" + "+".join(terms[i:i + SUM_GROUP]) + ")"
+                 for i in range(0, len(terms), SUM_GROUP)]
+    return "+".join(terms)
+
+
+def _chunks(rs):
+    rs = list(rs)
+    return [rs[i:i + FILTER_CHUNK] for i in range(0, len(rs), FILTER_CHUNK)]
+
+
 def _ranges(rs, off):
-    return "+".join(f"between(t,{s + off:.3f},{e + off:.3f})" for s, e in rs)
+    return _sum(f"between(t,{s + off:.3f},{e + off:.3f})" for s, e in rs)
+
+
+def _mute_filters(rs, off):
+    """One silent stretch per range; a filter for each 500 of them."""
+    return [f"volume=volume=0:enable='{_ranges(c, off)}'" for c in _chunks(rs)]
 
 
 def _removed_expr(cuts, off):
-    return "+".join(f"gte(T,{e + off:.3f})*{e - s:.3f}" for s, e in cuts) or "0"
+    return _sum(f"gte(T,{e + off:.3f})*{e - s:.3f}" for s, e in cuts) or "0"
 
 
 def _remove(path):
@@ -2938,7 +2965,7 @@ MUSIC_LEVEL = 0.25    # turned-down music plays at a quarter of its volume (12 d
 def _quieter(rs, level=MUSIC_LEVEL, ramp=0.5):
     """A volume expression: `level` inside each range, easing down and back up over
     `ramp` seconds at its edges so it doesn't jump. The ranges don't overlap (merged)."""
-    inside = "+".join(f"clip(min((t-{s:.3f})/{ramp},({e:.3f}-t)/{ramp}),0,1)" for s, e in rs)
+    inside = _sum(f"clip(min((t-{s:.3f})/{ramp},({e:.3f}-t)/{ramp}),0,1)" for s, e in rs)
     return f"1-{1 - level:.3f}*({inside})"
 
 
@@ -3045,10 +3072,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     a = info["audio"]
     afilt = ["aresample"]   # copes with files whose speaker layout changes mid-stream
     quiet_rs = _merge((max(0.0, q["s"]), min(dur, q["e"])) for q in quiet if q["e"] > q["s"])
-    if quiet_rs:
-        afilt.append(f"volume=volume='{_quieter(quiet_rs)}':eval=frame")
-    if mute_rs:
-        afilt.append(f"volume=volume=0:enable='{_ranges(mute_rs, off)}'")
+    for chunk in _chunks(quiet_rs):   # (they don't overlap, so one after another is the same)
+        afilt.append(f"volume=volume='{_quieter(chunk)}':eval=frame")
+    afilt += _mute_filters(mute_rs, off)
     if cut_rs:
         afilt.append(f"aselect='not({_ranges(cut_rs, off)})',"
                      f"asetpts='PTS-({_removed_expr(cut_rs, off)})/TB'")

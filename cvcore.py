@@ -1394,7 +1394,11 @@ def split_tracks(clean_files, tracks, cuts_by_part, outdir, book_title, log=prin
 # Render
 # ---------------------------------------------------------------------------
 def _ranges(rs):
-    return "+".join(f"between(t,{s:.3f},{e:.3f})" for s, e in rs)
+    # ffmpeg reads at most 100 terms added up in a row; in brackets of 50 it reads them all
+    terms = [f"between(t,{s:.3f},{e:.3f})" for s, e in rs]
+    while len(terms) > 50:
+        terms = ["(" + "+".join(terms[i:i + 50]) + ")" for i in range(0, len(terms), 50)]
+    return "+".join(terms)
 
 
 def render(workdir, outdir, cuts=None, progress=None, log=print, chapters=False):
@@ -1419,7 +1423,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, chapters=False)
         ext = src.suffix.lower()
         filt = []
         if mr:
-            filt.append(f"volume=volume=0:enable='{_ranges(mr)}'")
+            filt += [f"volume=volume=0:enable='{_ranges(mr[i:i + 500])}'"
+                     for i in range(0, len(mr), 500)]
         if cr:
             filt.append(f"aselect='not({_ranges(cr)})',asetpts=N/SR/TB")
         fs = work / f"filter_{pi}.txt"
