@@ -234,6 +234,9 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  "craps": {"table", "tables", "game", "games", "shooter", "shooters", "dealer"},
                  # "gay" meaning happy (Enchanted's "gay refrain", "don we now our gay apparel")
                  "gay": {"refrain", "apparel", "abandon", "laughter", "nineties", "paree"},
+                 # "queer" meaning strange, in older stories (CleanRead, The Boxcar Children,
+                 # 2026-11-07): "a queer noise in the night", "looked at Henry in a queer way"
+                 "queer": {"noise", "noises", "sound", "sounds", "way", "look", "looks", "looking", "feeling", "feelings", "smell", "sort", "kind", "thing", "things", "sensation", "notion", "idea", "business", "light", "taste", "dream", "dreams", "turn", "start", "fish", "old", "little"},
                  "bullshit": {"degree", "degrees"}}                 # "a BS degree"
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WWI army camp
                  "cum": {"summa", "magna"},
@@ -249,6 +252,8 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
                  "butts": {"cigarette", "cigar", "rifle", "gun"},
                  "dumb": {"deaf", "struck"}, "dummy": {"test", "ventriloquist", "ventriloquist's"},
+                 # "it looked rather queer", "I feel queer" (never "a queer", "so queer")
+                 "queer": {"rather", "very", "mighty", "awfully", "uncommonly", "most", "how", "looked", "seemed", "felt", "sounded", "look", "looks", "seem", "seems", "feel", "feels", "sound", "sounds"},
                  "dummies": {"test", "crash"}, "brat": {"army", "navy", "military"},
                  "brats": {"army", "navy", "military"}, "twits": {"the"},   # Roald Dahl's book
                  "craps": {"two", "play", "playing", "played", "shoot", "shooting", "rolled",

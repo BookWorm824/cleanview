@@ -201,6 +201,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "prison"...). His 0:58:07 untick was Brooks's knife at Heywood's neck: his choice, not a
   false alarm. The Sisters/Bogs lines, the playing cards and "the Sodomites" were taught
   (sexref); "a bag of reefer" has no dialogue filter (drugs is picture-only).
+- "queer" meaning strange (1.18.28, from CleanRead's The Boxcar Children report): not a
+  same-sex word before "noise", "way", "look", "feeling", "sort", "fish"... or after
+  "rather", "very", "looked", "seemed", "feel"... (`INNOCENT_NEXT`/`INNOCENT_PREV`, and in
+  `web/words.js`). CleanListen's finder already left these alone; CleanRead offers them
+  unticked as "older meaning". "you queer", "he is queer", "a queer couple" still count.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never

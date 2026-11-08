@@ -100,6 +100,18 @@ class Phrases(unittest.TestCase):
                          [("screw that", "mild")])
         self.assertEqual(found("to be honest screw that", ["mild"]), [("screw that", "mild")])
 
+    def test_queer_meaning_strange(self):
+        # CleanRead, The Boxcar Children 2026-11-07: the old meaning, in older stories
+        for text in ("A queer noise in the night", "He looked at Henry in a queer way",
+                     "it looked rather queer to me", "I feel queer all of a sudden",
+                     "what a queer fish he is"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["samesex"]), [])
+        for text, word in (("you queer", "queer"), ("he is queer", "queer"),
+                           ("a queer couple moved in", "queer")):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["samesex"]), [(word, "samesex")])
+
 
 class FromCleanListen(unittest.TestCase):
     """Words and guards CleanListen had that CleanView didn't (tests/test_cleanlisten_words.py
