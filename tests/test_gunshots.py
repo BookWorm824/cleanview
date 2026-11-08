@@ -41,5 +41,47 @@ class RealGunshots(unittest.TestCase):
         self.assertLessEqual(FOUND, names)
 
 
+CLIPS = json.loads((Path(__file__).parent / "gunfire_clips.json").read_text(encoding="utf8"))["clips"]
+# (latest start, earliest end) of the cut: from the first shots to the last (1.18.29). Before,
+# 5554's cut started at 6.5 s though the shooting at the car starts at about 3 s.
+EDGES = {"preview_593.mkv": (5.0, 12.0), "preview_1553.mkv": (11.0, 18.0),
+         "preview_5554.mkv": (2.0, 14.0)}
+
+
+def rows_scan(times, rows):
+    labels = engine.TRACKED
+    return {"labels": labels, "t": times, "p": [[r.get(k, 0.0) for k in labels] for r in rows]}
+
+
+class GunfireInAMovie(unittest.TestCase):
+    """G.I. Joe: Retaliation clips Lauren sent (2026-11-08): gunfire under talking and music."""
+
+    def test_cut_from_the_first_shots_to_the_last(self):
+        for name, (start, end) in EDGES.items():
+            with self.subTest(name):
+                c = CLIPS[name]
+                sc = engine.violence_scenes(rows_scan(c["t"], c["p"]), [])
+                self.assertEqual(len(sc), 1)
+                self.assertTrue(sc[0]["sure"])
+                self.assertLessEqual(sc[0]["s"], start)
+                self.assertGreaterEqual(sc[0]["e"], end)
+
+    def test_quieter_shots_alone_arent_a_scene(self):
+        rows = [{"Gunshot, gunfire": 0.3}] * 6           # never loud enough on their own
+        self.assertEqual(engine.violence_scenes(rows_scan([i * 1.5 for i in range(6)], rows), []), [])
+
+    def test_only_gunfire_widens(self):
+        loud = {"Gunshot, gunfire": 0.9}
+        for before, widens in (({"Gunshot, gunfire": 0.3}, True),
+                               ({"Screaming": 0.4}, False),                 # not gunfire
+                               ({"Gunshot, gunfire": 0.3, "Slam": 0.6}, False),   # a door
+                               ({"Gunshot, gunfire": 0.1}, False)):         # too faint
+            with self.subTest(before):
+                rows = [{}, before, loud, loud, loud, {}]
+                sc = engine.violence_scenes(rows_scan([i * 1.5 for i in range(6)], rows), [])
+                self.assertEqual(len(sc), 1)
+                self.assertEqual(sc[0]["s"], 0.5 if widens else 2.0)
+
+
 if __name__ == "__main__":
     unittest.main()

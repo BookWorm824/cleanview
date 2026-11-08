@@ -1,0 +1,267 @@
+{
+"about": "What the sound tagger heard (3 s windows every 1.5 s) in three G.I. Joe: Retaliation (2013) clips Lauren sent, 2026-11-08: gunfire under talking and music. Scores of 1% or more only.",
+"clips": {
+"preview_593.mkv": {
+"t": [
+0.0,
+1.5,
+3.0,
+4.5,
+6.0,
+7.5,
+9.0
+],
+"p": [
+{
+"Speech": 0.234,
+"Music": 0.519
+},
+{
+"Speech": 0.756,
+"Music": 0.56
+},
+{
+"Machine gun": 0.015,
+"Speech": 0.414,
+"Music": 0.497
+},
+{
+"Gunshot, gunfire": 0.04,
+"Machine gun": 0.056,
+"Fusillade": 0.037,
+"Explosion": 0.011,
+"Speech": 0.553,
+"Music": 0.322
+},
+{
+"Gunshot, gunfire": 0.165,
+"Machine gun": 0.212,
+"Fusillade": 0.059,
+"Explosion": 0.026,
+"Speech": 0.344,
+"Music": 0.359
+},
+{
+"Gunshot, gunfire": 0.25,
+"Machine gun": 0.398,
+"Fusillade": 0.087,
+"Explosion": 0.01,
+"Speech": 0.254,
+"Music": 0.266
+},
+{
+"Gunshot, gunfire": 0.06,
+"Machine gun": 0.118,
+"Fusillade": 0.093,
+"Speech": 0.474,
+"Music": 0.446
+}
+]
+},
+"preview_1553.mkv": {
+"t": [
+0.0,
+1.5,
+3.0,
+4.5,
+6.0,
+7.5,
+9.0,
+10.5,
+12.0,
+13.5,
+15.0,
+16.5,
+18.0,
+19.5
+],
+"p": [
+{
+"Whack, thwack": 0.01,
+"Smash, crash": 0.013,
+"Speech": 0.542,
+"Music": 0.794
+},
+{
+"Gunshot, gunfire": 0.023,
+"Machine gun": 0.011,
+"Fusillade": 0.013,
+"Explosion": 0.012,
+"Whack, thwack": 0.02,
+"Smash, crash": 0.015,
+"Speech": 0.511,
+"Music": 0.619
+},
+{
+"Gunshot, gunfire": 0.034,
+"Machine gun": 0.013,
+"Fusillade": 0.019,
+"Artillery fire": 0.011,
+"Explosion": 0.011,
+"Whack, thwack": 0.072,
+"Smash, crash": 0.048,
+"Speech": 0.39,
+"Music": 0.617
+},
+{
+"Whack, thwack": 0.013,
+"Speech": 0.216,
+"Music": 0.521
+},
+{
+"Explosion": 0.012,
+"Gasp": 0.027,
+"Speech": 0.329,
+"Music": 0.464
+},
+{
+"Speech": 0.81,
+"Music": 0.377,
+"Crying, sobbing": 0.01
+},
+{
+"Gunshot, gunfire": 0.013,
+"Machine gun": 0.017,
+"Speech": 0.757,
+"Music": 0.546
+},
+{
+"Gunshot, gunfire": 0.084,
+"Machine gun": 0.032,
+"Fusillade": 0.036,
+"Artillery fire": 0.017,
+"Explosion": 0.02,
+"Speech": 0.629,
+"Music": 0.459
+},
+{
+"Gunshot, gunfire": 0.11,
+"Machine gun": 0.205,
+"Fusillade": 0.04,
+"Explosion": 0.019,
+"Speech": 0.591,
+"Music": 0.202
+},
+{
+"Gunshot, gunfire": 0.323,
+"Machine gun": 0.343,
+"Fusillade": 0.044,
+"Artillery fire": 0.018,
+"Speech": 0.602,
+"Music": 0.173
+},
+{
+"Gunshot, gunfire": 0.158,
+"Machine gun": 0.133,
+"Fusillade": 0.046,
+"Explosion": 0.013,
+"Speech": 0.709,
+"Music": 0.135
+},
+{
+"Gunshot, gunfire": 0.081,
+"Machine gun": 0.03,
+"Fusillade": 0.035,
+"Whack, thwack": 0.012,
+"Speech": 0.584,
+"Music": 0.427
+},
+{
+"Gunshot, gunfire": 0.025,
+"Explosion": 0.035,
+"Whack, thwack": 0.141,
+"Smash, crash": 0.117,
+"Speech": 0.022,
+"Music": 0.434
+},
+{
+"Gunshot, gunfire": 0.01,
+"Explosion": 0.156,
+"Whack, thwack": 0.077,
+"Smash, crash": 0.094,
+"Music": 0.271
+}
+]
+},
+"preview_5554.mkv": {
+"t": [
+0.0,
+1.5,
+3.0,
+4.5,
+6.0,
+7.5,
+9.0,
+10.5,
+12.0,
+13.5
+],
+"p": [
+{
+"Music": 0.22
+},
+{
+"Smash, crash": 0.02,
+"Speech": 0.058,
+"Music": 0.419
+},
+{
+"Gunshot, gunfire": 0.097,
+"Machine gun": 0.029,
+"Fusillade": 0.212,
+"Smash, crash": 0.01,
+"Speech": 0.192,
+"Music": 0.352
+},
+{
+"Gunshot, gunfire": 0.057,
+"Machine gun": 0.022,
+"Fusillade": 0.171,
+"Heavy metal": 0.017,
+"Speech": 0.325,
+"Music": 0.552
+},
+{
+"Gunshot, gunfire": 0.106,
+"Machine gun": 0.043,
+"Fusillade": 0.077,
+"Whack, thwack": 0.023,
+"Smash, crash": 0.062,
+"Heavy metal": 0.015,
+"Speech": 0.127,
+"Music": 0.589
+},
+{
+"Gunshot, gunfire": 0.2,
+"Machine gun": 0.123,
+"Fusillade": 0.402,
+"Smash, crash": 0.033,
+"Speech": 0.094,
+"Music": 0.49
+},
+{
+"Gunshot, gunfire": 0.139,
+"Machine gun": 0.136,
+"Fusillade": 0.245,
+"Explosion": 0.015,
+"Speech": 0.058,
+"Music": 0.438
+},
+{
+"Gunshot, gunfire": 0.105,
+"Machine gun": 0.066,
+"Fusillade": 0.039,
+"Artillery fire": 0.057,
+"Explosion": 0.019,
+"Music": 0.621
+},
+{
+"Music": 0.916
+},
+{
+"Music": 0.682
+}
+]
+}
+}
+}

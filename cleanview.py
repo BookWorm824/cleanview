@@ -718,6 +718,11 @@ LOOK_ALIKE_SOUNDS = ("Door", "Sliding door", "Slam", "Knock", "Typewriter", "Typ
                      "Clang", "Clatter", "Ratchet, pawl")
 MISTAKEN_SOUNDS = {"Gunshot, gunfire", "Machine gun", "Fusillade", "Artillery fire",
                    "Slap, smack", "Whack, thwack"}
+# Quieter shots under the music just before or after found gunfire belong to the same cut
+# (G.I. Joe: Retaliation clips Lauren sent, 2026-11-08: the shooting at the car started 3 s
+# before the cut did). Only ever widens a scene found anyway, never makes one.
+GUNFIRE = {"Gunshot, gunfire", "Machine gun", "Fusillade", "Artillery fire"}
+EDGE_GUNFIRE = 0.25
 SOUND_WORDS = {"Gunshot, gunfire": "gunshot-like bangs", "Machine gun": "gunfire-like bursts",
                "Fusillade": "gunfire-like bursts", "Artillery fire": "heavy bangs",
                "Explosion": "an explosion", "Screaming": "screaming", "Battle cry": "shouting",
@@ -915,12 +920,15 @@ def violence_scenes(snd, cues):
     vi = [(labels.index(k), w) for k, w in VIOLENCE_SOUNDS.items()]
     alike = [labels.index(k) for k in LOOK_ALIKE_SOUNDS if k in labels]   # (older scans: none)
     flagged, why, strong, hard = [], {}, set(), set()
-    for t, row in zip(snd["t"], snd["p"]):
+    edge = set()                             # windows with quieter gunfire (EDGE_GUNFIRE)
+    for n, (t, row) in enumerate(zip(snd["t"], snd["p"])):
         score = sum(row[i] * w for i, w in vi)
-        if score >= 0.45 and alike:
-            top_i = max(vi, key=lambda iw: row[iw[0]] * iw[1])[0]
+        top_i = max(vi, key=lambda iw: row[iw[0]] * iw[1])[0]
+        if score >= EDGE_GUNFIRE and alike:
             if labels[top_i] in MISTAKEN_SOUNDS and max(row[i] for i in alike) > row[top_i]:
                 continue                     # a door, a typewriter, sobbing... heard better
+        if score >= EDGE_GUNFIRE and labels[top_i] in GUNFIRE:
+            edge.add(n)
         if score >= 0.45:
             flagged.append(t)
             if score >= 0.55:
@@ -939,6 +947,7 @@ def violence_scenes(snd, cues):
                     hard.add(round(float(t), 2))
             why.setdefault(round(float(c["s"]), 2), tags.lower()[:30])
     flagged.sort()
+    pos = {t: n for n, t in enumerate(snd["t"])}
     scenes = []
     for run_ in _group(flagged, 8.0):
         span = run_[-1] - run_[0]
@@ -950,7 +959,16 @@ def violence_scenes(snd, cues):
             if w and w not in kinds:
                 kinds.append(w)
         sure = bool(hard.intersection(run_))
-        scenes.append({"s": max(0.0, run_[0] - 1.0), "e": run_[-1] + SOUND_WIN + 1.0,
+        lo, hi = run_[0], run_[-1]
+        if any(snd["t"][n] in run_ for n in edge):     # gunfire here: take in quieter shots
+            first, last = pos.get(lo), pos.get(hi)
+            while first is not None and first - 1 in edge:
+                first -= 1
+            while last is not None and last + 1 in edge:
+                last += 1
+            lo = min(lo, snd["t"][first]) if first is not None else lo
+            hi = max(hi, snd["t"][last]) if last is not None else hi
+        scenes.append({"s": max(0.0, lo - 1.0), "e": hi + SOUND_WIN + 1.0,
                        "kind": ["Violence"], "sure": sure,
                        "why": ", ".join(kinds[:4]) + ("" if sure else SOUND_ONLY)})
     return scenes

@@ -206,6 +206,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "rather", "very", "looked", "seemed", "feel"... (`INNOCENT_NEXT`/`INNOCENT_PREV`, and in
   `web/words.js`). CleanListen's finder already left these alone; CleanRead offers them
   unticked as "older meaning". "you queer", "he is queer", "a queer couple" still count.
+- Gunfire cuts from the first shots to the last (1.18.29, G.I. Joe: Retaliation clips
+  Lauren sent, 2026-11-08): quieter shots under the music just before or after found
+  gunfire (`EDGE_GUNFIRE`, top sound in `GUNFIRE`, not a look-alike heard better) widen
+  that cut; they never make one alone. The shooting at the car started 3 s before the cut.
+  Her gunshot training sounds and 2,000 everyday sounds (ESC-50) showed the sound check
+  already leaves doors, knocks and typing alone (`test_gunshots.py`).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -319,7 +325,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_shawshank.py`: doors, slams, a typewriter and sobbing heard more clearly than
   gunfire aren't gunfire; real gunshots and screams still count; older scans as before.
 - `test_gunshots.py`: real gunshot sounds Lauren sent (the tagger's scores in
-  `gunshot_sounds.json`, also with noise under them) stay cut as violence. Two she sent
+  `gunshot_sounds.json`, also with noise under them) stay cut as violence, and the G.I. Joe
+  clips (`gunfire_clips.json`) are cut from the first shots to the last. Two she sent
   ("cap gun", "chop") aren't found by sound: counting those labels or matching against
   these gunshots cut soda cans, clapping, glass and footsteps among 2,000 everyday sounds
   (ESC-50, tested on this PC only), which also showed no doors, knocks or typing cut.
