@@ -1,0 +1,1549 @@
+{
+"about": "What CleanView's sound tagger heard (3 s windows every 1.5 s) in gunshot training sounds Lauren sent (2026-11-07); noise = background added this many dB under the bang. Only labels heard at 1% or more are kept.",
+"files": [
+{
+"file": "gunshot_000.wav",
+"noise": null,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Clatter": 0.0188,
+"Echo": 0.0105,
+"Gunshot, gunfire": 0.5842,
+"Machine gun": 0.8439,
+"Sound effect": 0.0703
+}
+},
+{
+"t": 1.5,
+"p": {
+"Cap gun": 0.1018,
+"Clang": 0.0832,
+"Ding": 0.0243,
+"Echo": 0.0375,
+"Gunshot, gunfire": 0.3514,
+"Machine gun": 0.1023,
+"Outside, rural or natural": 0.0603,
+"Pink noise": 0.0164,
+"Silence": 0.0169,
+"Sound effect": 0.0502,
+"White noise": 0.0167
+}
+},
+{
+"t": 3.0,
+"p": {
+"Hum": 0.0455,
+"Inside, small room": 0.015,
+"Noise": 0.0277,
+"Pink noise": 0.0462,
+"Rustle": 0.0671,
+"Silence": 0.0509,
+"Spray": 0.0148,
+"Static": 0.2344,
+"White noise": 0.4109
+}
+},
+{
+"t": 4.5,
+"p": {
+"Animal": 0.0129,
+"Hum": 0.0357,
+"Inside, small room": 0.0138,
+"Noise": 0.0146,
+"Outside, rural or natural": 0.0187,
+"Pink noise": 0.0579,
+"Rustle": 0.0828,
+"Silence": 0.0565,
+"Snake": 0.0193,
+"Static": 0.1536,
+"White noise": 0.3574
+}
+},
+{
+"t": 6.0,
+"p": {
+"Buzz": 0.0251,
+"Heart sounds, heartbeat": 0.0143,
+"Hum": 0.0962,
+"Inside, small room": 0.0126,
+"Mains hum": 0.0223,
+"Noise": 0.0458,
+"Pink noise": 0.023,
+"Rustle": 0.0356,
+"Silence": 0.0431,
+"Static": 0.2985,
+"Throbbing": 0.0212,
+"White noise": 0.4701
+}
+}
+]
+},
+{
+"file": "gunshot_001.wav",
+"noise": null,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Arrow": 0.0141,
+"Cap gun": 0.0497,
+"Echo": 0.1251,
+"Gunshot, gunfire": 0.0574,
+"Machine gun": 0.0212,
+"Music": 0.0637,
+"Musical instrument": 0.0293,
+"Outside, rural or natural": 0.0393,
+"Ping": 0.0162,
+"Silence": 0.0208,
+"Sound effect": 0.0238,
+"Synthesizer": 0.0284
+}
+},
+{
+"t": 1.5,
+"p": {
+"Burst, pop": 0.0163,
+"Cap gun": 0.1223,
+"Echo": 0.0515,
+"Firecracker": 0.0115,
+"Gunshot, gunfire": 0.1354,
+"Machine gun": 0.0986,
+"Outside, rural or natural": 0.0821,
+"Silence": 0.0144,
+"White noise": 0.0166
+}
+},
+{
+"t": 3.0,
+"p": {
+"Animal": 0.0153,
+"Breathing": 0.0141,
+"Hum": 0.0518,
+"Inside, small room": 0.0179,
+"Noise": 0.0229,
+"Outside, rural or natural": 0.0139,
+"Pink noise": 0.1134,
+"Rustle": 0.0428,
+"Silence": 0.0676,
+"Static": 0.1351,
+"Throbbing": 0.0196,
+"White noise": 0.3836
+}
+},
+{
+"t": 4.5,
+"p": {
+"Arrow": 0.0122,
+"Cap gun": 0.2687,
+"Firecracker": 0.0139,
+"Gunshot, gunfire": 0.2176,
+"Machine gun": 0.1084,
+"Outside, rural or natural": 0.0857,
+"Silence": 0.0417,
+"White noise": 0.0147
+}
+},
+{
+"t": 6.0,
+"p": {
+"Cap gun": 0.4377,
+"Clang": 0.0103,
+"Echo": 0.0586,
+"Gunshot, gunfire": 0.2121,
+"Machine gun": 0.0485,
+"Outside, rural or natural": 0.097,
+"Whip": 0.0199
+}
+},
+{
+"t": 7.5,
+"p": {
+"Echo": 0.2814,
+"Effects unit": 0.0124,
+"Music": 0.0727,
+"Musical instrument": 0.0362,
+"Noise": 0.0548,
+"Pink noise": 0.0194,
+"Reverberation": 0.0111,
+"Rustle": 0.0391,
+"Silence": 0.0308,
+"Sound effect": 0.0414,
+"Static": 0.0125,
+"Synthesizer": 0.0637,
+"White noise": 0.1545
+}
+},
+{
+"t": 9.0,
+"p": {
+"Buzz": 0.0255,
+"Heart sounds, heartbeat": 0.0106,
+"Hum": 0.0831,
+"Mains hum": 0.016,
+"Noise": 0.0393,
+"Pink noise": 0.0332,
+"Rustle": 0.0459,
+"Silence": 0.0485,
+"Static": 0.2409,
+"Throbbing": 0.0149,
+"White noise": 0.5066
+}
+}
+]
+},
+{
+"file": "gunshot_002.wav",
+"noise": null,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Arrow": 0.0803,
+"Cap gun": 0.0381,
+"Chop": 0.1931,
+"Firecracker": 0.0147,
+"Fireworks": 0.0112,
+"Gunshot, gunfire": 0.0381,
+"Outside, rural or natural": 0.0366,
+"Silence": 0.0281,
+"Snake": 0.0148,
+"Walk, footsteps": 0.0162,
+"Whip": 0.0406,
+"White noise": 0.0197
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0219,
+"Hum": 0.0561,
+"Inside, small room": 0.0197,
+"Mains hum": 0.011,
+"Outside, rural or natural": 0.0158,
+"Pink noise": 0.0392,
+"Rustle": 0.0723,
+"Silence": 0.0453,
+"Snake": 0.0255,
+"Speech": 0.0132,
+"Static": 0.1529,
+"Tick-tock": 0.01,
+"White noise": 0.2972
+}
+},
+{
+"t": 3.0,
+"p": {
+"Arrow": 0.0959,
+"Cap gun": 0.0748,
+"Chop": 0.452,
+"Firecracker": 0.0313,
+"Fireworks": 0.0516,
+"Gunshot, gunfire": 0.0935,
+"Knock": 0.0105,
+"Outside, rural or natural": 0.0346,
+"Silence": 0.0157,
+"White noise": 0.0303
+}
+},
+{
+"t": 4.5,
+"p": {
+"Animal": 0.0197,
+"Arrow": 0.1178,
+"Cap gun": 0.0585,
+"Chop": 0.3873,
+"Firecracker": 0.0249,
+"Fireworks": 0.0347,
+"Gunshot, gunfire": 0.0733,
+"Knock": 0.0107,
+"Outside, rural or natural": 0.0418,
+"Silence": 0.0197,
+"White noise": 0.0268
+}
+},
+{
+"t": 6.0,
+"p": {
+"Animal": 0.0128,
+"Hum": 0.0388,
+"Inside, small room": 0.0154,
+"Noise": 0.027,
+"Outside, rural or natural": 0.0181,
+"Pink noise": 0.0788,
+"Rustle": 0.0702,
+"Silence": 0.0456,
+"Snake": 0.0201,
+"Static": 0.1905,
+"White noise": 0.3712
+}
+},
+{
+"t": 7.5,
+"p": {
+"Animal": 0.0124,
+"Hum": 0.0371,
+"Inside, small room": 0.013,
+"Noise": 0.0186,
+"Outside, rural or natural": 0.0127,
+"Pink noise": 0.0552,
+"Rustle": 0.0588,
+"Silence": 0.0363,
+"Snake": 0.0152,
+"Static": 0.1812,
+"White noise": 0.3712
+}
+},
+{
+"t": 9.0,
+"p": {
+"Buzz": 0.0616,
+"Heart sounds, heartbeat": 0.0112,
+"Hum": 0.1007,
+"Mains hum": 0.0223,
+"Noise": 0.0109,
+"Rustle": 0.0314,
+"Silence": 0.0326,
+"Sound effect": 0.0125,
+"Static": 0.1922,
+"Throbbing": 0.024,
+"Tick": 0.0103,
+"Tick-tock": 0.0104,
+"White noise": 0.3812
+}
+}
+]
+},
+{
+"file": "gunshot_094.wav",
+"noise": null,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Cap gun": 0.2936,
+"Firecracker": 0.0103,
+"Fireworks": 0.0106,
+"Gunshot, gunfire": 0.4165,
+"Machine gun": 0.0946,
+"Music": 0.0138,
+"Outside, rural or natural": 0.0785,
+"Pink noise": 0.0189,
+"Rustle": 0.0107,
+"Silence": 0.0304,
+"Sound effect": 0.0177,
+"Static": 0.0288,
+"White noise": 0.0732
+}
+},
+{
+"t": 1.5,
+"p": {
+"Hum": 0.0572,
+"Inside, small room": 0.0153,
+"Mains hum": 0.0112,
+"Noise": 0.0476,
+"Pink noise": 0.0585,
+"Rustle": 0.0703,
+"Silence": 0.0454,
+"Static": 0.2495,
+"Throbbing": 0.0105,
+"White noise": 0.4949
+}
+},
+{
+"t": 3.0,
+"p": {
+"Cap gun": 0.0628,
+"Gunshot, gunfire": 0.5651,
+"Machine gun": 0.8487,
+"Music": 0.051,
+"Musical instrument": 0.0135,
+"Outside, rural or natural": 0.0245,
+"Silence": 0.0244,
+"Sound effect": 0.046,
+"Static": 0.0125,
+"White noise": 0.0509
+}
+},
+{
+"t": 4.5,
+"p": {
+"Artillery fire": 0.0105,
+"Cap gun": 0.1926,
+"Firecracker": 0.0397,
+"Fireworks": 0.0322,
+"Gunshot, gunfire": 0.357,
+"Hum": 0.0327,
+"Machine gun": 0.1214,
+"Outside, rural or natural": 0.0578,
+"Pink noise": 0.0191,
+"Rustle": 0.0108,
+"Silence": 0.0492,
+"Sound effect": 0.0199,
+"Static": 0.0573,
+"White noise": 0.1141
+}
+},
+{
+"t": 6.0,
+"p": {
+"Hum": 0.0442,
+"Inside, small room": 0.0127,
+"Noise": 0.0302,
+"Outside, rural or natural": 0.0141,
+"Pink noise": 0.0498,
+"Rustle": 0.0775,
+"Silence": 0.0421,
+"Static": 0.1709,
+"White noise": 0.4414
+}
+},
+{
+"t": 7.5,
+"p": {
+"Buzz": 0.0159,
+"Hum": 0.0759,
+"Mains hum": 0.0166,
+"Noise": 0.0328,
+"Pink noise": 0.025,
+"Rustle": 0.0521,
+"Silence": 0.028,
+"Snake": 0.01,
+"Static": 0.2122,
+"Throbbing": 0.0138,
+"White noise": 0.4124
+}
+}
+]
+},
+{
+"file": "gunshot_095.wav",
+"noise": null,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Animal": 0.0115,
+"Bass drum": 0.0142,
+"Cap gun": 0.0115,
+"Drum": 0.1597,
+"Drum machine": 0.0644,
+"Drum roll": 0.0193,
+"Electronic music": 0.0473,
+"Gunshot, gunfire": 0.2275,
+"Inside, small room": 0.0327,
+"Machine gun": 0.582,
+"Music": 0.2769,
+"Musical instrument": 0.1412,
+"Outside, rural or natural": 0.0164,
+"Percussion": 0.0602,
+"Sampler": 0.0126,
+"Snare drum": 0.0139,
+"Sound effect": 0.086,
+"Synthesizer": 0.1228
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0149,
+"Cap gun": 0.0182,
+"Drum": 0.0203,
+"Drum machine": 0.0161,
+"Echo": 0.014,
+"Electronic music": 0.02,
+"Gunshot, gunfire": 0.2951,
+"Inside, small room": 0.0221,
+"Machine gun": 0.5396,
+"Music": 0.1439,
+"Musical instrument": 0.0585,
+"Outside, rural or natural": 0.0167,
+"Pink noise": 0.0106,
+"Rustle": 0.0137,
+"Silence": 0.0428,
+"Sound effect": 0.0871,
+"Synthesizer": 0.0264,
+"White noise": 0.0445
+}
+},
+{
+"t": 3.0,
+"p": {
+"Hum": 0.0468,
+"Inside, small room": 0.0148,
+"Noise": 0.0556,
+"Outside, rural or natural": 0.0124,
+"Pink noise": 0.0536,
+"Rustle": 0.0677,
+"Silence": 0.0455,
+"Snake": 0.011,
+"Static": 0.1882,
+"Throbbing": 0.0123,
+"White noise": 0.4232
+}
+},
+{
+"t": 4.5,
+"p": {
+"Buzz": 0.0105,
+"Hum": 0.0675,
+"Inside, small room": 0.0123,
+"Mains hum": 0.015,
+"Noise": 0.0543,
+"Pink noise": 0.0339,
+"Rustle": 0.0583,
+"Silence": 0.0401,
+"Spray": 0.0101,
+"Static": 0.2418,
+"Throbbing": 0.0107,
+"White noise": 0.5086
+}
+}
+]
+},
+{
+"file": "gunshot_000.wav",
+"noise": -20.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Clatter": 0.0116,
+"Fusillade": 0.0124,
+"Gunshot, gunfire": 0.6066,
+"Machine gun": 0.8096,
+"Outside, rural or natural": 0.0128,
+"Sound effect": 0.0563,
+"Vehicle": 0.0101
+}
+},
+{
+"t": 1.5,
+"p": {
+"Arrow": 0.0121,
+"Cap gun": 0.2158,
+"Clang": 0.0708,
+"Gunshot, gunfire": 0.322,
+"Hammer": 0.0129,
+"Inside, small room": 0.0107,
+"Machine gun": 0.0168,
+"Outside, rural or natural": 0.0559,
+"Pink noise": 0.0859,
+"Sound effect": 0.0272,
+"White noise": 0.0424
+}
+},
+{
+"t": 3.0,
+"p": {
+"Aircraft": 0.0168,
+"Fixed-wing aircraft, airplane": 0.0138,
+"Outside, rural or natural": 0.0298,
+"Pink noise": 0.5439,
+"Rustle": 0.0764,
+"Rustling leaves": 0.0264,
+"Silence": 0.019,
+"Static": 0.0348,
+"Vehicle": 0.0502,
+"Waterfall": 0.0134,
+"White noise": 0.2089,
+"Wind": 0.0122,
+"Wind noise (microphone)": 0.0131
+}
+},
+{
+"t": 4.5,
+"p": {
+"Aircraft": 0.019,
+"Fixed-wing aircraft, airplane": 0.0181,
+"Noise": 0.0247,
+"Ocean": 0.0125,
+"Outside, rural or natural": 0.0333,
+"Pink noise": 0.559,
+"Rustle": 0.0527,
+"Rustling leaves": 0.0235,
+"Silence": 0.0162,
+"Static": 0.0292,
+"Vehicle": 0.0378,
+"Waterfall": 0.0229,
+"Waves, surf": 0.0138,
+"White noise": 0.1773,
+"Wind": 0.0153,
+"Wind noise (microphone)": 0.0179
+}
+},
+{
+"t": 6.0,
+"p": {
+"Aircraft": 0.0661,
+"Eruption": 0.0237,
+"Fixed-wing aircraft, airplane": 0.0669,
+"Hum": 0.0106,
+"Noise": 0.017,
+"Outside, rural or natural": 0.0299,
+"Pink noise": 0.4651,
+"Rustle": 0.0279,
+"Rustling leaves": 0.0125,
+"Silence": 0.0135,
+"Static": 0.0431,
+"Vehicle": 0.0796,
+"White noise": 0.1946,
+"Wind": 0.0115,
+"Wind noise (microphone)": 0.0132
+}
+}
+]
+},
+{
+"file": "gunshot_001.wav",
+"noise": -20.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Arrow": 0.0239,
+"Burst, pop": 0.0103,
+"Cap gun": 0.0786,
+"Echo": 0.0911,
+"Gunshot, gunfire": 0.0641,
+"Machine gun": 0.0124,
+"Music": 0.0361,
+"Musical instrument": 0.01,
+"Outside, rural or natural": 0.0521,
+"Ping": 0.0244,
+"Sound effect": 0.0107,
+"Whip": 0.0286
+}
+},
+{
+"t": 1.5,
+"p": {
+"Burst, pop": 0.0125,
+"Cap gun": 0.1715,
+"Echo": 0.0674,
+"Gunshot, gunfire": 0.1724,
+"Machine gun": 0.0944,
+"Outside, rural or natural": 0.0966,
+"Pink noise": 0.0126,
+"Silence": 0.0101,
+"Whip": 0.017,
+"White noise": 0.0178
+}
+},
+{
+"t": 3.0,
+"p": {
+"Animal": 0.0615,
+"Bird": 0.0188,
+"Domestic animals, pets": 0.0207,
+"Hum": 0.0205,
+"Inside, small room": 0.02,
+"Outside, rural or natural": 0.0299,
+"Pink noise": 0.2242,
+"Rustle": 0.0785,
+"Rustling leaves": 0.0167,
+"Silence": 0.0423,
+"Snake": 0.0105,
+"Snoring": 0.0173,
+"Speech": 0.017,
+"Static": 0.0609,
+"White noise": 0.2422
+}
+},
+{
+"t": 4.5,
+"p": {
+"Arrow": 0.0253,
+"Cap gun": 0.18,
+"Gunshot, gunfire": 0.1634,
+"Machine gun": 0.0557,
+"Outside, rural or natural": 0.0652,
+"Silence": 0.0184,
+"Whip": 0.0557
+}
+},
+{
+"t": 6.0,
+"p": {
+"Cap gun": 0.263,
+"Echo": 0.071,
+"Gunshot, gunfire": 0.1523,
+"Machine gun": 0.0249,
+"Outside, rural or natural": 0.0786,
+"Whip": 0.1203
+}
+},
+{
+"t": 7.5,
+"p": {
+"Echo": 0.0878,
+"Eruption": 0.0156,
+"Music": 0.036,
+"Noise": 0.0248,
+"Pink noise": 0.0689,
+"Rustle": 0.0454,
+"Silence": 0.0282,
+"Sound effect": 0.0225,
+"Static": 0.0112,
+"Stomach rumble": 0.0184,
+"White noise": 0.1751
+}
+},
+{
+"t": 9.0,
+"p": {
+"Animal": 0.011,
+"Buzz": 0.0484,
+"Hum": 0.0433,
+"Mains hum": 0.0105,
+"Mouse": 0.0106,
+"Outside, rural or natural": 0.0143,
+"Pink noise": 0.0689,
+"Rustle": 0.0327,
+"Silence": 0.0359,
+"Snake": 0.0144,
+"Static": 0.1177,
+"Vehicle": 0.029,
+"White noise": 0.2421
+}
+}
+]
+},
+{
+"file": "gunshot_002.wav",
+"noise": -20.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Arrow": 0.0752,
+"Cap gun": 0.028,
+"Chop": 0.2267,
+"Clapping": 0.0112,
+"Gunshot, gunfire": 0.0304,
+"Outside, rural or natural": 0.0397,
+"Silence": 0.0186,
+"Snake": 0.0138,
+"Walk, footsteps": 0.0116,
+"Whip": 0.0837
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0229,
+"Buzz": 0.0122,
+"Hum": 0.0258,
+"Inside, small room": 0.0187,
+"Noise": 0.0117,
+"Outside, rural or natural": 0.0214,
+"Pink noise": 0.1102,
+"Rustle": 0.0791,
+"Silence": 0.0382,
+"Snake": 0.0247,
+"Static": 0.1098,
+"White noise": 0.3261
+}
+},
+{
+"t": 3.0,
+"p": {
+"Arrow": 0.1491,
+"Cap gun": 0.0449,
+"Chop": 0.5573,
+"Firecracker": 0.0191,
+"Fireworks": 0.0241,
+"Gunshot, gunfire": 0.068,
+"Outside, rural or natural": 0.0295,
+"Whip": 0.0184,
+"White noise": 0.0126
+}
+},
+{
+"t": 4.5,
+"p": {
+"Animal": 0.0165,
+"Arrow": 0.1385,
+"Cap gun": 0.037,
+"Chop": 0.4176,
+"Firecracker": 0.0199,
+"Fireworks": 0.023,
+"Gunshot, gunfire": 0.0545,
+"Outside, rural or natural": 0.0411,
+"Silence": 0.0122,
+"White noise": 0.0238
+}
+},
+{
+"t": 6.0,
+"p": {
+"Animal": 0.0188,
+"Hum": 0.0134,
+"Inside, small room": 0.0126,
+"Noise": 0.0197,
+"Outside, rural or natural": 0.0343,
+"Pink noise": 0.1829,
+"Rustle": 0.0998,
+"Rustling leaves": 0.0124,
+"Silence": 0.0357,
+"Snake": 0.0259,
+"Static": 0.0849,
+"White noise": 0.2772
+}
+},
+{
+"t": 7.5,
+"p": {
+"Animal": 0.0174,
+"Hum": 0.0235,
+"Noise": 0.0131,
+"Outside, rural or natural": 0.0296,
+"Pink noise": 0.139,
+"Rustle": 0.0833,
+"Rustling leaves": 0.019,
+"Silence": 0.028,
+"Snake": 0.017,
+"Static": 0.1194,
+"White noise": 0.292
+}
+},
+{
+"t": 9.0,
+"p": {
+"Buzz": 0.1102,
+"Heart sounds, heartbeat": 0.0158,
+"Hum": 0.0905,
+"Mains hum": 0.0176,
+"Noise": 0.0112,
+"Pink noise": 0.0124,
+"Rustle": 0.0264,
+"Silence": 0.0277,
+"Sound effect": 0.0126,
+"Static": 0.1397,
+"Throbbing": 0.0275,
+"White noise": 0.3248
+}
+}
+]
+},
+{
+"file": "gunshot_094.wav",
+"noise": -20.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Cap gun": 0.2759,
+"Firecracker": 0.0144,
+"Fireworks": 0.0108,
+"Gunshot, gunfire": 0.367,
+"Machine gun": 0.0579,
+"Outside, rural or natural": 0.0718,
+"Pink noise": 0.0263,
+"Silence": 0.0168,
+"Whip": 0.019,
+"White noise": 0.0361
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0147,
+"Hum": 0.0266,
+"Inside, small room": 0.0146,
+"Noise": 0.0335,
+"Outside, rural or natural": 0.0193,
+"Pink noise": 0.1523,
+"Rustle": 0.0922,
+"Silence": 0.0333,
+"Snake": 0.0115,
+"Static": 0.1536,
+"White noise": 0.305
+}
+},
+{
+"t": 3.0,
+"p": {
+"Artillery fire": 0.0113,
+"Cap gun": 0.0515,
+"Gunshot, gunfire": 0.5901,
+"Machine gun": 0.8339,
+"Music": 0.0567,
+"Musical instrument": 0.0135,
+"Outside, rural or natural": 0.0275,
+"Pink noise": 0.0113,
+"Silence": 0.0194,
+"Sound effect": 0.0436,
+"Synthesizer": 0.0106,
+"White noise": 0.0536
+}
+},
+{
+"t": 4.5,
+"p": {
+"Cap gun": 0.2743,
+"Firecracker": 0.0416,
+"Fireworks": 0.0314,
+"Gunshot, gunfire": 0.4504,
+"Hum": 0.0102,
+"Machine gun": 0.1255,
+"Music": 0.0104,
+"Outside, rural or natural": 0.0649,
+"Pink noise": 0.0212,
+"Rustle": 0.0107,
+"Silence": 0.0347,
+"Sound effect": 0.0163,
+"Static": 0.0174,
+"White noise": 0.0721
+}
+},
+{
+"t": 6.0,
+"p": {
+"Animal": 0.0153,
+"Hum": 0.026,
+"Inside, small room": 0.0158,
+"Noise": 0.0144,
+"Outside, rural or natural": 0.0205,
+"Pink noise": 0.1799,
+"Rustle": 0.0916,
+"Rustling leaves": 0.0105,
+"Silence": 0.0457,
+"Static": 0.1257,
+"White noise": 0.3015
+}
+},
+{
+"t": 7.5,
+"p": {
+"Animal": 0.0164,
+"Buzz": 0.0114,
+"Heart sounds, heartbeat": 0.0161,
+"Hum": 0.0495,
+"Noise": 0.0135,
+"Outside, rural or natural": 0.0161,
+"Pink noise": 0.0744,
+"Rustle": 0.0564,
+"Silence": 0.0242,
+"Snake": 0.0115,
+"Static": 0.1527,
+"Throbbing": 0.0176,
+"White noise": 0.3185
+}
+}
+]
+},
+{
+"file": "gunshot_095.wav",
+"noise": -20.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Animal": 0.0285,
+"Bass drum": 0.0103,
+"Drum": 0.1216,
+"Drum machine": 0.0416,
+"Drum roll": 0.0101,
+"Electronic music": 0.0332,
+"Gunshot, gunfire": 0.2597,
+"Inside, small room": 0.027,
+"Machine gun": 0.5544,
+"Music": 0.2413,
+"Musical instrument": 0.1136,
+"Outside, rural or natural": 0.0212,
+"Percussion": 0.0556,
+"Sound effect": 0.0656,
+"Synthesizer": 0.1036,
+"White noise": 0.0135
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0503,
+"Cap gun": 0.0125,
+"Frog": 0.0297,
+"Gunshot, gunfire": 0.3124,
+"Inside, small room": 0.0125,
+"Jackhammer": 0.0105,
+"Machine gun": 0.4409,
+"Music": 0.0561,
+"Musical instrument": 0.0194,
+"Outside, rural or natural": 0.0245,
+"Pink noise": 0.0218,
+"Rustle": 0.0215,
+"Silence": 0.0226,
+"Sound effect": 0.0551,
+"White noise": 0.0478
+}
+},
+{
+"t": 3.0,
+"p": {
+"Animal": 0.0132,
+"Hum": 0.0158,
+"Inside, small room": 0.0143,
+"Noise": 0.0285,
+"Outside, rural or natural": 0.0231,
+"Pink noise": 0.2716,
+"Rustle": 0.0766,
+"Silence": 0.038,
+"Static": 0.1028,
+"Vehicle": 0.0111,
+"White noise": 0.2627
+}
+},
+{
+"t": 4.5,
+"p": {
+"Buzz": 0.0124,
+"Hum": 0.0386,
+"Noise": 0.0364,
+"Pink noise": 0.1333,
+"Rustle": 0.0392,
+"Silence": 0.0314,
+"Static": 0.2048,
+"Throbbing": 0.0141,
+"Vehicle": 0.0163,
+"White noise": 0.3182
+}
+}
+]
+},
+{
+"file": "gunshot_000.wav",
+"noise": -10.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Fusillade": 0.0131,
+"Gunshot, gunfire": 0.5508,
+"Machine gun": 0.7753,
+"Music": 0.0111,
+"Outside, rural or natural": 0.0146,
+"Sound effect": 0.0377,
+"Speech": 0.0104,
+"Vehicle": 0.021
+}
+},
+{
+"t": 1.5,
+"p": {
+"Arrow": 0.0463,
+"Cap gun": 0.0703,
+"Clang": 0.0198,
+"Gunshot, gunfire": 0.1036,
+"Hammer": 0.0793,
+"Inside, large room or hall": 0.0102,
+"Music": 0.0189,
+"Outside, rural or natural": 0.0381,
+"Pink noise": 0.2308,
+"Sound effect": 0.0192,
+"Thump, thud": 0.0108,
+"Vehicle": 0.025,
+"Whack, thwack": 0.036,
+"White noise": 0.0629
+}
+},
+{
+"t": 3.0,
+"p": {
+"Aircraft": 0.0626,
+"Fixed-wing aircraft, airplane": 0.0607,
+"Music": 0.014,
+"Noise": 0.0268,
+"Ocean": 0.0213,
+"Outside, rural or natural": 0.037,
+"Pink noise": 0.6941,
+"Rustle": 0.026,
+"Rustling leaves": 0.014,
+"Static": 0.0215,
+"Vehicle": 0.0876,
+"Waterfall": 0.0485,
+"Waves, surf": 0.0269,
+"White noise": 0.2087,
+"Wind": 0.0147,
+"Wind noise (microphone)": 0.0177
+}
+},
+{
+"t": 4.5,
+"p": {
+"Aircraft": 0.0396,
+"Fixed-wing aircraft, airplane": 0.0377,
+"Noise": 0.0232,
+"Ocean": 0.0722,
+"Outside, rural or natural": 0.0387,
+"Pink noise": 0.6374,
+"Rustle": 0.0167,
+"Rustling leaves": 0.0161,
+"Stream": 0.0112,
+"Vehicle": 0.0591,
+"Waterfall": 0.0651,
+"Waves, surf": 0.0911,
+"White noise": 0.1327,
+"Wind": 0.0253,
+"Wind noise (microphone)": 0.0314
+}
+},
+{
+"t": 6.0,
+"p": {
+"Aircraft": 0.1223,
+"Boat, Water vehicle": 0.0167,
+"Eruption": 0.0398,
+"Fixed-wing aircraft, airplane": 0.1147,
+"Ocean": 0.0527,
+"Outside, rural or natural": 0.0305,
+"Pink noise": 0.5544,
+"Rustle": 0.0109,
+"Static": 0.0165,
+"Vehicle": 0.1288,
+"Waterfall": 0.0362,
+"Waves, surf": 0.0672,
+"White noise": 0.1358,
+"Wind": 0.0273,
+"Wind noise (microphone)": 0.0361
+}
+}
+]
+},
+{
+"file": "gunshot_001.wav",
+"noise": -10.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Arrow": 0.0296,
+"Cap gun": 0.0131,
+"Echo": 0.0165,
+"Gunshot, gunfire": 0.0133,
+"Music": 0.0148,
+"Outside, rural or natural": 0.0422,
+"Ping": 0.0163,
+"Pink noise": 0.0224,
+"Whip": 0.1354,
+"White noise": 0.0142
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0131,
+"Burst, pop": 0.01,
+"Cap gun": 0.0406,
+"Echo": 0.0228,
+"Gunshot, gunfire": 0.0916,
+"Machine gun": 0.0429,
+"Outside, rural or natural": 0.0645,
+"Pink noise": 0.0562,
+"Speech": 0.0149,
+"Whip": 0.0614,
+"White noise": 0.0617
+}
+},
+{
+"t": 3.0,
+"p": {
+"Aircraft": 0.0469,
+"Animal": 0.0149,
+"Boat, Water vehicle": 0.0138,
+"Fixed-wing aircraft, airplane": 0.0614,
+"Music": 0.026,
+"Noise": 0.0132,
+"Outside, rural or natural": 0.0445,
+"Outside, urban or manmade": 0.0107,
+"Pink noise": 0.4948,
+"Rustle": 0.0758,
+"Rustling leaves": 0.0246,
+"Silence": 0.021,
+"Speech": 0.0123,
+"Static": 0.0268,
+"Vehicle": 0.0822,
+"White noise": 0.2438,
+"Wind": 0.022,
+"Wind noise (microphone)": 0.0229
+}
+},
+{
+"t": 4.5,
+"p": {
+"Arrow": 0.0504,
+"Cap gun": 0.0338,
+"Gunshot, gunfire": 0.0557,
+"Machine gun": 0.0191,
+"Outside, rural or natural": 0.0388,
+"Pink noise": 0.0327,
+"Walk, footsteps": 0.0105,
+"Whip": 0.2895,
+"White noise": 0.0254
+}
+},
+{
+"t": 6.0,
+"p": {
+"Arrow": 0.0149,
+"Cap gun": 0.0811,
+"Echo": 0.0147,
+"Gunshot, gunfire": 0.0792,
+"Machine gun": 0.0146,
+"Outside, rural or natural": 0.049,
+"Pink noise": 0.0237,
+"Whip": 0.3736,
+"White noise": 0.0134
+}
+},
+{
+"t": 7.5,
+"p": {
+"Animal": 0.0202,
+"Eruption": 0.1011,
+"Noise": 0.014,
+"Outside, rural or natural": 0.024,
+"Pink noise": 0.2732,
+"Rustle": 0.0641,
+"Rustling leaves": 0.0131,
+"Static": 0.0123,
+"Stomach rumble": 0.0147,
+"Vehicle": 0.0395,
+"White noise": 0.2377,
+"Wind": 0.0152,
+"Wind noise (microphone)": 0.0138
+}
+},
+{
+"t": 9.0,
+"p": {
+"Aircraft": 0.0347,
+"Eruption": 0.0101,
+"Fixed-wing aircraft, airplane": 0.0172,
+"Hum": 0.0357,
+"Mechanical fan": 0.0157,
+"Microwave oven": 0.0111,
+"Music": 0.0123,
+"Outside, rural or natural": 0.0158,
+"Pink noise": 0.1145,
+"Rustle": 0.0274,
+"Rustling leaves": 0.0107,
+"Silence": 0.0186,
+"Sound effect": 0.0217,
+"Static": 0.0709,
+"Throbbing": 0.0148,
+"Vehicle": 0.0715,
+"White noise": 0.146
+}
+}
+]
+},
+{
+"file": "gunshot_002.wav",
+"noise": -10.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Arrow": 0.1237,
+"Cap gun": 0.0195,
+"Chop": 0.2788,
+"Clapping": 0.0132,
+"Gunshot, gunfire": 0.0243,
+"Outside, rural or natural": 0.0293,
+"Pink noise": 0.0124,
+"Silence": 0.0123,
+"Whip": 0.1104,
+"White noise": 0.0128
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0118,
+"Hum": 0.0139,
+"Noise": 0.0213,
+"Outside, rural or natural": 0.0208,
+"Pink noise": 0.3159,
+"Rustle": 0.0572,
+"Rustling leaves": 0.0117,
+"Silence": 0.0296,
+"Static": 0.0646,
+"Vehicle": 0.0359,
+"White noise": 0.2538
+}
+},
+{
+"t": 3.0,
+"p": {
+"Animal": 0.0158,
+"Arrow": 0.2451,
+"Cap gun": 0.0253,
+"Chop": 0.7243,
+"Gunshot, gunfire": 0.0431,
+"Outside, rural or natural": 0.0243,
+"Ping": 0.0137,
+"White noise": 0.0195
+}
+},
+{
+"t": 4.5,
+"p": {
+"Animal": 0.0316,
+"Arrow": 0.2032,
+"Cap gun": 0.0188,
+"Chop": 0.4475,
+"Clapping": 0.0155,
+"Gunshot, gunfire": 0.029,
+"Outside, rural or natural": 0.0336,
+"Ping": 0.0134,
+"Pink noise": 0.0161,
+"Silence": 0.0105,
+"White noise": 0.0228
+}
+},
+{
+"t": 6.0,
+"p": {
+"Animal": 0.0149,
+"Noise": 0.0185,
+"Outside, rural or natural": 0.0389,
+"Pink noise": 0.4191,
+"Rustle": 0.0789,
+"Rustling leaves": 0.0247,
+"Silence": 0.0246,
+"Static": 0.0271,
+"Vehicle": 0.0315,
+"Waterfall": 0.0123,
+"White noise": 0.2216
+}
+},
+{
+"t": 7.5,
+"p": {
+"Aircraft": 0.0109,
+"Noise": 0.0187,
+"Outside, rural or natural": 0.041,
+"Pink noise": 0.4693,
+"Rustle": 0.0788,
+"Rustling leaves": 0.03,
+"Silence": 0.0204,
+"Static": 0.042,
+"Vehicle": 0.0367,
+"Waterfall": 0.0124,
+"White noise": 0.2708,
+"Wind": 0.0111,
+"Wind noise (microphone)": 0.0117
+}
+},
+{
+"t": 9.0,
+"p": {
+"Buzz": 0.0569,
+"Hum": 0.0478,
+"Music": 0.0116,
+"Noise": 0.0366,
+"Pink noise": 0.0358,
+"Rustle": 0.0202,
+"Silence": 0.0147,
+"Sound effect": 0.0206,
+"Static": 0.0881,
+"Throbbing": 0.0248,
+"Vehicle": 0.0329,
+"White noise": 0.248
+}
+}
+]
+},
+{
+"file": "gunshot_094.wav",
+"noise": -10.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Cap gun": 0.165,
+"Gunshot, gunfire": 0.3826,
+"Machine gun": 0.0637,
+"Outside, rural or natural": 0.0744,
+"Pink noise": 0.117,
+"Rustle": 0.0159,
+"Whip": 0.0303,
+"White noise": 0.0793
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.0237,
+"Outside, rural or natural": 0.0404,
+"Pink noise": 0.4102,
+"Rustle": 0.0776,
+"Rustling leaves": 0.02,
+"Silence": 0.0197,
+"Static": 0.0422,
+"Vehicle": 0.0456,
+"White noise": 0.2227
+}
+},
+{
+"t": 3.0,
+"p": {
+"Artillery fire": 0.013,
+"Cacophony": 0.0132,
+"Cap gun": 0.0261,
+"Gunshot, gunfire": 0.6343,
+"Machine gun": 0.8237,
+"Music": 0.0546,
+"Outside, rural or natural": 0.0282,
+"Pink noise": 0.0383,
+"Rustle": 0.0181,
+"Sound effect": 0.0478,
+"White noise": 0.1031
+}
+},
+{
+"t": 4.5,
+"p": {
+"Cap gun": 0.2023,
+"Firecracker": 0.0617,
+"Fireworks": 0.0482,
+"Gunshot, gunfire": 0.4526,
+"Machine gun": 0.0872,
+"Music": 0.0102,
+"Outside, rural or natural": 0.0646,
+"Ping": 0.0129,
+"Pink noise": 0.0901,
+"Rustle": 0.0144,
+"Silence": 0.0205,
+"Sound effect": 0.0148,
+"Static": 0.0182,
+"White noise": 0.1063
+}
+},
+{
+"t": 6.0,
+"p": {
+"Animal": 0.0231,
+"Boat, Water vehicle": 0.0151,
+"Hum": 0.012,
+"Outside, rural or natural": 0.0334,
+"Pink noise": 0.3155,
+"Rustle": 0.062,
+"Rustling leaves": 0.0259,
+"Silence": 0.0246,
+"Static": 0.0298,
+"Vehicle": 0.0465,
+"White noise": 0.2089,
+"Wind": 0.0197,
+"Wind noise (microphone)": 0.0246
+}
+},
+{
+"t": 7.5,
+"p": {
+"Heart murmur": 0.0196,
+"Heart sounds, heartbeat": 0.0768,
+"Hum": 0.0706,
+"Music": 0.0143,
+"Noise": 0.0155,
+"Outside, rural or natural": 0.0191,
+"Pink noise": 0.2096,
+"Rustle": 0.0354,
+"Rustling leaves": 0.0154,
+"Silence": 0.0134,
+"Static": 0.0625,
+"Throbbing": 0.0542,
+"Vehicle": 0.0276,
+"White noise": 0.1741
+}
+}
+]
+},
+{
+"file": "gunshot_095.wav",
+"noise": -10.0,
+"wins": [
+{
+"t": 0.0,
+"p": {
+"Animal": 0.0469,
+"Buzz": 0.0227,
+"Cacophony": 0.0128,
+"Drum": 0.0706,
+"Drum machine": 0.0162,
+"Electronic music": 0.0171,
+"Gunshot, gunfire": 0.2118,
+"Inside, small room": 0.0152,
+"Machine gun": 0.3764,
+"Music": 0.1799,
+"Musical instrument": 0.076,
+"Outside, rural or natural": 0.0226,
+"Percussion": 0.0465,
+"Pink noise": 0.0106,
+"Sound effect": 0.064,
+"Synthesizer": 0.0674,
+"White noise": 0.0553,
+"Wood block": 0.0106
+}
+},
+{
+"t": 1.5,
+"p": {
+"Animal": 0.1244,
+"Bird": 0.0314,
+"Frog": 0.1155,
+"Gunshot, gunfire": 0.1439,
+"Jackhammer": 0.0138,
+"Machine gun": 0.2041,
+"Music": 0.0293,
+"Outside, rural or natural": 0.0273,
+"Pink noise": 0.0615,
+"Rustle": 0.0254,
+"Sound effect": 0.0421,
+"White noise": 0.0707
+}
+},
+{
+"t": 3.0,
+"p": {
+"Aircraft": 0.035,
+"Fixed-wing aircraft, airplane": 0.0339,
+"Music": 0.0109,
+"Noise": 0.0265,
+"Outside, rural or natural": 0.0313,
+"Pink noise": 0.5286,
+"Rustle": 0.0483,
+"Rustling leaves": 0.0157,
+"Silence": 0.0204,
+"Static": 0.0608,
+"Vehicle": 0.066,
+"Waterfall": 0.01,
+"White noise": 0.2011
+}
+},
+{
+"t": 4.5,
+"p": {
+"Aircraft": 0.0602,
+"Eruption": 0.0348,
+"Fixed-wing aircraft, airplane": 0.0625,
+"Hum": 0.0262,
+"Music": 0.0143,
+"Noise": 0.0283,
+"Outside, rural or natural": 0.0168,
+"Pink noise": 0.2513,
+"Rustle": 0.0197,
+"Silence": 0.0201,
+"Sound effect": 0.0119,
+"Static": 0.1351,
+"Vehicle": 0.0792,
+"White noise": 0.2068
+}
+}
+]
+}
+]
+}

@@ -318,6 +318,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   ffmpeg's "Cannot allocate memory" for a filter not said as running out of memory.
 - `test_shawshank.py`: doors, slams, a typewriter and sobbing heard more clearly than
   gunfire aren't gunfire; real gunshots and screams still count; older scans as before.
+- `test_gunshots.py`: real gunshot sounds Lauren sent (the tagger's scores in
+  `gunshot_sounds.json`, also with noise under them) stay cut as violence. Two she sent
+  ("cap gun", "chop") aren't found by sound: counting those labels or matching against
+  these gunshots cut soda cans, clapping, glass and footsteps among 2,000 everyday sounds
+  (ESC-50, tested on this PC only), which also showed no doors, knocks or typing cut.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
   split scene cuts, a kept kind joined to another, "dickens", the launcher after an update).
 - `test_at_once.py`: several videos at once in real worker processes with a stand-in
