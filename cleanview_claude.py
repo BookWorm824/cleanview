@@ -577,9 +577,17 @@ CHAT_SCHEMA = {"type": "object", "properties": {
         "why": {"type": "string"}}, "required": ["from", "to", "why"]}},
     "remember": {"type": "array", "items": {"type": "object", "properties": {
         "note": {"type": "string"}, "for": {"type": "string", "enum": ["this", "everything"]}},
-        "required": ["note", "for"]}}},
+        "required": ["note", "for"]}},
+    "look_at": {"type": "array", "items": {"type": "object", "properties": {
+        "from": {"type": "string"}, "to": {"type": "string"}}, "required": ["from", "to"]}}},
     "required": ["reply", "tick", "untick", "mute_lines", "mute_words", "cut_scenes",
-                 "cut_times", "remember"]}
+                 "cut_times", "remember", "look_at"]}
+# after looking at the stills: the same answer, without asking to look again
+SEEN_SCHEMA = {"type": "object", "properties": {
+    k: v for k, v in CHAT_SCHEMA["properties"].items() if k != "look_at"},
+    "required": [k for k in CHAT_SCHEMA["required"] if k != "look_at"]}
+LOOK_MOST = 20 * 60          # seconds of picture the chat may look at in one go
+LOOK_SHEETS = 12             # sheets (40 s each) in one request
 
 CHAT_HOW = (
     "You can change the list directly, and your changes happen as soon as you answer:\n"
@@ -600,6 +608,15 @@ CHAT_HOW = (
     "picture checks too, so you CAN learn: never tell them you can't remember things or "
     "change how CleanView checks. Make the change on this list too, and say in \"reply\" "
     "what you'll remember. Only a plain \"keep this one\" with no reason needs no rule.\n"
+    "- \"look_at\": to see the picture. You're shown the dialogue here, but CleanView can show "
+    "you stills of any stretch (one every 2 seconds), so you CAN look at the picture: never "
+    "tell them you can't see it. When they talk about something on screen (holding hands, a "
+    "hug, a kiss, a gesture, a fight, something you missed), or you need to see it to "
+    "answer, give the stretch to look at, like {\"from\": \"0:00\", \"to\": \"10:00\"} for "
+    "\"near the beginning\" (up to 20 minutes in all; use what's said and their times to "
+    "narrow it), leave the change lists empty and say in \"reply\" that you'll look. "
+    "CleanView then shows you the stills and you answer again with what you saw and the "
+    "changes.\n"
     "Do what they ask: if they say to remove, keep, mute or cut something, make that change "
     "(\"keep the kiss at 12:30\" = untick that scene; \"just mute the word\" = untick the line "
     "and mute_words). If they only ask a question, answer it and change nothing unless they ask. "
@@ -608,30 +625,51 @@ CHAT_HOW = (
     "than ids or line numbers. Plain text only: no bullet points, bold or headings.")
 
 
-def chat(question, st, session=None, notes=None):
-    """Talk about this episode and change the list. Returns (reply, actions, items, session_id):
-    actions is the answer's change lists, items maps the S/L/W ids it may use, and
-    actions["remember"] is [(note, for everything?)] to keep for later checks.
-    notes: what they told it to keep in mind before (learn.notes)."""
-    lines = st.get("dialogue", [])
-    items, listing = candidates(st, with_review=True)
-    if st.get("claude_summary"):
-        listing += "\n\nYour earlier review said: " + st["claude_summary"]
-    listing += told(notes)
-    if session:
-        prompt = ("The list as it is now (ids may have changed since last time):\n" + listing +
-                  "\n\n" + CHAT_HOW + "\n\nThey say: " + question)
-        res, sid = ask(prompt, CHAT_SCHEMA, system=None, session=session)
-    else:
-        prompt = (
-            "The input is the numbered dialogue of one episode or movie (time, and where known "
-            "who is speaking and a man/woman/child voice guess, which can be wrong).\n\n"
-            "Everything CleanView found, and what's ticked now (S = scene to cut, L = line to "
-            "mute, W = word to mute):\n" + (listing or "(nothing)") + "\n\n" + CHAT_HOW +
-            "\n\nThey say: " + question)
-        res, sid = ask(prompt, CHAT_SCHEMA, numbered(lines, st.get("voices")), system=SYSTEM,
-                       keep=True)
-    n = len(lines)
+SEEN_HOW = re.sub(r'- "look_at".*?changes\.\n', "", CHAT_HOW, flags=re.S)
+
+
+def _secs(t):
+    try:
+        x = 0.0
+        for part in str(t).strip().split(":"):
+            x = x * 60 + float(part)
+        return x
+    except ValueError:
+        return None
+
+
+def look_spans(asked, dur=None):
+    """The stretches the chat asked to see, in seconds: in order, joined where they touch,
+    and no more than LOOK_MOST in all."""
+    spans = []
+    for r in asked or []:
+        if not isinstance(r, dict):
+            continue
+        a, b = _secs(r.get("from")), _secs(r.get("to"))
+        if a is None or b is None:
+            continue
+        a, b = max(0.0, min(a, b)), max(a, b)
+        if dur:
+            b = min(b, dur)
+        if b - a < 2:                       # one moment: look around it
+            a, b = max(0.0, a - 10), b + 10
+        spans.append([a, b])
+    out, left = [], LOOK_MOST
+    for a, b in sorted(spans):
+        if out and a <= out[-1][1] + 2:
+            a = out[-1][0]
+            left += out[-1][1] - out[-1][0]
+            out.pop()
+        b = min(b, a + left)
+        if b - a >= 2:
+            out.append([a, b])
+            left -= b - a
+        if left < 2:
+            break
+    return [tuple(x) for x in out]
+
+
+def _acts(res, n):
     acts = {"tick": [str(x).strip().upper() for x in res.get("tick", [])],
             "untick": [str(x).strip().upper() for x in res.get("untick", [])],
             "mute_lines": [int(i) - 1 for i in res.get("mute_lines", []) if 0 < int(i) <= n],
@@ -649,7 +687,104 @@ def chat(question, st, session=None, notes=None):
     for c in res.get("cut_times", []):
         acts["cut_times"].append({"from": str(c.get("from", "")), "to": str(c.get("to", "")),
                                   "why": str(c.get("why", ""))[:120]})
-    return str(res.get("reply", "")).strip(), acts, items, sid
+    return acts
+
+
+def _said_then(lines, a, b):
+    """The dialogue from a to b, numbered as in the whole list."""
+    return "\n".join(f"{i + 1} [{_t(l['s'])}] " + " ".join(str(l.get("text", "")).split())
+                     for i, l in enumerate(lines) if a - 5 <= l["s"] <= b + 5)
+
+
+def see(question, st, listing, spans, look, say=None):
+    """The chat asked to see the picture: show it stills of those stretches (look(a, b) ->
+    [(sheet_path, start_seconds)], 20 stills 2 s apart) and get its answer. Returns the
+    answer dict (SEEN_SCHEMA) and a plain list of what it looked at, or (None, "")."""
+    lines = st.get("dialogue", [])
+    sheets, looked = [], []
+    for a, b in spans:
+        if say:
+            say(f"{name()} is looking at the picture from {_t(a)} to {_t(b)}…")
+        try:
+            got = [(p, t0) for p, t0 in look(a, b) if t0 < b and t0 + 40 > a]
+        except Exception:
+            got = []
+        if got:
+            sheets += [(p, t0, a, b) for p, t0 in got]
+            looked.append(f"{_t(a)} to {_t(b)}")
+    if not sheets:
+        return None, ""
+    batches = [sheets[k:k + LOOK_SHEETS] for k in range(0, len(sheets), LOOK_SHEETS)]
+    replies, merged = [], {k: [] for k in SEEN_SCHEMA["required"] if k != "reply"}
+    for n, batch in enumerate(batches, 1):
+        imgs = [(f"Sheet {k + 1}: {_t(t0)} to {_t(t0 + 40)} (tile 1 is at {_t(t0)}, each "
+                 f"tile 2 seconds after the one before):", p)
+                for k, (p, t0, a, b) in enumerate(batch)]
+        a0, b0 = batch[0][2], batch[-1][3]
+        part = (f" This is part {n} of {len(batches)} of what you asked to see; if nothing "
+                "here matters, say so in a few words." if len(batches) > 1 else "")
+        prompt = (
+            "You're helping a family clean one episode or movie (S = scene to cut, L = line to "
+            "mute, W = word to mute). Everything CleanView found, and what's ticked now:\n" +
+            (listing or "(nothing)") + "\n\nThey said in the chat: " + question + "\n\n"
+            "To answer, you asked to see the picture. The sheets above are stills of it, 20 to "
+            "a sheet, read left to right and top to bottom (5 across, 4 down), one every 2 "
+            "seconds." + part + " What's said then (numbered as in the whole dialogue):\n" +
+            (_said_then(lines, a0, b0) or "(no talking)") + "\n\n" + PIC_RULES + "\n\n" +
+            SEEN_HOW + "\nCut what's shown with \"cut_times\", from the first tile it shows in "
+            "to the last (each tile is 2 seconds), not the whole stretch you looked at; "
+            "untick what turns out to be fine. In \"reply\", say what you saw and where.")
+        res, _ = ask(prompt, SEEN_SCHEMA, images=imgs, system=PIC_SYSTEM, timeout=900)
+        if str(res.get("reply", "")).strip():
+            replies.append(str(res["reply"]).strip())
+        for k in merged:
+            merged[k] += list(res.get(k) or [])
+    merged["reply"] = " ".join(replies)
+    return merged, ", ".join(looked)
+
+
+def chat(question, st, session=None, notes=None, look=None, say=None):
+    """Talk about this episode and change the list. Returns (reply, actions, items, session_id):
+    actions is the answer's change lists, items maps the S/L/W ids it may use, and
+    actions["remember"] is [(note, for everything?)] to keep for later checks.
+    notes: what they told it to keep in mind before (learn.notes).
+    look(a, b): stills of a stretch, so it can look at the picture when it asks to
+    (Lauren 2026-11-08: "you are supposed to view photos as well"); say(text) tells them."""
+    lines = st.get("dialogue", [])
+    items, listing = candidates(st, with_review=True)
+    if st.get("claude_summary"):
+        listing += "\n\nYour earlier review said: " + st["claude_summary"]
+    listing += told(notes)
+    asked = question
+    seen = st.pop("chat_seen", "")
+    if seen:                # what it saw last time, which the chat itself never heard
+        question = f"({seen})\n\n{question}"
+    if session:
+        prompt = ("The list as it is now (ids may have changed since last time):\n" + listing +
+                  "\n\n" + CHAT_HOW + "\n\nThey say: " + question)
+        res, sid = ask(prompt, CHAT_SCHEMA, system=None, session=session)
+    else:
+        prompt = (
+            "The input is the numbered dialogue of one episode or movie (time, and where known "
+            "who is speaking and a man/woman/child voice guess, which can be wrong).\n\n"
+            "Everything CleanView found, and what's ticked now (S = scene to cut, L = line to "
+            "mute, W = word to mute):\n" + (listing or "(nothing)") + "\n\n" + CHAT_HOW +
+            "\n\nThey say: " + question)
+        res, sid = ask(prompt, CHAT_SCHEMA, numbered(lines, st.get("voices")), system=SYSTEM,
+                       keep=True)
+    spans = look_spans(res.get("look_at"), st.get("duration")) if look else []
+    if spans:
+        first = res
+        res, looked = see(asked, st, listing, spans, look, say)
+        if res is None:
+            res = dict(first, reply=(str(first.get("reply", "")).strip() + " (CleanView couldn't "
+                                     "take stills from the video, so nothing was looked at.)"
+                                     ).strip())
+        else:
+            res["remember"] = list(first.get("remember") or []) + list(res.get("remember") or [])
+            st["chat_seen"] = (f"After that, CleanView showed you stills from {looked} and you "
+                               f"answered: {res.get('reply', '')}")[:1500]
+    return str(res.get("reply", "")).strip(), _acts(res, len(lines)), items, sid
 
 
 # ---------------------------------------------------------------------------
@@ -878,7 +1013,7 @@ PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "im
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
              "halloween", "birthday", "valentine", "easter", "st patrick's day", "dark magic",
              "magic", "vampires",
-             "rude gesture"]
+             "rude gesture", "couple affection"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
@@ -956,7 +1091,15 @@ PIC_RULES = (
     "smoking includes vaping. A rude gesture is someone raising the middle finger at someone, or a "
     "crude sexual gesture (a hand gesture mimicking sex or oral sex, thrusting the hips, "
     "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "
-    "Waving, pointing, a thumbs up, a peace sign or dancing are NOT.")
+    "Waving, pointing, a thumbs up, a peace sign or dancing are NOT. "
+    "\"couple affection\" is two people being affectionate AS A COUPLE: holding hands, "
+    "cuddling, an arm around each other, a caress, a romantic embrace (kissing is "
+    "\"kissing\"). Judge it by the context, not the touch alone (Lauren, 2026-11-08): the "
+    "same hand-holding is fine between a parent and child, friends, family, someone being "
+    "comforted at a hospital bed or helped up, or a group praying. It counts when they're "
+    "shown or said to be a couple: what's said (wife, husband, girlfriend, \"I love you\", "
+    "talk of their relationship), the way they look at and hold each other, and the scenes "
+    "around it. Say who (man & woman, two men, two women).")
 
 
 CONTEXT_HOW = (

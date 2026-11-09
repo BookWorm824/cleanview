@@ -1822,8 +1822,11 @@ def picture_wanted(o):
                    ("kiss_ss", "between two men or two women")):
         if o.get(k) in KISS_TEXT:
             out.append(KISS_TEXT[o[k]] + " " + who)
-    if o.get("samesex") and o.get("kiss_ss") == "off":
-        out.append("same-sex romance: two men or two women kissing or being intimate")
+    if o.get("samesex"):
+        # not only kissing: holding hands, cuddling (Lauren 2026-11-08), judged by context
+        out.append("same-sex romance: two men or two women kissing, being intimate, or "
+                   "affectionate as a couple (\"couple affection\": holding hands, cuddling, an "
+                   "arm around each other), when the context shows they're a couple")
     return "\n".join("- " + t for t in out)
 
 
@@ -1841,6 +1844,10 @@ def _pic_wanted(f, o):
             return None
         return "Kiss" + (f" · {WHO_LABEL[who]}" if who in WHO_LABEL else "") + \
             (f" · {f['level']}" if f.get("level") in ("light", "passionate") else "")
+    if w == "couple affection":          # only a same-sex couple, with that filter on
+        who = WHO_FROM.get(f.get("who"))
+        return f"Same-sex affection · {WHO_LABEL[who]}" if who in ("mm", "ff") and \
+            o.get("samesex") else None
     if w == "sex" and not o.get("sex"):
         return None
     if w == "implied nudity":
@@ -1873,6 +1880,27 @@ def make_sheets(path, work, dur):
     if not files:
         raise RuntimeError("couldn't take stills from the video")
     return [(str(f), k * 40.0) for k, f in enumerate(files)]
+
+
+def chat_sheets(path, work, a, b):
+    """Stills of a to b for the chat to look at (Lauren 2026-11-08: "you are supposed to view
+    photos as well"), 20 to a sheet 2 s apart like make_sheets: the whole video's sheets when
+    the picture was already looked through, else new ones of just that stretch.
+    Returns [(sheet_path, start_seconds)]."""
+    old = sorted((Path(work) / "sheets").glob("sheet_*.jpg"))
+    if old and (len(old) - 1) * 40 + 40 >= b:
+        return [(str(f), k * 40.0) for k, f in enumerate(old) if k * 40 < b and k * 40 + 40 > a]
+    d = Path(work) / "chat_sheets"
+    d.mkdir(parents=True, exist_ok=True)
+    stem = f"look_{int(a)}_{int(b)}"
+    have = sorted(d.glob(stem + "_*.jpg"))
+    if not have:
+        cl.run([cl._tool("ffmpeg"), "-v", "error", "-y", "-ss", f"{a:.2f}", "-t", f"{b - a:.2f}",
+                "-i", str(path), "-map", "0:v:0", "-vf",
+                "fps=1/2,scale=320:-2,tile=5x4:padding=4:color=white", "-q:v", "4",
+                str(d / (stem + "_%03d.jpg"))], capture_output=True)
+        have = sorted(d.glob(stem + "_*.jpg"))
+    return [(str(f), a + k * 40.0) for k, f in enumerate(have)]
 
 
 def scene_sheet(path, sc, work):

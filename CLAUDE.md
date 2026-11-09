@@ -231,6 +231,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (sexref), now in `LINE_WORDS` (not "quickie" alone: "a quickie divorce" is a line she
   kept). `LINE_WORDS["samesex"]` leaves "gay" beside a happy word alone too, like the word
   lists (`cl.GAY_HAPPY`).
+- The chat looks at the picture (1.18.32, Lauren 2026-11-08: told "near the beginning they
+  are holding hands", it said it only sees the dialogue and cut a whole 49-second visit;
+  told "you are supposed to view photos as well", it said so again). Its answer can ask to
+  see stretches (`look_at`, up to 20 minutes, `cc.look_spans`); `cc.see` shows it stills
+  every 2 s (`engine.chat_sheets`: the whole video's sheets when the picture was looked
+  through, else just that stretch, 12 sheets a request) with what's said then, and its second
+  answer makes the changes (cut just the tiles it's in). The chat hears what it saw next turn
+  (`st["chat_seen"]`). The picture check could only report two women kissing: "couple
+  affection" (holding hands, cuddling, an arm around each other) is asked for whenever the
+  same-sex filter is on and becomes "Same-sex affection · two women/men"; a man and a woman
+  isn't. Judged by context (Lauren: "hand holding needs to be done by context"): a parent and
+  child, friends, comforting at a hospital bed or praying together are fine. Cloud only; the
+  local picture check doesn't look for it (weak spot 2).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -349,6 +362,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   ("cap gun", "chop") aren't found by sound: counting those labels or matching against
   these gunshots cut soda cans, clapping, glass and footsteps among 2,000 everyday sounds
   (ESC-50, tested on this PC only), which also showed no doors, knocks or typing cut.
+- `test_chat_looks.py`: the chat asks to see a stretch and cuts what it saw, its stills,
+  and same-sex couple affection in the picture, by context.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and

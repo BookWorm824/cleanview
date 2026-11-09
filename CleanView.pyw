@@ -2601,8 +2601,10 @@ class App(tk.Tk):
         def go():
             try:
                 notes = learn.notes(st.get("show", "_movies"), engine.title_name(st.get("path")))
-                reply, acts, items, sid = cc.chat(question, st, self.chat_sessions.get(job["_ji"]),
-                                                  notes)
+                reply, acts, items, sid = cc.chat(
+                    question, st, self.chat_sessions.get(job["_ji"]), notes,
+                    look=lambda a, b: engine.chat_sheets(st.get("path"), job["work"], a, b),
+                    say=lambda text: self.q.put(("call", lambda: self._log(text, "note"))))
                 self.chat_sessions[job["_ji"]] = sid
                 self.q.put(("chat_reply", job, reply, acts, items, None, box))
             except Exception as ex:
