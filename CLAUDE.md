@@ -302,6 +302,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   bondage as slavery ("house of bondage", "freed from bondage", "sold into bondage", "the
   bondage of sin") or "a safe word to/for ...". CleanListen mutes them as words
   (`CL_ONLY_SEXUAL`).
+- Lauren's Castle S1E2 report (1.18.40, 2026-11-09, teens, word lists only): she asked the chat
+  to mute just the words, not whole lines (a coroner's "she had sex", "condoms", "affair"), and
+  it did, keeping a note for everything she cleans. Its phrase "explain how that works later"
+  was squashed into one word by `word_mute` ("explainhowthatworkslater"), not found in what
+  was heard, and only 1.2 s around its middle muted. A phrase is now found word by word in what
+  was heard (up to 12 words, stopping once it can't match) and muted from its first word to its
+  last; placed by its position in the line, it covers all of its words; `raw` keeps the spaces.
+  Old squashed words learned before still match. No-AI `LINE_WORDS` flags still mute whole lines.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -432,6 +440,7 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_castle_s1.py`: learned lines worded or split differently still muted, a harmless
   piece or a short everyday line not; "Hell" in a title.
 - `test_bondage.py`: "bondage" and "safe word" as sexual references, not slavery.
+- `test_castle_s1e2.py`: a phrase muted from its first word to its last, heard or placed.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and

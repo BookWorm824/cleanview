@@ -1529,7 +1529,11 @@ def word_mute(st, line, word, why):
     """Mute just one word of a dialogue line (Claude's "just the word").
     Uses a word already on the list if there is one, else finds the word's
     time in what was heard, else estimates it from its place in the line."""
-    target = cl.norm(word.replace("-", ""))
+    # a phrase is found word by word and muted from its first word to its last (Castle S1E2,
+    # 2026-11-09: "explain how that works later" was squashed into one word, wasn't found in
+    # what was heard, and only 1.2 s around its middle was muted)
+    parts = [p for p in (cl.norm(t) for t in word.replace("-", " ").split()) if p]
+    target = "".join(parts)
     if not target:
         return None
     a, b = line["s"] - 0.6, line["e"] + 0.6
@@ -1542,24 +1546,34 @@ def word_mute(st, line, word, why):
     heard = [w for w in st.get("asr", []) if a <= w[1] <= b]
     for k, w in enumerate(heard):
         n = cl.norm(w[0])
-        if n == target or (len(target) > 3 and target in n):
+        if n == target or (len(parts) == 1 and len(target) > 3 and target in n):
             s, e = w[1], w[2]
             break
-        if k + 1 < len(heard) and n + cl.norm(heard[k + 1][0]) == target:   # "sweet" "ass"
-            s, e = w[1], heard[k + 1][2]
+        joined = n                       # "sweet" "ass", "explain" "how" "that" ...
+        for j in range(k + 1, min(len(heard), k + 12)):    # stops once it can't match
+            joined += cl.norm(heard[j][0])
+            if joined == target:
+                s, e = w[1], heard[j][2]
+                break
+            if not target.startswith(joined):
+                break
+        if s is not None:
             break
     if s is None:                 # not heard clearly: place it by its position in the line
         toks = [cl.norm(t) for t in (line.get("plain") or line["text"]).replace("-", " ").split()]
-        parts = [cl.norm(p) for p in word.replace("-", " ").split()] or [target]
+        parts = parts or [target]
         pos = next((k for k in range(len(toks)) if toks[k:k + len(parts)] == parts), None)
         if pos is None:
             return None
-        mid = line["s"] + (line["e"] - line["s"]) * (pos + len(parts) / 2) / max(1, len(toks))
-        s, e = max(line["s"], mid - 0.6), min(line["e"], mid + 0.6)
+        dur, n_t = line["e"] - line["s"], max(1, len(toks))
+        mid = line["s"] + dur * (pos + len(parts) / 2) / n_t
+        start = line["s"] + dur * pos / n_t - 0.3
+        end = line["s"] + dur * (pos + len(parts)) / n_t + 0.3
+        s, e = max(line["s"], min(mid - 0.6, start)), min(line["e"], max(mid + 0.6, end))
         src = "claude-estimated"
     ctx_words = [w[0] for w in st.get("asr", []) if line["s"] - 0.3 <= w[1] < s][-6:]
     m = {"s": round(s, 3), "e": round(e, 3), "cat": "claude", "src": src,
-         "word": " ".join(cl.mask(p) for p in word.split()), "raw": target,
+         "word": " ".join(cl.mask(p) for p in word.split()), "raw": " ".join(parts),
          "ctx": " ".join(ctx_words) or (line.get("plain") or line["text"])[:60]}
     try:
         m["s"], m["e"] = cl.snap_edges(st["path"], m["s"], m["e"], wide=src != "claude",
