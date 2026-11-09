@@ -1179,7 +1179,11 @@
     "'some babe he's plowing in new york '",
     "'they've been married since last june '",
     "hi babe i thought you were in surgery",
-    "i know you two love each other and i know you love pastries"
+    "i know you two love each other and i know you love pastries",
+    "if you'll excuse me i got a date with a sock",
+    "there was a stripper pole in that thing",
+    "i wanna know if those lips taste like the chocolate mints",
+    "mom left because you cheated on her"
    ],
    "kept": [
     "or this sad specimen will",
@@ -1199,7 +1203,8 @@
     "oh and how did your date go with detective beecher",
     "took some balls calling a meeting like this",
     "i do like men with glasses",
-    "i'm keeping an eye on you you slippery little mutt"
+    "i'm keeping an eye on you you slippery little mutt",
+    "'your lovely wife and two little girls'"
    ],
    "ok_words": [],
    "muted_for": {
@@ -1228,7 +1233,11 @@
     "'some babe he's plowing in new york '": "sexref",
     "'they've been married since last june '": "samesex",
     "hi babe i thought you were in surgery": "samesex",
-    "i know you two love each other and i know you love pastries": "samesex"
+    "i know you two love each other and i know you love pastries": "samesex",
+    "if you'll excuse me i got a date with a sock": "sexref",
+    "there was a stripper pole in that thing": "sexref",
+    "i wanna know if those lips taste like the chocolate mints": "sexref",
+    "mom left because you cheated on her": "casual"
    },
    "notes": [
     "Finch (Harold Finch) is a main character: 'bitch' heard where 'Finch' fits is the name.",
@@ -1289,7 +1298,8 @@
   ],
   "notes": [
    "A drug store or pharmacy, or medicine and everyday products on its shelves, is not a drugs scene.",
-   "Clanking or slamming prison cell doors and bars, typewriter or keyboard clatter, and sobbing or crying are not gunfire and not violence (The Shawshank Redemption: four scenes cut as gunshots were these)."
+   "Clanking or slamming prison cell doors and bars, typewriter or keyboard clatter, and sobbing or crying are not gunfire and not violence (The Shawshank Redemption: four scenes cut as gunshots were these).",
+   "When same-sex relationships are filtered, a line naming a woman's wife or a man's husband (a same-sex couple) is still a problem line even when it only mentions them; 'a plain mention of someone's wife or family is fine' means a man's wife or a woman's husband."
   ]
  }
 }

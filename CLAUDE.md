@@ -244,6 +244,16 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   isn't. Judged by context (Lauren: "hand holding needs to be done by context"): a parent and
   child, friends, comforting at a hospital bed or praying together are fine. Cloud only; the
   local picture check doesn't look for it (weak spot 2).
+- Lauren's Person of Interest reports (1.18.33, 2026-11-08, Claude, adults): S02E07 on 1.18.32
+  cut the wives hugging (7:02) and holding hands (7:48), found by the picture check; nothing
+  changed by her. S02E11-E22 (1.18.28): every listed word muted, Claude's keeps were
+  mishearings ("SOP", "shoot", "eye"). Her one untick, "Your lovely wife and two little girls"
+  (flagged as romance; Finch reading out someone's details), is taught as a false alarm. Its
+  chat kept a note for everything ("a line that just mentions someone's wife, family or kids
+  ... is not a problem line"), so a built-in general note says a same-sex couple's "wife" or
+  "husband" line still counts. Taught: "I got a date with a sock", "There was a stripper pole
+  in that thing", "those lips taste like the chocolate mints" (sexref), "Mom left because you
+  cheated on her" (casual).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -364,6 +374,7 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (ESC-50, tested on this PC only), which also showed no doors, knocks or typing cut.
 - `test_chat_looks.py`: the chat asks to see a stretch and cuts what it saw, its stills,
   and same-sex couple affection in the picture, by context.
+- `test_person_of_interest.py`: the Person of Interest lessons and the same-sex "wife" note.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
