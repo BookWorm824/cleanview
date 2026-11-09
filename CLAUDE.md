@@ -298,7 +298,7 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   shared Castle note says so. Her unticks: a door ram as "gunshot-like bangs" and a "nudity"
   scene that was a dinner invitation (weak spot 2); "Anyone make you their bitch?" just the word.
 - "bondage" and "safe word" are sexual references (1.18.39, Lauren 2026-11-08, from Castle's
-  "Bondage. My safe word is 'apples.'"): `LINE_WORDS["sexref"]` (whole line, no AI needed), not
+  "Bondage. My safe word is 'apples.'"): `LINE_WORDS["sexref"]` (no AI needed), not
   bondage as slavery ("house of bondage", "freed from bondage", "sold into bondage", "the
   bondage of sin") or "a safe word to/for ...". CleanListen mutes them as words
   (`CL_ONLY_SEXUAL`).
@@ -309,7 +309,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   was heard, and only 1.2 s around its middle muted. A phrase is now found word by word in what
   was heard (up to 12 words, stopping once it can't match) and muted from its first word to its
   last; placed by its position in the line, it covers all of its words; `raw` keeps the spaces.
-  Old squashed words learned before still match. No-AI `LINE_WORDS` flags still mute whole lines.
+  Old squashed words learned before still match.
+- The short no-AI list mutes just its words (1.18.41, Lauren 2026-11-09: "Just the word", after
+  switching Castle S1E2's 22 lines by hand): a line found only by `LINE_WORDS` for sexual
+  references or sleeping around (`LIST_WORDS_ONLY`) gets each word it matched muted
+  (`list_words_only`, through `word_mute`; "had sex" -> "sex", "having an affair" -> "affair",
+  `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
+  other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
+  where a word can't be placed stay whole. CleanListen already mutes these as words.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -441,6 +448,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   piece or a short everyday line not; "Hell" in a title.
 - `test_bondage.py`: "bondage" and "safe word" as sexual references, not slavery.
 - `test_castle_s1e2.py`: a phrase muted from its first word to its last, heard or placed.
+- `test_list_words_only.py`: the no-AI list mutes just its words; what an AI found, other
+  filters and learned lines stay whole.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and

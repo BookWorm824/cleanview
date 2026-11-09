@@ -2512,9 +2512,13 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
             raise
         except Exception:
             found = {}
+    listed = {}                 # found only by the word list: {line: {kind: [the words]}}
     for i, l in enumerate(lines):
         for k in wanted:
-            if LINE_WORDS[k].search(l["text"]):
+            hits = [m.group(0) for m in LINE_WORDS[k].finditer(l["text"])]
+            if hits:
+                if k not in found.get(i, set()):
+                    listed.setdefault(i, {})[k] = hits
                 found.setdefault(i, set()).add(k)
     for k in WHOLE_CONVERSATIONS:
         if k in wanted:
@@ -2530,7 +2534,44 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
         out.append({"id": len(out) + 1, "s": round(l["s"], 2), "e": round(l["e"], 2),
                     "text": " ".join(toks), "plain": l["text"], "types": sorted(found[i]),
                     "mute": True, "idx": i})
+        if set(listed.get(i, {})) == found[i] and found[i] <= set(LIST_WORDS_ONLY):
+            out[-1]["words"] = [LIST_WORD_TRIM.sub("", w) for k in sorted(found[i])
+                                for w in listed[i][k]]
     return out, how
+
+
+# The short no-AI list mutes just its words, not the whole line (Lauren, 2026-11-09, Castle
+# S1E2: she had the chat switch 22 lines to just "sex", "condom", "affair"..., and chose "Just
+# the word" for the list). What an AI flags, and lines learned to mute whole, stay whole.
+LIST_WORDS_ONLY = ("sexref", "casual")
+# the list's longer phrases, cut to the word she mutes: "had sex" -> "sex", "having an affair"
+# -> "affair" (the chat muted just those)
+LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b))"
+                            r"|(?<=\baffair) with$")
+
+
+def list_words_only(st):
+    """Lines the word list found (sexual references, sleeping around): mute just the words
+    it found, the line unticked so she can still mute all of it. Returns how many lines."""
+    n = 0
+    for l in st.get("lines", []):
+        words = l.pop("words", None)
+        if not words or not l.get("mute", True) or l.get("learned") or l.get("hint"):
+            continue
+        done = []
+        for w in dict.fromkeys(words):
+            m = word_mute(st, l, w, "on the word list")
+            if m is not None:
+                m["keep"] = False
+                if m.get("cat") == "claude":
+                    m["cat"] = l["types"][0]
+                done.append(w)
+        if len(done) == len(dict.fromkeys(words)):
+            l["mute"] = False
+            l["why"] = "just " + ", ".join(f"“{w}”" for w in done) + \
+                " muted; tick to mute the whole line"
+            n += 1
+    return n
 
 
 def fill_conversations(found, lines, kind, gap_lines=3, gap_secs=20.0):
@@ -3076,6 +3117,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
           "asr": [[w["t"], round(w["s"], 2), round(w["e"], 2)] for w in asr],
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
           "used_clip": use_clip}
+    n_lw = list_words_only(st)
+    if n_lw:
+        notes.append(f"Muted just the word in {n_lw} line(s) the word list found (sexual "
+                     "references, sleeping around); tick a line to mute all of it.")
     n_wo = learned_word_only(st, key)
     if n_wo:
         notes.append(f"Muted just the word in {n_wo} line(s), as you did before.")
