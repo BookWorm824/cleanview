@@ -135,6 +135,16 @@ class Phrases(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(found(text, ["strong"]), [])
 
+    def test_fifty_first_dates_nympho(self):
+        for text, word in (("How's that hot wahini nympho from Ohio, huh?", "nympho"),
+                           ("Oh, the nympho is the state bird of Ohio.", "nympho"),
+                           ("She was a nymphomaniac.", "nymphomaniac")):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["moderate"]), [(word, "moderate")])
+        for text in ("a water nymph in the pond", "the nymphs danced"):
+            with self.subTest(text=text):
+                self.assertEqual(found(text, ["moderate"]), [])
+
 
 class FromCleanListen(unittest.TestCase):
     """Words and guards CleanListen had that CleanView didn't (tests/test_cleanlisten_words.py

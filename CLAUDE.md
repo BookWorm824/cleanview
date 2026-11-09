@@ -254,6 +254,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "husband" line still counts. Taught: "I got a date with a sock", "There was a stripper pole
   in that thing", "those lips taste like the chocolate mints" (sexref), "Mom left because you
   cheated on her" (casual).
+- Lauren's 50 First Dates report (1.18.34, 2026-11-08, teens, word lists only): "No
+  subtitles", so the film's crude jokes went through. The name parser made "50 First
+  Dates.m4v" episode 50 of "First Dates"; movies are now looked up as movies (`sub_video`:
+  the parser's answer when it says movie, else `subliminal.Movie` with any "(year)"). And
+  OpenSubtitles' search finds nothing for a title starting with a number ("50 First Dates",
+  "13 Going on 30", "21 Jump Street") but does for "Fifty First Dates" and "Thirteen Going on
+  Thirty": when no subtitles of that title turn up, the numbers are spelled out
+  (`number_titles`) and only subtitles of the same movie are kept (`_same_title`, not "Fifty
+  Shades"). A "none online" remembered by an older version is looked up again
+  (`remembered_miss`, `SUB_LOOKUP`). "nympho"/"nymphomaniac" are moderate words (not
+  "nymph"); "penis" and "private parts" are in `LINE_WORDS["sexref"]`. Five of the film's
+  jokes are taught (sexref). Her two unticked sound scenes ("heavy bangs" in a bar, "gunshot-
+  like bangs" at the dock) were false alarms, kept for that file (weak spot 2).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -375,6 +388,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_chat_looks.py`: the chat asks to see a stretch and cuts what it saw, its stills,
   and same-sex couple affection in the picture, by context.
 - `test_person_of_interest.py`: the Person of Interest lessons and the same-sex "wife" note.
+- `test_fifty_first_dates.py`: movies looked up as movies, numbers spelled out for the
+  subtitle site, an older "none online" asked again, "nympho" and the lines built in.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and

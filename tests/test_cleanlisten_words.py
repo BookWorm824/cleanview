@@ -29,7 +29,7 @@ SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "cajones", "
                "cock", "cocks", "junk", "package", "crown"}
 CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such talk as lines
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
-    "orgasm"}
+    "orgasm", "thanks for the quickie"}
 CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes these as God's name (an AI can
 #                         rule them sincere); CleanListen leaves them to its strict religion filter
 
@@ -42,7 +42,10 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 WAITING_ON_CLEANLISTEN = {
     "Back where you came from. Spics.", "Even a greaseball's got feelings.",
     "I'm gonna get that Polack.", "Mick! Wop!", "Says the Spic.", "Wop!", "You lyin' Spic!",
-    "greaseball's", "polack", "spic", "spics", "that Polack", "wop"}
+    "greaseball's", "polack", "spic", "spics", "that Polack", "wop",
+    # CleanView 1.18.34's "nympho" from 50 First Dates, 2026-11-08
+    "How's that hot wahini nympho from Ohio, huh?", "Oh, the nympho is the state bird of Ohio.",
+    "She was a nymphomaniac.", "nympho", "nymphomaniac"}
 
 
 def load_cleanlisten():

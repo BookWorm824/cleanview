@@ -129,6 +129,7 @@ MODERATE = [
     r"bellends?", r"feck(ing|in|er|ers)?", r"retard(s|ed|os?)?", r"retart(s|ed)?",
     r"tards?", r"libtards?",
     r"pussy", r"pussies", r"boners?", r"boobs", r"boobies", r"knockers", r"titty",
+    r"nymphos?", r"nymphomaniacs?",          # 50 First Dates (2026-11-08); not "nymph"
     r"nads", r"peckers?", r"peen", r"jizz", r"cum", r"horny", r"hookers?", r"hoochies?",
     r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
     r"skeez(e|y|ier)", r"skeevy", r"schlongs?", r"todgers?", r"dildos?", r"arsed", r"arses",

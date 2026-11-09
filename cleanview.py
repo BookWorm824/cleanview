@@ -503,6 +503,20 @@ def title_name(path):
 
 
 MISS_REMEMBER = "no matching subtitles were found online"
+# A remembered miss counts only for the same way of looking: older ones are looked up again
+# (1.18.34 looks movies up as movies: "50 First Dates" had been episode 50 of "First Dates").
+SUB_LOOKUP = "looked up as: movie or episode (1.18.34)"
+
+
+def remembered_miss(miss):
+    """Nothing was found online for this video lately, the same way of looking: don't ask
+    again yet (3 days)."""
+    try:
+        text = miss.read_text("utf8", "replace")
+        return (time.time() - miss.stat().st_mtime < 3 * 86400 and
+                text.startswith(MISS_REMEMBER) and SUB_LOOKUP in text)
+    except OSError:
+        return False
 
 
 def _load_subtitle_finder(log=print):
@@ -516,6 +530,27 @@ def _load_subtitle_finder(log=print):
         sys.modules.pop(k, None)      # half-loaded by an earlier failed try
     importlib.invalidate_caches()
     return None
+
+
+def sub_video(t, ext):
+    """What to look up online. A movie is looked up as a movie: left to the name parser,
+    "50 First Dates" was episode 50 of a show called "First Dates" and nothing was found
+    (Lauren, 2026-11-08), and "300" couldn't be read at all."""
+    import subliminal
+    if t[1] is not None:
+        return subliminal.Video.fromname(f"{t[0]}.S{t[1]:02d}E{t[2]:02d}{ext}")
+    try:
+        v = subliminal.Video.fromname(f"{t[0]}{ext}")
+        if isinstance(v, subliminal.Movie):       # read as a movie: its title and year
+            return v
+    except Exception:
+        pass
+    title, year = t[0], None
+    m = re.search(r"\s*[\(\[]\s*((?:19|20)\d\d)\s*[\)\]]\s*$", title)
+    if m and title[:m.start()].strip():
+        year, title = int(m.group(1)), title[:m.start()]
+    title = re.sub(r"\s*[\(\[].*?[\)\]]\s*", " ", title).strip() or t[0]
+    return subliminal.Movie(f"{t[0]}{ext}", title, year=year)
 
 
 def download_subtitles(path, workdir, log=print):
@@ -536,8 +571,10 @@ def download_subtitles(path, workdir, log=print):
     except Exception:
         pass
     ext = Path(path).suffix or ".mkv"
-    name = (f"{t[0]}.S{t[1]:02d}E{t[2]:02d}{ext}" if t[1] is not None else f"{t[0]}{ext}")
-    video = subliminal.Video.fromname(name)
+    try:
+        video = sub_video(t, ext)
+    except Exception as ex:
+        return None, f"couldn't tell what to look up ({str(ex)[:60]})"
     try:
         scanned = subliminal.scan_video(path)
         video.size = scanned.size
@@ -555,7 +592,44 @@ def download_subtitles(path, workdir, log=print):
         text = getattr(sub, "text", None)
         if text and "-->" in text:
             return text, _sub_where(sub)
+    if isinstance(video, subliminal.Movie) and re.search(r"\d", video.title or ""):
+        for text, why in other_subtitles(path, log, tries=1):    # "Fifty First Dates"
+            return text, why
     return None, "no matching subtitles were found online"
+
+
+_ONES = ("zero one two three four five six seven eight nine ten eleven twelve thirteen "
+         "fourteen fifteen sixteen seventeen eighteen nineteen").split()
+_TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _say_number(n, dash="-"):
+    if n < 20:
+        return _ONES[n]
+    if n < 100:
+        return _TENS[n // 10] + (dash + _ONES[n % 10] if n % 10 else "")
+    rest = n % 100
+    return _ONES[n // 100] + " hundred" + (" and " + _say_number(rest, dash) if rest else "")
+
+
+def number_titles(title):
+    """The title with its numbers spelled out, for the subtitle site: its search finds nothing
+    for "50 First Dates", "13 Going on 30" or "21 Jump Street", but finds "Fifty First Dates"
+    and "Thirteen Going on Thirty" (2026-11-08). Both ways of writing 21-99."""
+    out = []
+    for dash in ("-", " "):
+        alt = re.sub(r"\b\d{1,3}\b", lambda m: _say_number(int(m.group()), dash), title)
+        alt = " ".join(w[:1].upper() + w[1:] for w in alt.split(" "))
+        if alt != title and alt not in out:
+            out.append(alt)
+    return out
+
+
+def _same_title(name, title):
+    def key(s):
+        s = re.sub(r"\b\d{1,3}\b", lambda m: _say_number(int(m.group()), " "), str(s or ""))
+        return re.sub(r"[^a-z0-9]+", "", s.lower().replace("-", " "))
+    return bool(name) and key(name) == key(title)
 
 
 def _sub_where(sub):
@@ -592,11 +666,18 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
     t = guess_title(path)
     if not t:
         return
-    ext = Path(path).suffix or ".mkv"
-    video = subliminal.Video.fromname(f"{t[0]}.S{t[1]:02d}E{t[2]:02d}{ext}" if t[1] is not None
-                                      else f"{t[0]}{ext}")
     try:
+        video = sub_video(t, Path(path).suffix or ".mkv")
         subs = subliminal.list_subtitles({video}, {Language("eng")}).get(video) or []
+        if isinstance(video, subliminal.Movie) and not any(
+                _same_title(getattr(s, "movie_name", None), video.title) for s in subs):
+            for alt in number_titles(video.title or ""):        # "Fifty First Dates"
+                v2 = subliminal.Movie(video.name, alt, year=video.year)
+                found = [s for s in subliminal.list_subtitles({v2}, {Language("eng")}).get(v2) or []
+                         if _same_title(getattr(s, "movie_name", None), video.title)]
+                if found:
+                    subs = found + subs
+                    break
     except Exception as ex:
         log(f"other subtitles: {ex}")
         return
@@ -1211,6 +1292,8 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     "sexref": re.compile(r"\b((?<!your )(?<!our )(?<!her )(?<!his )(?<!fair )(?<!fairer )"
                          r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )(?<!my )(?<!marvelous )"
                          r"(?<!stronger )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
+                         # 50 First Dates (2026-11-08): walrus jokes, sharks biting
+                         r"penis(es)?|private parts|"
                          r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
@@ -2653,8 +2736,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         text, why = None, ""
         if dl.exists():
             text, why = dl.read_text("utf8", "replace"), (work / "downloaded.txt").read_text("utf8")
-        elif not (miss.exists() and time.time() - miss.stat().st_mtime < 3 * 86400
-                  and miss.read_text("utf8", "replace").startswith(MISS_REMEMBER)):
+        elif not remembered_miss(miss):
             say(at("end", 0.1), "Looking for subtitles online…")
             try:
                 text, why = download_subtitles(path, work, log)
@@ -2664,11 +2746,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 dl.write_text(text, encoding="utf8")
                 (work / "downloaded.txt").write_text(why, encoding="utf8")
             elif why.startswith(MISS_REMEMBER):   # only remember "none online", never an error
-                miss.write_text(why, encoding="utf8")
+                miss.write_text(why + "\n" + SUB_LOOKUP, encoding="utf8")
             elif miss.exists():
                 miss.unlink()
         else:
-            why = miss.read_text("utf8", "replace")
+            why = miss.read_text("utf8", "replace").splitlines()[0]
         if text:
             tried = work / "other_subtitles_tried.txt"     # once per video, not every run
             others = ()
