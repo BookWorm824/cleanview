@@ -317,6 +317,24 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- Dark scenes are brightened and checked, not skipped (1.18.50, 2026-11-09; the owner: "the
+  picture scanner skips dark frames, is that going to allow intimate scenes through?", then
+  "Yes, build and test"). In 148 saved reviews 42% of the intimate scenes cut were mostly
+  `too_dark`, and only Claude saw them. `_visual_scan_here` now stretches a too-dark frame's
+  levels (`ai.brighten`: 1st-99th percentile, at most `LIFT_MOST` 4x so noise isn't blown up)
+  and checks it when that shows something (contrast >= FLAT_STD); its number goes in
+  `pictures.json` `"lifted"` (lum stays the original). `nudity_scenes` and `clip_candidates
+  (lifted=)` count lifted frames; the scene is marked `"lifted"` and the AI helper gets its
+  stills brightened the same way (`grab_frames(lift=)`, ffmpeg `colorlevels`). Brightened
+  frames are noisier, so a dark nudity scene starts unticked ("not double-checked, so only cut
+  if you tick it", `DARK_UNCHECKED`) until the AI helper confirms it (`check_nudity`); dark
+  kiss/bed finds were already unticked unchecked. Black or featureless frames stay skipped.
+  `PICTURE_VERSION` 4, so older scans are done once more. Trial on 63 episodes with saved
+  answers: 18 of 22 dark intimate scenes caught (none before without Claude), 19 false alarms
+  (Claude listed nothing there; ~1 every 3 episodes). Scores on frames bright as they are are
+  identical; the scan takes longer in dark shows (The Resident S03E12, 22% dark: 211 -> 264 s;
+  Person of Interest "Til Death", 59% dark: 139 -> 274 s), and the AI helper has more to look
+  at (6 -> 9 and 0 -> 5 finds).
 - The listening and the sound check are faster with the same results (1.18.49, 2026-11-09;
   the owner: "lets do the audio now", then "Just 1 and 3"). `load_listeners` loads two
   speech recognizers (threads split) when `how_many_listeners`: this video has 6+ threads
@@ -556,6 +574,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_audio_speed.py`: two listeners give the same words in the same order and both take
   turns, progress stays in order, two only with 6+ threads and 3 GB free; the sound check
   starts before the listening (on its own when the words were heard before).
+- `test_dark_scenes.py`: a dim frame brightened to its full range (noise at most 4x, black
+  stays black); brightened nudity and picture-AI frames count, a dark nudity scene is unticked
+  until the AI helper confirms it (and bright ones ticked as before); a real scan of a bright,
+  dim and black video brightens the dim part only; the AI helper's stills are brightened too.
 - `test_scanner_speed.py`: "too dark" is what the scenes leave out; threads shared; a real
   scan of light-dark-light video skips the dark frames (scores 0, not in the picture AI's
   list), gives each picture-AI score to its own frame, matches one-frame-at-a-time nudity

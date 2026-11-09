@@ -1044,12 +1044,14 @@ SKIN = {"MALE_BREAST_EXPOSED": 0.45, "BELLY_EXPOSED": 0.45, "ARMPITS_EXPOSED": 0
 KEEP = list(NUDITY) + list(SKIN)
 
 
-PICTURE_VERSION = 3
+PICTURE_VERSION = 4          # 4: dark frames brightened and checked ("lifted")
 
 
 def too_dark(lum_row):
-    """A frame too dark or murky to judge (its rounded brightness and contrast, as kept in
-    pictures.json): nudity_scenes and clip_candidates leave these out."""
+    """A frame too dark or murky to judge as it is (its rounded brightness and contrast, as
+    kept in pictures.json). Since 1.18.50 such a frame is brightened (ai.brighten) and checked
+    when that shows something ("lifted"); nudity_scenes and clip_candidates leave out the
+    rest."""
     return lum_row[0] < DARK_MEAN or lum_row[1] < FLAT_STD
 
 
@@ -1092,7 +1094,7 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
            "-vf", f"fps={fps},scale={W}:{H},setsar=1,format=rgb24", "-f", "rawvideo", "-"]
     proc = cl.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     size, batch = W * H * 3, 8
-    out, lum, clip_at, failed = [], [], {}, []
+    out, lum, clip_at, failed, lifted = [], [], {}, [], []
     jobs = queue.Queue(maxsize=64)
     zero = [0.0] * len(cols)
 
@@ -1129,7 +1131,13 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
             g = frame.mean(axis=2)
             lum.append([round(float(g.mean()), 1), round(float(g.std()), 1)])
             out.append(zero)
-            if not too_dark(lum[n]):
+            usable = not too_dark(lum[n])
+            if not usable:               # too dark as it is: brightened, if that shows something
+                bright = ai.brighten(frame)
+                if bright.mean(axis=2).std() >= FLAT_STD:
+                    frame, usable = bright, True
+                    lifted.append(n)
+            if usable:
                 pending.append((n, frame))
                 if worker and n % 2 == 0:            # picture AI once a second
                     jobs.put((n, frame))
@@ -1158,6 +1166,7 @@ def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
     ct = sorted(clip_at)
     Path(out_json).write_text(json.dumps({
         "version": PICTURE_VERSION, "fps": fps, "classes": KEEP, "scores": out, "lum": lum,
+        "lifted": lifted,
         "clip": {"t": [round(fn / fps, 2) for fn in ct], "scores": [clip_at[fn] for fn in ct],
                  "sig": ai.clip_signature()} if clip is not None else None}))
 
@@ -1212,10 +1221,14 @@ def nudity_scenes(vis, start_off=0.0):
     skin_i = [cls.index(k) for k in SKIN]
     hits, strong, skin = [], {}, []
     lum = vis.get("lum") or []
+    lifted = set(vis.get("lifted") or ())
+    lifted_t = set()
     for n, row in enumerate(vis["scores"]):
         t = start_off + n / fps
-        if n < len(lum) and (lum[n][0] < DARK_MEAN or lum[n][1] < FLAT_STD):
-            continue   # too dark or murky: the checker guesses on frames like these
+        if n < len(lum) and too_dark(lum[n]) and n not in lifted:
+            continue   # too dark or murky even brightened: the checker guesses on these
+        if n in lifted:
+            lifted_t.add(t)
         best = max((row[i] / NUDITY[cls[i]], cls[i]) for i in nude_i)
         if best[0] >= 1.0:
             hits.append(t)
@@ -1228,10 +1241,19 @@ def nudity_scenes(vis, start_off=0.0):
         peak = max(strong[t] for t in run_)
         if len(run_) < 3 and peak < 0.85:
             continue
+        dark = bool(lifted_t & set(run_))
+        # brightened frames are noisier: 63 episodes gave about one false alarm every three,
+        # so a dark one is only ticked once the AI helper has looked (check_nudity)
         scenes.append({"s": max(0.0, run_[0] - 1.5), "e": run_[-1] + 1.5, "kind": ["Nudity"],
-                       "sure": peak >= 0.75 and len(run_) >= 4,
-                       "why": f"nudity seen in {len(run_)} picture checks (strongest {peak:.0%})"})
+                       "sure": peak >= 0.75 and len(run_) >= 4 and not dark,
+                       "why": f"nudity seen in {len(run_)} picture checks (strongest {peak:.0%})"
+                              + (DARK_UNCHECKED if dark else ""),
+                       "lifted": dark})
     return scenes, skin
+
+
+DARK_UNCHECKED = " in a dark scene, brightened (not double-checked, so only cut if you tick it)"
+DARK_CHECKED = " in a dark scene, brightened"
 
 
 def violence_scenes(snd, cues):
@@ -2508,7 +2530,7 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
 
 def nudity_checks(nude):
     """What the AI on this PC looks at for each nudity scene: 4 stills across it."""
-    return [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
+    return [{"cat": "nudity", "s": sc["s"], "e": sc["e"], "lifted": bool(sc.get("lifted")),
              "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
             for sc in nude]
 
@@ -2550,7 +2572,8 @@ def check_nudity(nude, o, look, notes, checks=None):
                                  why=f"implied nudity — {v.get('what', '')}"))
         elif v.get("level") == "shown":
             if o["nudity"]:
-                kept.append(dict(sc, sure=sure, why=f"{sc['why']} — {v.get('what', '')}"))
+                why = sc["why"].replace(DARK_UNCHECKED, DARK_CHECKED)
+                kept.append(dict(sc, sure=sure, why=f"{why} — {v.get('what', '')}"))
         else:
             n_none += 1
     if n_impl or n_none:
@@ -3145,7 +3168,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # what they told the chat to keep in mind: the AI helper follows it too (Jason, 2026-11-04)
     told = learn.notes(learned_key(path, o), title_name(path))
     if use_clip and vis and vis.get("clip"):
-        cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"])
+        cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"],
+                                   lifted=vis.get("lifted"))
     # the nudity found is looked at in the same go, while the picture model is loaded (the
     # owner, 2026-11-09: "it seems to spend a lot of time stuck on checking nudity", after
     # it was loaded again just for that, once the dialogue model had taken its place)
@@ -3166,7 +3190,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
             def look(progress, items=None):
                 ai.second_look(todo if items is None else items,
-                               lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
+                               lambda c: ai.grab_frames(ff, path, c["frames"], cl.run,
+                                                        lift=c.get("lifted")),
                                progress, cancel, notes=told)
             if together:                # while Claude reads the dialogue (see closer_looks)
                 look_job = in_background(look)
@@ -3315,7 +3340,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             say(at("end", 0.65), "Taking a closer look at the nudity found…")
             ff = cl._tool("ffmpeg")
             nude = check_nudity(nude, o, lambda checks: ai.second_look(
-                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
+                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run,
+                                                 lift=c.get("lifted")),
                 lambda f, n="": say(at("end", 0.65), "Taking a closer look at the nudity "
                                                      "found" + also(n)), cancel,
                 notes=told),
