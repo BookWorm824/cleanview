@@ -3276,6 +3276,14 @@ def write_srt(cues, dst):
                                    for n, c in enumerate(cues, 1)), encoding="utf8")
 
 
+# A 5.1 clean copy wouldn't play on Lauren's Roku through Jellyfin (2026-11-08: "Til Death",
+# Person of Interest; Chrome played it): the Roku can't play 5.1 AAC itself, so Jellyfin had to
+# convert it while streaming and the Roku kept quitting. Surround copies now have a stereo
+# track first (the default, which plays anywhere) and the surround one second.
+STEREO_RATE = "192k"
+SURROUND_NAME = {6: "5.1", 8: "7.1"}
+
+
 def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, encoders=None,
            lines=None, words=None, quiet=None):
     """Write the clean copy. cuts: list of {"s","e"} (default: scenes with cut=True).
@@ -3349,17 +3357,30 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         cmd += ["-i", str(src)]
         if srt and not careful:
             cmd += ["-i", str(srt)]
-        cmd += ["-map", f"0:{info['video']['index']}", "-map", f"0:{a['index']}",
-                "-disposition:v:0", "default", "-disposition:a:0", "default"]
+        ch = a["channels"]
+        surround = ch > 2
+        cmd += ["-map", f"0:{info['video']['index']}", "-map", f"0:{a['index']}"]
+        if surround:            # stereo first (plays anywhere), then the surround
+            cmd += ["-map", f"0:{a['index']}"]
+        cmd += ["-disposition:v:0", "default", "-disposition:a:0", "default"]
+        if surround:            # named for the player's sound menu (MP4 keeps "handler_name")
+            name = f"Surround {SURROUND_NAME.get(ch, f'{ch} channels')}"
+            cmd += ["-disposition:a:1", "0",
+                    "-metadata:s:a:0", "title=Stereo", "-metadata:s:a:0", "handler_name=Stereo",
+                    "-metadata:s:a:1", f"title={name}", "-metadata:s:a:1", f"handler_name={name}"]
         if careful:
             cmd += ["-max_muxing_queue_size", "9999"]
         elif srt:
             cmd += ["-map", "1:0", "-c:s", "mov_text" if mp4 else "srt",
                     "-metadata:s:s:0", "language=eng",
                     "-disposition:s:0", "0"]      # there if wanted, but off unless turned on
-        ch = a["channels"]
-        cmd += [fopt("a"), str(work / "afilter.txt"), "-c:a", "aac", "-b:a", abr,
-                "-ac", str(ch if ch in (1, 2, 6, 8) else 2)]
+        if surround:
+            cmd += [fopt("a"), str(work / "afilter.txt"), "-c:a", "aac",
+                    "-b:a:0", STEREO_RATE, "-ac:a:0", "2",
+                    "-b:a:1", abr, "-ac:a:1", str(ch if ch in (3, 4, 5, 6, 8) else 6)]
+        else:
+            cmd += [fopt("a"), str(work / "afilter.txt"), "-c:a", "aac", "-b:a", abr,
+                    "-ac", str(ch if ch in (1, 2) else 2)]
         if reencode:
             cmd += [fopt("v"), str(work / "vfilter.txt"), "-c:v", vname, *vargs, "-fps_mode", "vfr"]
         else:

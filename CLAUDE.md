@@ -272,6 +272,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "any excuse for you to pull that thing out", "ready to get his freak on", "she might put it
   on a brother". The local picture check found three real kisses (kissing set to "cut all")
   but, not double-checked, offered them unticked, and they stayed so.
+- Clean copies of surround videos play on a Roku (1.18.36, 2026-11-08): Lauren's "Til Death"
+  (Person of Interest) kept its 5.1 sound as 5.1 AAC, which her Roku can't play itself, so
+  Jellyfin converted it while streaming and the Roku kept quitting (Chrome played it; the
+  stereo "Critical" played fine). A copy of anything with more than 2 channels now has a
+  stereo AAC track first, the default (`STEREO_RATE`), then the surround one, not default,
+  named "Stereo" and "Surround 5.1" (`title` and, for MP4, `handler_name`). Both get the same
+  mutes and cuts. Copies saved before this keep their 5.1 only; cleaning again fixes them.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -396,6 +403,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_fifty_first_dates.py`: movies looked up as movies, numbers spelled out for the
   subtitle site, an older "none online" asked again, "nympho" and the lines built in.
 - `test_walk_to_remember.py`: its lines built in, its prayers left alone.
+- `test_stereo.py`: a 5.1 video's clean copy has stereo first (default) and the surround
+  second, both muted and cut, in MP4 and MKV; a stereo video keeps one track.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
