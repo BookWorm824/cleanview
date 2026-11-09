@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -544,9 +545,46 @@ def ensure_ai(progress=None):
 
 
 NUM_CTX = 8192     # the same everywhere, or Ollama loads the model again
+APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
+ANSWERS = APP_DATA / "ai_answers"
+KEEP_ANSWERS = 20000         # the newest this many are kept (a few MB: a season or two)
+_saves = [0]
+
+
+def _answer_key(payload):
+    """The same question to the same model: same words, pictures, answer form and settings."""
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf8")).hexdigest()[:32]
+
+
+def _saved_answer(key):
+    try:
+        return json.loads((ANSWERS / f"{key}.json").read_text("utf8"))["answer"]
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def _save_answer(key, answer):
+    try:
+        ANSWERS.mkdir(parents=True, exist_ok=True)
+        tmp = ANSWERS / f"{key}.{os.getpid()}.{threading.get_ident()}.tmp"
+        tmp.write_text(json.dumps({"answer": answer}), encoding="utf8")
+        os.replace(tmp, ANSWERS / f"{key}.json")
+        _saves[0] += 1
+        if _saves[0] % 200 == 1:             # now and then: keep the newest
+            old = sorted(ANSWERS.glob("*.json"), key=lambda f: f.stat().st_mtime)
+            for f in old[:-KEEP_ANSWERS]:
+                f.unlink()
+    except OSError:
+        pass
 
 
 def chat(prompt, images=None, schema=None, timeout=300, model=None):
+    """One question to the AI helper on this PC. The same question gets the same answer as
+    last time (kept in ai_answers): a stopped or cancelled run picks up where it left off
+    instead of asking everything again, and the same episode comes out the same each run
+    (the owner, 2026-11-09, after CleanRead did the same in CleanListen 1.17.15: "Yes, add
+    it"). Only an identical question counts: same model, words, stills, answer form and
+    settings. Answers that went wrong are never kept."""
     msg = {"role": "user", "content": prompt}
     if images:
         msg["images"] = images
@@ -555,6 +593,16 @@ def chat(prompt, images=None, schema=None, timeout=300, model=None):
                "options": {"temperature": 0, "num_ctx": NUM_CTX}}
     if schema:
         payload["format"] = schema
+    key = _answer_key(payload)
+    saved = _saved_answer(key)
+    if saved is not None:
+        return saved
+    answer = _chat_now(payload, model, timeout)
+    _save_answer(key, answer)
+    return answer
+
+
+def _chat_now(payload, model, timeout):
     if model.startswith("qwen3"):
         payload["think"] = False      # answer directly; much faster
     try:

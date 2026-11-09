@@ -317,6 +317,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- The AI helper's answers are kept (1.18.47, 2026-11-09; the owner, after CleanListen
+  1.17.15 did it for CleanRead: "Yes, add it"). `ai.chat` keys each question by its whole
+  Ollama payload (model, words, stills, answer form, settings) and keeps the answer in
+  `APP_DATA/ai_answers/<key>.json` (newest `KEEP_ANSWERS` = 20,000, pruned every 200
+  saves); `_chat_now` does the asking. A stopped or cancelled run picks up where it left
+  off, and the same episode gives the same closer looks and dialogue flags each run (weak
+  spot 3, for the local path; Claude/ChatGPT's answers were already kept in `answers`).
+  Errors and replies without JSON are never kept. On a spoken test video a second run took
+  18 s instead of 54 s with identical results.
 - Three checks run while other work goes on (1.18.46, 2026-11-09; the owner: "are there any
   other checks you can see that dont happen simultaneously?", then "yes do all 3. build it so
   that if a gpu isnt available it will still perform all of the double checks"):
@@ -515,6 +524,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_ai_answers.py`: the AI helper is asked once for the same question; other words,
+  model or stills ask again; errors and replies without JSON aren't kept; a stopped closer
+  look picks up where it left off; the dialogue reading comes out the same each run.
 - `test_at_the_same_time.py`: subtitles fetched (next to the video, downloaded and kept,
   "none online" remembered, off) and started before listening; the whole-picture look done
   early gives the same scenes as done later, stops between batches, starts once heard and
