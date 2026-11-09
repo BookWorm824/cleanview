@@ -317,6 +317,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- The nudity found is double-checked in the same go as the other scenes (1.18.45,
+  2026-11-09; the owner: "it seems to spend a lot of time stuck on 'checking nudity'. but
+  when it showed the results there wasnt any nudity"). The AI on this PC looked at the
+  nudity after reading the dialogue, so the picture model (qwen3-vl) was loaded again just
+  for a few false alarms. Now `nudity_checks(nudity_scenes(vis))` join the picture AI's
+  candidates in the first closer look (`todo`, also in the background while Claude reads),
+  and `check_nudity(..., look=None, checks=...)` uses their verdicts. Same model, stills
+  and question. Without the picture AI (no CLIP), the old separate check still runs.
 - Cancel goes back to the start page at once (1.18.44, 2026-11-09; the owner, in CleanRead:
   "it taking a while to actually cancel and go back to home screen", then "send this fix to
   clean view and read aloud alos"; CleanListen/CleanRead 1.17.12 do the same). Watching and
@@ -488,6 +496,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_nudity_once.py`: the nudity looked at with the other scenes gives the same scenes
+  and notes as looking later; it's in the first closer look (before the dialogue), not
+  looked at twice, and still checked on its own without the picture AI.
 - `test_cancel_at_once.py`: Cancel shows the start page before the work stops, late
   messages from cancelled work are dropped, new work waits for the old to stop, cancelled
   work never starts late, closing still stops a save, and a save cancelled partway leaves no

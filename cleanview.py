@@ -2322,15 +2322,24 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
     return scenes, note
 
 
-def check_nudity(nude, o, look, notes):
+def nudity_checks(nude):
+    """What the AI on this PC looks at for each nudity scene: 4 stills across it."""
+    return [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
+             "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
+            for sc in nude]
+
+
+def check_nudity(nude, o, look, notes, checks=None):
     """The AI on this PC takes a closer look at each nudity scene: really shown, only
     implied, or a false alarm. look(cands) runs the second look. Returns the scenes to
     keep, following the settings. (Its own list: up to 1.14.2 this reused the name of
-    analyze()'s picture-AI list, which crashed on "nudity" and lost the other finds.)"""
-    checks = [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
-               "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
-              for sc in nude]
-    look(checks)
+    analyze()'s picture-AI list, which crashed on "nudity" and lost the other finds.)
+    checks: already looked at, with the other scenes (nudity_checks(nude), each with its
+    "verdict"); look is then None."""
+    if checks is None:
+        checks = nudity_checks(nude)
+    if look is not None:
+        look(checks)
     kept, n_impl, n_none = [], 0, 0
     for sc, c in zip(nude, checks):
         v = c.get("verdict") or {}
@@ -2927,8 +2936,16 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     told = learn.notes(learned_key(path, o), title_name(path))
     if use_clip and vis and vis.get("clip"):
         cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"])
-        if local_look and cands:
-            todo = sorted(cands, key=lambda c: -c["peak"])[:150]
+    # the nudity found is looked at in the same go, while the picture model is loaded (the
+    # owner, 2026-11-09: "it seems to spend a lot of time stuck on checking nudity", after
+    # it was loaded again just for that, once the dialogue model had taken its place)
+    nude_first, nude_checks = [], []
+    if local_look and vis and (o["nudity"] or o["implied"]):
+        nude_first = nudity_scenes(vis)[0]
+        nude_checks = nudity_checks(nude_first)
+    if use_clip and vis and (vis.get("clip") or nude_checks):
+        if local_look and (cands or nude_checks):
+            todo = sorted(cands, key=lambda c: -c["peak"])[:150] + nude_checks
             ff = cl._tool("ffmpeg")
 
             def look(progress):
@@ -3052,7 +3069,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
     scenes = []
-    if (o["nudity"] or o["implied"]) and nude:
+    if nude_checks:                     # already looked at, with the other scenes
+        nude = check_nudity(nude_first, o, None, notes, checks=nude_checks)
+        scenes += nude
+    elif (o["nudity"] or o["implied"]) and nude:
         if have_ai:                     # the AI on this PC: really shown, or only implied?
             say(at("end", 0.65), "Taking a closer look at the nudity found…")
             ff = cl._tool("ffmpeg")
