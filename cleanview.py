@@ -1296,6 +1296,11 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"(?<!stronger )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
                          # 50 First Dates (2026-11-08): walrus jokes, sharks biting
                          r"penis(es)?|private parts|"
+                         # Lauren, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
+                         # not slavery: "the house of bondage", "freed from bondage"
+                         r"(?<!house of )(?<!from )(?<!in )(?<!sold into )(?<!taken into )(?<!led into )"
+                         r"(?<!out of )bondage(?! of\b)|"
+                         r"safe ?words?(?! (to|for) )|"
                          r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")

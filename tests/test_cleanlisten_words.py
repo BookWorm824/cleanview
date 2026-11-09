@@ -29,7 +29,8 @@ SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "cajones", "
                "cock", "cocks", "junk", "package", "crown"}
 CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such talk as lines
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
-    "orgasm", "thanks for the quickie", "penis", "penises", "private parts"}
+    "orgasm", "thanks for the quickie", "penis", "penises", "private parts",
+    "bondage", "safe word", "safe words", "safeword", "safewords"}
 CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes these as God's name (an AI can
 #                         rule them sincere); CleanListen leaves them to its strict religion filter
 

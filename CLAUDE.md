@@ -297,6 +297,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   left unticked as a title, so `name_in_subtitles` never takes "Hell" for a name, and the
   shared Castle note says so. Her unticks: a door ram as "gunshot-like bangs" and a "nudity"
   scene that was a dinner invitation (weak spot 2); "Anyone make you their bitch?" just the word.
+- "bondage" and "safe word" are sexual references (1.18.39, Lauren 2026-11-08, from Castle's
+  "Bondage. My safe word is 'apples.'"): `LINE_WORDS["sexref"]` (whole line, no AI needed), not
+  bondage as slavery ("house of bondage", "freed from bondage", "sold into bondage", "the
+  bondage of sin") or "a safe word to/for ...". CleanListen mutes them as words
+  (`CL_ONLY_SEXUAL`).
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -426,6 +431,7 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_i_love_lucy.py`: "<show> 1 - Ep. 1" names, and a lone "Valentine" as a name.
 - `test_castle_s1.py`: learned lines worded or split differently still muted, a harmless
   piece or a short everyday line not; "Hell" in a title.
+- `test_bondage.py`: "bondage" and "safe word" as sexual references, not slavery.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
