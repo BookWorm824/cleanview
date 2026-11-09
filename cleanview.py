@@ -466,7 +466,9 @@ def guess_title(path):
     m = (re.search(r"\b[Ss](\d{1,2})\s*[Ee](\d{1,3})\b", stem)
          or re.search(r"(?i)\b(?:season|series)\s*(\d{1,2})\W{0,3}(?:episode|ep)\.?\s*(\d{1,3})\b",
                       stem)
-         or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem))
+         or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem)
+         # "I Love Lucy 1 - Ep. 1" (Lauren, 2026-11-08: looked up as a movie of that name)
+         or re.search(r"(?i)(?<=[A-Za-z] )(\d{1,2})\s*-\s*(?:ep|episode)\W{0,3}(\d{1,3})\b", stem))
     show = ""
     if m:
         season, episode = int(m.group(1)), int(m.group(2))
@@ -1345,7 +1347,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"candles|blew out (the|your|my|his|her|their|all the|all your) "
                            r"candles|birthday candles?|candles on (the|your|my|his|her|a|that) "
                            r"(birthday )?cake)\b", re.I),
-    "valentine": re.compile(r"\b(valentines?|valentine's|cupid)\b", re.I),
+    # a lone "Valentine" is a name ("Let's get Valentine.", I Love Lucy, 2026-11-08); the day,
+    # cards and "be my valentine" still count
+    "valentine": re.compile(r"\b(valentines|valentine's|cupid|valentine(?= (day|cards?|party|"
+                            r"dance|gifts?|candy|chocolates?|hearts?)\b)|(?<=\bmy )valentine|"
+                            r"(?<=\ba )valentine|(?<=\byour )valentine|(?<=\bher )valentine|"
+                            r"(?<=\bhis )valentine|(?<=\bsecret )valentine)\b", re.I),
     "easter": re.compile(r"\b(easter|egg hunts?)\b(?! island)", re.I),
     "stpatricks": re.compile(r"\b((st|saint)\.? (patrick|paddy|patty)'?s( day)?|leprechauns?|"
                              r"pot of gold)\b(?! (cathedral|church|school|hospital))", re.I),

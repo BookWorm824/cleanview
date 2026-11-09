@@ -279,6 +279,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   stereo AAC track first, the default (`STEREO_RATE`), then the surround one, not default,
   named "Stereo" and "Surround 5.1" (`title` and, for MP4, `handler_name`). Both get the same
   mutes and cuts. Copies saved before this keep their 5.1 only; cleaning again fixes them.
+- Lauren's I Love Lucy report (1.18.37, 2026-11-08, teens, word lists only): "I Love Lucy 1 -
+  Ep. 1.m4v" is now season 1 episode 1 (`guess_title`: "<show> <season> - Ep. <n>"); it was
+  looked up as a movie of that name (subtitles 4% lined up) and learned under movies. Her
+  DVD's first episode is the unaired pilot, not the aired S01E01, so its online subtitles
+  still won't line up (and aren't used). "Let's get Valentine." was muted as Valentine's Day:
+  a lone "Valentine" is a name; `LINE_WORDS["valentine"]` wants valentines, valentine's,
+  cupid, "valentine day/card/party..." or "my/a/your/his/her/secret valentine".
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -405,6 +412,7 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_walk_to_remember.py`: its lines built in, its prayers left alone.
 - `test_stereo.py`: a 5.1 video's clean copy has stereo first (default) and the surround
   second, both muted and cut, in MP4 and MKV; a stereo video keeps one track.
+- `test_i_love_lucy.py`: "<show> 1 - Ep. 1" names, and a lone "Valentine" as a name.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
