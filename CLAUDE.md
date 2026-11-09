@@ -267,6 +267,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "nymph"); "penis" and "private parts" are in `LINE_WORDS["sexref"]`. Five of the film's
   jokes are taught (sexref). Her two unticked sound scenes ("heavy bangs" in a bar, "gunshot-
   like bangs" at the dock) were false alarms, kept for that file (weak spot 2).
+- Lauren's A Walk to Remember report (1.18.35, 2026-11-08, adults, word lists only): every
+  listed word muted (the "Damn Shame" song too), prayers and hymns left alone. Taught (sexref):
+  "any excuse for you to pull that thing out", "ready to get his freak on", "she might put it
+  on a brother". The local picture check found three real kisses (kissing set to "cut all")
+  but, not double-checked, offered them unticked, and they stayed so.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -390,6 +395,7 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_person_of_interest.py`: the Person of Interest lessons and the same-sex "wife" note.
 - `test_fifty_first_dates.py`: movies looked up as movies, numbers spelled out for the
   subtitle site, an older "none online" asked again, "nympho" and the lines built in.
+- `test_walk_to_remember.py`: its lines built in, its prayers left alone.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
