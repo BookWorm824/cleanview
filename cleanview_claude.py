@@ -1129,7 +1129,7 @@ def _heard(context, a, b):
     return f" ({said})" if said else ""
 
 
-def picture_review(sheets, wanted, per_request=12, progress=None, context=None):
+def picture_review(sheets, wanted, per_request=12, progress=None, context=None, cancel=None):
     """sheets: [(path, start_seconds)], each 20 stills 2 s apart (5 across, 4 down).
     wanted: plain text of what to look for. context(t0, t1): what's said and heard then.
     Returns [{"s","e","what","who","level","why"}]."""
@@ -1146,6 +1146,8 @@ def picture_review(sheets, wanted, per_request=12, progress=None, context=None):
     out = []
     batches = [sheets[a:a + per_request] for a in range(0, len(sheets), per_request)]
     for b, batch in enumerate(batches):
+        if cancel and cancel():
+            raise KeyboardInterrupt
         a = b * per_request
         counted(progress, b / len(batches), a * 20 + 1, (a + len(batch)) * 20, len(sheets) * 20,
                 "stills")

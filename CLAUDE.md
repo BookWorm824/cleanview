@@ -317,6 +317,25 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- Three checks run while other work goes on (1.18.46, 2026-11-09; the owner: "are there any
+  other checks you can see that dont happen simultaneously?", then "yes do all 3. build it so
+  that if a gpu isnt available it will still perform all of the double checks"):
+  1. `fetch_subtitles` (the .srt/text track, else downloaded before, else a download unless
+     none were online last time) starts in the background at the top of analyze() and is
+     waited for at "Finding language…". Syncing to what was heard is unchanged.
+  2. Claude/ChatGPT's look through the whole picture (`whole_picture`: contact sheets +
+     `cc.picture_review`, which now stops between batches on cancel) starts in the
+     background once what was heard and the subtitles are in (copies of both), and
+     `look_at_picture(..., finds=...)` uses it; returns (finds, stills seen) for the note.
+  3. Local only (no cloud reading): when `ai.on_graphics_card()` (loads the picture model
+     at `NUM_CTX` like chat(), then /api/ps: `size_vram >= GPU_MOST` (0.5) of `size`; an
+     8 GB RTX 5070 holds ~76% of qwen3-vl:8b), voices are told apart in the background
+     during the closer look. No graphics card or not knowing: one after the other as before.
+  Every closer look that ran alongside something (this one, and the one in the background
+  while Claude reads) ends with `recheck_failed`: scenes whose check failed (a time limit)
+  are looked at again on their own, so every double-check is still done. Checked on this
+  PC with a spoken test video: old and new code gave identical scenes, lines, mutes, notes
+  and dialogue, local and with a stand-in for Claude.
 - The nudity found is double-checked in the same go as the other scenes (1.18.45,
   2026-11-09; the owner: "it seems to spend a lot of time stuck on 'checking nudity'. but
   when it showed the results there wasnt any nudity"). The AI on this PC looked at the
@@ -496,6 +515,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_at_the_same_time.py`: subtitles fetched (next to the video, downloaded and kept,
+  "none online" remembered, off) and started before listening; the whole-picture look done
+  early gives the same scenes as done later, stops between batches, starts once heard and
+  subtitles are in; "most of the picture model on the graphics card" (and not: none, a
+  little, not knowing); scenes that couldn't be checked meanwhile are looked at again.
 - `test_nudity_once.py`: the nudity looked at with the other scenes gives the same scenes
   and notes as looking later; it's in the first closer look (before the dialogue), not
   looked at twice, and still checked on its own without the picture AI.

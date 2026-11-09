@@ -415,6 +415,37 @@ def parse_srt(text):
     return cues
 
 
+def fetch_subtitles(path, info, work, o, log=print):
+    """The subtitles: a matching .srt or a text track (find_subtitles), else (if "find
+    subtitles online" is on) ones downloaded before, or a download now unless none were online
+    last time. Needs only the file, so analyze() runs it while it listens (1.18.46).
+    Returns (cues, note, downloaded_text, why)."""
+    work = Path(work)
+    cues, sub_note = find_subtitles(path, info, work)
+    text, why = None, ""
+    if cues or not o.get("autosubs"):
+        return cues, sub_note, text, why
+    dl = work / "downloaded.srt"
+    miss = work / "no_subtitles_online.txt"
+    if dl.exists():
+        text, why = dl.read_text("utf8", "replace"), (work / "downloaded.txt").read_text("utf8")
+    elif not remembered_miss(miss):
+        try:
+            text, why = download_subtitles(path, work, log)
+        except Exception as ex:
+            text, why = None, f"the subtitle finder ran into a problem ({str(ex)[:60]})"
+        if text:
+            dl.write_text(text, encoding="utf8")
+            (work / "downloaded.txt").write_text(why, encoding="utf8")
+        elif why.startswith(MISS_REMEMBER):   # only remember "none online", never an error
+            miss.write_text(why + "\n" + SUB_LOOKUP, encoding="utf8")
+        elif miss.exists():
+            miss.unlink()
+    else:
+        why = miss.read_text("utf8", "replace").splitlines()[0]
+    return cues, sub_note, text, why
+
+
 def find_subtitles(path, info, workdir):
     """Best English subtitles: a matching .srt next to the video, else a text
     track inside it. Returns (cues, description) or ([], "")."""
@@ -2164,28 +2195,52 @@ def heard_between(asr, cues, a, b, limit=240):
     return out
 
 
-def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None, cues=None):
-    """Claude/ChatGPT checks the picture: confirms or rules out each scene the
-    picture/sound checks found, and adds what they missed. Returns (scenes, note)."""
-    say = progress or (lambda f, m: None)
+def pictures_wanted(path, o):
+    """What Claude/ChatGPT looks for in the picture, with what they told the chat ("a couple
+    only sitting in bed talking isn't a sex scene"). "" when nothing picture-related is on."""
     o = full_opts(o)
     wanted = picture_wanted(o)
-    if not wanted:
-        return scenes, "Nothing picture-related was chosen, so the picture wasn't looked at."
-    # what they told the chat ("a couple only sitting in bed talking isn't a sex scene")
-    wanted += cc.told(learn.notes(learned_key(path, o), title_name(path)))
+    return wanted + cc.told(learn.notes(learned_key(path, o), title_name(path))) if wanted else ""
+
+
+def whole_picture(path, work, dur, o, asr, cues, progress=None, cancel=None):
+    """Claude/ChatGPT looks through stills of the whole video (one every 2 s) for what's
+    wanted, with what's said and heard around each as context. Needs only the video, what was
+    heard and the subtitles, so it can run while the PC does its own checks (1.18.46).
+    Returns (its finds, each with the label it counts as; how many stills it saw)."""
+    say = progress or (lambda f, m: None)
+    o = full_opts(o)
+    wanted = pictures_wanted(path, o)
     say(0.02, "is taking stills of the whole video")
     sheets = make_sheets(path, work, dur)
     if cancel and cancel():
         raise KeyboardInterrupt
+
     def heard(a, b):
         return heard_between(asr, cues, a, b)
     finds = cc.picture_review(sheets, wanted,
                               progress=lambda f, n="": say(0.05 + 0.6 * f, "is looking through "
                                                            "the whole picture" + also(n)),
-                              context=heard)
+                              context=heard, cancel=cancel)
     finds = [dict(f, label=_pic_wanted(f, o)) for f in finds]
-    finds = [f for f in finds if f["label"]]
+    return [f for f in finds if f["label"]], len(sheets) * 20
+
+
+def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None, cues=None,
+                    finds=None):
+    """Claude/ChatGPT checks the picture: confirms or rules out each scene the
+    picture/sound checks found, and adds what they missed. Returns (scenes, note).
+    finds: its look through the whole picture, when that was done already (what
+    whole_picture returned)."""
+    say = progress or (lambda f, m: None)
+    o = full_opts(o)
+    wanted = pictures_wanted(path, o)
+    if not wanted:
+        return scenes, "Nothing picture-related was chosen, so the picture wasn't looked at."
+    finds, n_stills = finds if finds is not None else         whole_picture(path, work, dur, o, asr, cues, say, cancel)
+
+    def heard(a, b):
+        return heard_between(asr, cues, a, b)
     used = set()
     confirmed = 0
     for sc in scenes:
@@ -2315,7 +2370,7 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
             if sc.get("cut", True):
                 snap_to_shots(path, sc, dur=dur)
     who = cc.name()
-    note = (f"{who} looked through the whole picture ({len(sheets) * 20} stills): it confirmed "
+    note = (f"{who} looked through the whole picture ({n_stills} stills): it confirmed "
             f"{confirmed} scene(s), ruled out {ruled_out} false alarm(s) and found {len(new)} "
             f"the other checks missed" + (f", and set where {widened} cut(s) start and end "
                                           f"(just the part with the problem)" if widened else "") + ".")
@@ -2327,6 +2382,18 @@ def nudity_checks(nude):
     return [{"cat": "nudity", "s": sc["s"], "e": sc["e"],
              "frames": [sc["s"] + (sc["e"] - sc["s"]) * (k + 1) / 5 for k in range(4)]}
             for sc in nude]
+
+
+def recheck_failed(cands, look):
+    """Scenes the AI on this PC couldn't check while other work ran at the same time (a time
+    limit, on a PC without a graphics card) are looked at again, now on their own, so every
+    double-check is still done. Returns how many."""
+    redo = [c for c in cands if (c.get("verdict") or {}).get("error") not in (None, "no frames")]
+    for c in redo:
+        c.pop("verdict", None)
+    if redo:
+        look(redo)
+    return len(redo)
 
 
 def check_nudity(nude, o, look, notes, checks=None):
@@ -2761,6 +2828,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         b, w = base[step]
         return b + w * max(0.0, min(1.0, frac))
 
+    # subtitles are looked for online while it listens: finding them needs only the file name
+    subs = {}
+
+    def get_subs(progress):
+        subs["found"] = fetch_subtitles(path, info, work, o, log)
+    subs_job = in_background(get_subs)
+
     tfile = work / "transcript.json"
     if tfile.exists():
         asr = json.loads(tfile.read_text())
@@ -2822,28 +2896,12 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                      "weren't checked by sight.")
 
     say(at("end", 0), "Finding language…")
-    cues, sub_note = find_subtitles(path, info, work)
+    if subs_job["thread"].is_alive():
+        say(at("end", 0.1), "Looking for subtitles online…")
+    wait_for(subs_job, None, cancel)
+    cues, sub_note, text, why = subs["found"]
+    dl = work / "downloaded.srt"
     if not cues and o.get("autosubs") and asr:
-        dl = work / "downloaded.srt"
-        miss = work / "no_subtitles_online.txt"
-        text, why = None, ""
-        if dl.exists():
-            text, why = dl.read_text("utf8", "replace"), (work / "downloaded.txt").read_text("utf8")
-        elif not remembered_miss(miss):
-            say(at("end", 0.1), "Looking for subtitles online…")
-            try:
-                text, why = download_subtitles(path, work, log)
-            except Exception as ex:
-                text, why = None, f"the subtitle finder ran into a problem ({str(ex)[:60]})"
-            if text:
-                dl.write_text(text, encoding="utf8")
-                (work / "downloaded.txt").write_text(why, encoding="utf8")
-            elif why.startswith(MISS_REMEMBER):   # only remember "none online", never an error
-                miss.write_text(why + "\n" + SUB_LOOKUP, encoding="utf8")
-            elif miss.exists():
-                miss.unlink()
-        else:
-            why = miss.read_text("utf8", "replace").splitlines()[0]
         if text:
             tried = work / "other_subtitles_tried.txt"     # once per video, not every run
             others = ()
@@ -2929,6 +2987,18 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         m["s"], m["e"] = cl.snap_edges(path, m["s"], m["e"], wide=m["src"] != "audio",
                                        audio=info["audio"])
 
+    # Claude/ChatGPT looks through the whole picture meanwhile (1.18.46): it needs only the
+    # video, what was heard and the subtitles, all in now; same stills, context and question
+    pics, pics_job = {}, None
+    if o.get("reader") in CLOUD and o.get("look", True) and dur > 5 and pictures_wanted(path, o):
+        cc.use(o["reader"])
+        heard_now, cues_now = json.loads(json.dumps(asr)), json.loads(json.dumps(cues))
+
+        def look_through(progress):
+            pics["finds"] = whole_picture(path, work, dur, o, heard_now, cues_now,
+                                          lambda f, m: progress(f, m), cancel)
+        pics_job = in_background(look_through)
+
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
     look_job = None
@@ -2943,23 +3013,52 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if local_look and vis and (o["nudity"] or o["implied"]):
         nude_first = nudity_scenes(vis)[0]
         nude_checks = nudity_checks(nude_first)
+    # dialogue: sexual references, sleeping around, relationship talk
+    lines = ai.dialogue_lines(cues, asr, spoken_words)
+    use_claude = o.get("reader") in CLOUD and bool(nd["lines"]) and bool(lines)
+    voices_wanted = bool((have_ai or use_claude) and nd["lines"] and lines)
+    voices, voices_job = {}, None
+    todo = []
     if use_clip and vis and (vis.get("clip") or nude_checks):
         if local_look and (cands or nude_checks):
             todo = sorted(cands, key=lambda c: -c["peak"])[:150] + nude_checks
             ff = cl._tool("ffmpeg")
 
-            def look(progress):
-                ai.second_look(todo, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
+            def look(progress, items=None):
+                ai.second_look(todo if items is None else items,
+                               lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
                                progress, cancel, notes=told)
             if together:                # while Claude reads the dialogue (see closer_looks)
                 look_job = in_background(look)
             else:
                 say(at("look", 0), "Taking a closer look at the scenes found…")
+                if voices_wanted and ai.on_graphics_card():
+                    # the picture model is on the graphics card: voices are told apart on the
+                    # processor meanwhile (without one, one after the other, as before)
+                    def tell_voices(progress):
+                        voices["found"] = find_voices(path, info, work, lines, cancel)
+                    voices_job = in_background(tell_voices)
                 look(lambda f, n="": say(at("look", f), "Taking a closer look at the scenes "
                                                         f"found{also(n)} · {eta(at('look', f))}"))
+                if voices_job is not None:
+                    n_redo = recheck_failed(todo, lambda redo: look(
+                        lambda f, n="": say(at("look", 1), "Taking another look at scenes that "
+                                                           f"couldn't be checked{also(n)}"), redo))
+                    if n_redo:
+                        log(f"looked again at {n_redo} scene(s) that couldn't be checked")
 
-    # dialogue: sexual references, sleeping around, relationship talk
-    lines = ai.dialogue_lines(cues, asr, spoken_words)
+    def finish_look():
+        """The closer look taken in the background: wait for it, then look again at any scene
+        that couldn't be checked while other work ran (every double-check is still done)."""
+        wait_for(look_job, lambda f, n="": say(at("look", f), "Finishing the closer look at "
+                                                              f"the scenes found{also(n)} · "
+                                                              f"{eta(at('look', f))}"),
+                 cancel)
+        n_redo = recheck_failed(todo, lambda redo: look(
+            lambda f, n="": say(at("look", 1), "Taking another look at scenes that couldn't "
+                                               f"be checked{also(n)}"), redo))
+        if n_redo:
+            log(f"looked again at {n_redo} scene(s) that couldn't be checked")
     filled = [l for l in lines if l.get("heard")]
     if cues and filled:
         notes.append(f"The subtitles leave out some of the talking (from "
@@ -2971,11 +3070,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
     who = cc.name()
-    use_claude = o.get("reader") in CLOUD and bool(nd["lines"]) and bool(lines)
-    if (have_ai or use_claude) and nd["lines"] and lines:
+    if voices_wanted:
         say(at("lines", 0), "Telling voices apart…")
         try:
-            genders = find_voices(path, info, work, lines, cancel)
+            if voices_job is not None:  # told apart during the closer look
+                wait_for(voices_job, None, cancel)
+                genders = voices["found"]
+            else:
+                genders = find_voices(path, info, work, lines, cancel)
             # a name from the subtitles ("DEREK: ...") names that voice's other lines too
             named = {}
             for l, g in zip(lines, genders):
@@ -3018,10 +3120,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if look_job and have_ai and (claude_found is None or unread):
         # the AI on this PC reads it instead: let it finish its closer look at the picture
         # first, so the two never share the graphics card
-        wait_for(look_job, lambda f, n="": say(at("look", f), "Finishing the closer look at "
-                                                              f"the scenes found{also(n)} · "
-                                                              f"{eta(at('look', f))}"),
-                 cancel)
+        finish_look()
+        look_job = None
     line_mutes, line_how = find_lines(
         lines, o, have_ai and (claude_found is None or bool(unread)),
         lambda f, n="": say(at("lines", 0.6 * f),
@@ -3062,10 +3162,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         used.append("AI helper")
     notes.insert(0, "Checked with: " + ", ".join(used) + ".")
     if look_job:                        # the closer look taken while Claude read the dialogue
-        wait_for(look_job, lambda f, n="": say(at("look", f), "Finishing the closer look at "
-                                                              f"the scenes found{also(n)} · "
-                                                              f"{eta(at('look', f))}"),
-                 cancel)
+        finish_look()
+        look_job = None
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
     scenes = []
@@ -3108,10 +3206,16 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if o.get("reader") in CLOUD and o.get("look", True) and dur > 5:
         say(at("pics", 0), f"{who} is looking through the whole picture…")
         try:
+            finds = None
+            if pics_job is not None:    # started earlier, while the PC did its own checks
+                wait_for(pics_job, lambda f, n="": say(
+                    at("pics", f), f"{who} {n or 'is looking through the whole picture'} · "
+                                   f"{eta(at('pics', f))}"), cancel)
+                finds = pics.get("finds")
             scenes, pic_note = look_at_picture(
                 path, work, dur, scenes, o, asr,
                 lambda f, m: say(at("pics", f), f"{who} {m} · {eta(at('pics', f))}"), cancel,
-                cues=cues)
+                cues=cues, finds=finds)
             notes.append(pic_note)
         except cc.ClaudeError as ex:
             notes.append(f"{who} couldn't look at the picture this time: {ex}")

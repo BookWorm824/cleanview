@@ -165,8 +165,9 @@ class SexScenesByContext(unittest.TestCase):
 
     def test_picture_checks_follow_the_lessons(self):
         import inspect
-        src = inspect.getsource(engine.look_at_picture)
-        self.assertIn("learn.notes(learned_key(path, o)", src)
+        self.assertIn("wanted = pictures_wanted(path, o)", inspect.getsource(engine.look_at_picture))
+        self.assertIn("wanted = pictures_wanted(path, o)", inspect.getsource(engine.whole_picture))
+        self.assertIn("learn.notes(learned_key(path, o)", inspect.getsource(engine.pictures_wanted))
         self.assertEqual(engine.learned_key(r"D:\Movies\Aladdin (1992).mkv", {"profile": "kids"}),
                          "_movies@kids")
 

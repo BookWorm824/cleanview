@@ -378,6 +378,30 @@ def free_memory():
         pass
 
 
+GPU_MOST = 0.5     # of the picture model on the graphics card (an 8 GB card holds ~76%)
+
+
+def on_graphics_card(model=None):
+    """True when Ollama has most of the picture model on the graphics card, so other work on
+    the processor (telling voices apart) can run meanwhile. Loads the model to see, the same
+    way chat() uses it (it's about to be used). No graphics card, or not knowing: False, and
+    things run one after another as before (the owner, 2026-11-09: "if a gpu isnt available
+    it will still perform all of the double checks"). A check that fails meanwhile is done
+    again afterwards (cleanview.recheck_failed)."""
+    model = model or VISION_MODEL
+    try:
+        _api("/api/generate", {"model": model, "options": {"num_ctx": NUM_CTX}},
+             timeout=600).close()
+        with _api("/api/ps", timeout=5) as r:
+            for m in json.load(r).get("models", []):
+                if model in (m.get("name"), m.get("model")):
+                    size, vram = m.get("size") or 0, m.get("size_vram") or 0
+                    return size > 0 and vram >= GPU_MOST * size
+    except Exception:
+        pass
+    return False
+
+
 def ollama_running():
     try:
         with _api("/api/tags", timeout=3) as r:
@@ -519,13 +543,16 @@ def ensure_ai(progress=None):
     choose_models()
 
 
+NUM_CTX = 8192     # the same everywhere, or Ollama loads the model again
+
+
 def chat(prompt, images=None, schema=None, timeout=300, model=None):
     msg = {"role": "user", "content": prompt}
     if images:
         msg["images"] = images
     model = model or (VISION_MODEL if images else TEXT_MODEL)
     payload = {"model": model, "messages": [msg], "stream": False,
-               "options": {"temperature": 0, "num_ctx": 8192}}
+               "options": {"temperature": 0, "num_ctx": NUM_CTX}}
     if schema:
         payload["format"] = schema
     if model.startswith("qwen3"):

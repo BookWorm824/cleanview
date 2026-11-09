@@ -53,7 +53,7 @@ class InTheSameGo(unittest.TestCase):
         self.assertIn('todo = sorted(cands, key=lambda c: -c["peak"])[:150] + nude_checks',
                       self.src)
         # looked at before the dialogue is read
-        self.assertLess(self.src.index("+ nude_checks"), self.src.index("ai.dialogue_lines("))
+        self.assertLess(self.src.index("+ nude_checks"), self.src.index("find_lines("))
 
     def test_not_looked_at_twice(self):
         i = self.src.index("if nude_checks:")
