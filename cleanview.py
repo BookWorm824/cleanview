@@ -2093,8 +2093,8 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
                 steps[sc["id"]] = (a, step)
         if not items:
             break
-        got = cc.scene_bounds(items, progress=lambda f: say(
-            (rnd + f) / 2, "is checking where each scene starts and ends"))
+        got = cc.scene_bounds(items, progress=lambda f, n="": say(
+            (rnd + f) / 2, "is checking where each scene starts and ends" + also(n)))
         windows = {}
         for sc in todo:
             if sc["id"] not in got or sc["id"] not in steps or got[sc["id"]] is None:
@@ -2181,8 +2181,9 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
     def heard(a, b):
         return heard_between(asr, cues, a, b)
     finds = cc.picture_review(sheets, wanted,
-                              progress=lambda f: say(0.05 + 0.6 * f, "is looking through the "
-                                                     "whole picture"), context=heard)
+                              progress=lambda f, n="": say(0.05 + 0.6 * f, "is looking through "
+                                                           "the whole picture" + also(n)),
+                              context=heard)
     finds = [dict(f, label=_pic_wanted(f, o)) for f in finds]
     finds = [f for f in finds if f["label"]]
     used = set()
@@ -2219,8 +2220,8 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
                           sc.get("why", "") + (f"; {ctx}" if ctx else ""), p))
     ruled_out = 0
     if items:
-        verdicts = cc.verify_scenes(items, wanted, progress=lambda f: say(
-            0.7 + 0.2 * f, "is taking a closer look at each scene found"))
+        verdicts = cc.verify_scenes(items, wanted, progress=lambda f, n="": say(
+            0.7 + 0.2 * f, "is taking a closer look at each scene found" + also(n)))
         for sc in todo:
             v = verdicts.get(sc["id"])
             if not v:
@@ -2368,11 +2369,11 @@ def closer_looks(o, have_ai, use_clip):
 def in_background(work):
     """Run work(progress) in a thread. Returns a dict that keeps how far it got ("frac"),
     the thread, and anything it raised ("error"), for wait_for()."""
-    job = {"frac": 0.0}
+    job = {"frac": 0.0, "count": ""}
 
     def run():
         try:
-            work(lambda f: job.__setitem__("frac", f))
+            work(lambda f, n="": job.update(frac=f, count=n))
         except BaseException as ex:     # stopping (KeyboardInterrupt) too: raised in wait_for
             job["error"] = ex
     job["thread"] = threading.Thread(target=run, daemon=True)
@@ -2380,13 +2381,22 @@ def in_background(work):
     return job
 
 
+def also(n):
+    """" · 3 of 40" for the line under the progress bar, when a step said how far it got."""
+    return f" \u00b7 {n}" if n else ""
+
+
 def wait_for(job, waiting=None, cancel=None):
-    """Wait for an in_background() job, calling waiting(frac) about once a second."""
+    """Wait for an in_background() job, calling waiting(frac) about once a second
+    (waiting(frac, "3 of 40") once the job says how many it's done)."""
     while job["thread"].is_alive():
         if cancel and cancel():
             raise KeyboardInterrupt
         if waiting:
-            waiting(job["frac"])
+            if job.get("count"):
+                waiting(job["frac"], job["count"])
+            else:
+                waiting(job["frac"])
         job["thread"].join(1.0)
     if "error" in job:
         raise job["error"]
@@ -2928,8 +2938,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 look_job = in_background(look)
             else:
                 say(at("look", 0), "Taking a closer look at the scenes found…")
-                look(lambda f: say(at("look", f), f"Taking a closer look at the scenes found · "
-                                                  f"{eta(at('look', f))}"))
+                look(lambda f, n="": say(at("look", f), "Taking a closer look at the scenes "
+                                                        f"found{also(n)} · {eta(at('look', f))}"))
 
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
@@ -2991,12 +3001,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if look_job and have_ai and (claude_found is None or unread):
         # the AI on this PC reads it instead: let it finish its closer look at the picture
         # first, so the two never share the graphics card
-        wait_for(look_job, lambda f: say(at("look", f), "Finishing the closer look at the "
-                                                        f"scenes found · {eta(at('look', f))}"),
+        wait_for(look_job, lambda f, n="": say(at("look", f), "Finishing the closer look at "
+                                                              f"the scenes found{also(n)} · "
+                                                              f"{eta(at('look', f))}"),
                  cancel)
     line_mutes, line_how = find_lines(
         lines, o, have_ai and (claude_found is None or bool(unread)),
-        lambda f: say(at("lines", 0.6 * f), f"Reading the dialogue · {eta(at('lines', 0.6 * f))}"),
+        lambda f, n="": say(at("lines", 0.6 * f),
+                            f"Reading the dialogue{also(n)} · {eta(at('lines', 0.6 * f))}"),
         cancel, genders, claude_found, examples, unread)
     flirts = []
     for c in claude_scenes:
@@ -3006,8 +3018,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if have_ai and o["samesex"] and lines and claude_found is None:
         flirts = ai.romance_scenes(
             lines, genders,
-            lambda f: say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation · "
-                                                     f"{eta(at('lines', 0.6 + 0.4 * f))}"), cancel,
+            lambda f, n="": say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation{also(n)}"
+                                                           f" · {eta(at('lines', 0.6 + 0.4 * f))}"),
+            cancel,
             notes=told)
     if nd["lines"] and line_how == "word lists":
         # no AI read it (Enchanted): say plainly that most dialogue filters barely ran
@@ -3032,8 +3045,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         used.append("AI helper")
     notes.insert(0, "Checked with: " + ", ".join(used) + ".")
     if look_job:                        # the closer look taken while Claude read the dialogue
-        wait_for(look_job, lambda f: say(at("look", f), "Finishing the closer look at the "
-                                                        f"scenes found · {eta(at('look', f))}"),
+        wait_for(look_job, lambda f, n="": say(at("look", f), "Finishing the closer look at "
+                                                              f"the scenes found{also(n)} · "
+                                                              f"{eta(at('look', f))}"),
                  cancel)
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
@@ -3043,7 +3057,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             say(at("end", 0.65), "Taking a closer look at the nudity found…")
             ff = cl._tool("ffmpeg")
             nude = check_nudity(nude, o, lambda checks: ai.second_look(
-                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run), None, cancel,
+                checks, lambda c: ai.grab_frames(ff, path, c["frames"], cl.run),
+                lambda f, n="": say(at("end", 0.65), "Taking a closer look at the nudity "
+                                                     "found" + also(n)), cancel,
                 notes=told),
                 notes)
         elif not o["nudity"]:

@@ -29,6 +29,19 @@ class ClaudeError(Exception):
     pass
 
 
+def counted(progress, f, a, z, total, what=""):
+    """progress(f) as always, and progress(f, "21\u201340 of 95") when it takes the count, for
+    the line under the progress bar (the owner, 2026-11-09, after a step sat unchanged for a
+    long time in CleanRead: "is it frozen?"; CleanListen/CleanRead 1.17.10 do the same)."""
+    if not progress:
+        return
+    n = f"{a:,} of {total:,}" if a >= z else f"{a:,}\u2013{z:,} of {total:,}"
+    try:
+        progress(f, f"{what} {n}" if what else n)
+    except TypeError:
+        progress(f)
+
+
 import cleanview_accounts as accounts  # noqa: E402
 import cleanview_gpt as gpt  # noqa: E402
 import cleanview_gemini as gem  # noqa: E402
@@ -1133,8 +1146,9 @@ def picture_review(sheets, wanted, per_request=12, progress=None, context=None):
     out = []
     batches = [sheets[a:a + per_request] for a in range(0, len(sheets), per_request)]
     for b, batch in enumerate(batches):
-        if progress:
-            progress(b / len(batches))
+        a = b * per_request
+        counted(progress, b / len(batches), a * 20 + 1, (a + len(batch)) * 20, len(sheets) * 20,
+                "stills")
         imgs = [(f"Sheet {k + 1} ({_t(t0)} to {_t(t0 + 40)}):" + _heard(context, t0, t0 + 40), p)
                 for k, (p, t0) in enumerate(batch)]
         prompt = (
@@ -1173,8 +1187,8 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
     out = {}
     batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
     for b, batch in enumerate(batches):
-        if progress:
-            progress(b / len(batches))
+        a = b * per_request
+        counted(progress, b / len(batches), a + 1, a + len(batch), len(items))
         imgs = [(f"Scene {k + 1}: flagged by the automatic checker as {kind} ({why}). 6 stills:",
                  p) for k, (_, kind, why, p) in enumerate(batch)]
         prompt = (
@@ -1217,8 +1231,8 @@ def scene_bounds(items, per_request=8, progress=None):
     out = {}
     batches = [items[a:a + per_request] for a in range(0, len(items), per_request)]
     for b, batch in enumerate(batches):
-        if progress:
-            progress(b / len(batches))
+        a = b * per_request
+        counted(progress, b / len(batches), a + 1, a + len(batch), len(items))
         imgs = [(f"Scene {k + 1} (to be cut for: {kind}). 30 stills, tiles 1-30, read left to "
                  f"right and top to bottom:", p) for k, (_, kind, p) in enumerate(batch)]
         prompt = (

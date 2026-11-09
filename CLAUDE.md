@@ -317,6 +317,23 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- Long steps count under the progress bar (1.18.43, 2026-11-09; the owner, after CleanRead's
+  double-check sat unchanged: "is it frozen?", then "can we add the same change to clean read,
+  clean view als?"; CleanListen/CleanRead 1.17.10). `counted(progress, f, a, z, total, what)`
+  in cleanview_ai and cleanview_claude calls `progress(f, "21–40 of 95")` (falls back to
+  `progress(f)`); callers take `lambda f, n="":` and add `also(n)` (" · 21–40 of 95").
+  Counted: the local AI's closer look at scenes and nudity, reading the dialogue (lines
+  1–25 of 928) and its double-check, each conversation, the cloud's stills (20 per sheet),
+  scene checks and scene edges; `in_background`/`wait_for` pass the count on. The cloud's
+  dialogue reading and final review are one or two big requests, so they have no count.
+- Built-in lessons for an older age count for younger ones (1.18.43, Lauren's Castle S1E3,
+  2026-11-09, teens with the local AI: all 191 of the show's lessons were under "castle",
+  learned from adults' reports, and a teens run looked only under "castle@teens", so none were
+  used and 21 of the episode's lines went through). `learn._age_keys(key, older=True)`: a
+  "muted" lookup reads this age's key and every older age's (adults: no "@", or "@adults");
+  "kept" and "ok_words" stay with their own age. `LearnedLines` also matches when the two
+  lines share a stretch of 8+ words that's 60%+ of the lesson, a word heard differently now
+  and then ("Ryder Boy" for "writer boy", a lesson split across two heard lines).
 - The PC stays awake while videos are watched, listened to or saved (1.18.42, 2026-11-09: a
   CleanRead book paused nine hours overnight when Windows went to sleep; the owner, in the
   CleanListen session: "Yes, add it. to clean view also"; CleanListen/CleanRead 1.17.8 do the
@@ -459,6 +476,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_counters.py`: "N of M" from the local AI's closer looks, dialogue reading and
+  double-check, the cloud stills, scene checks and scene edges, and through a background job.
+- `test_castle_s1e3.py`: older ages' muted lessons used for younger ages (not what they
+  keep, filters still apply); the real Castle lessons for a teens run; lines split or heard a
+  word differently match, a harmless piece doesn't.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and

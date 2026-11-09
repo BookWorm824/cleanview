@@ -89,9 +89,29 @@ def shared():
     return _shared
 
 
+AGES = ("young", "kids", "teens", "adults")      # strictest first
+
+
+def _age_keys(key, older=False):
+    """The shared keys for this show at this age ("castle@teens"; adults have no "@"), and
+    with older=True every older age's too: a line muted for adults is muted for teens and kids
+    as well (Lauren's Castle S1E3, 2026-11-09, teens: the show's 191 built-in lines were all
+    under "castle", learned from adults' reports, so none were used). What an older age keeps
+    is never used for a younger one."""
+    base, _, age = key.partition("@")
+    age = age if age in AGES else "adults"
+    out = [key]
+    for a in AGES[AGES.index(age):] if older else (age,):
+        out += [base, f"{base}@adults"] if a == "adults" else [f"{base}@{a}"]
+    return list(dict.fromkeys(out))
+
+
 def _sh(key, k):
     s = shared()
-    return list(s["shows"].get(key, {}).get(k, [])) + list(s["general"].get(k, []))
+    out = []
+    for kk in _age_keys(key, older=k == "muted"):
+        out += s["shows"].get(kk, {}).get(k, [])
+    return list(dict.fromkeys(out + list(s["general"].get(k, []))))
 
 
 def _for_filters(key, lines, on):
@@ -100,7 +120,9 @@ def _for_filters(key, lines, on):
     if on is None:
         return list(lines)
     s = shared()
-    kinds = {**s["general"].get("muted_for", {}), **s["shows"].get(key, {}).get("muted_for", {})}
+    kinds = dict(s["general"].get("muted_for", {}))
+    for kk in reversed(_age_keys(key, older=True)):      # this age's own say wins
+        kinds.update(s["shows"].get(kk, {}).get("muted_for", {}))
     return [t for t in lines if t not in kinds or kinds[t] in on]
 
 
@@ -352,7 +374,28 @@ class LearnedLines:
             if min(len(d), len(t)) >= LEARNED_SHORTEST + 1 and \
                     SequenceMatcher(None, d, t).ratio() >= self.ALIKE:
                 return name                              # a word or two heard differently
+            if len(t) >= self.LONG and self._overlap(d, t) >= max(self.LONG + 1, self.MOST * len(t)):
+                return name                              # most of it, split differently
         return None
+
+    @staticmethod
+    def _overlap(d, t):
+        """The longest stretch the two lines share, a word heard differently now and then
+        (Castle S1E3, 2026-11-09: "instead of getting your freak on with writer boy" was heard
+        as "Getting a drink with me after work instead of getting your freak on with Ryder
+        Boy?", and "You don't think with a body like that she's gonna swoon..." ran across
+        two learned lines). Longer than LONG: "I'm not ready to buy our attacker" isn't "...as a
+        sexual predator" on its own."""
+        from difflib import SequenceMatcher
+        best = run = 0
+        last = None
+        for a, b, size in SequenceMatcher(None, d, t, autojunk=False).get_matching_blocks():
+            if not size:
+                continue
+            near = last is not None and a - last[0] <= 1 and b - last[1] <= 1
+            run = run + size if near else size
+            best, last = max(best, run), (a + size, b + size)
+        return best
 
 
 def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=None,

@@ -29,6 +29,20 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
+
+
+def counted(progress, f, a, z, total, what=""):
+    """progress(f) as always, and progress(f, "21\u201340 of 95") when it takes the count, for
+    the line under the progress bar (the owner, 2026-11-09, after a step sat unchanged for a
+    long time in CleanRead: "is it frozen?"; CleanListen/CleanRead 1.17.10 do the same)."""
+    if not progress:
+        return
+    n = f"{a:,} of {total:,}" if a >= z else f"{a:,}\u2013{z:,} of {total:,}"
+    try:
+        progress(f, f"{what} {n}" if what else n)
+    except TypeError:
+        progress(f)
+
 CLIP_DIR = HERE / "models" / "clip-vit-base-patch32"
 CLIP_BASE = "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/"
 CLIP_FILES = {"vision_model_quantized.onnx": "onnx/vision_model_quantized.onnx",
@@ -693,8 +707,7 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
     for n, c in enumerate(cands):
         if cancel and cancel():
             raise KeyboardInterrupt
-        if progress:
-            progress(n / max(1, len(cands)))
+        counted(progress, n / max(1, len(cands)), n + 1, n + 1, len(cands))
         q, schema = LOOK[c["cat"]]
         schema = dict(schema, properties=dict(schema["properties"], clear={"type": "boolean"}),
                       required=schema["required"] + ["clear"])
@@ -934,9 +947,8 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
     for n, a in enumerate(starts):
         if cancel and cancel():
             raise KeyboardInterrupt
-        if progress:
-            progress(0.7 * n / len(starts))
         part = lines[a:a + chunk]
+        counted(progress, 0.7 * n / len(starts), a + 1, a + len(part), len(lines), "lines")
         listing = "\n".join(f"{i + 1}: {_tag(l, genders[a + i])}{l['text']}"
                              for i, l in enumerate(part))
         prompt = ("You help a family decide which lines of TV or movie dialogue to mute. Most "
@@ -979,8 +991,8 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
     for n, (i, t) in enumerate(todo):
         if cancel and cancel():
             raise KeyboardInterrupt
-        if progress:
-            progress(0.7 + 0.3 * n / max(1, len(todo)))
+        counted(progress, 0.7 + 0.3 * n / max(1, len(todo)), n + 1, n + 1, len(todo),
+                "double-checking")
         before = " / ".join(_tag(l, genders[k]) + l["text"]
                             for k, l in enumerate(lines[max(0, i - 6):i], max(0, i - 6)))
         after = " / ".join(_tag(l, genders[k]) + l["text"]
@@ -1185,8 +1197,7 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
     for n, conv in enumerate(convs):
         if cancel and cancel():
             raise KeyboardInterrupt
-        if progress:
-            progress(n / len(convs))
+        counted(progress, n / len(convs), n + 1, n + 1, len(convs))
         listing = "\n".join(f"{k + 1}: {_tag(lines[i], genders[i])}{lines[i]['text']}"
                             for k, i in enumerate(conv))
         prompt = ("Here is one conversation from a TV show or movie. Where known, each line "
