@@ -663,7 +663,7 @@ class Window(unittest.TestCase):
         real_put = app.q.put
 
         def put(msg):
-            if msg[:3] == ("job", 0, "now"):
+            if msg[0] == "for_run" and msg[2][:3] == ("job", 0, "now"):
                 app.toggle_stop_after()          # she presses it while this one runs
             real_put(msg)
         ui.engine.tools_missing, app.q.put = (lambda o: False), put

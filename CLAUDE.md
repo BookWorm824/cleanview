@@ -317,6 +317,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- Cancel goes back to the start page at once (1.18.44, 2026-11-09; the owner, in CleanRead:
+  "it taking a while to actually cancel and go back to home screen", then "send this fix to
+  clean view and read aloud alos"; CleanListen/CleanRead 1.17.12 do the same). Watching and
+  listening, and saving, run through `_start_work(target)`, which gives each its number
+  (`self.run`). Every message from that thread is `("for_run", run, msg)`, and `_handle`
+  drops it when `run != self.run`. `cancel()` bumps `self.run` and shows the start page
+  straight away. The old thread stops at its next check (`stopped()`: `cancel_flag`, which
+  closing the window still sets, or a newer run): the workers are told to stop
+  (`stop_all`, up to 8 s, now out of sight), and a save's half-written copy is removed
+  (`render` writes to a temp file and only renames it when done). New work joins the old
+  thread first ("Finishing stopping the last one…"), so two runs never share a work folder
+  or output file. `_analyze_now` keeps its own `jobs` list.
 - Long steps count under the progress bar (1.18.43, 2026-11-09; the owner, after CleanRead's
   double-check sat unchanged: "is it frozen?", then "can we add the same change to clean read,
   clean view als?"; CleanListen/CleanRead 1.17.10). `counted(progress, f, a, z, total, what)`
@@ -476,6 +488,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_cancel_at_once.py`: Cancel shows the start page before the work stops, late
+  messages from cancelled work are dropped, new work waits for the old to stop, cancelled
+  work never starts late, closing still stops a save, and a save cancelled partway leaves no
+  copy behind.
 - `test_counters.py`: "N of M" from the local AI's closer looks, dialogue reading and
   double-check, the cloud stills, scene checks and scene edges, and through a background job.
 - `test_castle_s1e3.py`: older ages' muted lessons used for younger ages (not what they

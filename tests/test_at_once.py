@@ -41,6 +41,8 @@ def run_workers(names, at_once=2, opts=None, stop_after_first=False, cancel_afte
     real_put = win.q.put
 
     def put(msg):
+        if msg[0] == "for_run":           # each message carries its run's number
+            msg = msg[2]
         seen.append(msg)
         if stop_after_first and msg[:3] == ("job", 0, "now"):
             win.stop_after = True

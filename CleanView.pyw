@@ -1322,7 +1322,7 @@ class App(tk.Tk):
         self.at_once = self._at_once()
         self._check_every_ai()
         self.show_working("Watching and listening…", can_stop=True)
-        threading.Thread(target=self._analyze_thread, daemon=True).start()
+        self._start_work(self._analyze_thread)
 
     JOB_LOOK = {"wait": ("○", MUTED), "now": ("▶", ACCENT), "done": ("✓", ACCENT_DK),
                 "failed": ("!", "#B5523B"), "skipped": ("–", MUTED)}
@@ -1458,37 +1458,70 @@ class App(tk.Tk):
                    + f" left for all {self._work_n}")
 
     def cancel(self):
-        self.cancel_flag = True
-        self.status.config(text="Stopping…")
+        """Back to the start page at once (the owner, 2026-11-09: "it taking a while to
+        actually cancel and go back to home screen"). The work stops by itself at its next
+        check, and anything it still sends is dropped (see _start_work)."""
+        self.run = getattr(self, "run", 0) + 1
+        self.show_setup()
 
-    def _analyze_thread(self):
+    def _start_work(self, target):
+        """Watching and listening, or saving, as work with its own number. A newer number
+        means it was cancelled: it stops at its next check and what it sends is dropped.
+        New work waits for the old to finish stopping first, so the two never work on the
+        same files (a worker finishing its bit, a half-saved copy being tidied away)."""
+        self.run = getattr(self, "run", 0) + 1
+        run, before = self.run, getattr(self, "work_thread", None)
+
+        def go():
+            if before is not None and before.is_alive():
+                self.q.put(("for_run", run, ("progress", 0.0, "Finishing stopping the last "
+                                                              "one…", "")))
+                before.join()
+            if self.run == run:
+                target(run)
+        self.work_thread = threading.Thread(target=go, daemon=True)
+        self.work_thread.start()
+
+    def _analyze_thread(self, run=None):
         with engine.keep_awake():          # the PC doesn't sleep while videos are worked on
-            self._analyze_now()
+            self._analyze_now(getattr(self, "run", 0) if run is None else run)
 
-    def _analyze_now(self):
+    def _analyze_now(self, run):
+        jobs = self.jobs                   # this run's, even if a new one starts
+
+        def put(msg):
+            self.q.put(("for_run", run, msg))
         try:
             if engine.tools_missing(self.scan_opts):
-                self.q.put(("which", "Getting ready (one time only)"))
+                put(("which", "Getting ready (one time only)"))
                 try:
                     engine.install_tools(self.scan_opts,
-                                         progress=lambda f, m: self.q.put(("progress", f, m, "")))
+                                         progress=lambda f, m: put(("progress", f, m, "")))
                 except Exception as ex:
                     # carry on with whatever did install; the review page says what was skipped
                     save_details(traceback.format_exc())
-                    self.q.put(("warn", "Some of the checking tools couldn't be set up, so this "
+                    put(("warn", "Some of the checking tools couldn't be set up, so this "
                                 "run uses the ones that are ready.\n\n" + plain_error(ex)))
-            self._run_workers()
-            self.q.put(("analyzed",))
+            self._run_workers(run, jobs)
+            put(("analyzed",))
         except KeyboardInterrupt:
-            self.q.put(("cancelled",))
+            put(("cancelled",))
         except Exception as ex:
-            self.q.put(("error", plain_error(ex), traceback.format_exc()))
+            put(("error", plain_error(ex), traceback.format_exc()))
 
-    def _run_workers(self):
+    def _run_workers(self, run=None, jobs=None):
         """Watch and listen to every video, up to "Videos at once" at a time, each in its own
         worker process (videoqueue.py), so a season gets done sooner and one video going
         wrong never stops the rest or the window. Runs on the analyze thread."""
-        jobs, n = self.jobs, len(self.jobs)
+        run = getattr(self, "run", 0) if run is None else run
+        jobs = self.jobs if jobs is None else jobs
+        n = len(jobs)
+
+        def put(msg):
+            self.q.put(("for_run", run, msg))
+
+        def stopped():                     # Cancel, or the window closing
+            return self.cancel_flag or getattr(self, "run", 0) != run
         try:     # started once here, so the workers don't each try to start it
             if engine.needs(engine.full_opts(self.scan_opts))["ai"]:
                 engine.ai.start_ollama(wait=20)
@@ -1502,25 +1535,25 @@ class App(tk.Tk):
         def which():
             if len(running) == 1:
                 k = next(iter(running))
-                self.q.put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
+                put(("which", (f"Video {k + 1} of {n}:  " if n > 1 else "") +
                             short(Path(jobs[k]["video"]).stem, 80)))
             elif running:
-                self.q.put(("which", f"{len(running)} videos at once  ·  "
+                put(("which", f"{len(running)} videos at once  ·  "
                                      f"{len(finished)} of {n} done"))
 
         def failed(k, error, details):
             jobs[k]["error"], jobs[k]["details"] = error, details
             save_details(details)
-            self.q.put(("job", k, "failed", error, details))
+            put(("job", k, "failed", error, details))
 
         try:
             while todo or running:
-                if self.cancel_flag:
+                if stopped():
                     raise KeyboardInterrupt
                 if getattr(self, "stop_after", False):     # "Stop after ..."
                     for k in todo:
                         jobs[k]["skipped"] = True
-                        self.q.put(("job", k, "skipped"))
+                        put(("job", k, "skipped"))
                     todo = []
                 at_once = getattr(self, "at_once", 1)
                 started = False
@@ -1539,7 +1572,7 @@ class App(tk.Tk):
                         continue
                     running.add(k)
                     started = True
-                    self.q.put(("job", k, "now"))
+                    put(("job", k, "now"))
                 if started:
                     which()
                 try:
@@ -1551,15 +1584,15 @@ class App(tk.Tk):
                     frac[k] = max(frac[k], max(0.0, min(1.0, float(msg["p"]))))
                     m = str(msg.get("m", ""))
                     if n > 1:
-                        self.q.put(("jobmsg", k, m))
-                    self.q.put(("progress", sum(frac) / n, m if len(running) < 2 else
+                        put(("jobmsg", k, m))
+                    put(("progress", sum(frac) / n, m if len(running) < 2 else
                                 f"Working on {len(running)} videos at the same time. How each "
                                 f"one is going is in the list below.", ""))
                 elif msg.get("done"):
                     try:
                         j["analysis"] = json.loads(
                             (Path(j["work"]) / "analysis.json").read_text())
-                        self.q.put(("job", k, "done"))
+                        put(("job", k, "done"))
                     except Exception as ex:
                         failed(k, f"{Path(j['video']).name}: {plain_error(ex)}",
                                f"{j['video']}\n\n{traceback.format_exc()}")
@@ -1571,7 +1604,7 @@ class App(tk.Tk):
                     running.discard(k)
                     finished.add(k)
                     frac[k] = 1.0
-                    if not (j["analysis"] or j["error"] or self.cancel_flag):
+                    if not (j["analysis"] or j["error"] or stopped()):
                         # it stopped without a word: a hard crash (written to its log)
                         try:
                             log = (Path(j["work"]) / "worker_log.txt").read_text(
@@ -1619,41 +1652,46 @@ class App(tk.Tk):
         if 0 <= k < len(notes) and notes[k].winfo_exists():
             notes[k].config(text=short(text, 70))
 
-    def _render_thread(self):
+    def _render_thread(self, run=None):
         with engine.keep_awake():          # nor while clean copies are saved
-            self._render_now()
+            self._render_now(getattr(self, "run", 0) if run is None else run)
 
-    def _render_now(self):
+    def _render_now(self, run):
+        def put(msg):
+            self.q.put(("for_run", run, msg))
+
+        def stopped():                     # a half-saved copy is removed (engine.render)
+            return self.cancel_flag or getattr(self, "run", 0) != run
         try:
             todo = [j for j in self.jobs if j["analysis"]]
             encs = None
             if any(j["cuts"] for j in todo):
-                self.q.put(("progress", 0.0, "Checking the fastest way to save video…", ""))
+                put(("progress", 0.0, "Checking the fastest way to save video…", ""))
                 encs = engine.working_encoders()
             results, failed = [], []
             self._save_failures = []
             for k, j in enumerate(todo):
-                self.q.put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
+                put(("which", (f"Video {k + 1} of {len(todo)}:  " if len(todo) > 1 else "")
                             + short(Path(j["video"]).stem, 80)))
-                self.q.put(("job", k, "now"))
+                put(("job", k, "now"))
                 try:
                     results.append(engine.render(
                         j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []),
                         words=j.get("words"), quiet=j.get("quiet"),
-                        progress=lambda f, m, k=k: self.q.put(("progress", (k + f) / len(todo), m, "")),
-                        log=lambda m: None, cancel=lambda: self.cancel_flag))
-                    self.q.put(("job", k, "done"))
+                        progress=lambda f, m, k=k: put(("progress", (k + f) / len(todo), m, "")),
+                        log=lambda m: None, cancel=stopped))
+                    put(("job", k, "done"))
                 except Exception as ex:     # carry on with the other episodes
                     details = f"{j['video']}\n\n{traceback.format_exc()}"
                     save_details(details)
                     self._save_failures.append(details)
                     failed.append(f"{Path(j['video']).name}: {plain_error(ex)}")
-                    self.q.put(("job", k, "failed", failed[-1], details))
-            self.q.put(("rendered", results, failed))
+                    put(("job", k, "failed", failed[-1], details))
+            put(("rendered", results, failed))
         except KeyboardInterrupt:
-            self.q.put(("cancelled",))
+            put(("cancelled",))
         except Exception as ex:
-            self.q.put(("error", plain_error(ex), traceback.format_exc()))
+            put(("error", plain_error(ex), traceback.format_exc()))
 
     # ---------- noticing a freeze or a crash ----------
     def _watch_for_freezes(self):
@@ -1776,10 +1814,12 @@ class App(tk.Tk):
                 msgs.append(self.q.get_nowait())
         except queue.Empty:
             pass
-        newest = max((i for i, m in enumerate(msgs) if m[0] == "progress"), default=-1)
+        def kind(m):
+            return m[2][0] if m[0] == "for_run" else m[0]
+        newest = max((i for i, m in enumerate(msgs) if kind(m) == "progress"), default=-1)
         try:
             for i, msg in enumerate(msgs):
-                if msg[0] == "progress" and i != newest:
+                if kind(msg) == "progress" and i != newest:
                     continue
                 try:
                     self._handle(msg)
@@ -1791,6 +1831,10 @@ class App(tk.Tk):
                 self._poll_id = self.after(150 if len(msgs) < 500 else 10, self._poll)
 
     def _handle(self, msg):
+        if msg[0] == "for_run":                 # from watching and listening, or saving
+            if msg[1] != getattr(self, "run", 0):
+                return                          # cancelled: already back on the start page
+            msg = msg[2]
         kind = msg[0]
         if kind in ("which", "progress"):       # for a note about a freeze
             getattr(self, "_doing", {})["which" if kind == "which" else "status"] = \
@@ -3041,7 +3085,7 @@ class App(tk.Tk):
         self.cancel_flag = False
         todo = [j["video"] for j in self.jobs if j["analysis"]]
         self.show_working("Saving the clean cop" + ("ies…" if len(todo) > 1 else "y…"), todo)
-        threading.Thread(target=self._render_thread, daemon=True).start()
+        self._start_work(self._render_thread)
 
     # ---------- page 4: done ----------
     def show_done(self, results, keep_review=False):
