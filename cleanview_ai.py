@@ -241,9 +241,11 @@ def clip_crops(rgb):
 
 
 class Clip:
-    def __init__(self, ort, threads=4):
+    def __init__(self, ort, threads=4, spin=True):
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = threads
+        if not spin:            # sharing the processor: idle threads wait instead of spinning
+            opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
         self.vis = ort.InferenceSession(str(CLIP_DIR / "vision_model_quantized.onnx"), opts,
                                         providers=["CPUExecutionProvider"])
         self.vin = self.vis.get_inputs()[0].name

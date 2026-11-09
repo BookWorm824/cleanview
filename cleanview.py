@@ -977,60 +977,119 @@ KEEP = list(NUDITY) + list(SKIN)
 PICTURE_VERSION = 3
 
 
+def too_dark(lum_row):
+    """A frame too dark or murky to judge (its rounded brightness and contrast, as kept in
+    pictures.json): nudity_scenes and clip_candidates leave these out."""
+    return lum_row[0] < DARK_MEAN or lum_row[1] < FLAT_STD
+
+
+def scan_threads(cpus, with_clip):
+    """(nudity check, picture AI) threads. Side by side they share the processor: more
+    threads made it slower (15 took twice as long as 10 on a 16-thread PC)."""
+    cpus = cpus or 2
+    if not with_clip:
+        return max(1, min(6, cpus - 1)), 0
+    return max(1, min(4, cpus // 4)), max(1, min(8, cpus // 2))
+
+
 def _visual_scan_here(path, out_json, use_clip=False, fps=VISUAL_FPS):
+    """The nudity check twice a second and the picture AI once a second (1.18.48, the owner:
+    "is it optimized fully?"): frames too dark to judge are skipped (their scores were never
+    used: stored as 0 and left out of the picture AI's list), and the picture AI runs on its
+    own thread beside the nudity check instead of after it. Same frames, same models, same
+    scores: 5 minutes of Curious George took ~21 s instead of ~26 s on a 16-thread PC."""
+    import queue
     import onnxruntime as ort
     info = probe(path)
     dar = info["video"].get("dar") or 16 / 9
     H = 256
     W = max(64, int(round(H * dar / 2)) * 2)
-    threads = max(1, min(6, (os.cpu_count() or 2) - 1))
+    n_th, c_th = scan_threads(os.cpu_count(), use_clip)
     opts = ort.SessionOptions()
-    opts.intra_op_num_threads = threads
+    opts.intra_op_num_threads = n_th
+    if use_clip:
+        opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
     sess = ort.InferenceSession(str(nudity_model()), opts, providers=["CPUExecutionProvider"])
     name = sess.get_inputs()[0].name
     cols = [NUDE_CLASSES.index(k) for k in KEEP]
     clip = None
     if use_clip:
         try:
-            clip = ai.Clip(ort, threads)
+            clip = ai.Clip(ort, c_th, spin=False)
         except Exception as ex:   # carry on without it rather than fail the whole scan
             print(f"E picture AI unavailable: {ex}", flush=True)
     cmd = [cl._tool("ffmpeg"), "-v", "error", "-i", str(path), "-map", "0:v:0", "-an", "-sn",
            "-vf", f"fps={fps},scale={W}:{H},setsar=1,format=rgb24", "-f", "rawvideo", "-"]
     proc = cl.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    size, batch, n, out, lum = W * H * 3, 8, 0, [], []
-    ct, cs = [], []
+    size, batch = W * H * 3, 8
+    out, lum, clip_at, failed = [], [], {}, []
+    jobs = queue.Queue(maxsize=64)
+    zero = [0.0] * len(cols)
+
+    def picture_ai():
+        while True:
+            item = jobs.get()
+            if item is None:
+                return
+            if failed:
+                continue                     # drain, so the reader never waits forever
+            try:
+                fn, frame = item
+                clip_at[fn] = {c: round(v, 3) for c, v in clip.scores(frame).items()}
+            except BaseException as ex:      # raised below, after the reader stops
+                failed.append(ex)
+    worker = threading.Thread(target=picture_ai, daemon=True) if clip is not None else None
+    if worker:
+        worker.start()
+
+    def nudity(pending):
+        x = np.stack([ai.nudenet_input(f) for _, f in pending]).astype(np.float32)
+        y = sess.run(None, {name: x})[0]              # (batch, 4 + 18, anchors)
+        best = y[:, 4:, :].max(axis=2)                # best score per class per frame
+        for (fn, _), row in zip(pending, best):
+            out[fn] = [round(float(row[c]), 3) for c in cols]
+
+    pending, n = [], 0
     try:
         while True:
-            frames = []
-            for _ in range(batch):
-                data = proc.stdout.read(size)
-                if len(data) < size:
-                    break
-                frames.append(np.frombuffer(data, dtype=np.uint8).reshape(H, W, 3))
-            if not frames:
+            data = proc.stdout.read(size)
+            if len(data) < size:
                 break
-            x = np.stack([ai.nudenet_input(f) for f in frames]).astype(np.float32)
-            y = sess.run(None, {name: x})[0]          # (batch, 4 + 18, anchors)
-            best = y[:, 4:, :].max(axis=2)            # best score per class per frame
-            for k, row in enumerate(best):
-                out.append([round(float(row[c]), 3) for c in cols])
-                g = frames[k].mean(axis=2)
-                lum.append([round(float(g.mean()), 1), round(float(g.std()), 1)])
-                fn = n + k
-                if clip is not None and fn % 2 == 0:  # picture AI once a second
-                    ct.append(round(fn / fps, 2))
-                    cs.append({c: round(v, 3) for c, v in clip.scores(frames[k]).items()})
-            n += len(frames)
-            print(f"P {n / fps:.1f}", flush=True)
-            if len(frames) < batch:
-                break
+            frame = np.frombuffer(data, dtype=np.uint8).reshape(H, W, 3)
+            g = frame.mean(axis=2)
+            lum.append([round(float(g.mean()), 1), round(float(g.std()), 1)])
+            out.append(zero)
+            if not too_dark(lum[n]):
+                pending.append((n, frame))
+                if worker and n % 2 == 0:            # picture AI once a second
+                    jobs.put((n, frame))
+            if len(pending) == batch:
+                nudity(pending)
+                pending = []
+            n += 1
+            if n % batch == 0:
+                print(f"P {n / fps:.1f}", flush=True)
+            if failed:
+                raise failed[0]
+        if pending:
+            nudity(pending)
+        if worker:
+            jobs.put(None)
+            worker.join()
+        if failed:
+            raise failed[0]
+        print(f"P {n / fps:.1f}", flush=True)
     finally:
+        if worker and worker.is_alive():
+            jobs.put(None)
         proc.kill()
         proc.wait()
+        proc.stdout.close()
+    ct = sorted(clip_at)
     Path(out_json).write_text(json.dumps({
         "version": PICTURE_VERSION, "fps": fps, "classes": KEEP, "scores": out, "lum": lum,
-        "clip": {"t": ct, "scores": cs, "sig": ai.clip_signature()} if clip is not None else None}))
+        "clip": {"t": [round(fn / fps, 2) for fn in ct], "scores": [clip_at[fn] for fn in ct],
+                 "sig": ai.clip_signature()} if clip is not None else None}))
 
 
 def visual_scan(path, out_json, use_clip=False, progress=None, cancel=None):

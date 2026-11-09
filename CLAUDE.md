@@ -317,6 +317,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- The picture scanner is faster with the same scores (1.18.48, 2026-11-09; the owner: "is it
+  optimized fully?", then "1, 2 and 3"). `_visual_scan_here` reads frames on the main
+  thread, skips those `too_dark` (rounded lum < DARK_MEAN 40 or < FLAT_STD 18, exactly what
+  nudity_scenes and clip_candidates leave out; scores stored as 0, left out of the clip
+  list), batches the rest for NudeNet, and sends every other one to the picture AI on its
+  own thread (bounded queue). `scan_threads`: nudity cpus//4 (max 4), picture AI cpus//2
+  (max 8), idle threads don't spin. Measured and rejected: batching CLIP (changes its int8
+  scores), more threads (15 took twice as long as 10), hardware video decoding (2x slower),
+  a faster resize with the same math (no faster; faster math changes the numbers). Option
+  4, NudeNet/CLIP on the graphics card (DirectML), is saved to consider later. Old vs new
+  on real videos (this PC, 16 threads):
+    - Living for the Light.mp4: 473 frames (13 dark), 34.8 s -> 23.0 s (34% faster); score differences 0/0, same scenes True, same finds True.
+    - Whispers in the Willow.mp4: 488 frames (7 dark), 37.3 s -> 24.2 s (35% faster); score differences 0/0, same scenes True, same finds True.
+    - The Road to Friendship_ Zoo Adventures: 496 frames (49 dark), 37.2 s -> 21.5 s (42% faster); score differences 0/0, same scenes True, same finds True.
+    - 1. Curious George.mp4: 10478 frames (397 dark), 765.4 s -> 482.3 s (37% faster); score differences 0/0, same scenes True, same finds True.
 - The AI helper's answers are kept (1.18.47, 2026-11-09; the owner, after CleanListen
   1.17.15 did it for CleanRead: "Yes, add it"). `ai.chat` keys each question by its whole
   Ollama payload (model, words, stills, answer form, settings) and keeps the answer in
@@ -524,6 +539,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_scanner_speed.py`: "too dark" is what the scenes leave out; threads shared; a real
+  scan of light-dark-light video skips the dark frames (scores 0, not in the picture AI's
+  list), gives each picture-AI score to its own frame, matches one-frame-at-a-time nudity
+  scores, stops when the picture AI breaks, and works without it.
 - `test_ai_answers.py`: the AI helper is asked once for the same question; other words,
   model or stills ask again; errors and replies without JSON aren't kept; a stopped closer
   look picks up where it left off; the dialogue reading comes out the same each run.
