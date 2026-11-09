@@ -865,20 +865,90 @@ def _stream_chunks(cmd, chunk, overlap, cancel=None):
         proc.wait()
 
 
+def available_memory_gb():
+    """Memory free for use now, in GB (0 when it can't be told)."""
+    try:
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+
+            class Mem(ctypes.Structure):
+                _fields_ = [("size", wintypes.DWORD), ("load", wintypes.DWORD)] + [
+                    (n, ctypes.c_ulonglong) for n in ("total", "free", "page_total",
+                                                       "page_free", "virt_total",
+                                                       "virt_free", "ext_free")]
+            m = Mem()
+            m.size = ctypes.sizeof(m)
+            if ctypes.WinDLL("kernel32").GlobalMemoryStatusEx(ctypes.byref(m)):
+                return m.free / 1024 ** 3
+            return 0
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_AVPHYS_PAGES") / 1024 ** 3
+    except Exception:
+        return 0
+
+
+LISTENER_GB = 3.0       # free memory wanted before a second listener (~0.7 GB) is loaded
+
+
+def how_many_listeners(threads, free_gb):
+    """Two listeners, each on every other 30-second part, when this video has at least 6
+    threads and there's memory to spare (1.18.49, the owner: "lets do the audio now", then
+    "Just 1 and 3"): 5 minutes of Curious George took 10.7 s instead of 14.6 s with the very
+    same words. Otherwise one, as before. Returns (listeners, threads each)."""
+    threads = max(1, threads or 1)
+    if threads >= 6 and free_gb >= LISTENER_GB:
+        return 2, threads // 2
+    return 1, threads
+
+
+def load_listeners(model_dir, threads):
+    """The speech recognizers for this video (see how_many_listeners)."""
+    threads = threads or max(1, min(8, (os.cpu_count() or 2)))
+    n, each = how_many_listeners(threads, available_memory_gb())
+    return [load_recognizer(model_dir, each) for _ in range(n)]
+
+
 def transcribe(path, info, rec, progress=None, cancel=None, chunk=30.0, overlap=2.0):
+    """What's said, word by word. rec: a recognizer, or several (load_listeners): each 30 s
+    part is still heard on its own, exactly as with one, just two at a time."""
+    from concurrent.futures import ThreadPoolExecutor
+    import queue
+    recs = list(rec) if isinstance(rec, (list, tuple)) else [rec]
+    free = queue.Queue()
+    for r in recs:
+        free.put(r)
+
+    def hear(offset, seg, first, last):
+        if len(seg) <= SR * 0.2:
+            return []
+        r = free.get()
+        try:
+            s = r.create_stream()
+            s.accept_waveform(SR, seg)
+            r.decode_stream(s)
+        finally:
+            free.put(r)
+        lo = offset + (overlap / 2 if not first else -1)
+        hi = offset + chunk - overlap / 2 if not last else 1e12
+        return [w for w in cl.tokens_to_words(s.result, offset) if lo <= w["s"] < hi]
+
     def go(dialogue):
-        out, first = [], True
-        for offset, seg, last in _stream_chunks(_audio_cmd(path, info, dialogue), chunk, overlap, cancel):
-            if len(seg) > SR * 0.2:
-                s = rec.create_stream()
-                s.accept_waveform(SR, seg)
-                rec.decode_stream(s)
-                lo = offset + (overlap / 2 if not first else -1)
-                hi = offset + chunk - overlap / 2 if not last else 1e12
-                out.extend(w for w in cl.tokens_to_words(s.result, offset) if lo <= w["s"] < hi)
-            first = False
-            if progress:
-                progress(offset + len(seg) / SR)
+        out, first, pending = [], True, []
+        with ThreadPoolExecutor(max_workers=len(recs)) as pool:
+            def finish_one():
+                fut, end = pending.pop(0)
+                out.extend(fut.result())
+                if progress:
+                    progress(end)
+            for offset, seg, last in _stream_chunks(_audio_cmd(path, info, dialogue), chunk,
+                                                    overlap, cancel):
+                pending.append((pool.submit(hear, offset, seg, first, last),
+                                offset + len(seg) / SR))
+                first = False
+                while len(pending) > len(recs):
+                    finish_one()
+            while pending:
+                finish_one()
         return out
 
     words = go(True)
@@ -2895,11 +2965,26 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     subs_job = in_background(get_subs)
 
     tfile = work / "transcript.json"
+    snd, sfile, snd_job, sound = None, work / "sounds.json", None, {}
+    if nd["sound"]:
+        if sfile.exists():
+            snd = json.loads(sfile.read_text())
+            if o["loudmusic"] and not all(k in snd.get("labels", []) for k in MUSIC_SOUNDS):
+                snd = None           # saved before CleanView listened for music: again
+            elif (o.get("violence") and
+                  not all(k in snd.get("labels", []) for k in LOOK_ALIKE_SOUNDS)):
+                snd = None           # saved before it told doors and typewriters from gunfire
+        if snd is None and not tfile.exists():
+            # the sound check runs while it listens (1.18.49): the same 3-second windows,
+            # two threads (as fast as four here), so it all but disappears behind it
+            def check_sounds(progress):
+                sound["found"] = sound_scan(path, info, load_tagger(2), None, cancel)
+            snd_job = in_background(check_sounds)
     if tfile.exists():
         asr = json.loads(tfile.read_text())
     else:
         say(0.0, "Loading the listening model…")
-        rec = load_recognizer(model_dir, threads)
+        rec = load_listeners(model_dir, threads)
 
         def p_asr(sec):
             f = at("asr", sec / dur)
@@ -2912,17 +2997,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         w["n"], w["part"] = cl.norm(w["t"]), 0
     asr_n = [w["n"] for w in asr]
 
-    snd = None
-    if nd["sound"]:
-        sfile = work / "sounds.json"
-        if sfile.exists():
-            snd = json.loads(sfile.read_text())
-            if o["loudmusic"] and not all(k in snd.get("labels", []) for k in MUSIC_SOUNDS):
-                snd = None           # saved before CleanView listened for music: again
-            elif (o.get("violence") and
-                  not all(k in snd.get("labels", []) for k in LOOK_ALIKE_SOUNDS)):
-                snd = None           # saved before it told doors and typewriters from gunfire
-        if snd is None:
+    if nd["sound"] and snd is None:
+        if snd_job is not None:
+            if snd_job["thread"].is_alive():
+                say(at("snd", 0), "Listening for fights, gunfire and other sounds…")
+            wait_for(snd_job, None, cancel)
+            snd = sound["found"]
+        else:
             say(at("snd", 0), "Listening for fights, gunfire and other sounds…")
             tagger = load_tagger()
 
@@ -2930,7 +3011,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 f = at("snd", sec / dur)
                 say(f, f"Listening for fights, gunfire and other sounds · {eta(f)}")
             snd = sound_scan(path, info, tagger, p_snd, cancel)
-            sfile.write_text(json.dumps(snd))
+        sfile.write_text(json.dumps(snd))
 
     vis = None
     if nd["nudenet"] or use_clip:

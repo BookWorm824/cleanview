@@ -317,6 +317,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- The listening and the sound check are faster with the same results (1.18.49, 2026-11-09;
+  the owner: "lets do the audio now", then "Just 1 and 3"). `load_listeners` loads two
+  speech recognizers (threads split) when `how_many_listeners`: this video has 6+ threads
+  and `available_memory_gb() >= LISTENER_GB` (3; each copy is ~0.7 GB); `transcribe` takes
+  one or a list and hears each 30 s part on its own, two at a time, results kept in order.
+  The sound check (`sound_scan`, `load_tagger(2)`) runs in the background during the
+  listening when both are needed; on its own (old way) when the words were heard before.
+  Measured and rejected: more listening threads (12 = 8), several parts in one decode
+  (changes the words: 316 became 325), 3 listeners (1.4 GB extra). Not chosen: the picture
+  scan during the listening (23% less for the pair on this PC, less with videos at once).
+  Old vs new, this PC: 5 min of Curious George, listening 14.6 s -> 10.7 s; whole runs
+  (listening, sounds, pictures) The Lamp of Love 26.4 -> 22.7 s, Living for the Light 47.5
+  -> 40.8 s, Curious George (87 min) 15 min 49 s -> 12 min 48 s; all 7,871 words and every
+  sound score identical.
 - The picture scanner is faster with the same scores (1.18.48, 2026-11-09; the owner: "is it
   optimized fully?", then "1, 2 and 3"). `_visual_scan_here` reads frames on the main
   thread, skips those `too_dark` (rounded lum < DARK_MEAN 40 or < FLAT_STD 18, exactly what
@@ -539,6 +553,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   filters and learned lines stay whole.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
+- `test_audio_speed.py`: two listeners give the same words in the same order and both take
+  turns, progress stays in order, two only with 6+ threads and 3 GB free; the sound check
+  starts before the listening (on its own when the words were heard before).
 - `test_scanner_speed.py`: "too dark" is what the scenes leave out; threads shared; a real
   scan of light-dark-light video skips the dark frames (scores 0, not in the picture AI's
   list), gives each picture-AI score to its own frame, matches one-frame-at-a-time nudity
