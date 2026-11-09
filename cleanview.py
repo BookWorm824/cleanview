@@ -2557,9 +2557,16 @@ def _new_sentence(sw, sw_cue, k):
             or bool(re.search(r"[.!?:;\-\u2013\u2014\u2026]['\"\u201d\u2019]?$", sw[k - 1])))
 
 
+# Still the word itself in a title or a place's name: Lauren ticked "Hell" in "right out of
+# Hell Hath No Fury" (Castle S1E1, 2026-11-08) both times it was left unticked as a title.
+SAID_IN_TITLES = {"hell", "hell's", "hells"}
+
+
 def name_in_subtitles(sw, sw_cue, cues, k):
     w = sw[k].lstrip("\"'(\u201c\u2018[")
     if not w[:1].isupper() or (len(w) > 1 and w.isupper()) or _new_sentence(sw, sw_cue, k):
+        return False
+    if cl.norm(w) in SAID_IN_TITLES:
         return False
     if cl.norm(sw[k - 1]) in NOT_NAME_AFTER or not re.search(r"[a-z]", cues[sw_cue[k]]["text"]):
         return False             # "Oh, Hell!", "Go to Hell", "what the Hell"; all capitals

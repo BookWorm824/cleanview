@@ -300,6 +300,61 @@ def _count(table, name, it, now, yes, no):
     it["_learned_as"] = now
 
 
+def _toks(n):
+    return [t.strip("'") for t in n.split() if t.strip("'")]
+
+
+class LearnedLines:
+    """Learned lines to mute, found in dialogue worded or split a little differently
+    (Lauren's Castle S1E1, 2026-11-08: the shared lines came from subtitles, this run's from
+    what was heard, and only 1 of 8 matched exactly). A dialogue line matches a learned one
+    when the learned line is all inside it ("But if it makes you feel any better, I'd be happy
+    to let you spank me"), when it's most of the learned line ("Not so loud. I'm still hoping
+    to get lucky"), or when only a word or two differ ("can" for "could"). A small piece of a
+    learned line doesn't ("You do know I'm wearing a gun?" from "A little Cops Gone Wild? You
+    do know I'm wearing a gun"): it can be harmless on its own."""
+    MOST = 0.6          # a piece must be this much of the learned line
+    ALIKE = 0.85        # token similarity for "a word or two differ"
+    LONG = 7            # inside or a piece: only learned lines this long ("I don't know what
+    #                     happens", muted as part of a conversation, isn't in "...happens next")
+
+    def __init__(self, lines):
+        self.lines = [(n, _toks(n)) for n in lines]
+        self.lines = [(n, t) for n, t in self.lines if len(t) >= LEARNED_SHORTEST]
+        self.index = {}
+        for k, (_, t) in enumerate(self.lines):
+            for w in set(t):
+                self.index.setdefault(w, set()).add(k)
+
+    @staticmethod
+    def _inside(small, big):
+        m = len(small)
+        return any(big[i:i + m] == small for i in range(len(big) - m + 1))
+
+    def match(self, n):
+        from difflib import SequenceMatcher
+        d = _toks(n)
+        if len(d) < 3:
+            return None
+        votes = {}
+        for w in set(d):
+            for k in self.index.get(w, ()):
+                votes[k] = votes.get(k, 0) + 1
+        for k, shared in sorted(votes.items(), key=lambda kv: -kv[1]):
+            name, t = self.lines[k]
+            if shared < 0.5 * min(len(t), len(d)):
+                break
+            if self.LONG <= len(t) <= len(d) and self._inside(t, d):
+                return name                              # all of it, inside a longer line
+            if len(t) >= self.LONG and len(d) >= LEARNED_SHORTEST and \
+                    len(d) >= self.MOST * len(t) and self._inside(d, t):
+                return name                              # most of it, on its own
+            if min(len(d), len(t)) >= LEARNED_SHORTEST + 1 and \
+                    SequenceMatcher(None, d, t).ratio() >= self.ALIKE:
+                return name                              # a word or two heard differently
+        return None
+
+
 def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=None,
           video=None):
     """Use what was learned. Changes line_flags / scenes / mutes in place and
@@ -331,12 +386,14 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
             n_kept += 1
     added = []
     mine_muted = set(d["muted"])
+    find = LearnedLines(muted)
     for l in dialogue:
         if (round(l["s"], 2), round(l["e"], 2)) in flagged_at:
             continue
         n = norm(l["text"])
-        if n in muted and len(n.split()) >= LEARNED_SHORTEST:
-            added.append(dict(l, learned_from="you" if n in mine_muted else "shared"))
+        hit = n if n in muted else find.match(n)
+        if hit and len(hit.split()) >= LEARNED_SHORTEST:
+            added.append(dict(l, learned_from="you" if hit in mine_muted else "shared"))
     n_sc = n_again = 0
     def usually_kept(kind):
         s = d["scenes"].get(kind)

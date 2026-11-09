@@ -286,6 +286,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   still won't line up (and aren't used). "Let's get Valentine." was muted as Valentine's Day:
   a lone "Valentine" is a name; `LINE_WORDS["valentine"]` wants valentines, valentine's,
   cupid, "valentine day/card/party..." or "my/a/your/his/her/secret valentine".
+- Lauren's Castle S1E1 report (1.18.38, 2026-11-08, adults, word lists only): the shared lessons
+  had 8 of the episode's lines (from subtitles), but this run read what was heard, worded or
+  split a little differently, and only 1 matched exactly. Learned lines to mute now also match
+  (`learn.LearnedLines`) when the learned line is all inside a longer one, when the line is
+  most (60%) of a learned one, or when a word or two differ (token similarity 0.85); the first
+  two only for learned lines of 7+ words (a short everyday line stays exact), and a small piece
+  ("You do know I'm wearing a gun?") never. 10 of the episode's lines match now; none wrongly in
+  her other reports. She ticked "Hell" in "right out of Hell Hath No Fury" both times it was
+  left unticked as a title, so `name_in_subtitles` never takes "Hell" for a name, and the
+  shared Castle note says so. Her unticks: a door ram as "gunshot-like bangs" and a "nudity"
+  scene that was a dinner invitation (weak spot 2); "Anyone make you their bitch?" just the word.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -413,6 +424,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_stereo.py`: a 5.1 video's clean copy has stereo first (default) and the surround
   second, both muted and cut, in MP4 and MKV; a stereo video keeps one track.
 - `test_i_love_lucy.py`: "<show> 1 - Ep. 1" names, and a lone "Valentine" as a name.
+- `test_castle_s1.py`: learned lines worded or split differently still muted, a harmless
+  piece or a short everyday line not; "Hell" in a title.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
@@ -553,7 +566,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   ("bitch"/Finch, Mitch; "fucking"/"bugging out"; Person of Interest, G.I. Joe) is offered
   unticked, with "Maybe misheard: the subtitles have ..." (`sounds_alike`). A mild word or
   minced oath written with a capital mid-sentence in the subtitles is a name or a title and
-  isn't muted ("Cynthia Dern" 12 times in Castle, "Hell Hath No Fury": `name_in_subtitles`).
+  isn't muted ("Cynthia Dern" 12 times in Castle: `name_in_subtitles`), except "Hell", which is
+  still the word in a title ("Hell Hath No Fury": she ticks it, `SAID_IN_TITLES`).
   A bare "God!", "God." on its own or "God," starting a sentence is an oath (`bare_god`)
   unless a prayer follows ("God, please help us").
 - Sound alone isn't enough for a scene: one built only from screams, shouts or crashes is

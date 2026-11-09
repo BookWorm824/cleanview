@@ -125,7 +125,8 @@ class NamesAndBareGod(unittest.TestCase):
                                         "Dern it all."])
         names = [sw[k] for k in range(len(sw)) if engine.name_in_subtitles(sw, cue, cues, k)]
         self.assertIn("Dern", names)
-        self.assertIn("Hell", names)
+        # "Hell" is still the word in a title: she ticks it (Castle S1E1, 2026-11-08)
+        self.assertNotIn("Hell", names)
         self.assertNotIn("Hell.", names)
         self.assertNotIn("Hell?", names)
         self.assertNotIn("Heck!", names)
