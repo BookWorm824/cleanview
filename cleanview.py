@@ -3362,6 +3362,37 @@ STEREO_RATE = "192k"
 SURROUND_NAME = {6: "5.1", 8: "7.1"}
 
 
+# The PC stays awake while videos are watched, listened to or saved (2026-11-09: a CleanRead
+# book paused nine hours overnight because Windows went to sleep; the owner: "add it. to clean
+# view also"). Idle sleep only: the screen may still turn off, and closing the lid or pressing
+# the power button still sleeps. Windows ties the request to the thread that made it.
+ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+
+
+class keep_awake:
+    """with keep_awake(): ... -- set and cleared on the same thread, also on an error."""
+
+    def __init__(self, setter=None):
+        self.setter = setter
+
+    def _set(self, flags):
+        try:
+            if self.setter is None:
+                import ctypes
+                self.setter = ctypes.windll.kernel32.SetThreadExecutionState
+            self.setter(flags)
+        except Exception:               # not Windows, or not allowed: nothing to do
+            pass
+
+    def __enter__(self):
+        self._set(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+        return self
+
+    def __exit__(self, *exc):
+        self._set(ES_CONTINUOUS)
+        return False
+
+
 def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, encoders=None,
            lines=None, words=None, quiet=None):
     """Write the clean copy. cuts: list of {"s","e"} (default: scenes with cut=True).

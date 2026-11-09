@@ -317,6 +317,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- The PC stays awake while videos are watched, listened to or saved (1.18.42, 2026-11-09: a
+  CleanRead book paused nine hours overnight when Windows went to sleep; the owner, in the
+  CleanListen session: "Yes, add it. to clean view also"; CleanListen/CleanRead 1.17.8 do the
+  same). `engine.keep_awake()` calls `SetThreadExecutionState(ES_CONTINUOUS |
+  ES_SYSTEM_REQUIRED)` and clears it (`ES_CONTINUOUS`) on the same thread, also on an error;
+  `_analyze_thread` (its worker processes run under it) and `_render_thread` hold it. Idle
+  sleep only: the screen may turn off, and the lid or power button still sleeps.
 - Claude learns from her, not from itself (CleanListen 1.15.3, Blue Ridge, 2026-11-05):
   `learn.examples` (what the dialogue readers and the final review are shown as "they have
   muted / chose NOT to mute") holds only her choices and the shared ones, never
@@ -450,6 +457,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_castle_s1e2.py`: a phrase muted from its first word to its last, heard or placed.
 - `test_list_words_only.py`: the no-AI list mutes just its words; what an AI found, other
   filters and learned lines stay whole.
+- `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
+  display; watching and saving hold it.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and

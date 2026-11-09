@@ -1462,6 +1462,10 @@ class App(tk.Tk):
         self.status.config(text="Stopping…")
 
     def _analyze_thread(self):
+        with engine.keep_awake():          # the PC doesn't sleep while videos are worked on
+            self._analyze_now()
+
+    def _analyze_now(self):
         try:
             if engine.tools_missing(self.scan_opts):
                 self.q.put(("which", "Getting ready (one time only)"))
@@ -1616,6 +1620,10 @@ class App(tk.Tk):
             notes[k].config(text=short(text, 70))
 
     def _render_thread(self):
+        with engine.keep_awake():          # nor while clean copies are saved
+            self._render_now()
+
+    def _render_now(self):
         try:
             todo = [j for j in self.jobs if j["analysis"]]
             encs = None
