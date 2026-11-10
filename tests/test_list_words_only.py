@@ -64,10 +64,12 @@ class JustTheWord(unittest.TestCase):
         flags, _ = engine.find_lines(LINES, opts(sexref=True), False)
         flags[0]["learned"] = "you muted this before"
         flags[1]["mute"], flags[1]["hint"] = False, "CleanView learned this is fine"
-        st = st_for(flags)
+        st = dict(st_for(flags), opts=opts(sexref=True))
         self.assertEqual(engine.list_words_only(st), 0)
-        self.assertTrue(st["lines"][0]["mute"])
-        self.assertEqual(st["mutes"], [])
+        self.assertTrue(st["lines"][0]["mute"])            # still muted whole
+        self.assertFalse(st["lines"][1]["mute"])
+        # its word is muted too, so unticking the line still mutes it (Castle S1E5, 1.18.51)
+        self.assertEqual([(m["raw"], m["keep"]) for m in st["mutes"]], [("sex", False)])
 
     def test_a_word_that_cant_be_placed_keeps_the_line_muted(self):
         flags = [{"s": 1.0, "e": 2.0, "text": "made love", "plain": "made love", "types": ["sexref"],

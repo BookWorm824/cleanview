@@ -1493,7 +1493,13 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"thanks for the quickie)\b", re.I),
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
-                         r"on (him|her|me|you)|booty call|friends with benefits)\b", re.I),
+                         r"on (him|her|me|you)|booty call|friends with benefits|"
+                         # Castle S1E5 (Lauren, 2026-11-09): "How long was the affair?", "They
+                         # end an affair because they're scared". One affair, not "affairs"
+                         # (Internal Affairs, foreign affairs); not "none of your affair" (your
+                         # business), "quite an affair" (an event) or "the affair of ..."
+                         r"(?<!quite )(?<!such )(?<!what )(the|an|his|her|their|love|secret|"
+                         r"torrid|illicit|sordid|extramarital) affair(?! of\b))\b", re.I),
     # "gay" beside another happy word is the old word for happy (cvcore.gay_happy): "I feel
     # pretty and witty and gay" (West Side Story, 2026-11-08)
     "samesex": re.compile(r"\b(" + "".join(f"(?<!{w} and )" for w in sorted(cl.GAY_HAPPY))
@@ -2784,17 +2790,32 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
 LIST_WORDS_ONLY = ("sexref", "casual")
 # the list's longer phrases, cut to the word she mutes: "had sex" -> "sex", "having an affair"
 # -> "affair" (the chat muted just those)
-LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b))"
-                            r"|(?<=\baffair) with$")
+LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b)"
+                            r"|(?:the|his|her|their|love|secret|torrid|illicit|sordid|extramarital) "
+                            r"(?=affair\b))|(?<=\baffair) with$")
 
 
 def list_words_only(st):
     """Lines the word list found (sexual references, sleeping around): mute just the words
     it found, the line unticked so she can still mute all of it. Returns how many lines."""
     n = 0
+    on = [k for k in LIST_WORDS_ONLY if (st.get("opts") or {}).get(k)]
     for l in st.get("lines", []):
         words = l.pop("words", None)
-        if not words or not l.get("mute", True) or l.get("learned") or l.get("hint"):
+        if l.get("mute", True) and (not words or l.get("learned") or l.get("hint")):
+            # muted whole (learned, an AI, other filters): the list's words are muted too, so
+            # unticking the line still mutes them (Castle S1E5: she unticked "Please. No one
+            # ends an affair", a learned line, and "affair" went through)
+            text = l.get("plain") or l["text"]
+            for w in dict.fromkeys(LIST_WORD_TRIM.sub("", m.group(0)) for k in on
+                                   for m in LINE_WORDS[k].finditer(text)):
+                m = word_mute(st, l, w, "on the word list")
+                if m is not None:
+                    m["keep"] = False
+                    if m.get("cat") == "claude":
+                        m["cat"] = next(k for k in on if LINE_WORDS[k].search(text))
+            continue
+        if not words or not l.get("mute", True):
             continue
         done = []
         for w in dict.fromkeys(words):

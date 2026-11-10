@@ -317,6 +317,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LIST_WORD_TRIM`) and starts unticked ("tick to mute the whole line"). Lines an AI flagged,
   other dialogue filters (holidays, magic, religion...), learned or hinted lines, and lines
   where a word can't be placed stay whole. CleanListen already mutes these as words.
+- Lauren's Castle S1E5 report (1.18.51, 2026-11-09, adults, the AI helper): "affair" went
+  through in four lines. The short list only had "having/had an affair" and "an affair with";
+  `LINE_WORDS["casual"]` now also has "the/an/his/her/their/love/secret... affair" (one affair:
+  not "Internal Affairs", "none of your affair", "quite an affair", "the affair of ...";
+  `LIST_WORD_TRIM` cuts each to "affair"). And in two lines learned to mute whole she unticked
+  the line, which left the word playing: `list_words_only` now also mutes the list's words
+  inside lines muted whole (learned, an AI, other filters), so unticking the line keeps the
+  word muted (she chose "Just the word" in S1E2). Her learned file (2026-11-09) was gone over:
+  its movie lines were from reports already checked (the rest were short filler, never
+  taught) and its chat notes are hers; taught from it: two Castle lines (a coroner's "could
+  have been a rape", "webcamming"), two for teens ("then we slept together", "in it for the
+  sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
+  for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
+  "it wasn't a sexual assault", isn't on any list.
 - Dark scenes are brightened and checked, not skipped (1.18.50, 2026-11-09; the owner: "the
   picture scanner skips dark frames, is that going to allow intimate scenes through?", then
   "Yes, build and test"). In 148 saved reviews 42% of the intimate scenes cut were mostly
@@ -568,7 +582,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_bondage.py`: "bondage" and "safe word" as sexual references, not slavery.
 - `test_castle_s1e2.py`: a phrase muted from its first word to its last, heard or placed.
 - `test_list_words_only.py`: the no-AI list mutes just its words; what an AI found, other
-  filters and learned lines stay whole.
+  filters and learned lines stay whole (a learned line's list words muted too).
+- `test_castle_s1e5.py`: "the affair"/"an affair" on the short list (not Internal Affairs,
+  "none of your affair", "quite an affair"); a learned line unticked keeps "affair" muted;
+  the checked Castle lessons built in.
 - `test_keep_awake.py`: set and cleared on the same thread (also after an error), never the
   display; watching and saving hold it.
 - `test_audio_speed.py`: two listeners give the same words in the same order and both take

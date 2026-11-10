@@ -193,7 +193,9 @@
     "seriously what could they possibly do down there",
     "hell he didn't even have any porn on his computer that's weird",
     "what did he do checked my wallet for condoms showed me his gun collection",
-    "i guess we can rule out boob job"
+    "i guess we can rule out boob job",
+    "i mean it could have been a rape but my best guess is",
+    "you're not webcamming again i hope"
    ],
    "kept": [
     "well it wasn't unusual for him to crash on his couch",
@@ -414,11 +416,14 @@
     "seriously what could they possibly do down there": "sexref",
     "hell he didn't even have any porn on his computer that's weird": "sexref",
     "what did he do checked my wallet for condoms showed me his gun collection": "sexref",
-    "i guess we can rule out boob job": "sexref"
+    "i guess we can rule out boob job": "sexref",
+    "i mean it could have been a rape but my best guess is": "sexref",
+    "you're not webcamming again i hope": "sexref"
    },
    "notes": [
     "Dern (Cynthia Dern) is a character's surname: never the minced oath 'dern'. 'Hell' in the book title 'Hell Hath No Fury' is still muted (she ticks it).",
-    "The detectives' alibi questions, train rides and small talk around an affair aren't about the affair: only the lines about the affair itself count."
+    "The detectives' alibi questions, train rides and small talk around an affair aren't about the affair: only the lines about the affair itself count.",
+    "'Conquest' or 'conquests' meaning someone's sexual conquests is muted as the word; the scene isn't cut for it."
    ]
   },
   "_movies": {
@@ -1259,6 +1264,18 @@
     "Finch (Harold Finch) is a main character: 'bitch' heard where 'Finch' fits is the name.",
     "Grown men ribbing each other at a bar, or a villain's one-off insult, isn't bullying."
    ]
+  },
+  "castle@teens": {
+   "muted": [
+    "she's my interior decorator but then we slept together so i don't really know what she is now",
+    "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex"
+   ],
+   "kept": [],
+   "ok_words": [],
+   "muted_for": {
+    "she's my interior decorator but then we slept together so i don't really know what she is now": "casual",
+    "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex": "sexref"
+   }
   }
  },
  "general": {
