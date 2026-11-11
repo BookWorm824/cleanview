@@ -2720,7 +2720,10 @@ def find_voices(path, info, work, lines, cancel=None):
             sfile.write_text(json.dumps(segs))
         except Exception:
             segs = None
-    return ai.line_voices(audio, lines, load_tagger(), segs)
+    # several copies of the sound model guess several lines at once (1.18.52: 11 s -> 3.5 s
+    # for an episode's 763 lines, the same guesses)
+    copies = max(1, min(8, (os.cpu_count() or 2) // 2))
+    return ai.line_voices(audio, lines, [load_tagger(1) for _ in range(copies)], segs)
 
 
 def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, claude_found=None,

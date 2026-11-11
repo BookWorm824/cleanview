@@ -1171,9 +1171,17 @@ def install_speakers(progress=None):
 
 
 def separate_speakers(audio, threads=None, threshold=0.95):
-    """[(start, end, speaker_number)] for 16 kHz mono audio."""
+    """[(start, end, speaker_number)] for 16 kHz mono audio. The faster copy of sherpa's own
+    steps when this is the sherpa it was checked against (same speakers), else sherpa's."""
     import sherpa_onnx
-    threads = threads or max(1, min(4, (os.cpu_count() or 2) - 1))     # one core left free
+    if getattr(sherpa_onnx, "__version__", "") == PORTED_SHERPA:
+        try:
+            got = _separate_fast(audio, threshold)
+            if got is not None:
+                return got
+        except Exception:
+            pass
+    threads = threads or speaker_threads()
     cfg = sherpa_onnx.OfflineSpeakerDiarizationConfig(
         segmentation=sherpa_onnx.OfflineSpeakerSegmentationModelConfig(
             pyannote=sherpa_onnx.OfflineSpeakerSegmentationPyannoteModelConfig(
@@ -1189,29 +1197,55 @@ def separate_speakers(audio, threads=None, threshold=0.95):
     return [(float(r.start), float(r.end), int(r.speaker)) for r in res]
 
 
+def _voice_guess(tagger, x):
+    """man / woman / child / ? from the sound model's speech classes on one line's sound."""
+    if len(x) <= VSR * 0.5:
+        return "?"
+    st = tagger.create_stream()
+    st.accept_waveform(VSR, x)
+    got = {e.name: e.prob for e in tagger.compute(st, top_k=527)}
+    m, f, c = (got.get(k, 0.0) for k in VOICE_CLASSES)
+    if c > 0.1 and c > 2 * max(m, f):
+        return "child"
+    if m > 0.02 and m > 2 * f:
+        return "man"
+    if f > 0.02 and f > 2 * m:
+        return "woman"
+    return "?"
+
+
 def line_voices(audio, lines, tagger, segs=None):
     """For each line: {"spk": "Speaker 3" or "", "g": "man"|"woman"|"child"|"?"}.
 
     The man/woman/child guess comes from the sound model's speech classes on
     the line itself; lines it can't call borrow the clear majority of the
-    same speaker's other lines."""
-    out = []
+    same speaker's other lines. tagger: one, or a list of them to guess several lines at
+    once (1.18.52; the same guesses: each line is heard on its own either way)."""
+    clips = []
     for l in lines:
         s0 = max(0.0, l["s"] - 0.2)
         e0 = max(l["e"] + 0.2, s0 + 1.5)
-        x = audio[int(s0 * VSR):int(e0 * VSR)]
-        g = "?"
-        if len(x) > VSR * 0.5:
-            st = tagger.create_stream()
-            st.accept_waveform(VSR, x)
-            got = {e.name: e.prob for e in tagger.compute(st, top_k=527)}
-            m, f, c = (got.get(k, 0.0) for k in VOICE_CLASSES)
-            if c > 0.1 and c > 2 * max(m, f):
-                g = "child"
-            elif m > 0.02 and m > 2 * f:
-                g = "man"
-            elif f > 0.02 and f > 2 * m:
-                g = "woman"
+        clips.append(audio[int(s0 * VSR):int(e0 * VSR)])
+    taggers = tagger if isinstance(tagger, (list, tuple)) else [tagger]
+    if len(taggers) > 1:
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        free, lock = list(taggers), threading.Lock()
+
+        def one(x):
+            with lock:
+                t = free.pop()
+            try:
+                return _voice_guess(t, x)
+            finally:
+                with lock:
+                    free.append(t)
+        with ThreadPoolExecutor(len(taggers)) as ex:
+            guesses = list(ex.map(one, clips))
+    else:
+        guesses = [_voice_guess(taggers[0], x) for x in clips]
+    out = []
+    for l, g in zip(lines, guesses):
         spk = None
         if segs:
             best = 0.0
@@ -1255,6 +1289,277 @@ def line_voices(audio, lines, tagger, segs=None):
         else:
             v["spk"] = f"Speaker {order[k]}"
     return out
+
+
+# Speaker separation, the same steps as sherpa-onnx's own (1.13.8,
+# offline-speaker-diarization-pyannote-impl.h), with the 10-second windows and the voice prints
+# done several at a time (1.18.52, the owner: "1, 2 and 3"). sherpa makes its 3,000-4,000 voice
+# prints for an episode one after another, which was most of the 3-4 minutes; this copy gives
+# exactly the same speakers (checked against the speakers saved for real videos) in about a
+# third of the time. It uses sherpa's own voice-print maker and grouping, and the same rounding
+# (float32), tie-breaking (MSVC's partial_sort) and joining of nearby parts. Any other sherpa
+# version, or anything going wrong, uses sherpa's own as before.
+PORTED_SHERPA = "1.13.8"
+_F = np.float32
+
+
+def speaker_threads(cpus=None):
+    """Threads for sherpa's own speaker separation: 8 on a big PC (15-20% faster than 4 with
+    the same speakers; 12 or 15 were no faster), else as before."""
+    cpus = cpus or os.cpu_count() or 2
+    return min(8, cpus // 2) if cpus >= 8 else max(1, min(4, cpus - 1))
+
+
+def speaker_workers(cpus=None):
+    """(copies, threads each) for the faster speaker separation."""
+    cpus = cpus or os.cpu_count() or 2
+    return max(1, min(4, (cpus - 1) // 2)), (2 if cpus >= 3 else 1)
+
+
+def _seg_meta(sess):
+    m = sess.get_modelmeta().custom_metadata_map
+    md = {k: int(m[k]) for k in ("sample_rate", "window_size", "receptive_field_size",
+                                 "receptive_field_shift", "num_speakers",
+                                 "powerset_max_classes", "num_classes")}
+    ws = 0.1 * md["window_size"]                  # window_shift_ratio 0.1, in double
+    md["window_shift"] = 1 if ws < 1 else min(int(ws), md["window_size"])
+    return md
+
+
+def _powerset(md):
+    pm = np.zeros((md["num_classes"], md["num_speakers"]), np.int32)
+    k, ns = 1, md["num_speakers"]
+    for i in range(1, md["powerset_max_classes"] + 1):
+        if i == 1:
+            for j in range(ns):
+                pm[k, j] = 1
+                k += 1
+        elif i == 2:
+            for j in range(ns):
+                for m in range(j + 1, ns):
+                    pm[k, j] = pm[k, m] = 1
+                    k += 1
+        else:
+            raise RuntimeError("powerset_max_classes > 2")
+    return pm
+
+
+def _top_k(vec, k):
+    """The indexes MSVC's std::partial_sort(idx, idx + k, end, vec[a] > vec[b]) puts first,
+    ties and all (sherpa's TopkIndex, which picks each frame's speakers)."""
+    n = len(vec)
+    k = max(0, min(n, k))
+    if k == 0:
+        return []
+    idx = list(range(n))
+
+    def pred(a, b):
+        return vec[a] > vec[b]
+
+    def push(hole, top, val):
+        i = (hole - 1) >> 1
+        while top < hole and pred(idx[i], val):
+            idx[hole] = idx[i]
+            hole = i
+            i = (hole - 1) >> 1
+        idx[hole] = val
+
+    def pop_hole(hole, bottom, val):
+        top, i = hole, hole
+        max_non_leaf = (bottom - 1) >> 1
+        while i < max_non_leaf:
+            i = 2 * i + 2
+            if pred(idx[i], idx[i - 1]):
+                i -= 1
+            idx[hole] = idx[i]
+            hole = i
+        if i == max_non_leaf and bottom % 2 == 0:
+            idx[hole] = idx[bottom - 1]
+            hole = bottom - 1
+        push(hole, top, val)
+
+    hole = k >> 1                                    # make_heap(first, mid)
+    while hole > 0:
+        hole -= 1
+        pop_hole(hole, k, idx[hole])
+    for nxt in range(k, n):
+        if pred(idx[nxt], idx[0]):
+            val = idx[nxt]
+            idx[nxt] = idx[0]
+            pop_hole(0, k, val)
+    return idx[:k]
+
+
+def _frame_start(i, shift, rfs):
+    return int(float(_F(_F(_F(i) * _F(shift)) / _F(rfs))) + 0.5)
+
+
+def _sample_at(k, nfr, size, off):
+    return int(_F(_F(_F(k) / _F(nfr)) * _F(size)) + _F(off))
+
+
+def _separate_fast(audio, threshold=0.95, min_on=0.3, min_off=0.5, workers=None, threads=None):
+    """sherpa's speaker separation (see above); None for a single window (left to sherpa)."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    import onnxruntime as ort
+    import sherpa_onnx
+    w0, t0 = speaker_workers()
+    workers, threads = workers or w0, threads or t0
+    so = ort.SessionOptions()
+    so.intra_op_num_threads = threads
+    so.inter_op_num_threads = 1
+    model = str(SEG_DIR / "model.onnx")
+    sessions = [ort.InferenceSession(model, so, providers=["CPUExecutionProvider"])]
+    md = _seg_meta(sessions[0])
+    W, S, RFS, sr = (md["window_size"], md["window_shift"], md["receptive_field_shift"],
+                     md["sample_rate"])
+    audio = np.ascontiguousarray(audio, dtype=_F)
+    n = len(audio)
+    if n <= W:
+        return None
+    pm = _powerset(md)
+    num_chunks = (n - W) // S + 1
+    has_last = ((n - W) % S) > 0
+    sessions += [ort.InferenceSession(model, so, providers=["CPUExecutionProvider"])
+                 for _ in range(workers - 1)]
+    iname = sessions[0].get_inputs()[0].name
+    lock = threading.Lock()
+
+    def take(pool):
+        with lock:
+            return pool.pop()
+
+    def give(pool, x):
+        with lock:
+            pool.append(x)
+
+    def seg(i):
+        if i < num_chunks:
+            x = audio[i * S:i * S + W]
+        else:
+            x = np.zeros(W, _F)
+            rest = audio[num_chunks * S:]
+            x[:len(rest)] = rest
+        s = take(sessions)
+        try:
+            out = s.run(None, {iname: x.reshape(1, 1, W)})[0][0]
+        finally:
+            give(sessions, s)
+        return pm[np.argmax(out, axis=1)]            # the first largest, like Eigen's maxCoeff
+    with ThreadPoolExecutor(workers) as ex:
+        labels = list(ex.map(seg, range(num_chunks + has_last)))
+    nch = len(labels)
+    nf_total = (W + (nch - 1) * S) // RFS + 1
+    count, weight = np.zeros(nf_total, _F), np.zeros(nf_total, _F)
+    for i in range(nch):
+        st, r = _frame_start(i, S, RFS), labels[i].shape[0]
+        count[st:st + r] += labels[i].sum(axis=1).astype(_F)
+        weight[st:st + r] += _F(1)
+    per_frame = ((count / (weight + _F(1e-12))) + _F(0.5)).astype(np.int32)
+    if per_frame.max() == 0:
+        return []
+    pairs, samples = [], []                          # one voice print per (window, speaker)
+    for ci, lab in enumerate(labels):
+        alone = np.where((lab.sum(axis=1) < 2)[:, None], lab, 0)     # overlaps left out
+        nfr, off = alone.shape[0], ci * S
+        for sp in range(md["num_speakers"]):
+            d = alone[:, sp]
+            if d.sum() < 10:
+                continue
+            parts, on, s0 = [], False, 0
+            for k in range(nfr):
+                if d[k] != 0:
+                    if not on:
+                        on, s0 = True, k
+                elif on:
+                    on = False
+                    parts.append((_sample_at(s0, nfr, W, off), _sample_at(k, nfr, W, off)))
+            if on:
+                parts.append((_sample_at(s0, nfr, W, off), _sample_at(nfr - 1, nfr, W, off)))
+            pairs.append((ci, sp))
+            samples.append(parts)
+    ecfg = sherpa_onnx.SpeakerEmbeddingExtractorConfig(model=str(EMB_FILE), num_threads=threads)
+    extractors = [sherpa_onnx.SpeakerEmbeddingExtractor(ecfg) for _ in range(workers)]
+
+    def emb(parts):
+        e = take(extractors)
+        try:
+            s = e.create_stream()
+            for a, b in parts:
+                end = b if b <= n else n
+                if end - a > 0:
+                    s.accept_waveform(sr, audio[a:end])
+            s.input_finished()
+            if not e.is_ready(s):
+                raise RuntimeError("a part too short for a voice print")
+            return np.array(e.compute(s), dtype=_F)
+        finally:
+            give(extractors, e)
+    with ThreadPoolExecutor(workers) as ex:
+        embs = list(ex.map(emb, samples))
+    valid = [i for i, e in enumerate(embs) if not np.isnan(e).any()]
+    if not valid:
+        return []
+    groups = sherpa_onnx.FastClustering(sherpa_onnx.FastClusteringConfig(
+        num_clusters=-1, threshold=threshold))(np.stack([embs[i] for i in valid]).astype(_F))
+    if not groups:
+        return []
+    top = max(groups)
+    to_group = {pairs[i]: g for i, g in zip(valid, groups)}
+    cnt = np.zeros((nf_total, top + 1), np.int32)
+    for ci, lab in enumerate(labels):
+        new = np.zeros((lab.shape[0], top + 1), np.int32)
+        for sp in range(lab.shape[1]):
+            g = to_group.get((ci, sp))
+            if g is not None and 0 <= g <= top:
+                new[lab[:, sp] == 1, g] = 1
+        st = _frame_start(ci, S, RFS)
+        cnt[st:st + new.shape[0]] += new
+    if has_last:
+        cnt = cnt[:min(n // RFS, cnt.shape[0] - 1) + 1]
+    final = np.zeros_like(cnt)
+    for i in range(cnt.shape[0]):
+        if per_frame[i]:
+            for m in _top_k(cnt[i].tolist(), int(per_frame[i])):
+                final[i, m] = 1
+    scale = _F(_F(RFS) / _F(sr))
+    scale_off = _F(0.5 * md["receptive_field_size"] / sr)
+    gap, shortest = _F(min_off), _F(min_on)
+    out = []
+    ft = final.T
+    nfr = ft.shape[1]
+    for sp in range(ft.shape[0]):
+        this = []
+        on = ft[sp, 0] > 0
+        s0 = 0 if on else -1
+        for f in range(1, nfr):
+            if on:
+                if ft[sp, f] == 0:
+                    this.append([_F(_F(s0) * scale) + scale_off, _F(_F(f) * scale) + scale_off])
+                    on = False
+            elif ft[sp, f] == 1:
+                on, s0 = True, f
+        if on:
+            this.append([_F(_F(s0) * scale) + scale_off, _F(_F(nfr - 1) * scale) + scale_off])
+        joined = True
+        while joined:                                # parts closer than min_off are one
+            joined = False
+            for i in range(len(this) - 1):
+                a, b = this[i], this[i + 1]
+                m = None
+                if a[1] < b[0] and _F(a[1] + gap) >= b[0]:
+                    m = [a[0], b[1]]
+                elif b[1] < a[0] and _F(b[1] + gap) >= a[0]:
+                    m = [b[0], a[1]]
+                if m is not None:
+                    this[i] = m
+                    del this[i + 1]
+                    joined = True
+                    break
+        out += [(a, b, sp) for a, b in this if _F(b - a) > shortest]
+    out.sort(key=lambda x: (x[0], x[2]))
+    return [(float(a), float(b), int(k)) for a, b, k in out]
 
 
 # ---------------------------------------------------------------------------

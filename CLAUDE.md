@@ -331,6 +331,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- Telling voices apart is faster with the same results (1.18.52, 2026-11-10; the owner: "why
+  do we need to tell voices apart?", then "1, 2 and 3"). Speaker separation took 3-4 minutes of
+  a 44-minute episode, mostly sherpa-onnx making ~3,800 voice prints one at a time.
+  `ai._separate_fast` does sherpa 1.13.8's own pyannote steps (a port of
+  `offline-speaker-diarization-pyannote-impl.h`) with the 10-second windows and the voice
+  prints several at a time (`speaker_workers`: 4 copies x 2 threads on 16), using sherpa's own
+  voice-print maker and grouping, and copying its float32 rounding, MSVC `partial_sort` ties
+  (`_top_k`), joining and sorting. Only with sherpa-onnx `PORTED_SHERPA` (the installer doesn't
+  pin it); another version, a clip of one window or any error uses sherpa's own, now with 8
+  threads on 16 (`speaker_threads`; small PCs as before). The man/woman/child guess runs
+  several lines at once on its own tagger copies (`find_voices`: cpus/2, at most 8;
+  `line_voices` takes a list). Checked against the speakers saved for all 113 past videos
+  (75 hours, 62,809 speech parts): every one identical, 7,872 s in all (about 77 s for a
+  44-minute episode, was 186-234 s); The Resident S03E12's 763 guesses 11 s -> 3.5 s, identical.
+  Measured and rejected: more threads for sherpa's own (8 = 12 = 15, all the same speakers).
 - Dark scenes are brightened and checked, not skipped (1.18.50, 2026-11-09; the owner: "the
   picture scanner skips dark frames, is that going to allow intimate scenes through?", then
   "Yes, build and test"). In 148 saved reviews 42% of the intimate scenes cut were mostly
@@ -591,6 +606,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_audio_speed.py`: two listeners give the same words in the same order and both take
   turns, progress stays in order, two only with 6+ threads and 3 GB free; the sound check
   starts before the listening (on its own when the words were heard before).
+- `test_voice_speed.py`: the faster speaker separation gives sherpa's own speakers on
+  made-up voices (also 1 worker and 1 thread, and through `separate_speakers`); one window,
+  another sherpa version or an error uses sherpa's own; ties picked as MSVC does; several
+  tagger copies give the same man/woman/child guesses. Borrows the installed app's speaker
+  models when the repo has none; skips without them.
 - `test_dark_scenes.py`: a dim frame brightened to its full range (noise at most 4x, black
   stays black); brightened nudity and picture-AI frames count, a dark nudity scene is unticked
   until the AI helper confirms it (and bright ones ticked as before); a real scan of a bright,
