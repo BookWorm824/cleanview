@@ -331,6 +331,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- At most 50 plain terms to a filter (1.18.55, 2026-11-11; from CleanListen 1.17.20, the owner:
+  "Yes, add it"). CleanListen's Scarlet (Unabridged), one 7-hour MP3, failed to save with
+  "Error when evaluating the expression ... for enable" using the 1.18.26 scheme (500 ranges to a
+  filter, bracketed in 50s); neither app could make it fail here, but 50 plainly added up reads
+  in any ffmpeg. `_mute_filters`, the quieter music (`_chunks`, `RANGES_PER_FILTER`) and the cuts
+  (`_cut_filters`: one select/aselect per 50, which leave the times alone, then one
+  setpts/asetpts) are chains of filters; only the time the cuts take out (setpts can't be
+  chained) is still bracketed past 50 cuts (`_sum`). The same in `cvcore._range_filters`.
+  Save errors shorten ffmpeg's long quoted expressions (`_short_error`), so its reason shows.
 - Nothing heavy runs beside the AI helper (1.18.54, 2026-11-10; the owner: "lets get back to
   effieciency", "All four", then "Yes, trim and test"). Whole cleans timed on this PC (16
   threads, 8 GB RTX 5070), Lauren's settings: Castle S1E2 12.5 min (picture scan 4.3, the AI
@@ -609,8 +618,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   progress line says it hasn't moved.
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
-- `test_many_mutes.py`: saving with 150 mutes and 120 cuts, the bracketed groups, and
-  ffmpeg's "Cannot allocate memory" for a filter not said as running out of memory.
+- `test_many_mutes.py`: saving with 150 mutes and 120 cuts, and 1,600 mutes and 60 cuts; each
+  filter at most 50 plain terms (the cuts' setpts bracketed); long expressions shortened in
+  errors; ffmpeg's "Cannot allocate memory" for a filter not said as running out of memory.
 - `test_shawshank.py`: doors, slams, a typewriter and sobbing heard more clearly than
   gunfire aren't gunfire; real gunshots and screams still count; older scans as before.
 - `test_gunshots.py`: real gunshot sounds Lauren sent (the tagger's scores in

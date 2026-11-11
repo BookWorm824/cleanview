@@ -1436,12 +1436,24 @@ def split_tracks(clean_files, tracks, cuts_by_part, outdir, book_title, log=prin
 # ---------------------------------------------------------------------------
 # Render
 # ---------------------------------------------------------------------------
+RANGES_PER_FILTER = 50
+
+
 def _ranges(rs):
-    # ffmpeg reads at most 100 terms added up in a row; in brackets of 50 it reads them all
-    terms = [f"between(t,{s:.3f},{e:.3f})" for s, e in rs]
-    while len(terms) > 50:
-        terms = ["(" + "+".join(terms[i:i + 50]) + ")" for i in range(0, len(terms), 50)]
-    return "+".join(terms)
+    # ffmpeg reads at most 100 terms added up in a row; callers give it at most 50, plainly
+    # added up (bracketed 500s still failed in CleanListen, 2026-11-11: see cleanview.py)
+    return "+".join(f"between(t,{s:.3f},{e:.3f})" for s, e in rs)
+
+
+def _range_filters(mr, cr):
+    """Mute the ranges mr and cut out the ranges cr, one filter for each 50 of each (aselect
+    leaves the times alone, so each sees the original ones; asetpts closes the gaps)."""
+    n = RANGES_PER_FILTER
+    filt = [f"volume=volume=0:enable='{_ranges(mr[i:i + n])}'" for i in range(0, len(mr), n)]
+    if cr:
+        filt += [f"aselect='not({_ranges(cr[i:i + n])})'" for i in range(0, len(cr), n)]
+        filt.append("asetpts=N/SR/TB")
+    return filt
 
 
 def render(workdir, outdir, cuts=None, progress=None, log=print, chapters=False):
@@ -1464,12 +1476,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, chapters=False)
         cr = sorted((c["s"], c["e"]) for c in cuts if c["part"] == pi)
         src = Path(p)
         ext = src.suffix.lower()
-        filt = []
-        if mr:
-            filt += [f"volume=volume=0:enable='{_ranges(mr[i:i + 500])}'"
-                     for i in range(0, len(mr), 500)]
-        if cr:
-            filt.append(f"aselect='not({_ranges(cr)})',asetpts=N/SR/TB")
+        filt = _range_filters(mr, cr)
         fs = work / f"filter_{pi}.txt"
         fs.write_text(",".join(filt) or "anull")
         br = run([_tool("ffprobe"), "-v", "error", "-select_streams", "a:0", "-show_entries",

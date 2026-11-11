@@ -3603,14 +3603,20 @@ def working_encoders():
 
 # ffmpeg won't read more than 100 terms added up in a row in one expression: the 101st
 # fails as "Cannot allocate memory" (Jason, Shawshank Redemption 2026-11-07: every way of
-# saving failed, and it was told the PC ran out of memory). In brackets of 50 it reads a
-# couple of thousand, and mutes and quieter music go in their own filter for each 500.
+# saving failed, and it was told the PC ran out of memory). 1.18.26 bracketed them in 50s,
+# 500 to a filter, but CleanListen's Scarlet (Unabridged), one 7-hour MP3 with the same
+# scheme, still failed on the owner's PC with "Error when evaluating the expression ... for
+# enable" (2026-11-11). Now each filter gets at most 50 ranges, plainly added up with no
+# brackets, which any ffmpeg reads; a long list is a chain of filters (CleanListen 1.17.20,
+# 1.18.55 here). Mutes, quieter music and cuts (select/aselect leave the times alone, so
+# each sees the original ones) are chains; only the time each cut takes out (setpts, which
+# can't be chained) is still bracketed, past 50 cuts.
+RANGES_PER_FILTER = 50
 SUM_GROUP = 50
-FILTER_CHUNK = 500
 
 
 def _sum(terms):
-    """terms added up, bracketed in groups so ffmpeg will read them all."""
+    """terms added up, bracketed in groups past SUM_GROUP (only the cuts' setpts uses it)."""
     terms = list(terms)
     while len(terms) > SUM_GROUP:
         terms = ["(" + "+".join(terms[i:i + SUM_GROUP]) + ")"
@@ -3620,16 +3626,32 @@ def _sum(terms):
 
 def _chunks(rs):
     rs = list(rs)
-    return [rs[i:i + FILTER_CHUNK] for i in range(0, len(rs), FILTER_CHUNK)]
+    return [rs[i:i + RANGES_PER_FILTER] for i in range(0, len(rs), RANGES_PER_FILTER)]
 
 
 def _ranges(rs, off):
-    return _sum(f"between(t,{s + off:.3f},{e + off:.3f})" for s, e in rs)
+    """Plainly added up: callers give it at most RANGES_PER_FILTER (one filter's worth)."""
+    return "+".join(f"between(t,{s + off:.3f},{e + off:.3f})" for s, e in rs)
 
 
 def _mute_filters(rs, off):
-    """One silent stretch per range; a filter for each 500 of them."""
+    """One silent stretch per range; a filter for each 50 of them."""
     return [f"volume=volume=0:enable='{_ranges(c, off)}'" for c in _chunks(rs)]
+
+
+def _cut_filters(rs, off, video=False):
+    """Cut out the ranges: one select for each 50 (they leave the times alone), then one
+    setpts closing the gaps."""
+    sel, pts = ("select", "setpts") if video else ("aselect", "asetpts")
+    return ([f"{sel}='not({_ranges(c, off)})'" for c in _chunks(rs)] +
+            [f"{pts}='PTS-({_removed_expr(rs, off)})/TB'"])
+
+
+def _short_error(text):
+    """ffmpeg's message with any long quoted filter shortened, so the line that says what went
+    wrong still shows (CleanListen's screenshot showed only a list of times)."""
+    return re.sub(r"'[^'\n]{120,}'", lambda m: m.group(0)[:60] + " … " + m.group(0)[-40:],
+                  text or "")
 
 
 def _removed_expr(cuts, off):
@@ -3815,12 +3837,10 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         afilt.append(f"volume=volume='{_quieter(chunk)}':eval=frame")
     afilt += _mute_filters(mute_rs, off)
     if cut_rs:
-        afilt.append(f"aselect='not({_ranges(cut_rs, off)})',"
-                     f"asetpts='PTS-({_removed_expr(cut_rs, off)})/TB'")
+        afilt += _cut_filters(cut_rs, off)
     (work / "afilter.txt").write_text(",".join(afilt))
     (work / "vfilter.txt").write_text(
-        f"select='not({_ranges(cut_rs, off)})',setpts='PTS-({_removed_expr(cut_rs, off)})/TB'"
-        if cut_rs else "null")
+        ",".join(_cut_filters(cut_rs, off, video=True)) if cut_rs else "null")
     abr = "448k" if a["channels"] > 2 else "192k"
     if a["bit_rate"]:
         abr = str(min(max(a["bit_rate"], 128000), 640000 if a["channels"] > 2 else 320000))
@@ -3953,7 +3973,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
             told = errf.read_text("utf8", "replace").strip()
             return False, (f"{STUCK_SAID} at {_clock(max(0.0, seen['sec']))} of "
                            f"{_clock(expected)} for {SAVE_STUCK_SECS // 60} minutes, so it was "
-                           f"stopped." + (f"\nffmpeg said: {told[-1500:]}" if told else ""))
+                           f"stopped." + (f"\nffmpeg said: {_short_error(told)[-1500:]}"
+                                          if told else ""))
         if proc.returncode == 0:
             try:
                 os.replace(tmp, dst)      # fails if the old clean copy is open in a player
@@ -3965,7 +3986,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
             os.remove(tmp)
         except OSError:
             pass
-        return False, errf.read_text("utf8", "replace")
+        return False, _short_error(errf.read_text("utf8", "replace"))
 
     def tries(vname, vargs, label, careful=False):
         for new_style in (True, False):
