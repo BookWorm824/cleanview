@@ -454,14 +454,29 @@ def find_ollama():
     return None
 
 
+def ollama_starting():
+    """True when an Ollama server is already running (maybe still starting up: the window
+    starts it in the background now, 1.18.54, and a video can ask for it meanwhile), so a
+    second one isn't started. Not knowing: False."""
+    if os.name != "nt":
+        return False
+    try:
+        r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq ollama.exe", "/NH", "/FO", "CSV"],
+                           capture_output=True, text=True, timeout=15, **_NOWIN)
+        return '"ollama.exe"' in r.stdout.lower()
+    except Exception:
+        return False
+
+
 def start_ollama(wait=60):
     if ollama_running():
         return True
     exe = find_ollama()
     if not exe:
         return False
-    subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     **_NOWIN)
+    if not ollama_starting():
+        subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         **_NOWIN)
     for _ in range(wait):
         if ollama_running():
             return True
@@ -1277,7 +1292,9 @@ def line_voices(audio, lines, tagger, segs=None):
     for k, vs in votes.items():
         kinds = {g for g in vs if g in ("man", "woman")}
         if len(kinds) == 2:
-            minority = min(kinds, key=vs.count)
+            # (sorted: on a tie, a set's order changed from run to run, and so did the
+            # numbers: 1.18.54)
+            minority = min(sorted(kinds), key=vs.count)
             extra[k] = (minority, nxt)
             nxt += 1
     for v in out:

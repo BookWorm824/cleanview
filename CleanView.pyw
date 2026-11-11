@@ -1522,11 +1522,16 @@ class App(tk.Tk):
 
         def stopped():                     # Cancel, or the window closing
             return self.cancel_flag or getattr(self, "run", 0) != run
-        try:     # started once here, so the workers don't each try to start it
-            if engine.needs(engine.full_opts(self.scan_opts))["ai"]:
-                engine.ai.start_ollama(wait=20)
-        except Exception:
-            pass
+        # started once here, so the workers don't each try to start it; in the background
+        # (1.18.54: the videos waited up to 20 s for it, and each video only needs it once
+        # it has listened; a video that asks before it answers doesn't start a second one)
+        if engine.needs(engine.full_opts(self.scan_opts))["ai"]:
+            def start_ai():
+                try:
+                    engine.ai.start_ollama(wait=20)
+                except Exception:
+                    pass
+            threading.Thread(target=start_ai, daemon=True).start()
         events = queue.Queue()
         workers = self.workers = VQ.Workers(lambda k, m: events.put((k, m)))
         frac = [0.0] * n

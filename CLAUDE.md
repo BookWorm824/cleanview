@@ -331,6 +331,25 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- Nothing heavy runs beside the AI helper (1.18.54, 2026-11-10; the owner: "lets get back to
+  effieciency", "All four", then "Yes, trim and test"). Whole cleans timed on this PC (16
+  threads, 8 GB RTX 5070), Lauren's settings: Castle S1E2 12.5 min (picture scan 4.3, the AI
+  helper's reading 3.5, listening 1.8, voices 1.3, closer look 1); The Resident S03E12 24 min,
+  16 of them the closer look (~150 scenes). The AI helper (Ollama; its models are only partly
+  on the graphics card) slows down badly whenever the processor is busy, so running things
+  beside it lost time: reading the dialogue during the picture scan made Castle take 25 min
+  (each conversation 2 -> 17 min); telling voices apart during the closer look (1.18.46)
+  made its checks time out and be done again (16 min instead of 12); the picture scan during
+  the listening was 25 s slower. Kept: the AI helper starts in the background (`start_ai`
+  in analyze, waited for after the listening; the window starts it in a thread instead of
+  waiting up to 20 s; `ai.ollama_starting` (tasklist) so a second server isn't started),
+  the closer look runs on its own and always ends with `recheck_failed` (a scene was left
+  "not double-checked" without it), "Finding language" has its own small part of the
+  progress bar (`lay_out`, step "lang"; it showed 97% then went back to 79%; language is
+  found before the picture now, its notes still after the picture's, `lang_notes`), and
+  speaker numbers are the same every run (`line_voices` split a man/woman tie by a set's
+  random order: `min(sorted(kinds), ...)`). Every line, mute, scene and note came out the
+  same as before in all the runs. The closer look itself is now the slowest step.
 - A save that stops moving is stopped and tried another way (1.18.53, 2026-11-10; Lauren, on
   her MSI laptop: Castle S1E2 "(Clean)", a clean copy cleaned again after the update, got stuck
   saving several times and nothing said why; "Yes, add it"). Re-saving clean copies here worked
@@ -428,6 +447,7 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
      at `NUM_CTX` like chat(), then /api/ps: `size_vram >= GPU_MOST` (0.5) of `size`; an
      8 GB RTX 5070 holds ~76% of qwen3-vl:8b), voices are told apart in the background
      during the closer look. No graphics card or not knowing: one after the other as before.
+     Undone in 1.18.54: it slowed the closer look until its checks timed out.
   Every closer look that ran alongside something (this one, and the one in the background
   while Claude reads) ends with `recheck_failed`: scenes whose check failed (a time limit)
   are looked at again on their own, so every double-check is still done. Checked on this
@@ -638,6 +658,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_ai_answers.py`: the AI helper is asked once for the same question; other words,
   model or stills ask again; errors and replies without JSON aren't kept; a stopped closer
   look picks up where it left off; the dialogue reading comes out the same each run.
+- `test_overlap.py`: a whole analyze() with stand-ins: the AI helper starts while it
+  listens, the rest one after the other (with or without a graphics card, the same analysis),
+  notes in the same order, the progress bar only goes forward; voices not during the closer
+  look and failed checks looked at again; a second Ollama isn't started; a man/woman tie
+  numbered the same in runs with different hash seeds.
 - `test_at_the_same_time.py`: subtitles fetched (next to the video, downloaded and kept,
   "none online" remembered, off) and started before listening; the whole-picture look done
   early gives the same scenes as done later, stops between batches, starts once heard and

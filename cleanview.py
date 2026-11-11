@@ -2956,10 +2956,32 @@ def after_same_word(mutes, raw, s, e):
     return s, e
 
 
+def name_voices(lines, genders):
+    """A name from the subtitles ("DEREK: ...") names that voice's other lines too (in place;
+    returns genders)."""
+    named = {}
+    for l, g in zip(lines, genders):
+        if l.get("who") and g["spk"]:
+            named.setdefault(g["spk"], {}).setdefault(l["who"], 0)
+            named[g["spk"]][l["who"]] += 1
+    for g in genders:
+        if g["spk"] in named and len(named[g["spk"]]) == 1:
+            g["spk"] = next(iter(named[g["spk"]]))
+    return genders
+
+
 def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, progress=None,
             log=print, cancel=None, model_dir=cl.DEFAULT_MODEL, threads=None, **legacy):
     """progress(fraction 0..1, message). Saves and returns workdir/analysis.json.
-    opts: see DEFAULTS. (find_nudity / find_sex / find_violence still work.)"""
+    opts: see DEFAULTS. (find_nudity / find_sex / find_violence still work.)
+
+    What doesn't run side by side, and why (1.18.54, measured on Castle S1E2 and The Resident
+    S03E12 on a 16-thread PC with an 8 GB graphics card): the AI helper slows down badly
+    whenever the processor is busy (its model is only partly on the graphics card), so
+    nothing heavy runs beside it. Reading the dialogue during the picture scan made a clean
+    twice as long (each conversation 2 -> 17 minutes); telling voices apart during the
+    closer look made its checks time out and be done again (16 minutes instead of 12); the
+    picture scan during the listening was no faster (25 s slower)."""
     o = full_opts(opts)
     for k_old, k_new in (("find_nudity", "nudity"), ("find_sex", "sex"), ("find_violence", "violence")):
         if k_old in legacy:
@@ -2975,7 +2997,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     mine = my_words(o)            # her own words and phrases: always muted
     t_start = time.time()
     use_clip = bool(nd["clip"]) and ai.clip_ready()
-    have_ai = nd["ai"] and ai.start_ollama(wait=20) and ai.choose_models()
+    # the AI helper starts in the background while it listens (1.18.54: waiting for it first
+    # took ~20 s); it's first needed once the listening is done
+    ai_up, ai_job = {}, None
+    if nd["ai"]:
+        def start_ai(progress):
+            ai_up["ok"] = ai.start_ollama(wait=20) and ai.choose_models()
+        ai_job = in_background(start_ai)
+    have_ai = nd["ai"]          # until it's known (laying out the progress bar)
     notes = []
 
     def eta(frac_done):
@@ -2985,20 +3014,26 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         return f"about {max(1, el / frac_done * (1 - frac_done) / 60):.0f} min left"
 
     local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
-    # how much of the progress bar each step gets
-    look_step = ("look", 0.08 if local_look else 0)
-    steps = [("asr", 0.35), ("snd", 0.08 if nd["sound"] else 0),
-             ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0)] + \
-        ([] if together else [look_step]) + [
-             ("lines", 0.12 if (have_ai and nd["lines"]) else 0)] + \
-        ([look_step] if together else []) + [
-             ("pics", 0.15 if cloud_look else 0),
-             ("end", 0.03)]
-    tot = sum(w for _, w in steps)
-    base, acc = {}, 0.0
-    for k, w in steps:
-        base[k] = (acc / tot, w / tot)
-        acc += w
+    base = {}
+
+    def lay_out():
+        """How much of the progress bar each step gets, in the order they happen ("Finding
+        language" has its own small part now: it showed 97% and then went back, 1.18.54)."""
+        look_step = ("look", 0.08 if local_look else 0)
+        vis_step = ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0)
+        lines_step = ("lines", 0.12 if (have_ai and nd["lines"]) else 0)
+        steps = [("asr", 0.35), ("snd", 0.08 if nd["sound"] else 0), ("lang", 0.01)]
+        if together:
+            steps += [vis_step, lines_step, look_step]
+        else:
+            steps += [vis_step, look_step, lines_step]
+        steps += [("pics", 0.15 if cloud_look else 0), ("end", 0.03)]
+        tot = sum(w for _, w in steps)
+        acc = 0.0
+        for k, w in steps:
+            base[k] = (acc / tot, w / tot)
+            acc += w
+    lay_out()
 
     def at(step, frac):
         b, w = base[step]
@@ -3027,6 +3062,16 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             def check_sounds(progress):
                 sound["found"] = sound_scan(path, info, load_tagger(2), None, cancel)
             snd_job = in_background(check_sounds)
+    # the picture: saved from before, or watched after the listening (below)
+    vis = None
+    vfile = work / "pictures.json"
+    vis_needed = bool(nd["nudenet"] or use_clip)
+    if vis_needed and vfile.exists():
+        vis = json.loads(vfile.read_text())
+        if vis.get("version", 1) < PICTURE_VERSION or (use_clip and not vis.get("clip")):
+            vis = None
+        elif use_clip and vis["clip"].get("sig") != ai.clip_signature():
+            vis = None           # saved before the picture AI's descriptions changed: again
     if tfile.exists():
         asr = json.loads(tfile.read_text())
     else:
@@ -3060,31 +3105,17 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             snd = sound_scan(path, info, tagger, p_snd, cancel)
         sfile.write_text(json.dumps(snd))
 
-    vis = None
-    if nd["nudenet"] or use_clip:
-        vfile = work / "pictures.json"
-        if vfile.exists():
-            vis = json.loads(vfile.read_text())
-            if vis.get("version", 1) < PICTURE_VERSION or (use_clip and not vis.get("clip")):
-                vis = None
-            elif use_clip and vis["clip"].get("sig") != ai.clip_signature():
-                vis = None           # saved before the picture AI's descriptions changed: again
-        if vis is None:
-            what = "Watching the picture" + (" with the picture AI" if use_clip else " for nudity")
-            say(at("vis", 0), what + "…")
+    if ai_job is not None:              # started in the background at the top
+        wait_for(ai_job, None, cancel)
+        have_ai = ai_up.get("ok", False)
+        local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
 
-            def p_vis(sec):
-                f = at("vis", sec / dur)
-                say(f, f"{what} · {eta(f)}")
-            vis = visual_scan(path, vfile, use_clip, p_vis, cancel)
-            notes += vis.get("notes", [])
-    if nd["clip"] and not use_clip:
-        notes.append("The picture AI isn't installed, so kissing, gore, smoking and the like "
-                     "weren't checked by sight.")
-
-    say(at("end", 0), "Finding language…")
+    # language and subtitles now, before the picture (they need only what was heard); their
+    # notes still go after the picture's, as before
+    lang_notes = []
+    say(at("lang", 0), "Finding language…")
     if subs_job["thread"].is_alive():
-        say(at("end", 0.1), "Looking for subtitles online…")
+        say(at("lang", 0.5), "Looking for subtitles online…")
     wait_for(subs_job, None, cancel)
     cues, sub_note, text, why = subs["found"]
     dl = work / "downloaded.srt"
@@ -3096,7 +3127,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 tried.write_text(why, encoding="utf8")
 
                 def others():
-                    say(at("end", 0.1), "Trying other subtitles…")
+                    say(at("lang", 0.5), "Trying other subtitles…")
                     try:
                         yield from other_subtitles(path, log)
                     except Exception as ex:      # the first ones' note stands
@@ -3111,10 +3142,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 cues = synced
                 sub_note = f"{why} and matched to the sound ({frac:.0%} of words lined up)"
             else:
-                notes.append(f"Subtitles were found online but didn't match this video "
-                             f"({frac:.0%} of words lined up), so they weren't used.")
+                lang_notes.append(f"Subtitles were found online but didn't match this video "
+                                  f"({frac:.0%} of words lined up), so they weren't used.")
         else:
-            notes.append(f"No subtitles: {why}.")
+            lang_notes.append(f"No subtitles: {why}.")
     mutes = [{"s": asr[i]["s"], "e": asr[j - 1]["e"], "cat": cat, "src": "audio", "at": i,
               "word": " ".join(cl.mask(asr[k]["t"]) for k in range(i, j)),
               "raw": " ".join(asr[k]["n"] for k in range(i, j)),
@@ -3186,11 +3217,30 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                                           lambda f, m: progress(f, m), cancel)
         pics_job = in_background(look_through)
 
+    # what they told the chat to keep in mind: the AI helper follows it too (Jason, 2026-11-04)
+    told = learn.notes(learned_key(path, o), title_name(path))
+    # dialogue: sexual references, sleeping around, relationship talk
+    lines = ai.dialogue_lines(cues, asr, spoken_words)
+    key = learned_key(path, o)
+    examples = learn.examples(key, on_kinds(o), title_name(path))
+
+    if vis_needed and vis is None:
+        what = "Watching the picture" + (" with the picture AI" if use_clip else " for nudity")
+        say(at("vis", 0), what + "…")
+
+        def p_vis(sec):
+            f = at("vis", sec / dur)
+            say(f, f"{what} · {eta(f)}")
+        vis = visual_scan(path, vfile, use_clip, p_vis, cancel)
+        notes += vis.get("notes", [])
+    if nd["clip"] and not use_clip:
+        notes.append("The picture AI isn't installed, so kissing, gore, smoking and the like "
+                     "weren't checked by sight.")
+    notes += lang_notes
+
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
     look_job = None
-    # what they told the chat to keep in mind: the AI helper follows it too (Jason, 2026-11-04)
-    told = learn.notes(learned_key(path, o), title_name(path))
     if use_clip and vis and vis.get("clip"):
         cands = ai.clip_candidates(vis["clip"], nd["clip"], lum=vis.get("lum"), fps=vis["fps"],
                                    lifted=vis.get("lifted"))
@@ -3201,11 +3251,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if local_look and vis and (o["nudity"] or o["implied"]):
         nude_first = nudity_scenes(vis)[0]
         nude_checks = nudity_checks(nude_first)
-    # dialogue: sexual references, sleeping around, relationship talk
-    lines = ai.dialogue_lines(cues, asr, spoken_words)
     use_claude = o.get("reader") in CLOUD and bool(nd["lines"]) and bool(lines)
     voices_wanted = bool((have_ai or use_claude) and nd["lines"] and lines)
-    voices, voices_job = {}, None
     todo = []
     if use_clip and vis and (vis.get("clip") or nude_checks):
         if local_look and (cands or nude_checks):
@@ -3221,20 +3268,17 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 look_job = in_background(look)
             else:
                 say(at("look", 0), "Taking a closer look at the scenes found…")
-                if voices_wanted and ai.on_graphics_card():
-                    # the picture model is on the graphics card: voices are told apart on the
-                    # processor meanwhile (without one, one after the other, as before)
-                    def tell_voices(progress):
-                        voices["found"] = find_voices(path, info, work, lines, cancel)
-                    voices_job = in_background(tell_voices)
+                # on its own: voices used to be told apart meanwhile (1.18.46), which slowed
+                # it so much that checks timed out (see analyze's note)
                 look(lambda f, n="": say(at("look", f), "Taking a closer look at the scenes "
                                                         f"found{also(n)} · {eta(at('look', f))}"))
-                if voices_job is not None:
-                    n_redo = recheck_failed(todo, lambda redo: look(
-                        lambda f, n="": say(at("look", 1), "Taking another look at scenes that "
-                                                           f"couldn't be checked{also(n)}"), redo))
-                    if n_redo:
-                        log(f"looked again at {n_redo} scene(s) that couldn't be checked")
+                # a check that failed (a time limit) is tried once more, so every double-check
+                # is done (one was left "not double-checked" without this, The Resident S03E12)
+                n_redo = recheck_failed(todo, lambda redo: look(
+                    lambda f, n="": say(at("look", 1), "Taking another look at scenes that "
+                                                       f"couldn't be checked{also(n)}"), redo))
+                if n_redo:
+                    log(f"looked again at {n_redo} scene(s) that couldn't be checked")
 
     def finish_look():
         """The closer look taken in the background: wait for it, then look again at any scene
@@ -3254,28 +3298,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                      f"{cl.fmt_t(filled[0]['s'])} on, {len(filled)} lines), so those parts "
                      f"were read from what was heard.")
     genders = None
-    key = learned_key(path, o)
-    examples = learn.examples(key, on_kinds(o), title_name(path))
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
     who = cc.name()
     if voices_wanted:
         say(at("lines", 0), "Telling voices apart…")
         try:
-            if voices_job is not None:  # told apart during the closer look
-                wait_for(voices_job, None, cancel)
-                genders = voices["found"]
-            else:
-                genders = find_voices(path, info, work, lines, cancel)
-            # a name from the subtitles ("DEREK: ...") names that voice's other lines too
-            named = {}
-            for l, g in zip(lines, genders):
-                if l.get("who") and g["spk"]:
-                    named.setdefault(g["spk"], {}).setdefault(l["who"], 0)
-                    named[g["spk"]][l["who"]] += 1
-            for g in genders:
-                if g["spk"] in named and len(named[g["spk"]]) == 1:
-                    g["spk"] = next(iter(named[g["spk"]]))
+            genders = name_voices(lines, find_voices(path, info, work, lines, cancel))
             known = sum(1 for v in genders if v["g"] != "?")
             spk = len({v["spk"] for v in genders if v["spk"]})
             notes.append(f"Voices: {spk} speakers told apart; man/woman/child guessed for "

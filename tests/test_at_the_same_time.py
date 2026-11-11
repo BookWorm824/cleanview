@@ -136,10 +136,12 @@ class Voices(unittest.TestCase):
         with mock.patch.object(ai, "_api", side_effect=OSError("not running")):
             self.assertFalse(ai.on_graphics_card("qwen3-vl:8b"))
 
-    def test_only_with_the_graphics_card(self):
+    def test_not_during_the_closer_look_any_more(self):
+        # 1.18.54: it slowed the closer look so much its checks timed out (test_overlap)
         src = inspect.getsource(engine.analyze)
-        self.assertIn("if voices_wanted and ai.on_graphics_card():", src)
-        self.assertIn("genders = find_voices(path, info, work, lines, cancel)", src)
+        self.assertNotIn("ai.on_graphics_card()", src)
+        self.assertIn("genders = name_voices(lines, find_voices(path, info, work, lines, cancel))",
+                      src)
 
 
 class EveryCheckDone(unittest.TestCase):
