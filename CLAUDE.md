@@ -331,6 +331,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- A newer AI model that wouldn't download is tried again (1.18.57, 2026-11-11): on Lauren's
+  laptop the new picture model's download (6.2 GB) failed on 1.18.56's first try, CleanView
+  rightly went on with the old model, but the mark (`_upgrade_mark`) said "tried" and it would
+  never try again. Now it says "done" or "failed N" (`_note_upgrade`, `_upgrade_tries`; the old
+  "tried" counts as one failure), and "Getting ready" tries again on the next scans up to
+  `UPGRADE_TRIES` (3); Ollama picks up a download where it stopped.
 - The closer look uses qwen3-vl's instruct build (1.18.56, 2026-11-11; the owner: "Yes, build
   it", and "remember where we are if want to change back": 1.18.55, commit e999b75, is the last
   with the thinking build; going back is a revert, and the old model stays installed on every
@@ -639,8 +645,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   but moving save, and the quiet end, aren't stopped; Cancel works while ffmpeg is silent; the
   progress line says it hasn't moved.
 - `test_picture_model.py`: the instruct picture model first (the thinking one until it's
-  downloaded, once, on "Getting ready"), and the gore checklist: what it ticks decides Gore,
-  Graphic or nothing (a rash is dropped), as asked in the closer look.
+  downloaded on "Getting ready"; a failed download tried again up to 3 times, the old "tried"
+  mark counting as one, "done" once it worked), and the gore checklist: what it ticks decides
+  Gore, Graphic or nothing (a rash is dropped), as asked in the closer look.
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
 - `test_many_mutes.py`: saving with 150 mutes and 120 cuts, and 1,600 mutes and 60 cuts; each

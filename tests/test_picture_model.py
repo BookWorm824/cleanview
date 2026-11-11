@@ -56,6 +56,67 @@ class WhichModel(unittest.TestCase):
         self.assertEqual(ai.VISION_MODEL, "qwen3-vl:8b-instruct")
 
 
+class TriedAgainAfterAFailedDownload(unittest.TestCase):
+    """1.18.57: Lauren's laptop couldn't download the new model (6.2 GB) the first time, and
+    1.18.56 marked it tried and never tried again."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.mark = Path(tempfile.mkdtemp(dir=support.SANDBOX)) / "mark.txt"
+        self.p = mock.patch.object(engine, "_upgrade_mark", lambda: self.mark)
+        self.p.start()
+        self.addCleanup(self.p.stop)
+
+    def failed_try(self, works=False):
+        have = {"qwen3-vl:8b", "qwen3:8b"} | ({"qwen3-vl:8b-instruct"} if works else set())
+        with mock.patch.object(ai, "_installed", lambda: have):
+            engine._note_upgrade()
+
+    def test_tried_again_up_to_three_times(self):
+        self.assertFalse(engine._upgrade_tried())         # never tried
+        self.failed_try()
+        self.assertEqual(self.mark.read_text().strip(), "failed 1")
+        self.assertFalse(engine._upgrade_tried())         # tried again next scan
+        self.failed_try()
+        self.assertFalse(engine._upgrade_tried())
+        self.failed_try()
+        self.assertEqual(self.mark.read_text().strip(), "failed 3")
+        self.assertTrue(engine._upgrade_tried())          # then left alone
+
+    def test_the_mark_1_18_56_left_is_one_failure(self):
+        self.mark.write_text("tried\n")
+        self.assertEqual(engine._upgrade_tries(), 1)
+        self.assertFalse(engine._upgrade_tried())
+
+    def test_done_once_it_worked(self):
+        self.failed_try()
+        self.failed_try(works=True)
+        self.assertEqual(self.mark.read_text().strip(), "done")
+        self.assertTrue(engine._upgrade_tried())
+
+    def test_getting_ready_notes_the_failure(self):
+        # only the AI helper (no sound, picture or subtitle tools: nothing else downloaded)
+        o = engine.full_opts(dict({k: False for k in engine.LINE_KINDS}, kiss_os="all", ai=True,
+                                  nudity=False, implied=False, sex=False, violence=False,
+                                  disturbing=False, gore=False, graphic=False, loudmusic=False,
+                                  autosubs=False))
+        nd = engine.needs(o)
+        self.assertFalse(nd["sound"] or nd["voices"] or nd["subs"] or nd["nudenet"])
+        have = {"qwen3-vl:8b", "qwen3:8b"}
+
+        def fail(m, progress=None, label=""):
+            raise RuntimeError("Couldn't download the picture helper: connection reset")
+        with mock.patch.object(ai, "_installed", lambda: have), \
+                mock.patch.object(ai, "start_ollama", lambda wait=60: True), \
+                mock.patch.object(ai, "pull_model", fail), \
+                mock.patch.object(ai, "clip_ready", lambda: True), \
+                mock.patch.object(engine, "nudity_model", lambda: "x"):
+            engine.install_tools(o, log=lambda m: None)
+        self.assertEqual(self.mark.read_text().strip(), "failed 1")
+        self.assertEqual(ai.VISION_MODEL, "qwen3-vl:8b")  # the old one meanwhile
+
+
 class GoreChecklist(unittest.TestCase):
     def test_what_it_ticks_decides_the_level(self):
         L = ai.gore_level

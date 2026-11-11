@@ -203,8 +203,40 @@ def _upgrade_mark():
         ai.VISION_MODELS[:1] + ai.TEXT_MODELS[:1]).lower()) + ".txt")
 
 
+# A newer AI model whose download fails is tried again on the next scans, up to UPGRADE_TRIES
+# (1.18.57: Lauren's laptop couldn't download qwen3-vl's instruct build, 6.2 GB, on the first
+# go, and 1.18.56 then never tried again; Ollama picks up where a download stopped). Until
+# then CleanView uses the older model, as before. The mark says "done" or "failed N".
+UPGRADE_TRIES = 3
+
+
+def _upgrade_tries():
+    """How many times the newer models' download has failed here (None once it worked)."""
+    try:
+        text = _upgrade_mark().read_text().strip()
+    except OSError:
+        return 0
+    if text == "done":
+        return None
+    if text == "tried":                 # 1.18.56 and before wrote this after any try
+        return 1
+    m = re.match(r"failed (\d+)", text)
+    return int(m.group(1)) if m else 0
+
+
 def _upgrade_tried():
-    return _upgrade_mark().exists()
+    n = _upgrade_tries()
+    return n is None or n >= UPGRADE_TRIES
+
+
+def _note_upgrade():
+    """After a try: "done" when the newest models are here, else one more failure."""
+    ok = ai.model_ready(ai.VISION_MODELS[0]) and ai.model_ready(ai.TEXT_MODELS[0])
+    try:
+        _upgrade_mark().parent.mkdir(parents=True, exist_ok=True)
+        _upgrade_mark().write_text("done\n" if ok else f"failed {(_upgrade_tries() or 0) + 1}\n")
+    except OSError:
+        pass
 
 
 def tools_missing(opts=None):
@@ -295,12 +327,8 @@ def install_tools(opts=None, progress=None, log=print):
         try:
             ai.ensure_ai(lambda f, m: say(0.3 + 0.7 * f, m))
         finally:
-            if ai.model_ready():   # don't retry a failed upgrade on every run
-                try:
-                    _upgrade_mark().parent.mkdir(parents=True, exist_ok=True)
-                    _upgrade_mark().write_text("tried\n")
-                except OSError:
-                    pass
+            if ai.model_ready():   # a failed upgrade is tried again, but not on every run
+                _note_upgrade()
     say(1.0, "Ready.")
 
 # ---------------------------------------------------------------------------
