@@ -3607,6 +3607,22 @@ def _removed_expr(cuts, off):
     return _sum(f"gte(T,{e + off:.3f})*{e - s:.3f}" for s, e in cuts) or "0"
 
 
+# A save that stops moving (Lauren, 2026-11-10, on her MSI laptop: Castle S1E2 "stuck saving"
+# several times, and nothing said why). ffmpeg reports how far it's got twice a second; when
+# neither the time written nor the file's size has grown for SAVE_STUCK_SECS, it's stopped,
+# the next way (another encoder, then the careful way) is tried, and if every way gets stuck
+# the error says where, so the window can offer to send it in. Meanwhile the progress line
+# says how long it hasn't moved (each SAVE_STILL_SAY), instead of an unchanging "1 min left".
+SAVE_STUCK_SECS = 300
+SAVE_STILL_SAY = 60
+STUCK_SAID = "CleanView: saving stopped moving"
+
+
+def _clock(t):
+    t = int(max(0, t))
+    return f"{t // 3600}:{t % 3600 // 60:02d}:{t % 60:02d}" if t >= 3600 else f"{t // 60}:{t % 60:02d}"
+
+
 def _remove(path):
     try:
         os.remove(path)
@@ -3837,30 +3853,78 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         with open(errf, "w", encoding="utf8") as err:
             proc = cl.popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True)
             t0 = time.time()
+            # how far it has got, watched from another thread: a stuck ffmpeg prints nothing,
+            # so the loop below would wait for its next line forever (and miss Cancel too)
+            seen = {"moved": time.monotonic(), "sec": -1.0, "size": -1, "f": 0.0,
+                    "stuck": False, "cancelled": False, "done": False}
+            over = threading.Event()
+
+            def watch():
+                step = max(0.05, min(1.0, SAVE_STUCK_SECS / 10))
+                said = 0
+                while not over.wait(step) and proc.poll() is None:
+                    if cancel and cancel():
+                        seen["cancelled"] = True
+                    still = time.monotonic() - seen["moved"]
+                    if not seen["done"] and still > SAVE_STUCK_SECS:
+                        seen["stuck"] = True
+                    if seen["cancelled"] or seen["stuck"]:
+                        try:
+                            proc.kill()
+                        except OSError:
+                            pass
+                        return
+                    if not seen["done"] and still >= SAVE_STILL_SAY * (said + 1):
+                        said = int(still // SAVE_STILL_SAY)
+                        say(seen["f"], f"{label} · no progress for {int(still // 60) or 1} min; "
+                                       f"after {SAVE_STUCK_SECS // 60} it tries another way")
+            threading.Thread(target=watch, daemon=True).start()
             try:
                 for line in proc.stdout:
                     if cancel and cancel():
                         raise KeyboardInterrupt
-                    if line.startswith("out_time_us="):
+                    key, _, val = line.strip().partition("=")
+                    if key == "progress" and val == "end":
+                        seen["done"] = True
+                    elif key == "total_size":
                         try:
-                            sec = int(line.split("=")[1]) / 1e6
+                            size = int(val)
                         except ValueError:
                             continue
+                        if size > seen["size"]:
+                            seen["size"], seen["moved"] = size, time.monotonic()
+                    elif key == "out_time_us":
+                        try:
+                            sec = int(val) / 1e6
+                        except ValueError:
+                            continue
+                        if sec > seen["sec"]:
+                            seen["sec"], seen["moved"] = sec, time.monotonic()
                         f = min(0.99, max(0.0, sec / expected))
+                        seen["f"] = f
                         el = time.time() - t0
                         left = f" · about {el / f * (1 - f) / 60:.0f} min left" if f > 0.03 and el > 15 else "…"
                         say(f, label + left)
                 proc.wait()
+                if seen["cancelled"]:
+                    raise KeyboardInterrupt
             except KeyboardInterrupt:     # cancelled: don't leave a half-written copy behind
                 proc.kill()
                 proc.wait()
                 _remove(tmp)
                 raise
             finally:
+                over.set()
                 if proc.poll() is None:
                     proc.kill()
                     proc.wait()
                 proc.stdout.close()
+        if seen["stuck"]:
+            _remove(tmp)
+            told = errf.read_text("utf8", "replace").strip()
+            return False, (f"{STUCK_SAID} at {_clock(max(0.0, seen['sec']))} of "
+                           f"{_clock(expected)} for {SAVE_STUCK_SECS // 60} minutes, so it was "
+                           f"stopped." + (f"\nffmpeg said: {told[-1500:]}" if told else ""))
         if proc.returncode == 0:
             try:
                 os.replace(tmp, dst)      # fails if the old clean copy is open in a player
@@ -3900,6 +3964,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         why = save_trouble(last_err)
         if why == "full":
             raise OSError(28, "No space left on device: " + last_err.strip()[-300:])
+        if why is None and last_err.startswith(STUCK_SAID):
+            at = re.match(re.escape(STUCK_SAID) + r" at (\S+) of (\S+)", last_err)
+            why = (f"Saving the clean copy of {src.name} stopped moving"
+                   + (f" at {at.group(1)} of {at.group(2)}" if at else "")
+                   + ", every way it was tried")
         raise RuntimeError((why or f"Couldn't save the clean copy of {src.name}") + ":\n"
                            + "\n\n".join(errors)[-2500:])
 

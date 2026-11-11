@@ -331,6 +331,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- A save that stops moving is stopped and tried another way (1.18.53, 2026-11-10; Lauren, on
+  her MSI laptop: Castle S1E2 "(Clean)", a clean copy cleaned again after the update, got stuck
+  saving several times and nothing said why; "Yes, add it"). Re-saving clean copies here worked
+  every way tried (mutes only, with and without subtitles), so the cause is on that laptop.
+  `render`'s `attempt` watches ffmpeg's progress from another thread (a stuck ffmpeg prints
+  nothing, so the read loop would wait forever and miss Cancel too): when neither `out_time_us`
+  nor `total_size` has grown for `SAVE_STUCK_SECS` (300; not after `progress=end`, while the
+  index is moved to the front) it's stopped, the partial copy removed, and the next way tried
+  (another encoder, then the careful way). The progress line says "no progress for N min;
+  after 5 it tries another way" (each `SAVE_STILL_SAY`). If every way gets stuck, the error
+  starts "Saving the clean copy of ... stopped moving at 12:34 of 41:00, every way it was
+  tried" (`STUCK_SAID`, `_clock`), with what ffmpeg said, and the window offers to send it in.
 - Telling voices apart is faster with the same results (1.18.52, 2026-11-10; the owner: "why
   do we need to tell voices apart?", then "1, 2 and 3"). Speaker separation took 3-4 minutes of
   a 44-minute episode, mostly sherpa-onnx making ~3,800 voice prints one at a time.
@@ -571,6 +583,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   the logo on the progress page.
 - `test_save_fails.py`: the careful last try, plain reasons from ffmpeg's errors, and
   offering to send in what went wrong.
+- `test_save_stuck.py`: a stand-in ffmpeg that hangs is stopped and the careful way saves
+  it (or, stuck every way, the error says where; with cuts the next encoder is tried); a slow
+  but moving save, and the quiet end, aren't stopped; Cancel works while ffmpeg is silent; the
+  progress line says it hasn't moved.
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
 - `test_many_mutes.py`: saving with 150 mutes and 120 cuts, the bracketed groups, and
