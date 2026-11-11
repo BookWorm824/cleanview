@@ -331,6 +331,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- The closer look uses qwen3-vl's instruct build (1.18.56, 2026-11-11; the owner: "Yes, build
+  it", and "remember where we are if want to change back": 1.18.55, commit e999b75, is the last
+  with the thinking build; going back is a revert, and the old model stays installed on every
+  PC). Plain `qwen3-vl:8b` is the thinking build: it ignores `think: false` and silently works
+  through each question first (200-1,000 tokens for a ~60-word answer), ~16 s a look on this PC,
+  and the same question runs away the same way every time, so `recheck_failed` couldn't save
+  those. Side by side on 183 scenes from 46 past videos (The Resident, Person of Interest),
+  Lauren's adult settings: instruct ~7 s a look, none failed; thinking 11 failed at the
+  4-minute limit (9 of 29 kisses). Instruct was right on all 4 drug disagreements (a drip, a
+  blood draw, an injection are not "illegal drugs"), even on kisses, the same on gestures,
+  mixed on nudity (it calls a shirtless patient "implied"). On gore it answered "blood" even
+  for open surgery when asked for a level, so `LOOK["gore"]` is now a checklist (`GORE_SEEN`:
+  blood, a bloody wound, open surgery, organs, brain, bone, a severed or mangled body part, a
+  bruise or rash, stitches) and `gore_level` decides: anything inside a body is Gore, blood
+  alone Graphic, a bruise, rash or stitches nothing. Scored against 39 gore scenes labelled by
+  eye: checklist 33/39 (29 of the 30 clear-cut), thinking 34/39 (28/30), the old question 18/39;
+  adding a backstop from its own description didn't help. `VISION_MODELS` starts with
+  `qwen3-vl:8b-instruct` (then the thinking build, then qwen2.5vl); existing installs download it
+  once on "Getting ready" ("newer AI models", 6.2 GB). The Resident S03E12 with the same saved
+  scans: the AI helper's part 19.7 -> 4.3 min; lines, mutes and voices identical; a passionate
+  kiss the thinking build had timed out on is now cut, the surgery cut a little more fully, and
+  one short kiss it had offered unticked isn't found.
 - At most 50 plain terms to a filter (1.18.55, 2026-11-11; from CleanListen 1.17.20, the owner:
   "Yes, add it"). CleanListen's Scarlet (Unabridged), one 7-hour MP3, failed to save with
   "Error when evaluating the expression ... for enable" using the 1.18.26 scheme (500 ranges to a
@@ -556,7 +578,7 @@ them in. Rules that follow from this:
 | `CleanView.pyw` | The tkinter UI (~1,950 lines). Start page (pick files/folder, filters, "Filtering for" age profiles, who reads the dialogue), progress, the review page (Found / All dialogue / Ask Claude tabs), done page. Update bar, session save/resume. |
 | `cleanview.py` | The engine (~2,450 lines). `analyze()` finds everything and returns a JSON-able state dict; `render()` writes the clean copy and report with ffmpeg. Also picture/sound scanning, scene building, subtitle download and syncing, Claude/ChatGPT picture review, applying AI reviews and chat edits. |
 | `cvcore.py` | Speech recognition (sherpa-onnx, NeMo Parakeet TDT 0.6B int8), word lists and `find_language()`, timing helpers, `snap_edges()` (move mute edges into silence), ffmpeg helpers. |
-| `cleanview_ai.py` | Local AI: CLIP (ViT-B/32 ONNX) picture categories, NudeNet, audio tagging, speaker separation (pyannote segmentation + TitaNet via sherpa-onnx), and the Ollama helper (`qwen3-vl:8b` checks scenes, `qwen3:8b` reads dialogue; falls back to qwen2.5). |
+| `cleanview_ai.py` | Local AI: CLIP (ViT-B/32 ONNX) picture categories, NudeNet, audio tagging, speaker separation (pyannote segmentation + TitaNet via sherpa-onnx), and the Ollama helper (`qwen3-vl:8b-instruct` checks scenes, then the thinking `qwen3-vl:8b`; `qwen3:8b` reads dialogue; falls back to qwen2.5). |
 | `cleanview_claude.py` | Claude through the **Claude Code CLI** (`claude -p --json-schema ...`, uses the user's Claude plan, no API key). Dialogue reading, the final "review everything" pass, the chat, picture review from contact sheets. Also the provider switch (`use("claude"/"chatgpt")`). |
 | `cleanview_gpt.py` | ChatGPT through the **Codex CLI** (`codex exec ... --output-schema`), same interface as the Claude path. Strict JSON schemas (all properties required). |
 | `cleanview_gemini.py` | Gemini through Google's **Gemini CLI** (`gemini -p ... -o json`, signed in with a Google account, no API key), same interface. Installed with npm (needs Node.js 20+). The CLI can't take a schema, so the shape is described in the prompt and the reply is checked (asked again once). The prompt goes in through stdin; pictures are copied into an empty work folder and named with `@picture1.jpg` on the command line. Chats are kept by CleanView (`APP_DATA\gemini\chats`), not the CLI. Provider key `"gemini"` (`cc.OTHERS`). |
@@ -616,6 +638,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   it (or, stuck every way, the error says where; with cuts the next encoder is tried); a slow
   but moving save, and the quiet end, aren't stopped; Cancel works while ffmpeg is silent; the
   progress line says it hasn't moved.
+- `test_picture_model.py`: the instruct picture model first (the thinking one until it's
+  downloaded, once, on "Getting ready"), and the gore checklist: what it ticks decides Gore,
+  Graphic or nothing (a rash is dropped), as asked in the closer look.
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
 - `test_many_mutes.py`: saving with 150 mutes and 120 cuts, and 1,600 mutes and 60 cuts; each

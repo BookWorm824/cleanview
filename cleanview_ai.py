@@ -51,8 +51,16 @@ CLIP_FILES = {"vision_model_quantized.onnx": "onnx/vision_model_quantized.onnx",
               "tokenizer.json": "tokenizer.json"}
 OLLAMA = os.environ.get("CLEANVIEW_OLLAMA", "http://127.0.0.1:11434")
 # Newest first; an older one is used if the newer can't be downloaded or run.
-VISION_MODELS = [m for m in (os.environ.get("CLEANVIEW_VISION_MODEL"), "qwen3-vl:8b",
-                             "qwen2.5vl:7b") if m]          # looks at pictures
+# The picture model is qwen3-vl's "instruct" build (1.18.56, 2026-11-11; the owner: "Yes, build
+# it"): plain "qwen3-vl:8b" is the thinking build, which ignores think=False and works through
+# each question silently first (200-1,000 tokens for a 60-word answer), ~16 s a closer look on
+# this PC, and 11 of 183 ran past the 4-minute limit with no answer (9 of 29 kisses). The
+# instruct build took ~7 s, never timed out, and was as good or better on kisses, drugs (no
+# drips and blood draws as "illegal drugs"), gestures and nudity; on gore, asked as a
+# checklist (LOOK["gore"]), it got 29 of 30 clear-cut scenes right, the thinking build 28.
+# Existing installs download it once on "Getting ready" (tools_missing: "newer AI models").
+VISION_MODELS = [m for m in (os.environ.get("CLEANVIEW_VISION_MODEL"), "qwen3-vl:8b-instruct",
+                             "qwen3-vl:8b", "qwen2.5vl:7b") if m]          # looks at pictures
 TEXT_MODELS = [m for m in (os.environ.get("CLEANVIEW_TEXT_MODEL"), "qwen3:8b",
                            "qwen2.5:7b") if m]               # reads the dialogue
 VISION_MODEL, TEXT_MODEL = VISION_MODELS[0], TEXT_MODELS[0]
@@ -691,6 +699,23 @@ def grab_frames(ffmpeg, path, times, run, lift=False):
     return out
 
 
+# What the gore checklist offers; the inside of a body is Gore, blood alone Graphic, the
+# rest nothing (VidAngel's levels: crime-scene blood is Graphic, insides on the outside Gore).
+GORE_SEEN = ["blood", "a bloody wound or cut", "open surgery with the inside of the body showing",
+             "organs or entrails", "brain", "bone showing", "a severed or mangled body part",
+             "a bruise, rash or red mark", "stitches or a closed scar", "none of these"]
+GORE_INSIDE = set(GORE_SEEN[2:7])
+GORE_BLOOD = set(GORE_SEEN[:2])
+
+
+def gore_level(answer):
+    """"gore", "graphic" or "none" from the checklist (or an older "level" answer)."""
+    if "visible" in answer:
+        seen = set(answer.get("visible") or [])
+        return "gore" if seen & GORE_INSIDE else "graphic" if seen & GORE_BLOOD else "none"
+    return {"insides": "gore", "blood": "graphic"}.get(answer.get("level"), "none")
+
+
 PREFACE = ("These are a few frames from one moment of a TV show or movie. First describe in "
            "one short sentence what you can actually see. If the frames are dark, blurry or "
            "unclear, say so. Then answer the question. Answer yes only if you can clearly see "
@@ -721,16 +746,19 @@ LOOK = {
                 "who": {"type": "string", "enum": ["man and woman", "two men", "two women",
                                                    "unclear"]}},
              "required": ["see", "intimate", "who"]}),
-    "gore": ("Question: how bloody is it? Answer \"insides\" only if the inside of a body is "
-             "shown on the outside: organs, entrails, brains, bone through skin, a severed body "
-             "part. Answer \"blood\" if there is visible blood, a bloody wound or a bloody body "
-             "but nothing inside showing. Answer \"none\" if there's no visible blood (a covered "
-             "body, a crime scene without blood, a dark red object, cooking: raw meat, a lobster, a "
-             "small kitchen cut).",
+    # a checklist (1.18.56): asked "insides, blood or none?", the instruct build answered
+    # "blood" even for "an open chest cavity" or "exposed brain tissue" (18 of 39 right);
+    # ticking what it sees, with CleanView deciding the level (gore_level), 33 of 39
+    "gore": ("Question: which of these can you see in the frames? Tick every one that is "
+             "there: " + "; ".join(GORE_SEEN) + ". Surgery where the body is opened up counts "
+             "as \"open surgery with the inside of the body showing\" even if it is mostly "
+             "blood and drapes. A stump where a limb was cut off counts as \"a severed or "
+             "mangled body part\". A bruise, rash or red skin is not blood. Not blood either: a "
+             "dark red object, raw meat when cooking.",
              {"type": "object", "properties": {
                  "see": {"type": "string"},
-                 "level": {"type": "string", "enum": ["insides", "blood", "none"]}},
-              "required": ["see", "level"]}),
+                 "visible": {"type": "array", "items": {"type": "string", "enum": GORE_SEEN}}},
+              "required": ["see", "visible"]}),
     "fight": ("Question: are people clearly fighting, hitting, shooting, or threatening someone "
               "with a weapon? People talking, running, or a police officer simply holding a gun "
               "at their side is NOT. If it is violent, is it a fight between people who can "
@@ -861,7 +889,7 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
             v["keep"] = bool(a.get("intimate"))
             v["who"] = WHO_KEY.get(a.get("who"), "?")
         elif c["cat"] == "gore":
-            v["level"] = {"insides": "gore", "blood": "graphic"}.get(a.get("level"), "none")
+            v["level"] = gore_level(a)
             v["keep"] = v["level"] != "none"
         elif c["cat"] == "fight":
             v["keep"] = bool(a.get("violent"))
