@@ -346,6 +346,23 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Castle S2E3 report (1.18.69, 2026-11-12, adults, the AI helper, made on 1.18.67;
+  laptop: 48 min, reading 14.4 and each conversation 18.0): every listed word muted, nothing
+  marked Drugs, but the AI helper flagged almost none of the episode's sexual talk. The owner:
+  "do both but leave coroners talk". Taught for Castle (sexref, a "CleanView reviewed" file
+  through merge_learned.py): the opening skinny-dip chase ("If you catch me, you can have me",
+  "Take your pants off!"), "Was she the sexy, curvy, / lingerie-type that you could just...", "a
+  chastity belt", "Look at naked pictures? If you insist.", "...the only guy that Sierra was
+  modeling for", "Because Jenna wouldn't sleep with him", "You give Wyatt what he wants", "give
+  Wyatt what he wanted", "code for 'do me'"; not the coroner's "Any signs of sexual assault?" (she
+  doesn't want coroners' talk muted), nor "It's not the worst thing in the world" (everyday; it
+  would match other episodes), nor the borderline "I wanted to taste you", "got comfortable on the
+  couch", "ready to get down to business". Her untick of "called Calvin Klein a boring old fart"
+  (flagged as crude humor; an insult) is taught as a false alarm. `LINE_WORDS["sexref"]` adds
+  "skinny dip/dipping/dipped" (not "skinny dippers found her", police talk), "chastity belt" and
+  "naked photos/pictures/pics/selfies" (not "the naked eye/truth"). The picture scan took 4.9 min
+  like the 1.18.60 report's, so whether the laptop had switched runtimes couldn't be told: the
+  scan record now says (`pc.picture_runtime`).
 - Each conversation's flirting check asks a quick yes or no first (1.18.68, 2026-11-12; the
   owner: "is there any other places to check efficiency", then "1": the AI helper's reading on
   her laptop, 27 of 40 minutes there). The two models never share the card (Ollama swaps the
@@ -813,6 +830,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_castle_s2e3.py`: its lines built in for Castle (not the coroner's or everyday lines),
+  the insult a false alarm, skinny dip / chastity belt / naked photos on the short list (not
+  skinny dippers, the naked eye), and the scan record's picture runtime.
 - `test_laptop_speed.py`: each conversation is asked a quick yes or no first, with the same
   words, and the details and the confirmation only on a yes.
 - `test_picture_runtime.py`: the switch wanted (another version installed) and not (already

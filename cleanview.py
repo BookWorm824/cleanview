@@ -1705,6 +1705,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"(?<!house of )(?<!from )(?<!in )(?<!sold into )(?<!taken into )(?<!led into )"
                          r"(?<!out of )bondage(?! of\b)|"
                          r"safe ?words?(?! (to|for) )|"
+                         # Castle S2E3 (Lauren, 2026-11-12): "Let's skinny dip!", "a chastity
+                         # belt", "Naked photos"; not "skinny dippers found her" (police talk)
+                         r"skinny[- ]?dip(?:ping|ped|s)?|chastity belts?|"
+                         r"naked (?:photos?|pictures?|pics?|selfies?)|"
                          r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
@@ -3273,7 +3277,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     say_out = progress or (lambda f, m: None)
     # how this scan went, for the report and "Send what we refined" (1.18.58)
     scan = {"app_version": app_version(),
-            "pc": {"threads": os.cpu_count(), "memory_gb": round(total_memory_gb(), 1)}}
+            "pc": {"threads": os.cpu_count(), "memory_gb": round(total_memory_gb(), 1),
+                   # which picture-checker runtime did the scan (1.18.69: the laptop's first
+                   # report after the switch couldn't say whether it had switched)
+                   "picture_runtime": _ort_installed()}}
     took, now_step = {}, {"step": "getting ready", "t": time.time()}
 
     def say(f, m):
