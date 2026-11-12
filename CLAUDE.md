@@ -346,6 +346,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Coroner and doctor talk is its own filter (1.18.72, 2026-11-12; the owner: "is it possible to
+  categorize coroner, medical examiner and dr talk into its own ticked box. so it gives the
+  option if wanted to have that included or not?", then "b and yes those ages": all graphic
+  findings, not only sexual ones). `forensic`: "Coroner and doctor talk (graphic findings:
+  wounds, autopsies, sexual assault)" in the Language section, ticked for Young kids, Kids and
+  Teens, not Adults. It covers graphic talk about a body or a victim by a coroner, medical
+  examiner, doctor or detective (wounds, blood, organs, cause or time of death, an autopsy) and
+  case talk about rape, sexual assault, sex offenders or sexual evidence; not everyday medical
+  talk. With it off, that case talk isn't a sexual reference either: `NOT_CASE` in the sexref
+  descriptions (`ai.LINE_TYPES`, `cc.TYPE_TEXT`), "sex" before offenders/crimes/trafficking/abuse
+  left off `LINE_WORDS["sexref"]`, and the three Castle coroner lessons ("could have been a
+  rape", "so you're saying she was raped?") filed under it (`muted_for` "forensic"). Its short
+  list (`LINE_WORDS["forensic"]`): sexual assault, sex offenders, rape kit, was/been raped,
+  cause/time of death, autopsy, post-mortem, stab/gunshot wounds, GSW, blunt force trauma,
+  ligature marks, exit/entry/defensive wounds, lividity, rigor mortis. Tried with the AI helper:
+  ticked, Castle S2E3 muted "Cause of death? Stabbing", "I'm putting the time of death", "Any
+  signs of sexual assault?", S1E2 the dryer/raped line and the condom evidence, The Resident
+  S03E12 "Gunshot wound in the abdomen"; unticked, none of them. The AI helper finds few
+  graphic findings beyond the list ("a fatal wound in her back", the bruising and the slap went
+  through); a word like "condom" in case talk is still muted as just the word with it off.
 - The Castle reports in the Drive folder gone over (1.18.71, 2026-11-12; the owner: "do 1"): S1E3
   and S1E4 (teens), S1E6-E9, S1E2 "(Clean)" and S2E4 (adults), all on the AI helper. Built in for
   Castle: "...arrange a very special date with Tiffany" (Castle booking the escort), her own
@@ -865,6 +885,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_coroner_talk.py`: the coroner/doctor filter everywhere a filter needs, per age; its
+  short list (not everyday talk); case talk not a sexual reference and left alone with it off,
+  whole lines muted with it on; the Castle coroner lessons only with it.
 - `test_castle_drive_reports.py`: the Drive folder's Castle lessons built in, her unticks not
   muted (the two joined lessons gone), the innuendo after them still muted, no coroner talk.
 - `test_sexual_talk.py`: a conversation's sexual talk found (quick yes, which lines, each

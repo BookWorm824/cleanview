@@ -91,8 +91,9 @@ class BuiltIn(unittest.TestCase):
                                .read_text("utf8"))["shows"]
         c, t = shows["castle"], shows["castle@teens"]
         self.assertEqual(c["muted_for"]["you're not webcamming again i hope"], "sexref")
+        # a coroner's finding: the coroner/doctor box since 1.18.72 ("leave coroners talk")
         self.assertEqual(c["muted_for"]["i mean it could have been a rape but my best guess is"],
-                         "sexref")
+                         "forensic")
         self.assertTrue(any("conquest" in n for n in c["notes"]))
         self.assertEqual(t["muted_for"]["she's my interior decorator but then we slept together "
                                         "so i don't really know what she is now"], "casual")

@@ -384,6 +384,7 @@ SYSTEM = ("You help a family make movies and TV shows fit their standards by mut
           "word just because it looks odd, only words that really are on their list. Don't "
           "lecture or add opinions about their choices.")
 
+NOT_CASE = ("a coroner's, medical examiner's, doctor's or detective's case talk about a body or a crime (findings, rape or sexual assault, sex offenders, evidence), which is a separate choice")
 TYPE_TEXT = {
     "sexref": "sexual references, sexual jokes or innuendo, including "
               "talk of sex drugs: pills for sex or erections (Viagra, Cialis, 'the little blue pill', erectile dysfunction), aphrodisiacs ('Spanish fly', a love potion meant to make someone want sex) and drugging someone to have sex with them, talk of oral sex or of "
@@ -401,7 +402,8 @@ TYPE_TEXT = {
               "old film or period story, where it means court or woo, a polite 'it's a "
               "pleasure', a body part "
               "in a threat; read the lines around it first (a line that sounds suggestive alone "
-              "may be about a pager or a phobia)",
+              "may be about a pager or a phobia), nor " + NOT_CASE,
+    "forensic": "coroner, medical examiner and doctor talk: graphic talk about a body or a victim by a coroner, medical examiner, doctor or detective: wounds and injuries, blood, organs, cause or time of death, an autopsy or what was done to the body, and case talk about rape or sexual assault, sex offenders or sexual evidence (condoms, DNA). NOT: everyday medical talk with nothing graphic (a diagnosis, a prescription, 'he'll be fine', 'she's stable'), the people's own lines about their lives, a suspect's alibi",
     "casual": "sleeping around: casual sex, hooking up, affairs, cheating, including talk "
               "of cheating with nothing sexual said (an engaged or married person kissing "
               "someone else). Only the lines that are about the affair or the cheating: not "

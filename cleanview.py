@@ -52,7 +52,7 @@ CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGP
 HOLIDAYS = ("christmas", "halloween", "valentine", "easter", "stpatricks")
 MAGIC = ("darkmagic", "magic", "vampires")          # magic, and vampires and werewolves
 LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "disrespect",
-              "religion") + HOLIDAYS + ("birthday",) + MAGIC
+              "religion", "forensic") + HOLIDAYS + ("birthday",) + MAGIC
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
 WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS + MAGIC
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
@@ -60,6 +60,7 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
+            "forensic": False,
             "disrespect": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
             "birthday": False, "valentine": False, "easter": False, "stpatricks": False,
@@ -1697,7 +1698,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     # not "sex" meaning men or women: "your sex", "the fair sex" (Pride and Prejudice)
     "sexref": re.compile(r"\b((?<!your )(?<!our )(?<!her )(?<!his )(?<!fair )(?<!fairer )"
                          r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )(?<!my )(?<!marvelous )"
-                         r"(?<!stronger )sex|sexy|horny|make love|made love|making love|condoms?|boobs|"
+                         r"(?<!stronger )sex(?! (offenders?|crimes?|trafficking|abuse)\b)|sexy|horny|make love|made love|making love|condoms?|boobs|"
                          # 50 First Dates (2026-11-08): walrus jokes, sharks biting
                          r"penis(es)?|private parts|"
                          # Lauren, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
@@ -1737,6 +1738,15 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"sleeping together|slept together)\b", re.I),
     "crude": re.compile(r"\b(farts?|farted|farting|poop(ed|ing)?|butt crack|boogers?|"
                         r"peed (my|his|her|your) pants)\b", re.I),
+    # coroner and doctor talk (1.18.72; the owner: "categorize coroner, medical examiner and dr
+    # talk into its own ticked box"): only what's hard to mistake
+    "forensic": re.compile(r"\b(sexual(ly)? assault(ed)?|(sex|sexual) offenders?|rape kit|"
+                           r"(was|been|were|being) raped|cause of death|time of death|"
+                           r"autopsy|post[- ]?mortem|stab wounds?|gunshot wounds?|GSW|"
+                           r"blunt[- ]force trauma|ligature marks?|exit wound|entry wound|"
+                           r"defensive wounds?|lividity|rigor mortis|"
+                           r"(single|fatal|massive) (blow|wound) to the (head|chest|back|neck))\b",
+                           re.I),
     # talking back to a parent: only what's hard to mistake (not "whatever", "make me")
     "disrespect": re.compile(r"\b(you can'?t tell me what to do|you'?re not the boss of me|"
                              r"you'?re not my (real )?(mom|mum|dad|mother|father|boss)|"
@@ -1808,6 +1818,7 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
               "added": "Added by you", "claude": "Found by Claude",
               "shared": "CleanView learned", "chat": "You asked in the chat",
               "sexref": "Sexual reference", "casual": "Sleeping around",
+              "forensic": "Coroner and doctor talk",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 def flirt_scenes(flirts):
@@ -1868,6 +1879,9 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "casual": "sleeping around (casual sex, hooking up, affairs)",
             "oppsex": "unmarried man and woman living or sleeping together",
             "sexref": "sexual references and innuendo", "crude": "crude humor",
+            "forensic": "coroner, medical examiner and doctor talk: graphic findings about a "
+                        "body or a victim (wounds, organs, cause of death, an autopsy, rape or "
+                        "sexual assault)",
             "bullying": "bullying",
             "disrespect": "disrespect: kids talking back, being bratty or rude to their "
                           "parents or other grown-ups, or disobeying them",

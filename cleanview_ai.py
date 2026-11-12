@@ -969,6 +969,9 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
 # ---------------------------------------------------------------------------
 # Reading the dialogue
 # ---------------------------------------------------------------------------
+NOT_CASE = ("a coroner's, medical examiner's, doctor's or detective's case talk about a body or "
+            "a crime (findings, rape or sexual assault, sex offenders, evidence), which is a "
+            "separate choice")
 LINE_TYPES = {
     "sexref": ("talks about sex or sexual body parts, or makes a sexual joke or sexual double "
                "meaning, including oral sex or touching someone's private parts, bragging "
@@ -979,7 +982,7 @@ LINE_TYPES = {
                "compliments, ordinary love and affection, pregnancy or babies, 'sex' meaning men or "
                "women ('the fair sex', 'others of my sex'), 'make love to' in an old film "
                "(courting), a polite 'it's a pleasure', a body part in a threat, "
-               "'sleeps with the pigs' meaning where someone sleeps"),
+               "'sleeps with the pigs' meaning where someone sleeps, " + NOT_CASE + ""),
     "casual": ("says or clearly implies someone had, or wants, sex outside a committed "
                "relationship: hooking up, a one-night stand, an affair, cheating, sleeping with "
                "someone, sleeping around; also talk of cheating on a partner, even with nothing sexual "
@@ -995,6 +998,7 @@ LINE_TYPES = {
     "oppsex": ("says an unmarried man and woman live together or sleep together, now or in "
                "the past ('my girlfriend kicked me out'). NOT: married couples, dating, "
                "roommates, family, co-workers sharing a room for work"),
+    "forensic": ("graphic talk about a body or a victim by a coroner, medical examiner, doctor or detective: wounds and injuries, blood, organs, cause or time of death, an autopsy or what was done to the body, and case talk about rape or sexual assault, sex offenders or sexual evidence (condoms, DNA). NOT: everyday medical talk with nothing graphic (a diagnosis, a prescription, 'he'll be fine', 'she's stable'), the people's own lines about their lives, a suspect's alibi"),
     "crude": ("crude humor: jokes or talk about bodily functions, bathroom or toilet humor, "
               "gross-out jokes, crude jokes about body parts. NOT: ordinary jokes, sarcasm, "
               "plain insults"),
@@ -1052,6 +1056,7 @@ LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
                                                          "together",
               "crude": "crude humor", "bullying": "bullying", "religion": "religious talk",
+              "forensic": "coroner or doctor talk",
               "disrespect": "disrespect or talking back to a parent",
               "christmas": "talk about Christmas", "halloween": "talk about Halloween",
               "birthday": "talk about the candles on a birthday cake",
