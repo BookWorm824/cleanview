@@ -9,9 +9,11 @@ lists and tools lives beside it. Used by the CleanView app; can also run from a 
   python cleanview.py visualscan VIDEO OUT.json      (internal: runs in its own process)
 """
 import argparse
+import atexit
 import importlib.util
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -4027,8 +4029,155 @@ SURROUND_NAME = {6: "5.1", 8: "7.1"}
 ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
 
 
+def process_family(pid):
+    """A process and every process it started, and they started (a worker's ffmpeg, the
+    picture scan it runs)."""
+    if os.name != "nt":
+        return [pid]
+    import ctypes
+    from ctypes import wintypes
+
+    class Entry(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_void_p),
+                    ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                    ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+    k.Process32FirstW.argtypes = k.Process32NextW.argtypes = (wintypes.HANDLE, ctypes.c_void_p)
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    snap = k.CreateToolhelp32Snapshot(0x2, 0)              # TH32CS_SNAPPROCESS
+    parents = {}
+    if snap and snap != ctypes.c_void_p(-1).value:
+        e = Entry()
+        e.dwSize = ctypes.sizeof(Entry)
+        ok = k.Process32FirstW(snap, ctypes.byref(e))
+        while ok:
+            parents[e.th32ProcessID] = e.th32ParentProcessID
+            ok = k.Process32NextW(snap, ctypes.byref(e))
+        k.CloseHandle(snap)
+    out = [pid]
+    grew = True
+    while grew:
+        more = [c for c, par in parents.items() if par in out and c not in out and c != par]
+        grew = bool(more)
+        out += more
+    return out
+
+
+def _freeze(pid, on):
+    """Suspend (on) or resume one process. False if it couldn't be."""
+    if os.name != "nt":
+        return False
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    nt = ctypes.WinDLL("ntdll")
+    fn = nt.NtSuspendProcess if on else nt.NtResumeProcess
+    fn.argtypes = (wintypes.HANDLE,)
+    h = k.OpenProcess(0x0800, False, pid)                  # PROCESS_SUSPEND_RESUME
+    if not h:
+        return False
+    try:
+        return fn(h) == 0
+    finally:
+        k.CloseHandle(h)
+
+
+class Pausing:
+    """Pause and Resume while videos are worked on or saved (1.18.66; the owner: "should we
+    have a pause buton next to the cancel button when a check is happening", then "yes build
+    it"). The helper processes CleanView started (the video workers and what they run,
+    ffmpeg while saving) are frozen where they are and carry on from there; the AI helper
+    (Ollama, shared, not frozen) finishes the question it's on, and its answer waits. While
+    paused the PC may sleep (keep_awake lets go), the stuck-save watch doesn't count, and
+    nothing new is started. resume() also comes before Cancel or closing, so the workers can
+    stop as usual."""
+
+    def __init__(self, freeze=None, family=None):
+        self.on = False
+        self._freeze = freeze or _freeze
+        self._family = family or process_family
+        self._lock = threading.RLock()
+        self._tracked = {}              # id(proc) -> proc
+        self._frozen = []               # pids, in the order frozen
+        self._listeners = []
+        self._since = None
+        self._total = 0.0
+
+    def track(self, proc):
+        """A helper process to freeze while paused (frozen now if already paused)."""
+        with self._lock:
+            self._tracked[id(proc)] = proc
+            if self.on:
+                self._freeze_family(proc)
+
+    def untrack(self, proc):
+        with self._lock:
+            self._tracked.pop(id(proc), None)
+
+    def _freeze_family(self, proc):
+        if proc.poll() is not None:
+            return
+        for pid in self._family(proc.pid):
+            if pid not in self._frozen and self._freeze(pid, True):
+                self._frozen.append(pid)
+
+    def pause(self):
+        with self._lock:
+            if self.on:
+                return
+            self.on, self._since = True, time.monotonic()
+            for proc in list(self._tracked.values()):
+                self._freeze_family(proc)
+            listeners = list(self._listeners)
+        for fn in listeners:
+            fn(True)
+
+    def resume(self):
+        with self._lock:
+            if not self.on:
+                return
+            for pid in reversed(self._frozen):
+                self._freeze(pid, False)
+            self._frozen = []
+            self._total += time.monotonic() - self._since
+            self.on, self._since = False, None
+            listeners = list(self._listeners)
+        for fn in listeners:
+            fn(False)
+
+    def paused_for(self):
+        """Seconds spent paused so far (time left and the stuck-save watch leave it out)."""
+        with self._lock:
+            return self._total + (time.monotonic() - self._since if self.on else 0.0)
+
+    def listen(self, fn):
+        with self._lock:
+            self._listeners.append(fn)
+            on = self.on
+        if on:
+            fn(True)
+
+    def unlisten(self, fn):
+        with self._lock:
+            if fn in self._listeners:
+                self._listeners.remove(fn)
+
+
+PAUSE = Pausing()
+atexit.register(PAUSE.resume)          # never leave a helper frozen when CleanView ends
+
+
 class keep_awake:
-    """with keep_awake(): ... -- set and cleared on the same thread, also on an error."""
+    """with keep_awake(): ... -- set and cleared on the same thread, also on an error. Let go
+    while paused (PAUSE) and asked for again on Resume: one helper thread does all the asking,
+    since Windows ties the request to the thread that made it."""
 
     def __init__(self, setter=None):
         self.setter = setter
@@ -4042,12 +4191,31 @@ class keep_awake:
         except Exception:               # not Windows, or not allowed: nothing to do
             pass
 
-    def __enter__(self):
+    def _keep(self):
         self._set(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+        self._ready.set()
+        while True:
+            what = self._asks.get()
+            if what == "end":
+                self._set(ES_CONTINUOUS)
+                return
+            self._set(ES_CONTINUOUS if what == "paused" else ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+
+    def _paused(self, on):
+        self._asks.put("paused" if on else "resumed")
+
+    def __enter__(self):
+        self._asks, self._ready = queue.Queue(), threading.Event()
+        self._thread = threading.Thread(target=self._keep, daemon=True, name="keep awake")
+        self._thread.start()
+        self._ready.wait(5)
+        PAUSE.listen(self._paused)
         return self
 
     def __exit__(self, *exc):
-        self._set(ES_CONTINUOUS)
+        PAUSE.unlisten(self._paused)
+        self._asks.put("end")
+        self._thread.join(5)
         return False
 
 
@@ -4167,7 +4335,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         errf = work / "render_err.txt"
         with open(errf, "w", encoding="utf8") as err:
             proc = cl.popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True)
-            t0 = time.time()
+            PAUSE.track(proc)             # frozen while paused (1.18.66)
+            t0, p0 = time.time(), PAUSE.paused_for()
             # how far it has got, watched from another thread: a stuck ffmpeg prints nothing,
             # so the loop below would wait for its next line forever (and miss Cancel too)
             seen = {"moved": time.monotonic(), "sec": -1.0, "size": -1, "f": 0.0,
@@ -4180,6 +4349,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                 while not over.wait(step) and proc.poll() is None:
                     if cancel and cancel():
                         seen["cancelled"] = True
+                    elif PAUSE.on:            # paused: not stuck, and not counted
+                        seen["moved"], said = time.monotonic(), 0
+                        continue
                     still = time.monotonic() - seen["moved"]
                     if not seen["done"] and still > SAVE_STUCK_SECS:
                         seen["stuck"] = True
@@ -4217,7 +4389,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                             seen["sec"], seen["moved"] = sec, time.monotonic()
                         f = min(0.99, max(0.0, sec / expected))
                         seen["f"] = f
-                        el = time.time() - t0
+                        el = time.time() - t0 - (PAUSE.paused_for() - p0)
                         left = f" · about {el / f * (1 - f) / 60:.0f} min left" if f > 0.03 and el > 15 else "…"
                         say(f, label + left)
                 proc.wait()
@@ -4230,6 +4402,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                 raise
             finally:
                 over.set()
+                PAUSE.untrack(proc)
                 if proc.poll() is None:
                     proc.kill()
                     proc.wait()

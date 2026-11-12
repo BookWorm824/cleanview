@@ -427,6 +427,7 @@ class App(tk.Tk):
                     "later skips the steps that are already done.\n\nClose anyway?",
                     icon="warning", default="no", parent=self):
                 return
+            engine.PAUSE.resume()         # frozen helpers couldn't stop
             self.cancel_flag = True       # lets the saving step stop and tidy up first
             self.after(1500, self.destroy)
             return
@@ -1406,11 +1407,39 @@ class App(tk.Tk):
         self.cancel_btn = ttk.Button(self.footer, text="Cancel", style="Plain.TButton",
                                      command=self.cancel)
         self.cancel_btn.pack(side="right")
+        engine.PAUSE.resume()            # new work never starts paused
+        self.pause_btn = ttk.Button(self.footer, text="Pause", style="Plain.TButton",
+                                    command=self.toggle_pause)
+        self.pause_btn.pack(side="right", padx=(0, 8))
         self.stop_btn = None
         if n > 1 and can_stop:
             self.stop_btn = ttk.Button(self.footer, text=self._stop_label(),
                                        style="Plain.TButton", command=self.toggle_stop_after)
             self.stop_btn.pack(side="right", padx=(0, 8))
+
+    PAUSED_SAID = "Paused \u2014 press Resume to carry on."
+
+    def toggle_pause(self):
+        """Pause: CleanView's helpers freeze where they are, so the PC is free for something
+        else; Resume carries on from the same spot (the owner, 2026-11-12). The time left
+        leaves the paused time out."""
+        btn = getattr(self, "pause_btn", None)
+        if not engine.PAUSE.on:
+            engine.PAUSE.pause()
+            self._paused_at = time.time()
+            if btn is not None and btn.winfo_exists():
+                btn.config(text="Resume")
+            if getattr(self, "status", None) is not None and self.status.winfo_exists():
+                self.status.config(text=self.PAUSED_SAID)
+        else:
+            engine.PAUSE.resume()
+            if self._work_t0 is not None and getattr(self, "_paused_at", None):
+                self._work_t0 += time.time() - self._paused_at
+            self._paused_at = None
+            if btn is not None and btn.winfo_exists():
+                btn.config(text="Pause")
+            if getattr(self, "status", None) is not None and self.status.winfo_exists():
+                self.status.config(text=getattr(self, "_doing", {}).get("status") or "")
 
     def toggle_stop_after(self):
         """Finish the video being worked on, then skip the rest and go on to the review
@@ -1464,6 +1493,7 @@ class App(tk.Tk):
         """Back to the start page at once (the owner, 2026-11-09: "it taking a while to
         actually cancel and go back to home screen"). The work stops by itself at its next
         check, and anything it still sends is dropped (see _start_work)."""
+        engine.PAUSE.resume()            # frozen helpers couldn't stop
         self.run = getattr(self, "run", 0) + 1
         self.show_setup()
 
@@ -1539,6 +1569,7 @@ class App(tk.Tk):
         workers = self.workers = VQ.Workers(lambda k, m: events.put((k, m)))
         frac = [0.0] * n
         todo, running, finished = list(range(n)), set(), set()
+        procs = {}                         # each video's worker, frozen while paused
 
         def which():
             if len(running) == 1:
@@ -1565,13 +1596,15 @@ class App(tk.Tk):
                     todo = []
                 at_once = getattr(self, "at_once", 1)
                 started = False
-                while todo and len(running) < at_once:
+                while todo and len(running) < at_once and not engine.PAUSE.on:
                     k = todo.pop(0)
                     j = jobs[k]
                     try:
-                        workers.start(k, {"video": j["video"], "work": str(j["work"]),
-                                          "groups": self.groups, "opts": self.scan_opts,
-                                          "threads": VQ.threads_each(min(at_once, n))})
+                        procs[k] = workers.start(
+                            k, {"video": j["video"], "work": str(j["work"]),
+                                "groups": self.groups, "opts": self.scan_opts,
+                                "threads": VQ.threads_each(min(at_once, n))})
+                        engine.PAUSE.track(procs[k])     # frozen while paused
                     except Exception as ex:
                         finished.add(k)
                         frac[k] = 1.0
@@ -1609,6 +1642,8 @@ class App(tk.Tk):
                         f"{Path(j['video']).name}: {msg['error']}"
                     failed(k, error, f"{j['video']}\n\n{msg.get('details', '')}")
                 elif "exit" in msg:
+                    if k in procs:
+                        engine.PAUSE.untrack(procs.pop(k))
                     running.discard(k)
                     finished.add(k)
                     frac[k] = 1.0
@@ -1625,7 +1660,10 @@ class App(tk.Tk):
                                f"{j['video']}\n\nThe worker ended (code {msg['exit']}).\n\n{log}")
                     which()
         finally:
+            for p in procs.values():
+                engine.PAUSE.untrack(p)
             if running:          # Cancel, or something went wrong here: stop the rest
+                engine.PAUSE.resume()        # frozen workers couldn't stop
                 workers.stop_all()
 
     def _at_once(self):
@@ -1850,8 +1888,9 @@ class App(tk.Tk):
         alive = getattr(self, "pb", None) is not None and self.pb.winfo_exists()
         if kind == "progress" and alive:
             self.pb["value"] = int(max(0.0, min(1.0, msg[1])) * 1000)
-            self.status.config(text=msg[2])
-            self._time_left_for_all(msg[1])
+            if not engine.PAUSE.on:
+                self.status.config(text=msg[2])
+                self._time_left_for_all(msg[1])
         elif kind == "which" and alive:
             self.which.config(text=msg[1])
         elif kind == "job" and alive:
@@ -1860,6 +1899,9 @@ class App(tk.Tk):
             self._job_note(msg[1], msg[2])
         elif kind == "call":
             msg[1]()
+        elif kind in ("analyzed", "rendered", "cancelled", "error") and engine.PAUSE.on:
+            engine.PAUSE.resume()
+            self._handle(msg)
         elif kind == "analyzed":
             self.after_analyze()
         elif kind == "rendered":

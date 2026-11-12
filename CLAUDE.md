@@ -346,6 +346,24 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Pause and Resume (1.18.66, 2026-11-12; the owner: "should we have a pause buton next to the
+  cancel button when a check is happening", then "when the 2 am task is done yes build it").
+  "Pause" sits beside Cancel on the working page (watching and listening, and saving); pressed,
+  it says "Resume" and the line says "Paused - press Resume to carry on." (`toggle_pause`,
+  `PAUSED_SAID`; progress messages meanwhile don't overwrite it). `engine.PAUSE`
+  (`Pausing`) freezes the helper processes it tracks and everything they started
+  (`process_family`, `_freeze`: NtSuspendProcess/NtResumeProcess) and lets them go in
+  reverse; tracked are each video worker (`_run_workers`, no new worker starts while paused)
+  and ffmpeg while saving (`render`'s `attempt`). Ollama is shared and not frozen: it
+  finishes the question it's on and the frozen worker reads the answer on Resume. While
+  paused the stuck-save watch doesn't count (`seen["moved"]` kept fresh), the save's and the
+  window's time left leave the paused time out (`paused_for`, `_work_t0`), and `keep_awake`
+  lets the PC sleep (one helper thread asks Windows for it and lets go, `PAUSE.listen`).
+  Cancel, closing the window, and work that ends resume first (frozen workers couldn't
+  stop), new work never starts paused, and `atexit` resumes anything left frozen. Tried in
+  the real window on a 2.5-minute clip: paused while listening, the helpers used 0.00 s of
+  processor time in 8 s, then carried on and finished. Wanted in CleanListen, CleanRead and
+  ReadAloud too.
 - A PC without a graphics card gets longer time limits for the AI helper (1.18.65,
   2026-11-12; the owner: "everything would work on a computer with no dedicated gpu right?",
   then "Yes, build it"). Everything already ran without one (listening, the picture scan and
@@ -766,6 +784,12 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_pause.py`: what pausing freezes and unfreezes (each process's family, in reverse,
+  one started while paused at once, finished or untracked ones left alone), paused time
+  counted, listeners told; a real counting process stands still while paused and goes on
+  after; keep_awake lets go and asks again; a save paused longer than the stuck-save limit
+  isn't taken as stuck; the window's button, Resume restoring the line and leaving the pause
+  out of the time left, and Cancel/closing/the workers resuming first.
 - `test_slow_pc.py`: questions to the AI helper get 3 times as long when its model isn't
   mostly on the graphics card (or isn't loaded yet), the usual limit when it is (50% counts, as
   on Lauren's laptop), each model on its own, and no Ollama to ask counts as slow.
