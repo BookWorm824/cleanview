@@ -3,6 +3,7 @@ pause buton next to the cancel button when a check is happening", then "yes buil
 helper processes freeze where they are and carry on from there; while paused the PC may sleep,
 the stuck-save watch and the time left don't count, nothing new starts, and Cancel or closing
 still stop everything."""
+import gc
 import json
 import os
 import subprocess
@@ -115,6 +116,9 @@ class RealProcess(unittest.TestCase):
 
 
 class KeepAwakeLetsGo(unittest.TestCase):
+    def setUp(self):
+        gc.collect()        # as in SavingPaused: keep_awake has a thread of its own
+
     def test_paused_and_resumed(self):
         calls = []
         try:
@@ -146,6 +150,11 @@ class SavingPaused(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         SS.StuckSave.setUpClass.__func__(cls)
+
+    def setUp(self):
+        # window bits left by earlier tests are tidied here, on the main thread: Tk can't
+        # have them tidied by this test's other thread ("Tcl_AsyncDelete ... wrong thread")
+        gc.collect()
 
     def test_paused_longer_than_the_limit(self):
         def pause_a_while():

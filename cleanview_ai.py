@@ -1667,6 +1667,8 @@ def _separate_fast(audio, threshold=0.95, min_on=0.3, min_off=0.5, workers=None,
 # Flirting and romance, judged a whole conversation at a time
 # ---------------------------------------------------------------------------
 BETWEEN = {"two men": "mm", "two women": "ff", "a man and a woman": "mf"}
+QUICK_YES = {"type": "object", "properties": {"romance": {"type": "boolean"}},
+             "required": ["romance"]}
 
 
 _MALE = re.compile(r"\b(man|men|guy|guys|boy|boys|he|him|his|husband|boyfriend|father|son)\b",
@@ -1748,6 +1750,12 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
                   "exact words of one of them, and one sentence on what happens. If unsure, "
                   "answer no." + said + " Answer in JSON.")
         try:
+            # first just yes or no, with the very same words (1.18.68): the full answer form
+            # made it write 45-170 words for every conversation, slow when the model is only
+            # partly on the graphics card (Lauren's laptop: 16 of 40 minutes); asked this way
+            # it said yes to every one the full question did, on 270 conversations
+            if not chat(prompt, schema=QUICK_YES, timeout=300).get("romance"):
+                continue
             a = chat(prompt, schema=schema, timeout=300)
         except Exception:
             continue

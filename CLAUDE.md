@@ -346,6 +346,22 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Each conversation's flirting check asks a quick yes or no first (1.18.68, 2026-11-12; the
+  owner: "is there any other places to check efficiency", then "1": the AI helper's reading on
+  her laptop, 27 of 40 minutes there). The two models never share the card (Ollama swaps the
+  picture model out), and the reading questions are small (850-1,000 tokens, so `NUM_CTX` 4096
+  would do, but it gained nothing: 34.5 s against 34.9). With the dialogue model 61% on the card
+  (`num_gpu` 23, as on her laptop) reading 100 lines took 9 s against 7 s, but each conversation
+  35 s against 10 s: the full answer form (lines, quote, "what") made it write 45-170 tokens for
+  every conversation, and writing is what's slow off the card. `romance_scenes` now asks the very
+  same words with `QUICK_YES` ({"romance": bool}) first and only asks the full question (then the
+  confirmation) on a yes. On 270 conversations in 6 episodes (full card) the quick question said
+  yes to every one the full one did (2 more maybes, ruled out by the full one); the quick
+  questions took ~20 s an episode against 70-95 s. At 61% on the card the whole check went
+  225 -> 122, 203 -> 105 and 258 -> 110 s (Castle S1E2's two copies, The Resident S03E12). The
+  same-sex finds (what gets cut) were identical; two man-and-woman ones (not cut) differed, one
+  each way (the full question now reuses the quick one's work, which nudges numbers off the
+  card), while the old way gave the same answers twice.
 - The picture checkers run on onnxruntime 1.24.4 (1.18.67, 2026-11-12; the owner: "Yes, build
   it", after the 2 AM check). It scans the picture about a fifth faster than the 1.31.0 installs
   had, with identical results: The Resident S03E12 230 -> 172 s, Castle S1E2 216 -> 176 s,
@@ -797,6 +813,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_laptop_speed.py`: each conversation is asked a quick yes or no first, with the same
+  words, and the details and the confirmation only on a yes.
 - `test_picture_runtime.py`: the switch wanted (another version installed) and not (already
   1.24.4, or none: the first install pins it), done with --no-deps, put back when it won't
   load, given up after 3 failures; "faster picture checker" on Getting ready only when the
