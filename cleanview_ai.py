@@ -1701,6 +1701,96 @@ def _voices_mixed(genders, lo, hi):
     return heard == {"man", "woman"}
 
 
+def conversations(lines):
+    """The dialogue split into conversations at pauses over 6 s, at most 30 lines each (the
+    next starts 2 lines back), as line numbers; single lines left out."""
+    convs, cur = [], [0]
+    for i in range(1, len(lines)):
+        if lines[i]["s"] - lines[i - 1]["e"] > 6 or len(cur) >= 30:
+            convs.append(cur)
+            cur = [max(cur[-1] - 2, cur[0])] if len(cur) >= 30 else []
+        cur.append(i)
+    convs.append(cur)
+    return [c for c in convs if len(c) >= 2]
+
+
+# Sexual talk, looked for one conversation at a time (1.18.70; the owner: "yes" to looking into
+# why the AI helper missed Castle S2E3's innuendo, then "Yes, build it"). Read 25 lines at a
+# time and told three times to flag only what it's sure of, it noticed 3 of the 13 lines she'd
+# have muted and its second look dropped all 3. Asked per conversation (a quick yes or no, then
+# which lines, then each line on its own, worded to count innuendo) it caught 4 of them, plus
+# "I wanted to taste you", with no false alarms on a Gummi Bears episode or The Resident S03E12.
+SEXUAL_TALK = ("something sexual: talk about sex or sexual body parts, a sexual joke, innuendo "
+               "or a double meaning that is sexual in this context, an invitation to undress or "
+               "to have sex, talk of sleeping with someone (also to get ahead), naked photos. "
+               "NOT: ordinary romance, dating, a kiss, flirting with no sexual meaning, insults or "
+               "swearing, crime or police talk, a doctor's or coroner's findings")
+INNUENDO = (" Innuendo counts too: a suggestive remark with a sexual meaning in context (an "
+            "invitation to undress or to have sex, a line that hints at sex), talk of sleeping "
+            "with someone to get ahead, naked photos.")
+_SEXUAL = {"type": "object", "properties": {"sexual": {"type": "boolean"}},
+           "required": ["sexual"]}
+_WHICH = {"type": "object", "properties": {"lines": {"type": "array", "items": {
+    "type": "object", "properties": {"line": {"type": "integer"}, "words": {"type": "string"}},
+    "required": ["line", "words"]}}}, "required": ["lines"]}
+
+
+def sexual_talk(lines, progress=None, cancel=None):
+    """Line numbers with sexual talk, found a conversation at a time and each confirmed."""
+    convs = conversations(lines) if lines else []
+    cands = set()
+    for n, conv in enumerate(convs):
+        if cancel and cancel():
+            raise KeyboardInterrupt
+        counted(progress, 0.8 * n / len(convs), n + 1, n + 1, len(convs), "conversations")
+        listing = "\n".join(f"{k + 1}: {lines[i]['text']}" for k, i in enumerate(conv))
+        prompt = ("Here is one conversation from a TV show or movie:\n\n" + listing + "\n\n"
+                  "Does anyone here say " + SEXUAL_TALK + "? Answer in JSON.")
+        try:
+            if not chat(prompt, schema=_SEXUAL, timeout=300).get("sexual"):
+                continue
+            a = chat(prompt + " If yes, give the number of each such line and the exact words "
+                     "from it (copied word for word).", schema=_WHICH, timeout=300)
+        except Exception:
+            continue
+        for f in a.get("lines", []) or []:
+            try:
+                k = int(f.get("line")) - 1
+            except (TypeError, ValueError):
+                continue
+            words = _letters(str(f.get("words", "")))
+            if not (0 <= k < len(conv)) or len(words) < 3:
+                continue
+            near = [conv[j] for j in range(max(0, k - 2), min(len(conv), k + 3))
+                    if words in _letters(lines[conv[j]]["text"])]
+            if near:                       # its words are really there: not a guess
+                cands.add(near[0])
+    found = set()
+    yes = {"type": "object", "properties": {"fits": {"type": "boolean"}}, "required": ["fits"]}
+    what = LINE_TYPES["sexref"].replace(". NOT:", "." + INNUENDO + " NOT:", 1)
+    for n, i in enumerate(sorted(cands)):
+        if cancel and cancel():
+            raise KeyboardInterrupt
+        counted(progress, 0.8 + 0.2 * n / len(cands), n + 1, n + 1, len(cands),
+                "double-checking")
+        before = " / ".join(l["text"] for l in lines[max(0, i - 6):i])
+        after = " / ".join(l["text"] for l in lines[i + 1:i + 3])
+        q = (f"Dialogue just before: {before or '(none)'}\n"
+             f'Line: "{lines[i]["text"]}"\n'
+             f"Dialogue just after: {after or '(none)'}\n\n"
+             f"Does the line in quotes contain a sexual reference? That means it {what}. Use the "
+             "dialogue around it to understand it. Count innuendo and double meanings that are "
+             "sexual in this context. Answer false if it doesn't fit.")
+        try:
+            if chat(q, schema=yes, timeout=120).get("fits") is True:
+                found.add(i)
+        except Exception:
+            continue
+    if progress:
+        progress(1.0)
+    return found
+
+
 def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
     """Conversations where someone flirts or shows romantic or sexual interest.
     Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice; "mixed"

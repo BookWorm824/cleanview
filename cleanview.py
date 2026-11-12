@@ -3035,14 +3035,29 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                     found.setdefault(a + i, set()).update(t)
             how += " and the AI helper"
     elif have_ai:
+        talk = "sexref" in wanted        # sexual talk is looked for a conversation at a time too
+        share = 0.75 if talk else 1.0
         try:
-            found = ai.classify_dialogue(lines, wanted, progress, cancel, genders=genders,
-                                         examples=examples)
+            found = ai.classify_dialogue(
+                lines, wanted, progress and (lambda f, n="": progress(share * f, n)), cancel,
+                genders=genders, examples=examples)
             how = "the AI helper"
         except KeyboardInterrupt:
             raise
         except Exception:
             found = {}
+        if talk:
+            try:
+                for i in ai.sexual_talk(lines, progress and (
+                        lambda f, n="": progress(share + (1 - share) * f, n)), cancel):
+                    # a line with a listed word stays "just the word" (her choice, 1.18.41):
+                    # "I got tree branches poking my boobs"
+                    if not LINE_WORDS["sexref"].search(lines[i]["text"]):
+                        found.setdefault(i, set()).add("sexref")
+            except KeyboardInterrupt:
+                raise
+            except Exception:
+                pass
     listed = {}                 # found only by the word list: {line: {kind: [the words]}}
     for i, l in enumerate(lines):
         for k in wanted:

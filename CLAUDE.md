@@ -346,6 +346,25 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Sexual talk is also looked for a conversation at a time (1.18.70, 2026-11-12; the owner: "yes"
+  to looking into why the AI helper missed Castle S2E3's innuendo, then "Yes, build it").
+  Replaying that episode's dialogue (with the lessons it had then): `classify_dialogue` reads 25
+  lines at a time and is told three times to flag only what it's sure of; it noticed 3 of the
+  13 lines she'd have muted and its second look dropped all 3, and it flagged nothing else.
+  Softer wording alone caught 2-3. `ai.sexual_talk` (when "sexref" is ticked and the AI on this
+  PC reads; `find_lines`, the last quarter of "Reading the dialogue") asks each conversation
+  (`conversations`, as the flirting check splits them) a quick yes or no (`SEXUAL_TALK`), then
+  which lines with their exact words (checked against the dialogue), then each line on its own
+  with the sexref description plus `INNUENDO` ("Count innuendo and double meanings that are
+  sexual in this context"). Through `find_lines` (lessons from before 1.18.69): Castle S2E3
+  gained "Let's skinny dip", "Take your pants off", both naked-photo lines, "I wanted to taste
+  you" (and "That's pretty sick stuff", a false alarm; "he gives you great shots. If you
+  don't," borderline); Castle S2E1 gained "Try unbuttoning his shirt", "spotlights shining up
+  my booty", "You could be wearing a skirt"; a Gummi Bears episode and The Resident S03E12
+  nothing. A line with a word on the short list stays "just the word" ("poking my boobs").
+  Asking it per conversation with no line-by-line look caught 7 of the 13 but flagged 30
+  innocent lines. Cost: about 2.5 min an episode with the model 61% on the card (laptop-like
+  here), 0.3-1 min on the full card.
 - Lauren's Castle S2E3 report (1.18.69, 2026-11-12, adults, the AI helper, made on 1.18.67;
   laptop: 48 min, reading 14.4 and each conversation 18.0): every listed word muted, nothing
   marked Drugs, but the AI helper flagged almost none of the episode's sexual talk. The owner:
@@ -830,6 +849,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_sexual_talk.py`: a conversation's sexual talk found (quick yes, which lines, each
+  confirmed), not when the quoted words aren't there or the line-by-line look says no, the
+  quiet conversations asked nothing more, innuendo counted; in the reading only with that
+  filter and not when Claude reads; a listed word stays just the word.
 - `test_castle_s2e3.py`: its lines built in for Castle (not the coroner's or everyday lines),
   the insult a false alarm, skinny dip / chastity belt / naked photos on the short list (not
   skinny dippers, the naked eye), and the scan record's picture runtime.
