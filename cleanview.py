@@ -3868,6 +3868,35 @@ def _quieter(rs, level=MUSIC_LEVEL, ramp=0.5):
     return f"1-{1 - level:.3f}*({inside})"
 
 
+# A long muted stretch is cut instead (1.18.60, the owner: "if something that is muted, is
+# longer then 4 seconds, go ahead and cut the scene so its not a long gap of silence"). Mutes
+# less than LONG_MUTE_JOIN apart count as one stretch (the pause between two muted lines), but
+# only a stretch that's mostly muted (LONG_MUTE_SHARE) is a long silence: words muted one by
+# one with talking between them stay muted words (a word every 0.8 s isn't a silence).
+LONG_MUTE_SECS = 4.0
+LONG_MUTE_JOIN = 0.75
+LONG_MUTE_SHARE = 0.85
+
+
+def long_mutes(rs, most=LONG_MUTE_SECS, join=LONG_MUTE_JOIN, share=LONG_MUTE_SHARE):
+    """The stretches of these (merged) mute ranges, joined across short pauses, that last
+    `most` seconds or more and are mostly muted: cut them instead of leaving a long silence."""
+    spans = []
+    for s, e in sorted(rs):
+        if spans and s - spans[-1][1] < join:
+            spans[-1][1] = max(spans[-1][1], e)
+            spans[-1][2] += e - s
+        else:
+            spans.append([s, e, e - s])
+    out = []
+    for s, e, muted in spans:
+        if e - s >= most and muted >= share * (e - s):
+            out.append((s, e))
+        elif e - s >= most:             # not mostly muted: only its own long mutes
+            out += [(a, b) for a, b in sorted(rs) if s <= a and b <= e and b - a >= most]
+    return out
+
+
 def _merge(rs):
     out = []
     for s, e in sorted(rs):
@@ -3995,6 +4024,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     cut_rs = _merge((max(0.0, c["s"]), min(dur, c["e"])) for c in cuts)
     line_rs = _merge((l["s"], l["e"]) for l in lines)
     mute_rs = _merge([(m["s"], m["e"]) for m in st["mutes"]] + line_rs)
+    long_rs = [(max(0.0, s), min(dur, e)) for s, e in long_mutes(mute_rs)
+               if not any(a <= s and e <= b for a, b in cut_rs)]     # (not already cut out)
+    if long_rs:                   # cut instead of a long silence
+        mute_rs = [r for r in mute_rs if not any(a <= r[0] and r[1] <= b for a, b in long_rs)]
+        cut_rs = _merge(list(cut_rs) + long_rs)
     reencode = bool(cut_rs)
     mp4 = reencode or src.suffix.lower() in (".mp4", ".m4v", ".mov")
     dst = out / f"{src.stem} (Clean){'.mp4' if mp4 else '.mkv'}"
@@ -4204,6 +4238,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     rep = [f"CleanView report — {src.name}", "=" * 40,
            f"{len(st['mutes'])} words/phrases muted, {len(lines)} lines muted, {len(cut_rs)} "
            f"scenes cut ({removed / 60:.1f} minutes removed)."]
+    if long_rs:
+        rep.append(f"{len(long_rs)} muted stretch(es) of {LONG_MUTE_SECS:.0f} seconds or more "
+                   "were cut instead, so there's no long silence.")
     if st.get("sub_note"):
         rep.append(st["sub_note"])
     if careful:
@@ -4224,6 +4261,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                         f"{q['e'] - q['s']:.0f} seconds") for q in quiet]
     events += [(c["s"], f"CUT {c['e'] - c['s']:.0f} seconds  {' + '.join(c.get('kind') or ['scene'])}"
                         f"  ({c.get('why', '')})") for c in cuts]
+    events += [(s, f"CUT {e - s:.0f} seconds  instead of a long silence (muted lines or words)")
+               for s, e in long_rs]
 
     def in_clean(t):
         """Where a moment of the original is in the clean copy (cuts make it earlier)."""

@@ -2155,6 +2155,12 @@ class App(tk.Tk):
             st = j["analysis"]
             cut = sum(sc["e"] - sc["s"] for v, jj, sc in getattr(self, "scene_vars", [])
                       if jj is j and v.get())
+            # long muted stretches are cut too (1.18.60), so they count here
+            muted = [(m["s"], m["e"]) for v, jj, m in getattr(self, "word_vars", [])
+                     if jj is j and v.get()]
+            muted += [(l["s"], l["e"]) for v, jj, l in getattr(self, "line_vars", [])
+                      if jj is j and v.get()]
+            cut += sum(e - s for s, e in engine.long_mutes(engine._merge(muted)))
             v = (st.get("info") or {}).get("video") or {}
             total += engine.clean_size(j["video"], st.get("duration") or 0, cut,
                                        v.get("width"), v.get("height"))

@@ -331,6 +331,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- A long muted stretch is cut instead of left silent (1.18.60, 2026-11-12; the owner: "if
+  something that is muted, is longer then 4 seconds, go ahead and cut the scene so its not a
+  long gap of silence"). `render` joins the ticked mutes (lines and words) across pauses under
+  `LONG_MUTE_JOIN` (0.75 s) and cuts each stretch of `LONG_MUTE_SECS` (4) or more that's at
+  least `LONG_MUTE_SHARE` (85%) muted (`long_mutes`); words muted one by one with talking
+  between them stay muted words (a first try joining across 1 s cut almost all of a test
+  video with a word muted every 0.8 s). The report says how many were cut and lists each
+  "CUT 6 seconds instead of a long silence (muted lines or words)"; the review page's size
+  estimate counts them (`_clean_bytes`). A copy that had only mutes is now made again (not
+  copied) when it has one, so saving takes longer. Past reviews on this PC: 218 such
+  stretches in 125 videos (1.7 a video, 27.6 minutes in all).
+  Also measured then: "Videos at once" with the AI helper on (two 44-minute The Resident
+  episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
+  looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
+  the default of 2 stays.
 - A badly numbered episode still gets its subtitles (1.18.59, 2026-11-11). Lauren's "Castle
   Season 1 - Ep. 3.mp4" is really S01E04 "Hell Hath No Fury" (the councilman and Tiffany), so
   episode 3's subtitles lined up 4% and none were used (her adults report: no subtitles, the
@@ -678,6 +693,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_long_mutes.py`: muted stretches of 4 s or more (joined across short pauses, mostly
+  muted) are cut, shorter ones and words muted one by one stay muted; a real save is 5 s
+  shorter and the report says why.
 - `test_many_mutes.py`: saving with 150 mutes and 120 cuts, and 1,600 mutes and 60 cuts; each
   filter at most 50 plain terms (the cuts' setpts bracketed); long expressions shortened in
   errors; ffmpeg's "Cannot allocate memory" for a filter not said as running out of memory.
