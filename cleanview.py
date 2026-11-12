@@ -1726,6 +1726,24 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
+def flirt_scenes(flirts):
+    """Same-sex flirting found in the dialogue, as scenes. One where a man's and a woman's
+    voice are both heard is offered unticked (`VOICES_MIXED`)."""
+    out = []
+    for f in flirts:
+        if f["between"] in ("mm", "ff", "ss"):
+            why = f["what"] or "flirting or romantic interest"
+            if f.get("mixed"):          # the voices say a man and a woman: she decides
+                why += VOICES_MIXED
+            out.append({"s": max(0.0, f["s"] - 1.0), "e": f["e"] + 1.0,
+                        "kind": ["Same-sex romance" + (f" · {WHO_LABEL[f['between']]}"
+                                                       if f["between"] in WHO_LABEL else "")],
+                        "why": why, "sure": not f.get("mixed")})
+    return out
+
+
+VOICES_MIXED = (" (but a man's and a woman's voice are heard there, so it may be a man and a "
+                "woman; only cut if you tick it)")
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
              "halloween": "Halloween", "birthday": "Birthday candles",
@@ -3581,12 +3599,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if o["sex"]:
         scenes += sex_scenes(snd, cues, asr_n, asr, skin, nude)
     scenes += decide_picture_scenes(cands, o, have_ai)
-    for f in flirts:
-        if f["between"] in ("mm", "ff", "ss"):
-            scenes.append({"s": max(0.0, f["s"] - 1.0), "e": f["e"] + 1.0,
-                           "kind": ["Same-sex romance" + (f" · {WHO_LABEL[f['between']]}"
-                                                          if f["between"] in WHO_LABEL else "")],
-                           "why": f["what"] or "flirting or romantic interest", "sure": True})
+    scenes += flirt_scenes(flirts)
     scenes = merge_scenes(scenes)
     if have_ai:                         # done with the AI helper: free its memory now
         ai.free_memory()

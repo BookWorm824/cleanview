@@ -374,9 +374,38 @@ class LearnedLines:
             if min(len(d), len(t)) >= LEARNED_SHORTEST + 1 and \
                     SequenceMatcher(None, d, t).ratio() >= self.ALIKE:
                 return name                              # a word or two heard differently
-            if len(t) >= self.LONG and self._overlap(d, t) >= max(self.LONG + 1, self.MOST * len(t)):
+            if len(t) >= self.LONG and self._overlap(d, t) >= max(self.LONG + 1, self.MOST * len(t))                     and not self._ends_differ(d, t):
                 return name                              # most of it, split differently
         return None
+
+    @staticmethod
+    def _ends_differ(d, t):
+        """Both lines go on past what they share, with other words (Castle S2E1, 2026-11-11:
+        "That's a long way to go for a robbery" isn't the lesson "...for a lube job": the joke
+        is in the words that differ). A lesson split across heard lines stops at the split, so
+        only one of them goes on there; one word each is a word heard differently."""
+        from difflib import SequenceMatcher
+        blocks = [b for b in SequenceMatcher(None, d, t, autojunk=False).get_matching_blocks()
+                  if b.size]
+        if not blocks:
+            return False
+        best = run = 0
+        span = start = None
+        last = None
+        for a, b, size in blocks:
+            near = last is not None and a - last[0] <= 1 and b - last[1] <= 1
+            if near:
+                run += size
+            else:
+                run, start = size, (a, b)
+            last = (a + size, b + size)
+            if run > best:
+                best, span = run, (start, last)
+        (da, ta), (dz, tz) = span
+        for left_d, left_t in ((da, ta), (len(d) - dz, len(t) - tz)):
+            if left_d and left_t and not (left_d == 1 and left_t == 1):
+                return True
+        return False
 
     @staticmethod
     def _overlap(d, t):

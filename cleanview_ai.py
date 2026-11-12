@@ -1643,9 +1643,23 @@ def _between_checked(between, what):
     return between
 
 
+def _voices_mixed(genders, lo, hi):
+    """A man's and a woman's voice both heard in lines lo..hi (the flirting and the lines
+    around it). The model can't tell from names alone who's a man or a woman (Castle S2E1,
+    2026-11-11: "Now, that's kind of hot", Castle to Beckett, cut as "two men" because it
+    said "Ryan comments on Beckett's behavior")."""
+    heard = set()
+    for v in genders[lo:hi + 1]:
+        g = v if isinstance(v, str) else (v or {}).get("g")
+        if g in ("man", "woman"):
+            heard.add(g)
+    return heard == {"man", "woman"}
+
+
 def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
     """Conversations where someone flirts or shows romantic or sexual interest.
-    Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice.
+    Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice; "mixed"
+    when it says two men or two women but a man's and a woman's voice are heard there.
     notes: what they told the chat to keep in mind (followed here too)."""
     if not lines:
         return []
@@ -1718,7 +1732,8 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
         between = BETWEEN.get(b.get("between")) or BETWEEN.get(a.get("between")) or "?"
         between = _between_checked(between, str(a.get("what", "")))
         found.append({"s": lines[min(idx)]["s"], "e": lines[max(idx)]["e"], "between": between,
-                      "what": str(a.get("what", ""))[:120]})
+                      "what": str(a.get("what", ""))[:120],
+                      "mixed": between in ("mm", "ff") and _voices_mixed(genders, lo, hi)})
     if progress:
         progress(1.0)
     return found

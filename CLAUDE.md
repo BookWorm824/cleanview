@@ -346,6 +346,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Castle S2E1 report (1.18.61, 2026-11-12, adults, the AI helper, on 1.18.60): two
+  wrong flags. "That's a long way to go for a robbery." was muted as the lesson "...for a lube
+  job" (8 words shared, `LearnedLines._overlap`), but the joke is in the words that differ: a
+  shared stretch no longer counts when both lines go on past it with other words at the same
+  end (`_ends_differ`; one word each is a word heard differently; a lesson split across heard
+  lines stops at the split). All 238 lesson matches in the 125 past reviews here still match.
+  And "Now, that's kind of hot." (Castle to Beckett) was cut as same-sex flirting between "two
+  men": the AI helper's reason named Ryan and Beckett, and names don't say who's a woman. When
+  it says two men or two women but a man's and a woman's voice are heard in the flirting and
+  the lines around it (`ai._voices_mixed`, `"mixed"`), the scene is offered unticked
+  (`flirt_scenes`, `VOICES_MIXED`). Her other unticks were hers: the morgue body with its
+  organs out (gore), and "fuck" heard in the Russian mobsters' scene (no subtitles there).
+  On her laptop the AI helper's reading took 27 of the 40 minutes (63% of qwen3:8b on its card).
 - A badly numbered episode still gets its subtitles (1.18.59, 2026-11-11). Lauren's "Castle
   Season 1 - Ep. 3.mp4" is really S01E04 "Hell Hath No Fury" (the councilman and Tiffany), so
   episode 3's subtitles lined up 4% and none were used (her adults report: no subtitles, the
@@ -693,6 +706,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_castle_s2e1.py`: a learned line whose ending differs isn't the lesson (the lesson
+  itself, a word heard differently and a split line still are); a same-sex flirt with a man's
+  and a woman's voice heard there is offered unticked, only men's or unknown voices still cut.
 - `test_long_mutes.py`: muted stretches of 4 s or more (joined across short pauses, mostly
   muted) are cut, shorter ones and words muted one by one stay muted; a real save is 5 s
   shorter and the report says why.
