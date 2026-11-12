@@ -718,8 +718,33 @@ def subtitle_order(subs, score):
     return first + rest
 
 
+# A badly numbered episode (Lauren, 2026-11-11: "Castle Season 1 - Ep. 3.mp4" was really episode
+# 4, so episode 3's subtitles lined up 4% and none were used; the owner: "also build in if it
+# is say season 2 episode 5 but says season 3 episode 5. it could be a badly marked season"):
+# after the episode's own other subtitles, the neighbours' are tried in this order, the best
+# one of each, until some line up (pick_subtitles).
+NEIGHBOURS = [(0, 1), (0, -1), (0, 2), (0, -2), (-1, 0), (1, 0)]     # (season, episode) steps
+OWN_TRIES_FOR_EPISODES = 3      # its own other subtitles first, then the neighbours'
+NEIGHBOUR_LOOKUP = "looked at neighbouring episodes and seasons too (1.18.59)"
+
+
+def neighbour_episodes(season, episode):
+    """(season, episode) of the neighbours to try, nearest first."""
+    for ds, de in NEIGHBOURS:
+        s, e = season + ds, episode + de
+        if s >= 1 and e >= 1:
+            yield s, e
+
+
+def neighbour_note(season, episode, s, e):
+    if s == season:
+        return f" (they're for episode {e}, so this file's episode number may be off)"
+    return f" (they're for season {s}, so this file's season number may be off)"
+
+
 def other_subtitles(path, log=print, tries=SUB_TRIES):
-    """Other subtitles online for this video, one download at a time: (srt_text, where_from)."""
+    """Other subtitles online for this video, one download at a time: (srt_text, where_from).
+    For an episode, the neighbouring episodes' and seasons' come after its own."""
     if importlib.util.find_spec("subliminal") is None or _load_subtitle_finder(log):
         return
     import subliminal
@@ -742,7 +767,9 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
     except Exception as ex:
         log(f"other subtitles: {ex}")
         return
-    for sub in subtitle_order(subs, lambda s: subliminal.compute_score(s, video))[:tries]:
+    episode = t[1] is not None and t[2] is not None
+    own = min(tries, OWN_TRIES_FOR_EPISODES) if episode else tries
+    for sub in subtitle_order(subs, lambda s: subliminal.compute_score(s, video))[:own]:
         try:
             subliminal.download_subtitles([sub])
         except Exception:
@@ -750,6 +777,24 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
         text = getattr(sub, "text", None)
         if text and "-->" in text:
             yield text, _sub_where(sub)
+    if not episode:
+        return
+    ext = Path(path).suffix or ".mkv"
+    for s, e in neighbour_episodes(t[1], t[2]):
+        try:
+            v = sub_video((t[0], s, e), ext)
+            near = subliminal.list_subtitles({v}, {Language("eng")}).get(v) or []
+        except Exception as ex:
+            log(f"subtitles for season {s} episode {e}: {ex}")
+            continue
+        for sub in subtitle_order(near, lambda x, v=v: subliminal.compute_score(x, v))[:1]:
+            try:
+                subliminal.download_subtitles([sub])
+            except Exception:
+                continue
+            text = getattr(sub, "text", None)
+            if text and "-->" in text:
+                yield text, _sub_where(sub) + neighbour_note(t[1], t[2], s, e)
 
 
 def pick_subtitles(text, why, asr, others):
@@ -3232,8 +3277,12 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         if text:
             tried = work / "other_subtitles_tried.txt"     # once per video, not every run
             others = ()
-            if not tried.exists():
-                tried.write_text(why, encoding="utf8")
+            try:                        # tried before 1.18.59: once more, with the neighbours
+                tried_before = NEIGHBOUR_LOOKUP in tried.read_text("utf8", "replace")
+            except OSError:
+                tried_before = False
+            if not tried_before:
+                tried.write_text(f"{why}\n{NEIGHBOUR_LOOKUP}\n", encoding="utf8")
 
                 def others():
                     say(at("lang", 0.5), "Trying other subtitles…")

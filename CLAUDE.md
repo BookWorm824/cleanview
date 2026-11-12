@@ -331,6 +331,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- A badly numbered episode still gets its subtitles (1.18.59, 2026-11-11). Lauren's "Castle
+  Season 1 - Ep. 3.mp4" is really S01E04 "Hell Hath No Fury" (the councilman and Tiffany), so
+  episode 3's subtitles lined up 4% and none were used (her adults report: no subtitles, the
+  learned Castle lines carried it). The owner: "yes. also build in if it is say season 2
+  episode 5 but says season 3 episode 5. it could be a badly marked season". `other_subtitles`
+  now tries, after up to `OWN_TRIES_FOR_EPISODES` (3) of the episode's own, the best subtitles
+  of each neighbour (`neighbour_episodes`, `NEIGHBOURS`: episode +1, -1, +2, -2, then the same
+  episode in the season before and after; never season or episode 0), and the first that lines
+  up is used (`pick_subtitles` stops fetching there), its note saying "(they're for episode
+  4, so this file's episode number may be off)" or "... season 2, so this file's season
+  number ..." (`neighbour_note`). Videos whose other subtitles were tried before get one more
+  go (`other_subtitles_tried.txt` without `NEIGHBOUR_LOOKUP`). Live check with what was heard
+  in S01E04 under that name: episode 3's lined up 4%, episode 4's 95% (904 lines).
 - Each scan says how it went (1.18.58, 2026-11-11; the owner, after a Forrest Gump report
   didn't say which picture model made it: "yes to adding the name of the version, if you can
   think of any other data that would help in that can add it"). `analyze` keeps `st["scan"]`:
@@ -737,6 +750,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - `test_castle_s1e3.py`: older ages' muted lessons used for younger ages (not what they
   keep, filters still apply); the real Castle lessons for a teens run; lines split or heard a
   word differently match, a harmless piece doesn't.
+- `test_neighbour_subtitles.py`: neighbouring episodes then seasons, nearest first, never 0;
+  the notes; an episode's own other subtitles first, then one from each neighbour (a stand-in
+  site), fetching stops once one lines up; a movie has no neighbours; videos tried before get
+  one more go.
 - `test_west_side_story.py`: other subtitles tried when the first don't line up (each
   movie of the name gets a turn, downloads stop once some do), the lines and note built in.
 - `test_reports_nov3.py`: the 2026-11-03 reports (subtitles that stop halfway, shorter and
