@@ -729,6 +729,15 @@ def gore_level(answer):
     return {"insides": "gore", "blood": "graphic"}.get(answer.get("level"), "none")
 
 
+# Medical gore is its own filter (1.18.62, the owner: "a lot of the gore that gets flagged is
+# medical"; autopsies too, which only adults keep): the same look says where it is.
+MEDICAL_ASK = ("Also answer \"medical\": true if it is in a medical setting: an operating room, "
+               "a hospital, an ambulance or doctor's office, a morgue or an autopsy table, or a "
+               "doctor, nurse or medic treating, stitching or examining a wound (people in "
+               "scrubs, surgical gloves or masks). False for a crime scene, a fight or an "
+               "attack, even with police or medics standing by.")
+
+
 PREFACE = ("These are a few frames from one moment of a TV show or movie. First describe in "
            "one short sentence what you can actually see. If the frames are dark, blurry or "
            "unclear, say so. Then answer the question. Answer yes only if you can clearly see "
@@ -767,11 +776,12 @@ LOOK = {
              "as \"open surgery with the inside of the body showing\" even if it is mostly "
              "blood and drapes. A stump where a limb was cut off counts as \"a severed or "
              "mangled body part\". A bruise, rash or red skin is not blood. Not blood either: a "
-             "dark red object, raw meat when cooking.",
+             "dark red object, raw meat when cooking. " + MEDICAL_ASK,
              {"type": "object", "properties": {
                  "see": {"type": "string"},
-                 "visible": {"type": "array", "items": {"type": "string", "enum": GORE_SEEN}}},
-              "required": ["see", "visible"]}),
+                 "visible": {"type": "array", "items": {"type": "string", "enum": GORE_SEEN}},
+                 "medical": {"type": "boolean"}},
+              "required": ["see", "visible", "medical"]}),
     "fight": ("Question: are people clearly fighting, hitting, shooting, or threatening someone "
               "with a weapon? People talking, running, or a police officer simply holding a gun "
               "at their side is NOT. If it is violent, is it a fight between people who can "
@@ -904,6 +914,7 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
         elif c["cat"] == "gore":
             v["level"] = gore_level(a)
             v["keep"] = v["level"] != "none"
+            v["medical"] = a.get("medical") is True
         elif c["cat"] == "fight":
             v["keep"] = bool(a.get("violent"))
             v["level"] = "disturbing" if a.get("kind") == "helpless" else "combat"

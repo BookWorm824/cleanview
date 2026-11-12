@@ -150,7 +150,7 @@ class GoreChecklist(unittest.TestCase):
         self.assertIn("Tick every one that is there", prompt)
         self.assertIn("A bruise, rash or red skin is not blood", prompt)
         self.assertEqual(schema["properties"]["visible"]["items"]["enum"], ai.GORE_SEEN)
-        self.assertEqual(schema["required"], ["see", "visible", "clear"])
+        self.assertEqual(schema["required"], ["see", "visible", "medical", "clear"])
         self.assertEqual(c["verdict"]["level"], "gore")
         self.assertTrue(c["verdict"]["keep"])
 

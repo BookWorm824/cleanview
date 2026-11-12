@@ -346,6 +346,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Medical is its own filter (1.18.62, 2026-11-12; the owner: "a lot of the 'gore' that gets
+  flagged is medical. would it be good to create a separate filter that separate medical from
+  other gore", then "autopsies are medical only for adults though. ticked everywhere else").
+  "Medical  (surgery, autopsies, wounds being treated)" sits after Gore (`medical`): ticked for
+  Young kids, Kids and Teens, not Adults (Gore stays ticked there). Settings from before it
+  follow Gore (`full_opts`: `medical` None -> gore or graphic). The AI on this PC's gore look
+  also answers "medical" (`MEDICAL_ASK`, `LOOK["gore"]`, `v["medical"]`); blood or insides in a
+  medical setting become a "Medical" scene, cut when the box is ticked, and offered unticked
+  when it isn't (`MEDICAL_KEPT`: on 23 crime-scene finds from Castle it called 2 medical). On
+  the 39 hand-labelled The Resident gore scenes it called 38 medical, and the gore level got 36
+  right (33 before). Claude, ChatGPT and Gemini get a "medical" kind and violence level, and
+  `PIC_RULES` says blood in a medical setting is medical, never graphic or gore (a crime scene
+  with medics there isn't). Passed to CleanListen and CleanRead as a passage filter (graphic
+  medical descriptions).
 - Lauren's Castle S2E1 report (1.18.61, 2026-11-12, adults, the AI helper, on 1.18.60): two
   wrong flags. "That's a long way to go for a robbery." was muted as the lesson "...for a lube
   job" (8 words shared, `LearnedLines._overlap`), but the joke is in the words that differ: a
@@ -706,6 +720,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_medical.py`: the Medical box per age and for older settings; the AI on this PC's
+  "medical" answer turns gore into a Medical scene, cut with the box on, offered with it off,
+  violent gore still Gore; Claude's kind and level, wanted only when ticked.
 - `test_castle_s2e1.py`: a learned line whose ending differs isn't the lesson (the lesson
   itself, a word heard differently and a split line still are); a same-sex flirt with a man's
   and a woman's voice heard there is offered unticked, only men's or unknown voices still cut.

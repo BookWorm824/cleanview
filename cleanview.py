@@ -54,7 +54,7 @@ LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "dis
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
 WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS + MAGIC
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
-            "graphic": True, "disturbing": True,
+            "graphic": True, "disturbing": True, "medical": None,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "crude": False, "bullying": False,
@@ -72,6 +72,8 @@ def full_opts(opts=None):
     o.update(opts or {})
     if o.get("holidays"):              # the one "Holidays" box: every holiday
         o.update(dict.fromkeys(HOLIDAYS, True))
+    if o.get("medical") is None:       # settings from before the Medical box: as gore was
+        o["medical"] = bool(o["gore"] or o["graphic"])
     return o
 
 
@@ -90,7 +92,7 @@ def needs(opts):
         clip_cats.append("kiss")
     if o["sex"] or o["samesex"] or o["oppsex"]:
         clip_cats.append("bed")
-    if o["gore"] or o["graphic"]:
+    if o["gore"] or o["graphic"] or o["medical"]:
         clip_cats.append("gore")
     if o["violence"] or o["disturbing"]:
         clip_cats.append("fight")
@@ -2223,6 +2225,8 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "graphic": "graphic violence (blood and wounds shown, bloody bodies, bloody crime "
                        "scenes)",
             "gore": "gore (insides on the outside: organs, entrails, brains, dismemberment)",
+            "medical": "medical (blood, wounds or insides in a medical setting: surgery, an "
+                       "autopsy or a body on a morgue table, a wound being stitched or treated)",
             "disturbing": "disturbing violence outside of combat (torture, executions, cruelty "
                           "to the helpless) and blood and injuries from an accident (a car "
                           "crash, a fall)",
@@ -2265,7 +2269,7 @@ PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Bi
              "easter": "Easter", "dark magic": "Dark magic", "magic": "Magic",
              "st patrick's day": "St. Patrick's Day", "vampires": "Vampires and werewolves",
              "violence": "Violence", "graphic violence": "Graphic violence", "gore": "Gore",
-             "disturbing": "Disturbing", "nudity": "Nudity",
+             "medical": "Medical", "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
              "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs"}
@@ -2568,7 +2572,7 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
                 continue                       # goes to the closer look below
             if all(finds[k]["label"] == "Implied nudity" for k in nh):
                 sc["kind"] = ["Implied nudity" if x == "Nudity" else x for x in sc["kind"]]
-        VK = ("Violence", "Graphic violence", "Gore", "Disturbing")
+        VK = ("Medical", "Violence", "Graphic violence", "Gore", "Disturbing")
         vh = [finds[k]["label"] for k in hit if finds[k]["label"] in VK]
         if vh and sc.get("kind") and all(k in VK for k in sc["kind"]):
             sc["kind"] = sorted(set(vh), key=VK.index, reverse=True)[:2]   # what Claude saw
@@ -2599,14 +2603,15 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
             if not v:
                 continue
             dec, why, nud, vio = (tuple(v) + ("none",))[:4]
-            VK = ("Violence", "Graphic violence", "Gore", "Disturbing")
+            VK = ("Medical", "Violence", "Graphic violence", "Gore", "Disturbing")
             if sc.get("kind") and all(k in VK for k in sc["kind"]) and vio in (
-                    "none", "violence", "graphic violence", "gore", "disturbing"):
+                    "none", "violence", "graphic violence", "gore", "disturbing", "medical"):
                 lab = {"violence": "Violence", "graphic violence": "Graphic violence",
-                       "gore": "Gore", "disturbing": "Disturbing"}.get(vio)
+                       "gore": "Gore", "disturbing": "Disturbing",
+                       "medical": "Medical"}.get(vio)
                 want = {"Violence": o.get("violence"), "Graphic violence": o.get("graphic"),
                         "Gore": o.get("gore") or o.get("graphic"),
-                        "Disturbing": o.get("disturbing")}
+                        "Disturbing": o.get("disturbing"), "Medical": o.get("medical")}
                 if lab == "Gore" and not o.get("gore"):
                     lab = "Graphic violence"
                 if lab is None:
@@ -2796,6 +2801,10 @@ def wait_for(job, waiting=None, cancel=None):
         raise job["error"]
 
 
+MEDICAL_KEPT = ("medical seen (you're not removing medical scenes, so only cut if you tick it; "
+                "tick it if it's really a crime scene or an attack)")
+
+
 def decide_picture_scenes(cands, o, have_ai):
     """Turn picture-AI candidates (after the second look) into scenes,
     following the chosen settings."""
@@ -2839,11 +2848,22 @@ def decide_picture_scenes(cands, o, have_ai):
             label = CAT_LABEL[c["cat"]]
             lvl = v.get("level") if checked else None
             if c["cat"] == "gore":            # how bloody: graphic (blood) or gore (insides)
-                if lvl == "gore" and o["gore"]:
+                if lvl in ("gore", "graphic") and v.get("medical"):
+                    label = "Medical"         # surgery, an autopsy: its own box
+                    if not o["medical"]:
+                        if not (o["gore"] or o["graphic"]):
+                            continue
+                        # offered, not dropped: it called 2 of 23 crime scenes medical
+                        scenes.append({"s": c["s"], "e": c["e"], "kind": [label],
+                                       "why": MEDICAL_KEPT + (f" — {v['what']}"
+                                                              if v.get("what") else ""),
+                                       "sure": False})
+                        continue
+                elif lvl == "gore" and o["gore"]:
                     label = "Gore"
                 elif lvl in ("gore", "graphic") and o["graphic"]:
                     label = "Graphic violence"
-                elif lvl is None and (o["graphic"] or o["gore"]):
+                elif lvl is None and (o["graphic"] or o["gore"] or o["medical"]):
                     label = "Graphic violence"
                     checked = checked and o["graphic"]
                 else:

@@ -1022,12 +1022,12 @@ def review(st, wanted_text, examples=None, extra_sounds="", fresh=False):
 # Looking at the picture: contact sheets of the whole episode, and a closer
 # look at each scene the picture checkers found
 # ---------------------------------------------------------------------------
-PIC_KINDS = ["violence", "graphic violence", "gore", "disturbing", "nudity", "implied nudity",
+PIC_KINDS = ["violence", "graphic violence", "gore", "medical", "disturbing", "nudity", "implied nudity",
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
              "halloween", "birthday", "valentine", "easter", "st patrick's day", "dark magic",
              "magic", "vampires",
              "rude gesture", "couple affection"]
-VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing"]
+VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing", "medical"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
               "is clearly shown, not what might happen off screen.")
@@ -1043,7 +1043,11 @@ PIC_RULES = (
     "and wounds from violence shown: bloody injuries, a bloody body, a crime-scene body with "
     "visible blood; "
     "\"gore\" = insides on the outside: organs, entrails, brains, bone through skin, "
-    "dismemberment, a severed body part; \"disturbing\" = violence outside of combat: "
+    "dismemberment, a severed body part; \"medical\" = blood, wounds or insides in a medical "
+    "setting, never \"graphic violence\" or \"gore\": surgery, an operating room, an autopsy "
+    "or a body on a morgue table, a doctor, nurse or medic stitching or treating a wound (a "
+    "crime scene or an attack is not medical, even with medics there); "
+    "\"disturbing\" = violence outside of combat: "
     "torture, an execution (even a quick shot at someone unarmed, kneeling or held), a "
     "gun held to a child, chaining or drowning someone, cruelty or abuse of someone "
     "helpless (or an animal), and blood and injuries from an accident (a car crash, a fall), "
@@ -1201,8 +1205,8 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
             "stills really show what it was flagged for (or anything else they want removed), "
             "\"not an issue\" if it's a false alarm, or \"can't tell\". Also say for every scene "
             "whether nudity is \"shown\", only \"implied\", or \"none\", and the highest "
-            "violence level shown (\"none\", \"violence\", \"graphic violence\", \"gore\" or "
-            "\"disturbing\"). Keep each \"why\" to a few plain words.")
+            "violence level shown (\"none\", \"violence\", \"graphic violence\", \"gore\", "
+            "\"disturbing\" or \"medical\"). Keep each \"why\" to a few plain words.")
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
         for d in res.get("decisions", []):
             k = int(d.get("scene", 0)) - 1

@@ -26,7 +26,7 @@ BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
     "#F6F3EE", "#FFFFFF", "#23211F", "#6D6862", "#2F6F62", "#24574D", "#E3DED6")
 BUTTON_EDGE = "#B9AFA2"
 CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Disturbing": "#5E3A6E", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
-        "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Smoking": "#5D6470", "Drinking": "#5D6470",
+        "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Medical": "#7A4A4A", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
         "Same-sex": "#6B4E9B", "Unmarried": "#6B4E9B", "Crude": "#7A6A2E",
         "Bullying": "#8A4B2E", "Disrespect": "#8A4B2E", "Religious": "#3F5F7F", "Rock": "#4F5560", "Rap": "#4F5560",
@@ -42,7 +42,8 @@ CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
 PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adults", "Adults")]
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "bullying", "disrespect", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
-               "samesex", "oppsex", "violence", "graphic", "gore", "disturbing", "smoking",
+               "samesex", "oppsex", "violence", "graphic", "gore", "medical", "disturbing",
+               "smoking",
                "drinking", "drugs", "religion", "loudmusic", "holidays", "birthday",
                "gestures", "darkmagic", "magic", "vampires"]
 # "holidays" is one box for Christmas, Halloween, Valentine's, Easter and St. Patrick's Day
@@ -65,7 +66,8 @@ PRESETS = {
                    nudity=True,
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
-                   graphic=True, gore=True, disturbing=True, smoking=False, drinking=False,
+                   graphic=True, gore=True, medical=False, disturbing=True, smoking=False,
+                   drinking=False,
                    drugs=True, religion=False, loudmusic=False, gestures=True,
                    **NO_HOLIDAYS),
 }
@@ -799,6 +801,7 @@ class App(tk.Tk):
             ("violence", "Violence  (fights, shootings, attacks)", True),
             ("graphic", "Graphic violence  (blood, bloody wounds)", True),
             ("gore", "Gore  (insides showing: organs, dismemberment)", True),
+            ("medical", "Medical  (surgery, autopsies, wounds being treated)", True),
             ("disturbing", "Disturbing  (torture, executions, cruelty, bloody accidents)", True)])
         checks(section("Other"), [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
