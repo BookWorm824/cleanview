@@ -915,6 +915,75 @@ def available_memory_gb():
         return 0
 
 
+def total_memory_gb():
+    """The PC's memory in GB (0 when it can't be told)."""
+    try:
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+
+            class Mem(ctypes.Structure):
+                _fields_ = [("size", wintypes.DWORD), ("load", wintypes.DWORD)] + [
+                    (n, ctypes.c_ulonglong) for n in ("total", "free", "page_total",
+                                                       "page_free", "virt_total",
+                                                       "virt_free", "ext_free")]
+            m = Mem()
+            m.size = ctypes.sizeof(m)
+            if ctypes.WinDLL("kernel32").GlobalMemoryStatusEx(ctypes.byref(m)):
+                return m.total / 1024 ** 3
+            return 0
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 1024 ** 3
+    except Exception:
+        return 0
+
+
+def app_version():
+    try:
+        return json.loads((HERE / "version.json").read_text())["version"]
+    except Exception:
+        return ""
+
+
+# What each progress message is part of, for how long each step took (1.18.58, the owner:
+# "yes to adding the name of the version, if you can think of any other data that would help
+# in that can add it"). First match wins; Claude/ChatGPT/Gemini's own messages start with
+# their name.
+SCAN_STEPS = [("Loading the listening model", "listening"), ("Listening to the dialogue", "listening"),
+              ("Listening for fights", "sound check"),
+              ("Finding language", "language and subtitles"),
+              ("Looking for subtitles", "language and subtitles"),
+              ("Trying other subtitles", "language and subtitles"),
+              ("Watching the picture", "picture scan"),
+              ("Taking a closer look", "closer look"), ("Taking another look", "closer look"),
+              ("Finishing the closer look", "closer look"),
+              ("Telling voices apart", "voices"), ("Reading the dialogue", "reading the dialogue"),
+              ("Reading each conversation", "reading each conversation"),
+              ("Putting the scene list together", "scene list"), ("Done", "scene list")]
+CLOUD_NAMES = ("Claude", "ChatGPT", "Gemini")
+
+
+def scan_step(message):
+    m = str(message or "")
+    for start, step in SCAN_STEPS:
+        if m.startswith(start):
+            return step
+    if m.startswith(CLOUD_NAMES):
+        if " is reading the dialogue" in m:
+            return "reading the dialogue"
+        if " is reviewing everything" in m:
+            return "final review"
+        return "looking through the picture"
+    return "getting ready"
+
+
+def took_note(minutes):
+    """"Took 12 min: listening 1.8, picture scan 4.3, ..." (steps under 3 seconds left out)."""
+    total = sum(minutes.values())
+    parts = [f"{k} {v:.1f}" for k, v in minutes.items() if v >= 0.05]
+    head = "Took under a minute" if total < 1 else f"Took {total:.0f} min"
+    return head + (": " + ", ".join(parts) + " (minutes)." if parts else ".")
+
+
 LISTENER_GB = 3.0       # free memory wanted before a second listener (~0.7 GB) is loaded
 
 
@@ -3018,7 +3087,19 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     work = Path(workdir)
     work.mkdir(parents=True, exist_ok=True)
     path = str(Path(path).resolve())
-    say = progress or (lambda f, m: None)
+    say_out = progress or (lambda f, m: None)
+    # how this scan went, for the report and "Send what we refined" (1.18.58)
+    scan = {"app_version": app_version(),
+            "pc": {"threads": os.cpu_count(), "memory_gb": round(total_memory_gb(), 1)}}
+    took, now_step = {}, {"step": "getting ready", "t": time.time()}
+
+    def say(f, m):
+        step = scan_step(m)
+        if step != now_step["step"]:
+            t = time.time()
+            took[now_step["step"]] = took.get(now_step["step"], 0.0) + t - now_step["t"]
+            now_step.update(step=step, t=t)
+        say_out(f, m)
     info = probe(path)
     dur = info["duration"] or 1.0
     cats = [c for g in groups for c in cl.GROUPS[g]]
@@ -3307,6 +3388,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                                                        f"couldn't be checked{also(n)}"), redo))
                 if n_redo:
                     log(f"looked again at {n_redo} scene(s) that couldn't be checked")
+                scan["pc"]["picture_model_on_card"] = ai.on_card_share(ai.VISION_MODEL)
 
     def finish_look():
         """The closer look taken in the background: wait for it, then look again at any scene
@@ -3373,6 +3455,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         lambda f, n="": say(at("lines", 0.6 * f),
                             f"Reading the dialogue{also(n)} · {eta(at('lines', 0.6 * f))}"),
         cancel, genders, claude_found, examples, unread)
+    if have_ai and (claude_found is None or unread):
+        scan["pc"]["dialogue_model_on_card"] = ai.on_card_share(ai.TEXT_MODEL)
     flirts = []
     for c in claude_scenes:
         if c["type"] == "samesex":
@@ -3407,9 +3491,22 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if have_ai:
         used.append("AI helper")
     notes.insert(0, "Checked with: " + ", ".join(used) + ".")
+    if have_ai:                         # which models: reports from different versions compare
+        scan["models"] = {"pictures": ai.VISION_MODEL, "dialogue": ai.TEXT_MODEL}
+        notes.insert(1, f"The AI helper used {ai.VISION_MODEL} for the picture and "
+                        f"{ai.TEXT_MODEL} for the dialogue (CleanView {scan['app_version']}).")
     if look_job:                        # the closer look taken while Claude read the dialogue
         finish_look()
         look_job = None
+    if todo and any(c.get("verdict") for c in todo):
+        failed = sum(1 for c in todo if (c.get("verdict") or {}).get("error"))
+        kept = sum(1 for c in todo if (c.get("verdict") or {}).get("keep")
+                   and not (c.get("verdict") or {}).get("error"))
+        scan["closer_look"] = {"checked": len(todo), "kept": kept,
+                               "dropped": len(todo) - kept - failed, "failed": failed}
+        notes.append(f"The AI helper took a closer look at {len(todo)} scene(s): {kept} kept, "
+                     f"{len(todo) - kept - failed} dropped"
+                     + (f", {failed} couldn't be checked" if failed else "") + ".")
     say(at("end", 0.6), "Putting the scene list together…")
     nude, skin = nudity_scenes(vis) if vis else ([], [])
     scenes = []
@@ -3503,7 +3600,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
           "sub_note": sub_note, "notes": notes,
           "asr": [[w["t"], round(w["s"], 2), round(w["e"], 2)] for w in asr],
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
-          "used_clip": use_clip}
+          "used_clip": use_clip, "scan": scan}
     n_lw = list_words_only(st)
     if n_lw:
         notes.append(f"Muted just the word in {n_lw} line(s) the word list found (sexual "
@@ -3521,8 +3618,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         except Exception as ex:          # never lose the scan over the review
             notes.append(f"Claude's final review didn't work this time ({str(ex)[:80]}).")
     make_thumbs(path, st["scenes"], work)
-    (work / "analysis.json").write_text(json.dumps(st, indent=1))
     say(1.0, "Done.")
+    took[now_step["step"]] = took.get(now_step["step"], 0.0) + time.time() - now_step["t"]
+    scan["minutes"] = {k: round(v / 60, 2) for k, v in took.items()}
+    notes.append(took_note(scan["minutes"]))
+    (work / "analysis.json").write_text(json.dumps(st, indent=1))
     return st
 
 

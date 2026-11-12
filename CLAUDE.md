@@ -331,6 +331,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   sex") and a Castle note on "conquests". Not taught: "Sex like these are designed..." (heard
   for "Sites"), the affair lines she wants as just the word. Her one more miss, a coroner's
   "it wasn't a sexual assault", isn't on any list.
+- Each scan says how it went (1.18.58, 2026-11-11; the owner, after a Forrest Gump report
+  didn't say which picture model made it: "yes to adding the name of the version, if you can
+  think of any other data that would help in that can add it"). `analyze` keeps `st["scan"]`:
+  `app_version`, the AI helper's `models` (pictures, dialogue), `minutes` per step (from the
+  progress messages: `scan_step`, `SCAN_STEPS`; "listening", "picture scan", "closer look",
+  "voices", "reading the dialogue", ...), the `closer_look` counts (checked, kept, dropped,
+  failed) and the `pc` (threads, memory, how much of each AI model sat on the graphics card:
+  `ai.on_card_share`, which loads nothing). Notes say it plainly: "The AI helper used
+  qwen3-vl:8b-instruct for the picture and qwen3:8b for the dialogue (CleanView 1.18.58).",
+  "The AI helper took a closer look at 12 scene(s): 3 kept, 9 dropped.", "Took 14 min:
+  listening 1.8, picture scan 4.3, ... (minutes)." (`took_note`, last). "Send what we
+  refined" carries `scan` for each video (None for reviews made before).
 - A newer AI model that wouldn't download is tried again (1.18.57, 2026-11-11): on Lauren's
   laptop the new picture model's download (6.2 GB) failed on 1.18.56's first try, CleanView
   rightly went on with the old model, but the mark (`_upgrade_mark`) said "tried" and it would
@@ -648,6 +660,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   downloaded on "Getting ready"; a failed download tried again up to 3 times, the old "tried"
   mark counting as one, "done" once it worked), and the gore checklist: what it ticks decides
   Gore, Graphic or nothing (a rash is dropped), as asked in the closer look.
+- `test_scan_record.py`: progress messages belong to the right steps, the "Took ..." note,
+  how much of a loaded model is on the graphics card, and the record in "Send what we refined"
+  (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
 - `test_many_mutes.py`: saving with 150 mutes and 120 cuts, and 1,600 mutes and 60 cuts; each

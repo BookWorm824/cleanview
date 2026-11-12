@@ -707,6 +707,7 @@ def export_refined(analyses, chat=None, dest_dir=None):
             "reviewer": st.get("reviewer"), "reader": st.get("reader"),
             "settings": st.get("opts"), "word_groups": st.get("groups"),
             "summary": st.get("claude_summary"), "notes": st.get("notes"),
+            "scan": st.get("scan"),        # version, AI models, time per step, PC (1.18.58)
             "scenes": [{"s": sc["s"], "e": sc["e"], "kind": sc.get("kind"), "why": sc.get("why"),
                         "ai": verdict(sc), "final": "cut" if sc.get("cut", True) else "kept",
                         "changed_by_you": bool(sc.get("by_you")), "added": bool(sc.get("added")),

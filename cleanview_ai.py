@@ -439,6 +439,19 @@ def on_graphics_card(model=None):
     return False
 
 
+def on_card_share(model):
+    """How much of a model Ollama has loaded on the graphics card now (0-1), or None: for the
+    scan's record (1.18.58). Doesn't load anything."""
+    try:
+        with _api("/api/ps", timeout=5) as r:
+            for m in json.load(r).get("models", []):
+                if model in (m.get("name"), m.get("model")) and m.get("size"):
+                    return round((m.get("size_vram") or 0) / m["size"], 2)
+    except Exception:
+        pass
+    return None
+
+
 def ollama_running():
     try:
         with _api("/api/tags", timeout=3) as r:

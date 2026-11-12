@@ -97,6 +97,13 @@ class SameAnalysisEitherWay(unittest.TestCase):
         (a, _, _), (b, _, _) = runs
         for st in (a, b):
             st.pop("path", None)
+            scan = st.pop("scan")                       # each run's own timings (1.18.58)
+            self.assertEqual(scan["models"], {"pictures": ai.VISION_MODEL,
+                                              "dialogue": ai.TEXT_MODEL})
+            self.assertGreater(scan["minutes"]["picture scan"], 0)
+            self.assertIn("listening", scan["minutes"])
+            self.assertTrue(st["notes"][-1].startswith("Took "))
+            st["notes"] = st["notes"][:-1]
         self.assertEqual(a, b)                          # a graphics card changes nothing now
         self.assertLess(b["notes"].index("a note from the picture"),
                         b["notes"].index("No subtitles: none online."))   # notes' order kept
