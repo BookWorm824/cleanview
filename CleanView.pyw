@@ -524,7 +524,8 @@ class App(tk.Tk):
         # can't be given a second "Tick.indicator".
         first = not hasattr(self, "_ticks")
         if first:
-            self._ticks = {k: tk.PhotoImage() for k in ("off", "on", "off_dim", "on_dim")}
+            self._ticks = {k: tk.PhotoImage() for k in ("off", "on", "off_dim", "on_dim",
+                                                         "some")}
 
         def box(img, fill, edge, tick=None):
             img.blank()
@@ -544,6 +545,10 @@ class App(tk.Tk):
         box(t["on"], ACCENT, ACCENT, "#FFFFFF")
         box(t["off_dim"], "#F1EEEA", "#C9C3BB")
         box(t["on_dim"], "#A9C2BC", "#A9C2BC", "#FFFFFF")
+        box(t["some"], ACCENT, ACCENT)                      # some of a section ticked: a dash
+        d = max(2, round(n / 7))
+        t["some"].put("#FFFFFF", to=(round(n * 0.25), (n - d) // 2, round(n * 0.75),
+                                     (n - d) // 2 + d))
         if not first:
             return
         s.element_create("Tick.indicator", "image", t["off"],
@@ -740,90 +745,169 @@ class App(tk.Tk):
                  "your choices is kept separately for each.", bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=wrap_width(640), justify="left").pack(anchor="w")
 
-        def section(title):
-            tk.Label(b2, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold")).pack(
-                anchor="w", pady=(8, 2))
-            g = tk.Frame(b2, bg=CARD)
-            g.pack(fill="x")
-            return g
+        # Sections by topic, each with a box that ticks or unticks all of it and folds away to
+        # one line (the owner, 2026-11-12: "a main box for each category to tick all if
+        # wanted, but if only some of the subcategories are wanted just those can be ticked.
+        # vid angel had a system like that", and "maybe not as long"; Medical its own).
+        levels = {"Keep": "off", "Cut passionate kisses": "passionate", "Cut all kisses": "all"}
+        self.level_names = {v: k for k, v in levels.items()}
+        self.level_values = levels
+        self._open_sections = set(saved.get("open_sections") or [])
+        self._section_heads = {}
 
         def checks(grid, items, cols=2):
+            out = []
             for n, (key, label, on) in enumerate(items):
                 v = tk.BooleanVar(value=cur.get(key, on))
                 self.opts[key] = v
                 ttk.Checkbutton(grid, text=label, variable=v).grid(
                     row=n // cols, column=n % cols, sticky="w", padx=(0, 26), pady=1)
+                out.append(v)
+            return out
 
-        checks(section("Language"), [
+        def kiss_menus(grid):
+            out = []
+            for row, (key, label, default) in enumerate([("kiss_os", "Man & woman kissing",
+                                                          "passionate"),
+                                                         ("kiss_ss", "Same-sex kissing",
+                                                          "passionate")]):
+                tk.Label(grid, text=label, bg=CARD, fg=INK, font=(FONT, 10)).grid(
+                    row=row, column=0, sticky="w", padx=(0, 12), pady=2)
+                v = tk.StringVar(value=self.level_names[cur.get(key, default)])
+                self.opts[key] = v
+                ttk.Combobox(grid, textvariable=v, values=list(levels), state="readonly",
+                             width=22).grid(row=row, column=1, sticky="w", pady=2)
+                out.append(v)
+            return out
+
+        def own_words(body):
+            tk.Label(body, text="Your own words and phrases to mute  (one per line, for every "
+                     "age)", bg=CARD, fg=INK, font=(FONT, 10)).pack(anchor="w", pady=(8, 2))
+            self.mywords_box = tk.Text(body, height=4, font=(FONT, 10), wrap="none",
+                                       relief="solid", borderwidth=1, highlightthickness=0,
+                                       padx=6, pady=4)
+            self.mywords_box.insert("1.0", "\n".join(saved.get("mywords") or []))
+            self.mywords_box.pack(anchor="w", fill="x")
+            tk.Label(body, text="Muted wherever they're said, the whole phrase: for example "
+                     "\u201cgrow some stones\u201d. Whole words only, so \u201cstones\u201d on "
+                     "its own wouldn't touch \u201cmilestones\u201d. Put other forms on their own "
+                     "lines (dork, dorks).", bg=CARD, fg=MUTED, font=(FONT, 9),
+                     wraplength=wrap_width(620), justify="left").pack(anchor="w", pady=(2, 0))
+
+        def fold_group(title, items, cols=2, menus=False, extra=None):
+            """A section: its tick-all box, its name, how many are ticked, and its boxes
+            (folded away until opened; which are open is remembered)."""
+            head = tk.Frame(b2, bg=CARD)
+            head.pack(fill="x", pady=(6, 0))
+            body = tk.Frame(b2, bg=CARD)
+            master = tk.Label(head, image=self._ticks["off"], bg=CARD, cursor="hand2")
+            master.pack(side="left")
+            name = tk.Label(head, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold"),
+                            cursor="hand2")
+            name.pack(side="left")
+            count = tk.Label(head, text="", bg=CARD, fg=MUTED, font=(FONT, 9))
+            count.pack(side="left", padx=(10, 0))
+            more = tk.Label(head, text="", bg=CARD, fg=ACCENT, font=(FONT, 9, "underline"),
+                            cursor="hand2")
+            more.pack(side="left", padx=(10, 0))
+            grid = tk.Frame(body, bg=CARD)
+            grid.pack(fill="x", padx=(wrap_width(26), 0))
+            got = (kiss_menus(grid) if menus else []) + checks(
+                tk.Frame(grid, bg=CARD) if menus else grid, items, cols)
+            if menus:                                       # the boxes under the two menus
+                grid.winfo_children()[-1].grid(row=2, column=0, columnspan=2, sticky="w",
+                                               pady=(4, 0))
+            if extra:
+                extra(body)
+
+            def on(v):
+                val = v.get()
+                return val != "Keep" if isinstance(val, str) else bool(val)
+
+            def refresh(*_):
+                if not master.winfo_exists():
+                    return
+                n = sum(on(v) for v in got)
+                master.config(image=self._ticks["on" if n == len(got) else
+                                                 "off" if n == 0 else "some"])
+                count.config(text=f"{n} of {len(got)} ticked")
+
+            def tick_all(_=None):
+                want = not all(on(v) for v in got)
+                for v in got:
+                    v.set(("Cut all kisses" if want else "Keep") if isinstance(v.get(), str)
+                          else want)
+
+            def show(opened):
+                if opened:
+                    body.pack(fill="x", after=head)
+                    self._open_sections.add(title)
+                else:
+                    body.pack_forget()
+                    self._open_sections.discard(title)
+                more.config(text="Hide" if opened else "Choose which\u2026")
+
+            def flip(_=None):
+                show(title not in self._open_sections)
+            master.bind("<Button-1>", tick_all)
+            for w in (name, more):
+                w.bind("<Button-1>", flip)
+            for v in got:
+                v.trace_add("write", refresh)
+            refresh()
+            show(title in self._open_sections)
+            self._section_heads[title] = (master, count, tick_all, show)
+
+        fold_group("Bad language", [
             ("swearing", "Swearing  (f-word, s-word, b-word\u2026)", True),
             ("mild", "Mild words  (damn, hell, crap)", True),
             ("deity", "God's name used as a swear", True),
             ("minced", "Soft substitutes  (gosh, heck, freaking)", False),
-            ("samesexwords", "Words about same-sex relationships  (gay, lesbian\u2026)", True),
-            ("sexref", "Sexual references and innuendo", True),
-            ("crude", "Crude humor  (bathroom and gross-out jokes)", False),
-            ("forensic", "Coroner and doctor talk  (graphic findings: wounds, autopsies, "
-                         "sexual assault)", False),
-            ("bullying", "Bullying and mocking", False),
-            ("disrespect", "Disrespect  (bratty, talking back, disobeying parents)", False),
             ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False),
-            ("religion", "Religious conversations  (prayer, church, faith, the Bible\u2026)",
-             False)])
-        tk.Label(b2, text="Your own words and phrases to mute  (one per line, for every age)",
-                 bg=CARD, fg=INK, font=(FONT, 10)).pack(anchor="w", pady=(10, 2))
-        self.mywords_box = tk.Text(b2, height=4, font=(FONT, 10), wrap="none", relief="solid",
-                                   borderwidth=1, highlightthickness=0, padx=6, pady=4)
-        self.mywords_box.insert("1.0", "\n".join(saved.get("mywords") or []))
-        self.mywords_box.pack(anchor="w", fill="x")
-        tk.Label(b2, text="Muted wherever they're said, the whole phrase: for example \u201cgrow "
-                 "some stones\u201d. Whole words only, so \u201cstones\u201d on its own wouldn't "
-                 "touch \u201cmilestones\u201d. Put other forms on their own lines (dork, dorks).",
-                 bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640),
-                 justify="left").pack(anchor="w", pady=(2, 0))
-        checks(section("Sex and nudity"), [
+            ("samesexwords", "Words about same-sex relationships  (gay, lesbian\u2026)", True)],
+            cols=1, extra=own_words)
+        fold_group("Sex and nudity", [
+            ("sexref", "Sexual references and innuendo", True),
+            ("sex", "Sex scenes", True),
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
-            ("sex", "Sex scenes", True),
             ("immodest", "Immodest clothing  (swimsuits, underwear, sexy dancing)", False),
-            ("casual", "Sleeping around  (casual sex, affairs)", True)])
-        g = section("Kissing and relationships")
-        levels = {"Keep": "off", "Cut passionate kisses": "passionate", "Cut all kisses": "all"}
-        self.level_names = {v: k for k, v in levels.items()}
-        self.level_values = levels
-        for row, (key, label, default) in enumerate([("kiss_os", "Man & woman kissing", "passionate"),
-                                                     ("kiss_ss", "Same-sex kissing", "passionate")]):
-            tk.Label(g, text=label, bg=CARD, fg=INK, font=(FONT, 10)).grid(
-                row=row, column=0, sticky="w", padx=(0, 12), pady=2)
-            v = tk.StringVar(value=self.level_names[cur.get(key, default)])
-            self.opts[key] = v
-            ttk.Combobox(g, textvariable=v, values=list(levels), state="readonly",
-                         width=22).grid(row=row, column=1, sticky="w", pady=2)
-        g2 = tk.Frame(b2, bg=CARD)
-        g2.pack(fill="x", pady=(4, 0))
-        checks(g2, [("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False),
-                    ("oppsex", "Unmarried couples living or sleeping together", False)], cols=1)
-        checks(section("Violence"), [
+            ("gestures", "Rude and sexual gestures  (the middle finger, crude motions)",
+             True)], cols=1)
+        fold_group("Romance and relationships", [
+            ("casual", "Sleeping around  (casual sex, affairs)", True),
+            ("oppsex", "Unmarried couples living or sleeping together", False),
+            ("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False)],
+            cols=1, menus=True)
+        fold_group("Violence", [
             ("violence", "Violence  (fights, shootings, attacks)", True),
             ("graphic", "Graphic violence  (blood, bloody wounds)", True),
             ("gore", "Gore  (insides showing: organs, dismemberment)", True),
-            ("medical", "Medical  (surgery, autopsies, wounds being treated)", True),
-            ("disturbing", "Disturbing  (torture, executions, cruelty, bloody accidents)", True)])
-        checks(section("Other"), [
+            ("disturbing", "Disturbing  (torture, executions, cruelty, bloody accidents)", True)],
+            cols=1)
+        fold_group("Medical", [
+            ("medical", "Medical scenes  (surgery, autopsies, wounds being treated, needles)",
+             True),
+            ("forensic", "Coroner and doctor talk  (graphic findings: wounds, autopsies, "
+                         "sexual assault)", False)], cols=1)
+        fold_group("Attitude", [
+            ("bullying", "Bullying and mocking", False),
+            ("disrespect", "Disrespect  (bratty, talking back, disobeying parents)", False),
+            ("crude", "Crude humor  (bathroom and gross-out jokes)", False)], cols=1)
+        fold_group("Smoking, drinking and drugs", [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
-            ("drugs", "Drug use", True),
-            ("gestures", "Rude and sexual gestures  (the middle finger, crude motions)",
-             True)], cols=2)
-        checks(section("Holidays and birthdays"), [
+            ("drugs", "Drug use", True)], cols=3)
+        fold_group("Faith, holidays and magic", [
+            ("religion", "Religious conversations  (prayer, church, faith, the Bible\u2026)",
+             False),
             ("holidays", "Holidays  (Christmas, Halloween, Easter, Valentine's Day, "
                          "St. Patrick's Day)", False),
-            ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False)],
-               cols=1)
-        checks(section("Magic and monsters"), [
+            ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False),
             ("darkmagic", "Dark magic  (witchcraft, wizards, curses, the occult, fortune "
                           "telling)", False),
             ("magic", "Magic  (spells, wands, potions, fairies)", False),
-            ("vampires", "Vampires and werewolves", False)])
-        checks(section("Music"), [
+            ("vampires", "Vampires and werewolves", False)], cols=1)
+        fold_group("Music", [
             ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
              False)], cols=1)
         tk.Label(b2, text="Swear words are muted automatically. Everything else is listed for "
@@ -1168,6 +1252,7 @@ class App(tk.Tk):
         try:
             self.profiles[self.profile] = self._filter_values()
             keep = {k: v for k, v in self._current_opts().items() if k not in FILTER_KEYS}
+            keep.update(open_sections=sorted(getattr(self, "_open_sections", ()) or ()))
             keep.update(profile=self.profile, profiles=self.profiles, text_size=self.text_size,
                         at_once=getattr(self, "at_once", None) or
                         self._load_settings().get("at_once"))

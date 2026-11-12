@@ -262,7 +262,7 @@ class Window(unittest.TestCase):
     def test_tick_boxes_show_a_tick(self):
         layout = str(ui.ttk.Style(self.app).layout("TCheckbutton"))
         self.assertIn("Tick.indicator", layout)
-        self.assertEqual(set(self.app._ticks), {"off", "on", "off_dim", "on_dim"})
+        self.assertEqual(set(self.app._ticks), {"off", "on", "off_dim", "on_dim", "some"})
 
     def test_religious_conversations_box(self):
         """Off for every age to start with, and remembered once she ticks it."""

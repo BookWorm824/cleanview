@@ -30,7 +30,12 @@ SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "cajones", "
 CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such talk as lines
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
     "orgasm", "thanks for the quickie", "penis", "penises", "private parts",
-    "bondage", "safe word", "safe words", "safeword", "safewords"}
+    "bondage", "safe word", "safe words", "safeword", "safewords",
+    # CleanView 1.18.69 has these in LINE_WORDS["sexref"] (just the words, in lines), not cvcore
+    "skinny dip", "skinny dips", "skinny dipped", "skinny dipping", "skinny-dip",
+    "skinny-dips", "skinny-dipped", "skinny-dipping", "skinnydip", "skinnydipping",
+    "chastity belt", "chastity belts", "naked photo", "naked photos", "naked picture",
+    "naked pictures", "naked pic", "naked pics", "naked selfie", "naked selfies"}
 CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes these as God's name (an AI can
 #                         rule them sincere); CleanListen leaves them to its strict religion filter
 

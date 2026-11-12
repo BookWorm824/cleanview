@@ -346,6 +346,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The start page's filters in sections by topic, each with a tick-all box, folding away (1.18.74,
+  2026-11-12; the owner: "i want to consolidate or make then nicer", "lets make medical anything
+  its own category", then "a main box for each category to tick all if wanted, but if only some
+  of the subcategories are wanted just those can be ticked. vid angel had a system like that",
+  "maybe not as long"). Nine sections (`fold_group`): Bad language (with her own words), Sex and
+  nudity (sexual references, gestures, immodest clothing too), Romance and relationships (the
+  two kissing menus, sleeping around, unmarried couples, same-sex), Violence, Medical (medical
+  scenes, coroner and doctor talk), Attitude (bullying, disrespect, crude humor), Smoking,
+  drinking and drugs, Faith, holidays and magic (religion too), Music. Each head is a box drawn
+  ticked, empty or with a dash for some (`_ticks["some"]`), the name, "3 of 5 ticked" and
+  "Choose which..." / "Hide"; clicking the box ticks every one (or, when all are, unticks them;
+  the kissing menus go to "Cut all kisses" / "Keep" and count as ticked unless "Keep"); the
+  counts follow every change (variable traces, so changing age or "Reset" updates them). Folded
+  by default; the open ones are remembered (`open_sections` in the settings). Same keys, ticks
+  and per-age presets as before. `_section_heads` (title -> box, count, tick_all, show) for tests.
 - Lauren's Castle S2E5 report (1.18.73, 2026-11-12, adults, the AI helper, made on 1.18.70; the
   owner: "Yes, teach them"): 41 min on her laptop against S2E3's 48 (each conversation 18.0 ->
   12.9 min with 1.18.68's quick question; reading the dialogue 14.4 -> 15.2 with 1.18.70's
@@ -894,6 +909,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_sections.py`: the nine sections hold every filter, Medical on its own, the tick-all box
+  (some -> all -> none, the kissing menus too), the counts after changing age, and open sections
+  remembered.
 - `test_coroner_talk.py`: the coroner/doctor filter everywhere a filter needs, per age; its
   short list (not everyday talk); case talk not a sexual reference and left alone with it off,
   whole lines muted with it on; the Castle coroner lessons only with it.
