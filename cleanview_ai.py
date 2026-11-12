@@ -452,6 +452,25 @@ def on_card_share(model):
     return None
 
 
+# Without a graphics card the AI helper runs on the processor, 7-8 times slower (2026-11-12,
+# this PC with num_gpu 0: a closer look 76 s instead of 9 s, 100 lines read in 62 s instead of
+# 9 s); a slower PC could reach the time limits. So each question gets SLOW_TIMES as long when
+# the model is mostly off the card (the owner: "Yes, build it").
+SLOW_TIMES = 3
+_card_share = {}       # model -> share on the graphics card, once it's been loaded
+
+
+def time_factor(model):
+    """How much longer than usual each question may take: SLOW_TIMES when the model isn't
+    mostly on the graphics card (or isn't loaded yet: the question also loads it), else 1."""
+    share = _card_share.get(model)
+    if share is None:
+        share = on_card_share(model)
+        if share is not None:
+            _card_share[model] = share
+    return 1 if share is not None and share >= GPU_MOST else SLOW_TIMES
+
+
 def ollama_running():
     try:
         with _api("/api/tags", timeout=3) as r:
@@ -661,7 +680,7 @@ def chat(prompt, images=None, schema=None, timeout=300, model=None):
     saved = _saved_answer(key)
     if saved is not None:
         return saved
-    answer = _chat_now(payload, model, timeout)
+    answer = _chat_now(payload, model, timeout * time_factor(model))
     _save_answer(key, answer)
     return answer
 

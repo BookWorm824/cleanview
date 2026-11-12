@@ -16,6 +16,11 @@ class FakeOllama:
         self.replies, self.asked = list(replies), []
 
     def __call__(self, path, payload=None, timeout=10):
+        if path == "/api/ps":           # how much is on the graphics card (time_factor)
+            r = mock.MagicMock()
+            r.__enter__.return_value = r
+            r.read.return_value = b'{"models": []}'
+            return r
         self.asked.append(payload)
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):

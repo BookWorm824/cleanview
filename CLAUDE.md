@@ -346,6 +346,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- A PC without a graphics card gets longer time limits for the AI helper (1.18.65,
+  2026-11-12; the owner: "everything would work on a computer with no dedicated gpu right?",
+  then "Yes, build it"). Everything already ran without one (listening, the picture scan and
+  voices are on the processor anyway; saving falls back to the processor's encoder), but the
+  AI helper on the processor is 7-8 times slower: on this PC with Ollama's `num_gpu` 0 a closer
+  look took 76 s instead of 9 s, reading 100 lines 62 s instead of 9 s, checking them for
+  flirting 65 s instead of 12 s, with no time limit hit; a slower PC could reach the 4-minute
+  limit of a closer look. `ai.chat` now gives each question `SLOW_TIMES` (3) as long when the
+  model isn't mostly on the graphics card (`time_factor`: `on_card_share` below `GPU_MOST`,
+  remembered per model in `_card_share` once it's loaded; not loaded yet counts as slow, since
+  that question also loads it). A Castle episode's AI part would take about 45 minutes there
+  instead of 8; The Resident (100+ closer looks) 2-3 hours. Turning the AI helper off is the
+  quick way on such a PC.
 - One CleanView at a time, with an "Opening CleanView..." box (1.18.64, 2026-11-12; Lauren:
   "it can take several second and gives no indication it is opening. so i click again and get
   multiple windows open. I only want there to be a single instance", "The program can take
@@ -753,6 +766,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_slow_pc.py`: questions to the AI helper get 3 times as long when its model isn't
+  mostly on the graphics card (or isn't loaded yet), the usual limit when it is (50% counts, as
+  on Lauren's laptop), each model on its own, and no Ollama to ask counts as slow.
 - `test_one_window.py`: the lock (held elsewhere, waited for, held twice by the same
   process), finding a window one process down, what a click does (open, opening, not open,
   Update now, couldn't start apart), the app part (another won; Update now waits longer), and
