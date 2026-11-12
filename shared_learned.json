@@ -47,9 +47,7 @@
     "jasmine how's it hangin'",
     "see when married ladies go to cheap hotels",
     "it's always about sex",
-    "with the partial river view someone who was slipping her a little cash",
     "only now he wanted a little more return for his investment",
-    "oh do us a favor detective beat his pants off",
     "on 2nd avenue just kidding",
     "actually who needs a happy ending when you have a story",
     "and get it over with i'm game",
@@ -68,7 +66,6 @@
     "a little cops gone wild you do know i'm wearing a gun",
     "ooh bondage my safe word is apples",
     "why castle so i could be another one of your conquests",
-    "that better not be porn and if it is i want in",
     "is the fact that she had sex",
     "sex i'll explain how that works later",
     "the heat from the dryer makes it hard to pinpoint so you're saying she was raped",
@@ -181,7 +178,6 @@
     "something she wasn't willing to do like leave her husband",
     "yes please beat my pants off if you dare beckett do me proud",
     "next time i guess i'll just try that massage parlor",
-    "what are we playing for pride or clothing",
     "shouldn't you be slinking home from a scandalous liaison",
     "in my dreams you just joined in mm",
     "and now you want to bend me over",
@@ -207,7 +203,14 @@
     "because jenna wouldn't sleep with him",
     "it's like an open secret with the girls you give wyatt what he wants",
     "she told me she had a plan i figured she was gonna give wyatt what he wanted",
-    "and you assumed that was code for do me"
+    "and you assumed that was code for do me",
+    "i'm a very generous man looking to arrange a very special date with tiffany",
+    "that better not be porn and if it is i want in",
+    "yeah but i bet the guy who wears that condom lives on 15",
+    "we could always make it strip poker",
+    "you're a married man sleeping with her in your own bed",
+    "only the whole time he was sleeping with me",
+    "no time for dirty talk go get changed"
    ],
    "kept": [
     "well it wasn't unusual for him to crash on his couch",
@@ -288,7 +291,12 @@
     "with any registered sex offenders in the area",
     "she needs you to have faith to be strong",
     "wait wait alert and what",
-    "and called calvin klein a boring old fart to his face"
+    "and called calvin klein a boring old fart to his face",
+    "someone who was slipping her a little cash",
+    "oh do us a favor detective beat his pants off",
+    "what are we playing for",
+    "lord i can't stop myself",
+    "between nikki heat and the roguishly handsome reporter who's helping her"
    ],
    "ok_words": [],
    "muted_for": {
@@ -417,7 +425,6 @@
     "something she wasn't willing to do like leave her husband": "casual",
     "yes please beat my pants off if you dare beckett do me proud": "sexref",
     "next time i guess i'll just try that massage parlor": "sexref",
-    "what are we playing for pride or clothing": "sexref",
     "shouldn't you be slinking home from a scandalous liaison": "casual",
     "in my dreams you just joined in mm": "sexref",
     "and now you want to bend me over": "sexref",
@@ -443,7 +450,13 @@
     "because jenna wouldn't sleep with him": "sexref",
     "it's like an open secret with the girls you give wyatt what he wants": "sexref",
     "she told me she had a plan i figured she was gonna give wyatt what he wanted": "sexref",
-    "and you assumed that was code for do me": "sexref"
+    "and you assumed that was code for do me": "sexref",
+    "i'm a very generous man looking to arrange a very special date with tiffany": "sexref",
+    "yeah but i bet the guy who wears that condom lives on 15": "sexref",
+    "we could always make it strip poker": "sexref",
+    "you're a married man sleeping with her in your own bed": "casual",
+    "only the whole time he was sleeping with me": "casual",
+    "no time for dirty talk go get changed": "sexref"
    },
    "notes": [
     "Dern (Cynthia Dern) is a character's surname: never the minced oath 'dern'. 'Hell' in the book title 'Hell Hath No Fury' is still muted (she ticks it).",

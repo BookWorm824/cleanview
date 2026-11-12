@@ -346,6 +346,22 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The Castle reports in the Drive folder gone over (1.18.71, 2026-11-12; the owner: "do 1"): S1E3
+  and S1E4 (teens), S1E6-E9, S1E2 "(Clean)" and S2E4 (adults), all on the AI helper. Built in for
+  Castle: "...arrange a very special date with Tiffany" (Castle booking the escort), her own
+  ticks "That better not be porn, and if it is, I want in" and "...the guy who wears that condom
+  lives on 15", and the misses "We could always make it strip poker", "You're a married man
+  sleeping with her in your own bed", "Only the whole time, he was sleeping with me" (casual), "No
+  time for dirty talk, go get changed". Her unticks of lines that fit no filter taught as fine:
+  "Someone who was slipping her a little cash" and "What are we playing for?" (two older lessons
+  had joined each to the next line, "...partial river view someone who was slipping her a little
+  cash" and "what are we playing for pride or clothing", and matched the harmless half: taken
+  out; "while he was slipping her something else" stays), "Beat his pants off" (poker), "Lord I
+  can't stop myself" (a song) and "between Nikki Heat and the roguishly handsome reporter". Not
+  taught: lines under 5 words ("Kind of hot", "The sex is unbelievable", which she muted whole),
+  police and coroner talk ("registered sex offenders"). Her unticks of two "same-sex romance"
+  scenes (S1E7's opening song, a S1E2 "two women" one) are flirting-check false alarms that line
+  lessons can't teach.
 - Sexual talk is also looked for a conversation at a time (1.18.70, 2026-11-12; the owner: "yes"
   to looking into why the AI helper missed Castle S2E3's innuendo, then "Yes, build it").
   Replaying that episode's dialogue (with the lessons it had then): `classify_dialogue` reads 25
@@ -849,6 +865,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_castle_drive_reports.py`: the Drive folder's Castle lessons built in, her unticks not
+  muted (the two joined lessons gone), the innuendo after them still muted, no coroner talk.
 - `test_sexual_talk.py`: a conversation's sexual talk found (quick yes, which lines, each
   confirmed), not when the quoted words aren't there or the line-by-line look says no, the
   quiet conversations asked nothing more, innuendo counted; in the reading only with that
