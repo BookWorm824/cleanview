@@ -504,6 +504,10 @@ class App(tk.Tk):
         s.configure("Go.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 11, "bold"), padding=(16, 7), borderwidth=0)
         s.map("Go.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
+        # Choose files, a fifth bigger than the other first steps (1.18.75)
+        s.configure("Choose.TButton", background=ACCENT, foreground="white",
+                    font=(FONT, 13, "bold"), padding=(20, 9), borderwidth=0)
+        s.map("Choose.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
         edge = {"bordercolor": BUTTON_EDGE, "lightcolor": "#ECE7E0", "darkcolor": "#ECE7E0"}
         s.configure("Plain.TButton", background="#ECE7E0", foreground=INK, padding=(14, 6),
                     borderwidth=1, font=(FONT, 10), **edge)
@@ -698,10 +702,11 @@ class App(tk.Tk):
         b1 = self._card(body, "1", "Movie or episodes")
         row = tk.Frame(b1, bg=CARD)
         row.pack(fill="x")
-        ttk.Button(row, text="Choose files…", style="Go.TButton",
+        ttk.Button(row, text="Choose files…", style="Choose.TButton",
                    command=self.pick_files).pack(side="left")
-        ttk.Button(row, text="Choose a folder of episodes…", style="Go.TButton",
-                   command=self.pick_folder).pack(side="left", padx=(8, 0))
+        tk.Label(row, text="For a whole season, open its folder and press Ctrl+A to choose "
+                 "every episode.", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(380),
+                 justify="left").pack(side="left", padx=(14, 0))
         self.vid_lbl = tk.Label(b1, text="Nothing chosen yet", bg=CARD, fg=MUTED,
                                 font=(FONT, 10), wraplength=wrap_width(640), justify="left")
         self.vid_lbl.pack(anchor="w", pady=(8, 0))
@@ -1340,23 +1345,6 @@ class App(tk.Tk):
             self.outdir = None
             self._refresh_labels()
 
-    def pick_folder(self):
-        d = filedialog.askdirectory(title="Choose the folder with the episodes in it")
-        if not d:
-            return
-        folder = Path(d)
-        files = [f for f in folder.iterdir() if f.is_file() and f.suffix.lower() in engine.VIDEO_EXTS
-                 and "(Clean)" not in f.name]
-        if not files:
-            files = [f for sub in folder.iterdir() if sub.is_dir() and sub.name.lower() != "clean"
-                     for f in sub.iterdir() if f.is_file() and f.suffix.lower() in engine.VIDEO_EXTS]
-        if not files:
-            messagebox.showinfo("CleanView", "No video files (MP4, MKV…) were found in that folder.")
-            return
-        self.videos = sorted((str(f) for f in files), key=natural_key)
-        self.outdir = None
-        self._refresh_labels()
-
     def pick_out(self):
         d = filedialog.askdirectory(title="Where should the clean copies go?")
         if d:
@@ -1367,7 +1355,7 @@ class App(tk.Tk):
     def start(self):
         if not self.videos:          # the button is always on, so it never looks broken
             messagebox.showinfo("CleanView", "First choose the movie or episodes to clean, "
-                                "with the green buttons in step 1 at the top.", parent=self)
+                                "with the green Choose files button in step 1 at the top.", parent=self)
             lbl = getattr(self, "vid_lbl", None)
             if lbl is not None and lbl.winfo_exists():
                 self._scroll_to(lbl)

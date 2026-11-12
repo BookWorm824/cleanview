@@ -372,8 +372,12 @@ class Window(unittest.TestCase):
             if isinstance(w, ui.ttk.Button):
                 styles[w.cget("text")] = w.cget("style")
         self.assertEqual(styles["Start cleaning"], "Accent.TButton")
-        for text in ("Choose files…", "Choose a folder of episodes…"):
-            self.assertEqual(styles[text], "Go.TButton", text)
+        # one bigger Choose files, no folder button (1.18.75: "doesn't seem to do anything")
+        self.assertEqual(styles["Choose files…"], "Choose.TButton")
+        self.assertNotIn("Choose a folder of episodes…", styles)
+        s0 = ui.ttk.Style(app)
+        self.assertGreater(int(str(s0.lookup("Choose.TButton", "font")).split()[-2]),
+                           int(str(s0.lookup("Go.TButton", "font")).split()[-2]))
         s = ui.ttk.Style(app)
         self.assertEqual(s.lookup("Plain.TButton", "borderwidth"), 1, "grey ones have an edge")
 

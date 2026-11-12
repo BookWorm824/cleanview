@@ -34,7 +34,8 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   are drawn images (`_tick_boxes`), since the theme's own show an ✗.
 - Buttons: each page's main step is the big green `Accent.TButton`, bottom right (Start
   cleaning, Save clean copy, Clean another); first steps are the smaller green
-  `Go.TButton` (Choose files…, Pick up where I left off, Set up and sign in); the grey
+  `Go.TButton` (Pick up where I left off, Set up and sign in; Choose files… is a fifth
+  bigger, `Choose.TButton`); the grey
   `Plain`/`Small` ones have an edge so they read as buttons. Main buttons are never
   greyed out: pressed too early they say what to do first (Jason missed a grey "Clean
   another").
@@ -346,6 +347,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- One bigger "Choose files..." button on the start page (1.18.75, 2026-11-12; the owner: "the
+  choose a folder of episodes button doesn't seem to do anything. can we get rid of it and make
+  the choose files button about 20% bigger?"). "Choose a folder of episodes..." and `pick_folder`
+  are gone; Choose files uses `Choose.TButton` (13 pt bold, padding 20x9, vs Go's 11 pt, 16x7),
+  with a hint beside it: open the season's folder and press Ctrl+A to choose every episode.
 - The start page's filters in sections by topic, each with a tick-all box, folding away (1.18.74,
   2026-11-12; the owner: "i want to consolidate or make then nicer", "lets make medical anything
   its own category", then "a main box for each category to tick all if wanted, but if only some
