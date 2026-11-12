@@ -346,6 +346,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Castle S2E5 report (1.18.73, 2026-11-12, adults, the AI helper, made on 1.18.70; the
+  owner: "Yes, teach them"): 41 min on her laptop against S2E3's 48 (each conversation 18.0 ->
+  12.9 min with 1.18.68's quick question; reading the dialogue 14.4 -> 15.2 with 1.18.70's
+  sexual-talk check). The scan record shows `picture_runtime` 1.24.4, but the laptop's picture
+  scan didn't get faster (4.9 -> 5.3 min), so something else limits it there (likely reading the
+  video). Every listed word muted, "Go get it out of your system" (the agent telling Castle to
+  sleep with Beckett) muted. Taught for Castle: "Oh, Rick. You sleeping with her? No." (sexref)
+  and "Geez, one night in Ibiza and what do I get, a chapter in Storm Fall?" (casual); "A very
+  hot chapter." is under 5 words.
 - Coroner and doctor talk is its own filter (1.18.72, 2026-11-12; the owner: "is it possible to
   categorize coroner, medical examiner and dr talk into its own ticked box. so it gives the
   option if wanted to have that included or not?", then "b and yes those ages": all graphic

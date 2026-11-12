@@ -43,6 +43,16 @@ class CastleLessons(unittest.TestCase):
         self.assertIsNotNone(self.find.match(learn.norm("Yes, please. Beat my pants off, if "
                                                         "you dare.")))
 
+    def test_s2e5_lines(self):
+        # Castle S2E5 (2026-11-12, 1.18.70): "Yes, teach them"
+        for t, kind in (("Oh, Rick. You sleeping with her? No.", "sexref"),
+                        ("Geez, one night in Ibiza and what do I get, a chapter in Storm Fall?",
+                         "casual")):
+            with self.subTest(t):
+                m = self.find.match(learn.norm(t))
+                self.assertEqual(self.castle["muted_for"].get(m), kind)
+        self.assertIsNone(self.find.match(learn.norm("You sleeping with her?")))
+
     def test_coroner_talk_not_taught(self):
         self.assertIsNone(self.find.match(learn.norm("Any signs of sexual assault?")))
 
