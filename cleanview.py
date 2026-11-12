@@ -243,6 +243,77 @@ def _note_upgrade():
         pass
 
 
+# The picture checkers' runtime (1.18.67, 2026-11-12; the owner: "Yes, build it"). onnxruntime
+# 1.24.4 scans the picture about a fifth faster than the 1.31.0 installs had: 172 s instead of
+# 230 s for The Resident S03E12, 176 for 216 (Castle S1E2), 194 for 231 (Person of Interest
+# "Til Death"), every nudity and picture-AI score the same; the listening, sound check and
+# voices came out the same too (the voices on all 90 past videos here). Installs already
+# there switch once on "Getting ready" (about 13 MB), checked in a separate process and put
+# back if it won't load; up to ORT_TRIES times. New installs get it from the start.
+ORT_VERSION = "1.24.4"
+ORT_TRIES = 3
+
+
+def _ort_mark():
+    return HERE / "models" / "picture_runtime.txt"
+
+
+def _ort_installed():
+    from importlib import metadata
+    try:
+        return metadata.version("onnxruntime")
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def _ort_tries():
+    """How many times the switch has failed here (None once it's done)."""
+    try:
+        text = _ort_mark().read_text().strip()
+    except OSError:
+        return 0
+    if text == "done":
+        return None
+    m = re.match(r"failed (\d+)", text)
+    return int(m.group(1)) if m else 0
+
+
+def ort_switch_wanted():
+    """True when an installed picture runtime isn't ORT_VERSION and the switch hasn't failed
+    ORT_TRIES times."""
+    have = _ort_installed()
+    n = _ort_tries()
+    return have is not None and have != ORT_VERSION and n is not None and n < ORT_TRIES
+
+
+def switch_ort(log=print):
+    """Put ORT_VERSION in place of the installed picture runtime. True if it did. If the new
+    one won't load (checked in another process, so nothing here holds it), the old one goes
+    back. Never touches anything else installed (--no-deps)."""
+    old, py = _ort_installed(), _venv_python()
+
+    def pip(ver):
+        return cl.run([py, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+                       "--no-deps", f"onnxruntime=={ver}"], capture_output=True, text=True)
+
+    def loads():
+        r = cl.run([py, "-c", "import onnxruntime as o; print(o.__version__)"],
+                   capture_output=True, text=True)
+        return r.returncode == 0 and r.stdout.strip() == ORT_VERSION
+    ok = pip(ORT_VERSION).returncode == 0 and loads()
+    if not ok:
+        log("The faster picture checker didn't work here; keeping the one there was.")
+        if old and _ort_installed() != old:
+            pip(old)
+    try:
+        _ort_mark().parent.mkdir(parents=True, exist_ok=True)
+        _ort_mark().write_text("done\n" if ok else f"failed {(_ort_tries() or 0) + 1}\n")
+    except OSError:
+        pass
+    importlib.invalidate_caches()
+    return ok
+
+
 def tools_missing(opts=None):
     """What still needs downloading (empty list = ready)."""
     nd = needs(opts)
@@ -250,6 +321,8 @@ def tools_missing(opts=None):
     if (nd["nudenet"] or nd["clip"]) and (not importlib.util.find_spec("onnxruntime")
                                           or not nudity_model()):
         need.append("picture checker")
+    if (nd["nudenet"] or nd["clip"] or nd["voices"]) and ort_switch_wanted():
+        need.append("faster picture checker")
     if (nd["sound"] or nd["voices"]) and not (TAG_DIR / "model.int8.onnx").exists():
         need.append("sound checker")
     if nd["voices"] and not ai.speakers_ready():
@@ -274,13 +347,16 @@ def install_tools(opts=None, progress=None, log=print):
                                           or not nudity_model()):
         say(0.02, "Getting the picture checker (one time, about 60 MB)…")
         py = _venv_python()
-        for args in (["onnxruntime"], ["--no-deps", "nudenet"]):
+        for args in ([f"onnxruntime=={ORT_VERSION}"], ["--no-deps", "nudenet"]):
             r = cl.run([py, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", *args],
                        capture_output=True, text=True)
             if r.returncode != 0:
                 raise RuntimeError("Couldn't download the picture checker. Check your internet "
                                    "connection and try again.\n\n" + r.stderr[-600:])
         importlib.invalidate_caches()
+    if (nd["nudenet"] or nd["clip"] or nd["voices"]) and ort_switch_wanted():
+        say(0.02, "Getting a faster picture checker (one time, about 13 MB)…")
+        switch_ort(log)
     if nd["voices"] and not ai.speakers_ready():
         try:
             ai.install_speakers(lambda f, m: say(0.02 + 0.03 * f, m))

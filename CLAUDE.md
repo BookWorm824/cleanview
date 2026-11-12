@@ -346,6 +346,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The picture checkers run on onnxruntime 1.24.4 (1.18.67, 2026-11-12; the owner: "Yes, build
+  it", after the 2 AM check). It scans the picture about a fifth faster than the 1.31.0 installs
+  had, with identical results: The Resident S03E12 230 -> 172 s, Castle S1E2 216 -> 176 s,
+  Person of Interest "Til Death" 231 -> 194 s, every nudity and picture-AI score the same; the
+  listening and sound check gave the same words and scores (sherpa-onnx has its own runtime),
+  and the voices (`_separate_fast` uses this one) were identical on all 90 past videos here, at
+  the same speed. It was the version, not the DirectML build tried before. `ORT_VERSION`; an
+  install with another version switches once on "Getting ready" ("faster picture checker",
+  `ort_switch_wanted`, `switch_ort`: `pip install --no-deps onnxruntime==1.24.4` in the venv,
+  then a separate process checks it loads, else the old version goes back; the mark
+  `models/picture_runtime.txt` says "done" or "failed N", up to `ORT_TRIES` 3). The first
+  install of the picture checker and `installer/install.ps1` pin it. Tried on a copy of this
+  PC's venv: switched in 9 s, nothing else changed, the 10-minute clip 57 -> 42 s.
 - Pause and Resume (1.18.66, 2026-11-12; the owner: "should we have a pause buton next to the
   cancel button when a check is happening", then "when the 2 am task is done yes build it").
   "Pause" sits beside Cancel on the working page (watching and listening, and saving); pressed,
@@ -784,6 +797,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_picture_runtime.py`: the switch wanted (another version installed) and not (already
+  1.24.4, or none: the first install pins it), done with --no-deps, put back when it won't
+  load, given up after 3 failures; "faster picture checker" on Getting ready only when the
+  picture is checked; new installs pinned.
 - `test_pause.py`: what pausing freezes and unfreezes (each process's family, in reverse,
   one started while paused at once, finished or untracked ones left alone), paused time
   counted, listeners told; a real counting process stands still while paused and goes on

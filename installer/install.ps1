@@ -99,7 +99,7 @@ try {
     }
     $vpy = Join-Path $Venv 'Scripts\python.exe'
     & $vpy -m pip install --upgrade pip --quiet --disable-pip-version-check
-    & $vpy -m pip install --quiet --disable-pip-version-check sherpa-onnx numpy onnxruntime tokenizers subliminal
+    & $vpy -m pip install --quiet --disable-pip-version-check sherpa-onnx numpy onnxruntime==1.24.4 tokenizers subliminal
     if ($LASTEXITCODE -ne 0) { Fail "Installing libraries failed. Check your internet connection and run setup again." }
     # Smart App Control can block chardet's compiled parts; use the plain-Python versions
     $pv = (& $vpy -c "import sys; print('%d.%d' % sys.version_info[:2])").Trim()
