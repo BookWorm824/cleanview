@@ -346,6 +346,25 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- One CleanView at a time, with an "Opening CleanView..." box (1.18.64, 2026-11-12; Lauren:
+  "it can take several second and gives no indication it is opening. so i click again and get
+  multiple windows open. I only want there to be a single instance", "The program can take
+  time to open if it needs, but give an indicator box it is opening"). `launcher.pyw` is now
+  two parts. The one started from the Start menu (`clicked`) brings an open CleanView forward
+  and stops when one holds the lock `ONE_NAME` (or another click is already opening one,
+  `OPENING_NAME`); otherwise it starts CleanView as its own process (`start_app`:
+  CleanView.exe where it can be, else this Python; `launcher.pyw --app`) and shows a small
+  box (`splash`: "Opening CleanView...", a moving bar, and what `opening()` last wrote, e.g.
+  "Getting CleanView 1.18.64...") until a window of that process or one it started is up
+  (`family`, `windows_of`: a venv's pythonw.exe starts the real Python, which owns the
+  window), it stops, or `SPLASH_MOST`. The app part (`run_app`) takes `ONE_NAME` for as long
+  as it runs (`hold`, a Windows mutex; a second one 3 s later brings the first forward),
+  writes its process number (`PID_FILE`, for `bring_forward`), checks for an update, then
+  opens CleanView.pyw as before. "Update now" (CLEANVIEW_UPDATED set) skips the check and
+  waits up to `RESTART_WAIT` for the old one to close. Tried for real from a copy: the box at
+  0.6 s, CleanView at 1.3 s, two more clicks opened nothing and CleanView came to the front;
+  Update now opened the new one 0.9 s after the old one closed. Wanted in CleanListen and
+  CleanRead too (each its own lock).
 - Medical needles are Medical, drug use stays Drugs (1.18.63, 2026-11-12; the owner: "yes, but
   be sure drugs are separated"). The drug finds (CLIP's "a person injecting drugs" also fires on
   shots and IVs) are looked at with `LOOK["drugs"]` answering "drugs", "medical" (a needle going
@@ -734,6 +753,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_one_window.py`: the lock (held elsewhere, waited for, held twice by the same
+  process), finding a window one process down, what a click does (open, opening, not open,
+  Update now, couldn't start apart), the app part (another won; Update now waits longer), and
+  the opening box closing when the window is up or the program stops.
 - `test_medical.py`: the Medical box per age and for older settings; the AI on this PC's
   "medical" answer turns gore into a Medical scene, cut with the box on, offered with it off,
   violent gore still Gore; Claude's kind and level, wanted only when ticked; a medical needle

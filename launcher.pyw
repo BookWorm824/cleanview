@@ -249,6 +249,257 @@ def as_own_exe():
         return False
 
 
+# ---------- one CleanView at a time, and a window straight away ----------
+# Lauren, 2026-11-12: "it can take several second and gives no indication it is opening. so
+# i click again and get multiple windows open. I only want there to be a single instance".
+# The part started from the Start menu (clicked) shows "Opening CleanView..." at once and
+# starts CleanView itself as its own process (run_app, "--app"); that one holds ONE_NAME for
+# as long as it runs. A click while it's open, or while it's opening (OPENING_NAME), brings
+# that window forward instead. "Update now" starts a new one while the old one closes: it
+# waits for the old one to let go (RESTART_WAIT).
+APP_PART = "--app"
+ONE_NAME = os.environ.get("CLEANVIEW_ONE_NAME") or "Local\\CleanView-open"
+OPENING_NAME = ONE_NAME + "-opening"
+RESTART_WAIT = 90
+SPLASH_MOST = 180             # seconds; the window says "Opening" at most this long
+APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
+OPENING_NOTE = APP_DATA / "opening.txt"     # what the opening window says (run_app writes it)
+PID_FILE = APP_DATA / "open_pid.txt"         # which process is CleanView, to bring it forward
+_held = []                    # mutexes this process holds until it ends
+
+
+def _restarting():
+    # "Update now" starts CleanView again with these set (CLEANVIEW_UPDATED since 1.10)
+    return bool(os.environ.get("CLEANVIEW_RESTART") or os.environ.get("CLEANVIEW_UPDATED"))
+
+
+def _kernel32():
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.CreateMutexW.restype = wintypes.HANDLE
+    k.CreateMutexW.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR)
+    k.OpenMutexW.restype = wintypes.HANDLE
+    k.OpenMutexW.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR)
+    k.WaitForSingleObject.restype = wintypes.DWORD
+    k.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    return k
+
+
+def hold(name, wait=0.0):
+    """Take the named lock for as long as this process runs. False if another process has
+    it (after waiting up to `wait` seconds for it to be let go). Not knowing never stops
+    CleanView opening."""
+    if os.name != "nt":
+        return True
+    try:
+        k = _kernel32()
+        h = k.CreateMutexW(None, False, name)
+        if not h:
+            return True
+        got = k.WaitForSingleObject(h, int(wait * 1000))
+        if got in (0, 0x80):          # ours, or let go by a process that ended
+            _held.append(h)
+            return True
+        k.CloseHandle(h)
+        return False
+    except Exception:
+        return True
+
+
+def exists(name):
+    """Does some process hold (or wait on) the named lock?"""
+    if os.name != "nt":
+        return False
+    try:
+        k = _kernel32()
+        h = k.OpenMutexW(0x00100000, False, name)        # SYNCHRONIZE
+        if h:
+            k.CloseHandle(h)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def family(pid):
+    """A process and every process it started, and they started (a venv's pythonw.exe starts
+    the real Python as its own process, which then owns the window)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Entry(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_void_p),
+                    ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                    ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+    k.Process32FirstW.argtypes = k.Process32NextW.argtypes = (wintypes.HANDLE, ctypes.c_void_p)
+    k.CloseHandle.argtypes = (wintypes.HANDLE,)
+    snap = k.CreateToolhelp32Snapshot(0x2, 0)              # TH32CS_SNAPPROCESS
+    parents = {}
+    if snap and snap != ctypes.c_void_p(-1).value:
+        e = Entry()
+        e.dwSize = ctypes.sizeof(Entry)
+        ok = k.Process32FirstW(snap, ctypes.byref(e))
+        while ok:
+            parents[e.th32ProcessID] = e.th32ParentProcessID
+            ok = k.Process32NextW(snap, ctypes.byref(e))
+        k.CloseHandle(snap)
+    out, grew = {pid}, True
+    while grew:
+        more = {c for c, par in parents.items() if par in out and c not in out and c != par}
+        grew = bool(more)
+        out |= more
+    return out
+
+
+def windows_of(pid=None, title=None):
+    """The visible top-level windows of a process and the ones it started (or, with title,
+    of any other process whose Tk window's title starts with it)."""
+    if os.name != "nt":
+        return []
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.WinDLL("user32", use_last_error=True)
+    found = []
+    each = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    pids = family(pid) if pid is not None else set()
+
+    def look(hwnd, _):
+        if not u.IsWindowVisible(hwnd):
+            return True
+        owner = wintypes.DWORD()
+        u.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value in pids:
+            found.append(hwnd)
+        elif title is not None and owner.value != os.getpid():
+            cls = ctypes.create_unicode_buffer(64)
+            u.GetClassNameW(hwnd, cls, 64)
+            text = ctypes.create_unicode_buffer(256)
+            u.GetWindowTextW(hwnd, text, 256)
+            if cls.value == "TkTopLevel" and text.value.startswith(title):
+                found.append(hwnd)
+        return True
+    u.EnumWindows(each(look), 0)
+    return found
+
+
+def bring_forward():
+    """Bring the CleanView that's already open (or opening) to the front. True if found."""
+    if os.name != "nt":
+        return False
+    import ctypes
+    u = ctypes.WinDLL("user32", use_last_error=True)
+    try:
+        pid = int(PID_FILE.read_text(encoding="utf8").strip())
+    except (OSError, ValueError):
+        pid = None
+    wins = (windows_of(pid) if pid else []) or windows_of(title=APP_NAME)
+    for hwnd in wins[:1]:
+        if u.IsIconic(hwnd):
+            u.ShowWindow(hwnd, 9)                          # SW_RESTORE
+        u.SetForegroundWindow(hwnd)
+        return True
+    return False
+
+
+def opening(text):
+    """What the "Opening CleanView..." window says now."""
+    try:
+        APP_DATA.mkdir(parents=True, exist_ok=True)
+        OPENING_NOTE.write_text(text, encoding="utf8")
+    except OSError:
+        pass
+
+
+def start_app():
+    """Start CleanView as its own process: as CleanView.exe where it can be (its name in Task
+    Manager), else this Python. None if neither started."""
+    import subprocess
+    exe = None
+    try:
+        if (os.name == "nt" and Path(sys.executable).name.lower() != OWN_EXE.lower()
+                and _smart_app_control_off()):
+            exe = make_own_exe()
+    except Exception:          # never block the app over its name
+        exe = None
+    for prog in ([str(exe)] if exe else []) + [sys.executable]:
+        try:
+            return subprocess.Popen([prog, str(Path(__file__).resolve()), APP_PART]
+                                    + sys.argv[1:], cwd=str(HERE))
+        except OSError as ex:
+            if exe and prog == str(exe):     # blocked after all: don't try it again
+                try:
+                    (exe.parent / "failed.txt").write_text(
+                        (exe.parent / "made.txt").read_text(encoding="utf8") + f"\n{ex}",
+                        encoding="utf8")
+                except OSError:
+                    pass
+    return None
+
+
+def splash(child, most=SPLASH_MOST):
+    """A small "Opening CleanView..." window until CleanView's own window is up (or it has
+    stopped, or `most` seconds)."""
+    import time
+    import tkinter as tk
+    from tkinter import ttk
+    root = tk.Tk()
+    root.title(APP_NAME)
+    try:
+        root.iconbitmap(str(HERE / "cleanview.ico"))
+    except Exception:
+        pass
+    root.configure(bg="#FFFFFF")
+    root.resizable(False, False)
+    tk.Label(root, text=f"Opening {APP_NAME}\u2026", bg="#FFFFFF", fg="#23211F",
+             font=("Segoe UI", 14, "bold")).pack(padx=40, pady=(22, 4))
+    said = tk.StringVar(value="This can take a few seconds.")
+    tk.Label(root, textvariable=said, bg="#FFFFFF", fg="#6D6862",
+             font=("Segoe UI", 10)).pack(padx=40)
+    bar = ttk.Progressbar(root, mode="indeterminate", length=260)
+    bar.pack(padx=40, pady=(12, 22))
+    bar.start(12)
+    root.update_idletasks()
+    w, h = root.winfo_reqwidth(), root.winfo_reqheight()
+    root.geometry(f"+{(root.winfo_screenwidth() - w) // 2}+"
+                  f"{(root.winfo_screenheight() - h) // 2 - 40}")
+    start = time.time()
+    try:                       # CleanView's window may come to the front itself
+        import ctypes
+        for p in family(child.pid):
+            ctypes.WinDLL("user32").AllowSetForegroundWindow(p)
+    except Exception:
+        pass
+
+    def check():
+        wins = windows_of(child.pid)
+        if wins:                # its window is up: hand it the front, then go
+            try:
+                import ctypes
+                ctypes.WinDLL("user32").SetForegroundWindow(wins[0])
+            except Exception:
+                pass
+        if child.poll() is not None or wins or time.time() - start > most:
+            bar.stop()
+            root.destroy()
+            return
+        try:
+            text = OPENING_NOTE.read_text(encoding="utf8").strip()
+            if text and text != said.get():
+                said.set(text)
+        except OSError:
+            pass
+        root.after(200, check)
+    root.after(200, check)
+    root.mainloop()
+
+
 LAUNCHER_CHANGED = False      # the update brought a new launcher.pyw
 
 
@@ -258,6 +509,7 @@ def update():
         remote = json.loads(r.read().decode("utf8"))
     if _ver(remote["version"]) <= _ver(local["version"]):
         return None
+    opening(f"Getting {APP_NAME} {remote['version']}\u2026")
     # download everything first, check it, and only then swap files in
     staged = {}
     for name in remote["files"]:
@@ -283,11 +535,16 @@ def update():
     return remote["version"]
 
 
-if __name__ == "__main__":
+def run_app():
+    """The part that is CleanView: one at a time, look for an update, then open the window."""
+    restart = _restarting()
+    if not hold(ONE_NAME, wait=RESTART_WAIT if restart else 3):
+        bring_forward()                     # two clicks a moment apart: the other one won
+        return
     try:
-        if as_own_exe():
-            sys.exit(0)
-    except Exception:      # never block the app over its name
+        APP_DATA.mkdir(parents=True, exist_ok=True)
+        PID_FILE.write_text(str(os.getpid()), encoding="utf8")
+    except OSError:
         pass
     note = new = None
     try:
@@ -304,8 +561,37 @@ if __name__ == "__main__":
     if new and LAUNCHER_CHANGED:
         # start the new launcher, not this old one already running: what it does differently
         # (its own name in Task Manager, 1.18.9) then works from this start, not the next
-        sys.argv = [str(HERE / "launcher.pyw")]
+        sys.argv = [str(HERE / "launcher.pyw"), APP_PART]
         runpy.run_path(str(HERE / "launcher.pyw"), run_name="__main__")
-        sys.exit(0)
+        return
+    opening(f"Opening {APP_NAME}\u2026")
     sys.argv = [str(HERE / "CleanView.pyw")]
     runpy.run_path(str(HERE / "CleanView.pyw"), run_name="__main__")
+
+
+def clicked():
+    """The part started from the Start menu: if CleanView is already open (or opening), bring
+    it forward and stop; otherwise start CleanView and show "Opening CleanView..." until its
+    window is up. False: CleanView couldn't be started apart, so run it here as before."""
+    if not _restarting() and (exists(ONE_NAME) or not hold(OPENING_NAME)):
+        bring_forward()
+        return True
+    try:
+        OPENING_NOTE.unlink(missing_ok=True)
+    except OSError:
+        pass
+    child = start_app()
+    if child is None:
+        return False
+    try:
+        splash(child)
+    except Exception:          # no window for it: CleanView opens all the same
+        pass
+    return True
+
+
+if __name__ == "__main__":
+    if APP_PART in sys.argv:
+        run_app()
+    elif not clicked():
+        run_app()
