@@ -800,10 +800,20 @@ LOOK = {
                  {"type": "object", "properties": {"see": {"type": "string"},
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),
-    "drugs": ("Question: is someone using illegal drugs (smoking a joint, snorting, injecting)?",
-              {"type": "object", "properties": {"see": {"type": "string"},
-                                                "yes": {"type": "boolean"}},
-               "required": ["see", "yes"]}),
+    # a medical needle is Medical, never drugs (1.18.63, the owner: "be sure drugs are
+    # separated")
+    "drugs": ("Question: is someone using illegal drugs (smoking a joint, snorting, injecting "
+              "drugs), or is a medical needle going into someone's skin (a doctor, nurse or "
+              "dentist giving a shot, a blood draw, an IV needle being put into an arm, a needle "
+              "stitching a wound, someone giving themselves insulin)? Someone shooting up drugs "
+              "(a tourniquet and a spoon, a dirty needle in a bathroom or an alley) is "
+              "\"drugs\". A needle going in for a medical reason is \"medical\". An IV bag or "
+              "drip hanging up, tubes already taped in place, vials, blood tubes, pills, a lab, "
+              "a pharmacy, or a syringe that isn't going into anyone is \"neither\".",
+              {"type": "object", "properties": {
+                  "see": {"type": "string"},
+                  "kind": {"type": "string", "enum": ["drugs", "medical", "neither"]}},
+               "required": ["see", "kind"]}),
     "nudity": ("Question: is anyone naked? Answer \"shown\" only if bare breasts, bare buttocks "
                "or genitals are clearly visible. Answer \"implied\" if someone is undressed but "
                "covered: under a sheet or blanket, in a towel, a bare back or shoulders, a shower "
@@ -921,6 +931,9 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
         elif c["cat"] == "nudity":
             v["level"] = a.get("nudity") if a.get("nudity") in ("shown", "implied") else "none"
             v["keep"] = v["level"] != "none"
+        elif c["cat"] == "drugs":
+            v["keep"] = a.get("kind") in ("drugs", "medical")
+            v["medical"] = a.get("kind") == "medical"
         else:
             v["keep"] = bool(a.get("yes"))
         clear = a.get("clear")

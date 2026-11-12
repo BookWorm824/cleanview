@@ -103,6 +103,70 @@ class TheAIOnThisPC(unittest.TestCase):
         self.assertFalse(sc["sure"])
 
 
+def drugs(medical, s=300.0):
+    return {"cat": "drugs", "s": s, "e": s + 4, "frames": [s + 2],
+            "verdict": {"keep": True, "who": "?", "level": "?", "medical": medical,
+                        "what": "a nurse puts a needle in an arm"}}
+
+
+class Needles(unittest.TestCase):
+    """1.18.63, the owner: needles and injections under Medical, "but be sure drugs are
+    separated"."""
+
+    def ask(self, kind):
+        def chat(prompt, imgs, schema, **k):
+            self.prompt = prompt
+            return {"see": "a needle in an arm", "kind": kind, "clear": True}
+        c = {"cat": "drugs", "frames": [1.0]}
+        with mock.patch.object(ai, "chat", chat):
+            ai.second_look([c], lambda c: ["img"])
+        return c["verdict"]
+
+    def test_asked_drugs_or_medical(self):
+        q, schema = ai.LOOK["drugs"]
+        self.assertEqual(schema["properties"]["kind"]["enum"], ["drugs", "medical", "neither"])
+        self.assertIn("blood draw", q)
+        v = self.ask("medical")
+        self.assertTrue(v["keep"] and v["medical"])
+        v = self.ask("drugs")
+        self.assertTrue(v["keep"])
+        self.assertFalse(v["medical"])
+        self.assertFalse(self.ask("neither")["keep"])
+
+    def test_a_needle_is_medical(self):
+        o = engine.full_opts(dict(drugs=True, medical=True))
+        (sc,) = engine.decide_picture_scenes([drugs(True)], o, True)
+        self.assertEqual(sc["kind"], ["Medical"])
+        self.assertTrue(sc["sure"])
+
+    def test_drug_use_stays_drugs(self):
+        o = engine.full_opts(dict(drugs=True, medical=True))
+        (sc,) = engine.decide_picture_scenes([drugs(False)], o, True)
+        self.assertEqual(sc["kind"], ["Drugs"])
+        o = engine.full_opts(dict(drugs=False, medical=True))
+        self.assertEqual(engine.decide_picture_scenes([drugs(False)], o, True), [])
+
+    def test_adults_needles_offered(self):
+        o = engine.full_opts(dict(drugs=True, medical=False, gore=True))
+        (sc,) = engine.decide_picture_scenes([drugs(True)], o, True)
+        self.assertEqual(sc["kind"], ["Medical"])
+        self.assertFalse(sc["sure"])
+        self.assertIn("really drug use", sc["why"])
+        o = engine.full_opts(dict(drugs=False, medical=False))
+        self.assertEqual(engine.decide_picture_scenes([drugs(True)], o, True), [])
+
+    def test_medical_alone_looks_for_needles(self):
+        o = dict(drugs=False, medical=True)
+        self.assertIn("drugs", engine.needs(o)["clip"])
+        self.assertNotIn("drugs", engine.needs(dict(o, medical=False))["clip"])
+
+    def test_online_ai_told_apart(self):
+        self.assertIn('never \\"drugs\\"'.replace("\\", ""), cc.PIC_RULES)
+        self.assertIn("not a medical shot", engine.picture_wanted(engine.full_opts(
+            dict(drugs=True))))
+        self.assertIn("needles", engine.picture_wanted(engine.full_opts(dict(medical=True))))
+
+
 class OnlineAI(unittest.TestCase):
     def test_a_kind_and_a_level(self):
         self.assertIn("medical", cc.PIC_KINDS)

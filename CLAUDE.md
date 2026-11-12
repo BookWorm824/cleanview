@@ -346,6 +346,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Medical needles are Medical, drug use stays Drugs (1.18.63, 2026-11-12; the owner: "yes, but
+  be sure drugs are separated"). The drug finds (CLIP's "a person injecting drugs" also fires on
+  shots and IVs) are looked at with `LOOK["drugs"]` answering "drugs", "medical" (a needle going
+  into someone's skin for a medical reason: a shot, a blood draw, an IV being put in, a
+  dentist's injection, insulin) or "neither" (an IV bag hanging, vials, blood tubes, pills, a
+  lab or pharmacy, a syringe not going into anyone); `v["medical"]`. A medical needle is a
+  "Medical" scene (cut with the box on, offered unticked with it off, `NEEDLE_KEPT`); the drug
+  finds are looked for whenever Medical is ticked (`needs`), and drug use is only cut with
+  Drugs ticked. Claude's `PIC_RULES` put medical needles under "medical", never "drugs", and a
+  local "Drugs" scene it calls "medical" is relabelled. On the 52 drug finds in past picture
+  scans here: 17 medical (needles going in; a needle into a vial and a held blood tube the
+  borderline ones), 35 neither (pharmacies, pills, IV bags, labs); the first wording also
+  called IV bags, vials and a pipette medical. Her shows have no real drug use to test the
+  other way. `OPT_TEXT` describes Medical (it was missing in 1.18.62) and drugs as illegal.
 - Medical is its own filter (1.18.62, 2026-11-12; the owner: "a lot of the 'gore' that gets
   flagged is medical. would it be good to create a separate filter that separate medical from
   other gore", then "autopsies are medical only for adults though. ticked everywhere else").
@@ -722,7 +736,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   and asking before saving when it won't fit.
 - `test_medical.py`: the Medical box per age and for older settings; the AI on this PC's
   "medical" answer turns gore into a Medical scene, cut with the box on, offered with it off,
-  violent gore still Gore; Claude's kind and level, wanted only when ticked.
+  violent gore still Gore; Claude's kind and level, wanted only when ticked; a medical needle
+  is Medical and drug use stays Drugs (each with its own box), needles looked for with only
+  Medical ticked.
 - `test_castle_s2e1.py`: a learned line whose ending differs isn't the lesson (the lesson
   itself, a word heard differently and a split line still are); a same-sex flirt with a man's
   and a woman's voice heard there is offered unticked, only men's or unknown voices still cut.

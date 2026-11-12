@@ -98,7 +98,7 @@ def needs(opts):
         clip_cats.append("fight")
     for k in ("smoking", "drinking", "drugs", "immodest", "gestures") + HOLIDAYS + \
             ("birthday",) + MAGIC:
-        if o[k]:
+        if o[k] or (k == "drugs" and o["medical"]):     # needles: the drug finds
             clip_cats.append(k)
     lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"] or o["loudmusic"],
@@ -1776,9 +1776,12 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "implied": "implied nudity (undressed but covered by sheets, towels or the camera)",
             "sex": "sex scenes", "violence": "violence",
             "gore": "gore (insides shown: organs, dismemberment)",
+            "medical": "medical scenes (blood, wounds or insides in surgery, an autopsy or "
+                       "while a wound is treated, and medical needles: shots, blood draws, "
+                       "IVs), kept apart from violence and drugs",
             "immodest": "immodest clothing and sexual dancing (stripping, pole dancing)",
             "smoking": "smoking (vaping too)",
-            "drinking": "drinking", "drugs": "drug use",
+            "drinking": "drinking", "drugs": "illegal drug use (not medical needles)",
             "samesex": "same-sex relationships and romance, including flirting",
             "casual": "sleeping around (casual sex, hooking up, affairs)",
             "oppsex": "unmarried man and woman living or sleeping together",
@@ -2226,7 +2229,8 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
                        "scenes)",
             "gore": "gore (insides on the outside: organs, entrails, brains, dismemberment)",
             "medical": "medical (blood, wounds or insides in a medical setting: surgery, an "
-                       "autopsy or a body on a morgue table, a wound being stitched or treated)",
+                       "autopsy or a body on a morgue table, a wound being stitched or treated; "
+                       "and medical needles: a shot, a blood draw, an IV going in)",
             "disturbing": "disturbing violence outside of combat (torture, executions, cruelty "
                           "to the helpless) and blood and injuries from an accident (a car "
                           "crash, a fall)",
@@ -2240,7 +2244,8 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "immodest": "immodest (swimsuits, underwear, very revealing clothes, or sexual "
                         "dancing: stripping, pole dancing, grinding)",
             "smoking": "smoking (cigarettes, cigars, pipes, vaping)",
-            "drinking": "drinking alcohol", "drugs": "drug use",
+            "drinking": "drinking alcohol",
+            "drugs": "illegal drug use (not a medical shot, blood draw or IV)",
             "christmas": "christmas (Santa, a Christmas tree, Christmas decorations or presents)",
             "halloween": "halloween (trick-or-treating, Halloween costumes, jack-o'-lanterns, "
                          "Halloween decorations)",
@@ -2603,6 +2608,8 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
             if not v:
                 continue
             dec, why, nud, vio = (tuple(v) + ("none",))[:4]
+            if sc.get("kind") == ["Drugs"] and vio == "medical":
+                sc["kind"] = ["Medical"]       # a medical needle, not drug use
             VK = ("Medical", "Violence", "Graphic violence", "Gore", "Disturbing")
             if sc.get("kind") and all(k in VK for k in sc["kind"]) and vio in (
                     "none", "violence", "graphic violence", "gore", "disturbing", "medical"):
@@ -2801,6 +2808,8 @@ def wait_for(job, waiting=None, cancel=None):
         raise job["error"]
 
 
+NEEDLE_KEPT = ("a medical needle seen (you're not removing medical scenes, so only cut if you "
+               "tick it; tick it if it's really drug use)")
 MEDICAL_KEPT = ("medical seen (you're not removing medical scenes, so only cut if you tick it; "
                 "tick it if it's really a crime scene or an attack)")
 
@@ -2867,6 +2876,19 @@ def decide_picture_scenes(cands, o, have_ai):
                     label = "Graphic violence"
                     checked = checked and o["graphic"]
                 else:
+                    continue
+            elif c["cat"] == "drugs":         # illegal drugs, or a medical needle
+                if checked and v.get("medical"):
+                    label = "Medical"
+                    if not o["medical"]:
+                        if not o["drugs"]:
+                            continue
+                        scenes.append({"s": c["s"], "e": c["e"], "kind": [label],
+                                       "why": NEEDLE_KEPT + (f" — {v['what']}"
+                                                             if v.get("what") else ""),
+                                       "sure": False})
+                        continue
+                elif not o["drugs"]:
                     continue
             elif c["cat"] == "fight":         # combat, or cruelty to someone helpless
                 if lvl == "disturbing" and o["disturbing"]:
