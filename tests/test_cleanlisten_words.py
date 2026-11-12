@@ -30,6 +30,7 @@ SLANG_WORDS = {"stones", "balls", "nuts", "pair", "set", "cojones", "cajones", "
 CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such talk as lines
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
     "orgasm", "thanks for the quickie", "penis", "penises", "private parts",
+    "sexy",            # in LINE_WORDS["sexref"] here (CleanListen 1.17.22's tests have it)
     "bondage", "safe word", "safe words", "safeword", "safewords",
     # CleanView 1.18.69 has these in LINE_WORDS["sexref"] (just the words, in lines), not cvcore
     "skinny dip", "skinny dips", "skinny dipped", "skinny dipping", "skinny-dip",

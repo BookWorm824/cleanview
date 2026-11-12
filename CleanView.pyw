@@ -25,6 +25,7 @@ APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "shar
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
     "#F6F3EE", "#FFFFFF", "#23211F", "#6D6862", "#2F6F62", "#24574D", "#E3DED6")
 BUTTON_EDGE = "#B9AFA2"
+NEXT_TO_VIDEO = "A “Clean” folder next to the video"
 CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Disturbing": "#5E3A6E", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Medical": "#7A4A4A", "Smoking": "#5D6470", "Drinking": "#5D6470",
         "Drugs": "#5D6470", "Immodest": "#A0663A", "Sexual": "#9A3E66", "Sleeping": "#9A3E66",
@@ -494,6 +495,9 @@ class App(tk.Tk):
         s.configure("TNotebook.Tab", padding=(16, 6), font=(FONT, 10))
         s.configure("Treeview", rowheight=round(self.winfo_fpixels("18p")), font=(FONT, 9))
         s.map("TCheckbutton", background=[("active", CARD)])
+        # the AI helper's tick box, one size bigger so it stands out (1.18.76)
+        s.configure("Big.TCheckbutton", background=CARD, font=(FONT, 11))
+        s.map("Big.TCheckbutton", background=[("active", CARD)])
         self._tick_boxes(s)
         s.configure("Accent.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 12, "bold"), padding=(22, 10), borderwidth=0)
@@ -725,6 +729,10 @@ class App(tk.Tk):
 
         b2 = self._card(body, "2", "What to remove")
         saved = self._load_settings()
+        # the folder she chose to save in, kept when CleanView closes (1.18.76)
+        self.save_to = saved.get("save_to") or None
+        if not self.outdir:
+            self.outdir = self._remembered_folder()
         profiles = saved.get("profiles")
         if profiles is None:            # first time: your old ticks become your "Adults" ticks
             old = {k: saved[k] for k in FILTER_KEYS if k in saved}
@@ -923,7 +931,7 @@ class App(tk.Tk):
         v = tk.BooleanVar(value=saved.get("ai", True))
         self.opts["ai"] = v
         ttk.Checkbutton(b25, text="Use the AI helper to double-check scenes and read the dialogue",
-                        variable=v).pack(anchor="w")
+                        variable=v, style="Big.TCheckbutton").pack(anchor="w")
         tk.Label(b25, text="Runs on your own PC, nothing is uploaded. The first time, it downloads "
                  "Ollama and two AI models (about 11 GB, one time only). Without it, kissing and "
                  "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
@@ -934,9 +942,9 @@ class App(tk.Tk):
         self.opts["reader"] = v
         ttk.Radiobutton(b25, text="The AI on this PC  (free, nothing leaves your PC)", value="local",
                         variable=v, style="Card.TRadiobutton").pack(anchor="w")
-        ttk.Radiobutton(b25, text="Claude  (more accurate; uses your Claude plan)", value="claude",
+        ttk.Radiobutton(b25, text="Claude  (more accurate; uses your Claude premium plan)", value="claude",
                         variable=v, style="Card.TRadiobutton").pack(anchor="w")
-        ttk.Radiobutton(b25, text="ChatGPT  (more accurate; uses your ChatGPT plan)",
+        ttk.Radiobutton(b25, text="ChatGPT  (more accurate; uses your ChatGPT premium plan)",
                         value="chatgpt", variable=v, style="Card.TRadiobutton").pack(anchor="w")
         ttk.Radiobutton(b25, text="Gemini  (more accurate; uses your Google account)",
                         value="gemini", variable=v, style="Card.TRadiobutton").pack(anchor="w")
@@ -970,7 +978,9 @@ class App(tk.Tk):
         row.pack(fill="x")
         ttk.Button(row, text="Change…", style="Plain.TButton",
                    command=self.pick_out).pack(side="right")
-        self.out_lbl = tk.Label(row, text="A “Clean” folder next to the video", bg=CARD,
+        self.next_to_btn = ttk.Button(row, text="Next to the video", style="Plain.TButton",
+                                      command=self.use_video_folder)
+        self.out_lbl = tk.Label(row, text=NEXT_TO_VIDEO, bg=CARD,
                                 fg=MUTED, font=(FONT, 10), wraplength=wrap_width(500), justify="left")
         self.out_lbl.pack(side="left")
         tk.Label(b3, text="Your original files are never changed.", bg=CARD, fg=MUTED,
@@ -1258,6 +1268,7 @@ class App(tk.Tk):
             self.profiles[self.profile] = self._filter_values()
             keep = {k: v for k, v in self._current_opts().items() if k not in FILTER_KEYS}
             keep.update(open_sections=sorted(getattr(self, "_open_sections", ()) or ()))
+            keep.update(save_to=getattr(self, "save_to", None))
             keep.update(profile=self.profile, profiles=self.profiles, text_size=self.text_size,
                         at_once=getattr(self, "at_once", None) or
                         self._load_settings().get("at_once"))
@@ -1335,6 +1346,44 @@ class App(tk.Tk):
                                     fg=INK)
         if self.outdir:
             self.out_lbl.config(text=os.path.normpath(self.outdir), fg=INK)
+        elif not self.videos:
+            self.out_lbl.config(text=NEXT_TO_VIDEO, fg=MUTED)
+        btn = getattr(self, "next_to_btn", None)
+        if btn is not None and btn.winfo_exists():
+            if getattr(self, "save_to", None) and self.outdir == self.save_to:
+                if not btn.winfo_ismapped():      # its room before the folder's name
+                    btn.pack(side="right", padx=(0, 8), before=self.out_lbl)
+                self.out_lbl.config(wraplength=wrap_width(380))
+            else:
+                btn.pack_forget()
+                self.out_lbl.config(wraplength=wrap_width(500))
+
+    def _remembered_folder(self):
+        """The folder she chose to save in, when it's there now (a USB drive may be
+        unplugged: then next to the video this time, and it's kept for next time)."""
+        d = getattr(self, "save_to", None)
+        return d if d and os.path.isdir(d) else None
+
+    def _remember_save_to(self, d):
+        """Keep the save folder in the settings now, from the start page or the review."""
+        self.save_to = d or None
+        try:
+            s = self._load_settings()
+            s["save_to"] = self.save_to
+            APP_DATA.mkdir(parents=True, exist_ok=True)
+            path = APP_DATA / "cleanview_settings.json"
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(s))
+            os.replace(tmp, path)
+        except Exception:
+            pass
+
+    def use_video_folder(self):
+        """Back to a "Clean" folder next to each video, and remember that."""
+        self.outdir = None
+        self._remember_save_to(None)
+        if getattr(self, "page_name", "") == "setup":
+            self._refresh_labels()
 
     def pick_files(self):
         exts = " ".join("*" + e for e in engine.VIDEO_EXTS)
@@ -1342,13 +1391,15 @@ class App(tk.Tk):
                                             filetypes=[("Videos", exts), ("All files", "*.*")])
         if files:
             self.videos = sorted(files, key=natural_key)
-            self.outdir = None
+            self.outdir = self._remembered_folder()
             self._refresh_labels()
 
     def pick_out(self):
-        d = filedialog.askdirectory(title="Where should the clean copies go?")
+        d = filedialog.askdirectory(title="Where should the clean copies go?",
+                                    initialdir=self.outdir or None)
         if d:
             self.outdir = d
+            self._remember_save_to(d)
             self._refresh_labels()
 
     # ---------- page 2: working ----------
@@ -2308,6 +2359,7 @@ class App(tk.Tk):
                                     initialdir=self._save_folder() or None, parent=self)
         if d:
             self.outdir = d
+            self._remember_save_to(d)
             self._save_session()
             self._show_space()
         return bool(d)

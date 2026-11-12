@@ -408,7 +408,8 @@ class Window(unittest.TestCase):
             wait_for("Sent. Thank you")
             self.assertIn("No video or sound", self.said[-2][1], "asked first, saying what's in it")
             self.assertEqual(test_inbox.Inbox.got[0][1]["kind"], "refined")
-            self.assertEqual(opened, [])
+            # (a video length read by an earlier test's thread can land here: not a window)
+            self.assertEqual([a for a in opened if "ffprobe" not in str(a[0]).lower()], [])
             os.environ["CLEANVIEW_INBOX"] = "http://127.0.0.1:9/exec"   # no internet
             app._send_in(path, "refined")
             wait_for("Attach that file")

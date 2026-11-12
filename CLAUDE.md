@@ -347,6 +347,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The save folder is remembered (1.18.76, 2026-11-12; the owner: "on the save to area, when
+  someone selects a folder to save can it be remembered even when clean view closes and
+  reopens"). A folder chosen with "Change..." under "Save to" (or on the review page) is kept
+  as `save_to` in the settings (`_remember_save_to`, also in `_save_settings`) and used again
+  on the start page and when videos are chosen (`_remembered_folder`; one that isn't there now,
+  an unplugged drive, is passed over this time but kept). "Next to the video" beside Change
+  (shown only then, `next_to_btn`) goes back to a "Clean" folder by each video
+  (`use_video_folder`). Also: the Claude and ChatGPT choices say "uses your ... premium plan",
+  and "Use the AI helper..." is one size bigger (`Big.TCheckbutton`, 11 pt) so it stands out.
 - One bigger "Choose files..." button on the start page (1.18.75, 2026-11-12; the owner: "the
   choose a folder of episodes button doesn't seem to do anything. can we get rid of it and make
   the choose files button about 20% bigger?"). "Choose a folder of episodes..." and `pick_folder`
@@ -915,6 +924,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_save_folder.py`: the chosen save folder kept after closing and when videos are chosen,
+  "Next to the video" going back, a missing folder passed over but kept, other settings not
+  losing it, and "Change..." on the review page kept too.
 - `test_sections.py`: the nine sections hold every filter, Medical on its own, the tick-all box
   (some -> all -> none, the kissing menus too), the counts after changing age, and open sections
   remembered.
