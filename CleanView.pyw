@@ -316,6 +316,9 @@ def short(name, n=60):
 
 
 ICON = Path(__file__).resolve().parent / "cleanview.ico"
+NO_INTERNET_ASK = ("There's no internet connection, so CleanView can't look for subtitles "
+                   "online.\n\nVideos that have their own subtitles will still use them.\n\n"
+                   "Clean without looking online?")
 UPDATED_SHOWN_SECS = 3      # how long "CleanView was updated to version ..." stays up
 ICON_AGAIN = (0.5, 3.0)       # seconds after the window is made that its logo is set again
 
@@ -630,6 +633,7 @@ class App(tk.Tk):
         look.style_tabs(self, s)
         look.style_progress(self, s, "Green.Horizontal.TProgressbar", bg=CARD)
         look.style_fields(s)
+        look.style_dropdown(self, s)        # "Round.TCombobox": the language list (1.18.85)
         for what, colour in (("background", CARD), ("foreground", INK),
                              ("selectBackground", TINT), ("selectForeground", INK)):
             self.option_add(f"*TCombobox*Listbox.{what}", colour)
@@ -1018,23 +1022,14 @@ class App(tk.Tk):
         self.vid_lbl = tk.Label(p1, text="Nothing chosen yet", bg=BG, fg=MUTED, font=(FONT, 10),
                                 wraplength=wrap_width(560), justify="left", anchor="w")
         self.vid_lbl.pack(anchor="w", pady=(X(12), 0))
-        subs = look.Card(p1)
-        subs.pack(fill="x", pady=(X(14), 0), padx=(0, X(4)))
-        v = tk.BooleanVar(value=saved.get("autosubs", True))
-        self.opts["autosubs"] = v
-        look.Switch(subs.body, v).pack(side="left", anchor="n", pady=(X(2), 0))
-        words = tk.Frame(subs.body, bg=CARD)
-        words.pack(side="left", fill="x", expand=True, padx=(X(14), 0))
-        tk.Label(words, text="Find subtitles online for videos that don't have any", bg=CARD,
-                 fg=INK, font=(HEAD, 10), anchor="w").pack(anchor="w")
-        tk.Label(words, text="Recommended: subtitles give the exact words, who's talking and "
-                 "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
-                 fg=MUTED, font=(FONT, 9), wraplength=wrap_width(470), justify="left",
-                 anchor="w").pack(anchor="w", pady=(X(2), 0))
+        # Subtitles are always looked for online when a video has none: there was a switch
+        # for it here (the owner, 2026-11-13: "that part says look for subtitles with a
+        # choice. i think subtitles are important enough that they should be standard"), so
+        # it's said in the small print below instead, and _current_opts always asks for them.
         # the language spoken (1.18.80; the owner: "like if i wanted to scan a movie in
         # spanish"): English as always, or another one, with its own word lists
         spoken = look.Card(p1)
-        spoken.pack(fill="x", pady=(X(10), 0), padx=(0, X(4)))
+        spoken.pack(fill="x", pady=(X(14), 0), padx=(0, X(4)))
         v = tk.StringVar(value=engine.cvlang.known(saved.get("language")))
         self.opts["language"] = v
         words = tk.Frame(spoken.body, bg=CARD)
@@ -1046,12 +1041,32 @@ class App(tk.Tk):
                  f"{engine.cvlang.MODEL_MB} MB).", bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=wrap_width(330), justify="left", anchor="w").pack(
                      anchor="w", pady=(X(2), 0))
-        look.Segmented(spoken.body, list(engine.cvlang.LANGS.items()), v, bg=CARD).pack(
-            side="right")
+        # a drop-down list, so more languages don't crowd the page (the owner, 2026-11-13: "as
+        # we get more languages, instead of labelling them all on the front page, should we
+        # have a a drop down"). It shows the names; the choice kept is the language's code.
+        # (its own names for everything: `v`, `names` and the like are used again further down
+        # this page, and what's picked here must still mean the language then)
+        lang_var, lang_names = v, dict(engine.cvlang.LANGS)
+        lang_codes = {name: code for code, name in lang_names.items()}
+        lang_shown = tk.StringVar(value=lang_names[lang_var.get()])
+        lang_box = self.language_box = ttk.Combobox(
+            spoken.body, textvariable=lang_shown, values=list(lang_names.values()),
+            state="readonly", width=12, font=(FONT, 10), style="Round.TCombobox")
+        lang_box.pack(side="right")
+
+        def lang_picked(_e=None):
+            lang_var.set(lang_codes.get(lang_shown.get(), "en"))
+            lang_box.selection_clear()
+        lang_box.bind("<<ComboboxSelected>>", lang_picked)
+        lang_box.bind("<MouseWheel>", lambda e: "break")    # scrolling past mustn't change it
+        lang_var.trace_add("write", lambda *_: lang_shown.set(
+            lang_names[engine.cvlang.known(lang_var.get())]))
         tk.Label(p1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
-                 "downloads without copy protection. If the movie has subtitles, they're used "
-                 "to catch extra words and get cleaned too.", bg=BG, fg=FAINT, font=(FONT, 9),
-                 wraplength=wrap_width(560), justify="left").pack(anchor="w", pady=(X(16), 0))
+                 "downloads without copy protection. Subtitles give the exact words, who's "
+                 "talking and descriptions like [kissing], so they're always used: the video's "
+                 "own, or ones found online when it has none. They get cleaned too.", bg=BG,
+                 fg=FAINT, font=(FONT, 9), wraplength=wrap_width(560),
+                 justify="left").pack(anchor="w", pady=(X(16), 0))
 
         # ----- step 2: what to remove
         p2 = pane(2)
@@ -1688,6 +1703,7 @@ class App(tk.Tk):
             o[k] = self.level_values.get(val, val) if isinstance(val, str) else bool(val)
         o["profile"] = getattr(self, "profile", "adults")
         o["mywords"] = self._my_words_typed()
+        o["autosubs"] = True        # always (it was a switch on step 1; an old "off" is gone)
         return o
 
     def _my_words_typed(self):
@@ -1831,6 +1847,15 @@ class App(tk.Tk):
                                 "It may have been moved, or its drive unplugged. Choose the "
                                 "files again.", parent=self)
             return
+        # no internet: subtitles can't be looked for online, so say so and ask (the owner,
+        # 2026-11-13: "could it pop up a small window saying no internet, cant look up
+        # subtitles. want to clean without them?", "with a yes no button")
+        self.scan_opts.pop("offline", None)
+        if not engine.online():
+            chime()
+            if not messagebox.askyesno("CleanView", NO_INTERNET_ASK, parent=self):
+                return
+            self.scan_opts["offline"] = True
         self._save_settings()
         if not self.outdir:
             self.outdir = str(Path(self.videos[0]).parent / "Clean")
@@ -3256,11 +3281,31 @@ class App(tk.Tk):
         t.configure(state="disabled")
         return t
 
+    def _fit_text(self, label, box, margin=0):
+        """Wrap a label's words to the room its box really has, and again whenever that
+        changes. The answer under a scene, line or word was wrapped at a set width; where the
+        box was narrower than that (the lines card, a narrower window, bigger text on a small
+        screen) the words ran off both sides (the owner, 2026-11-13: "the box that opens on
+        the response is clipping off on both left and right. i cant see the full response")."""
+        def fit(_e=None):
+            try:
+                if not (label.winfo_exists() and box.winfo_exists()):
+                    return
+                room = box.winfo_width() - margin
+                if room > 60 and abs(int(str(label.cget("wraplength"))) - room) > 2:
+                    label.config(wraplength=room)
+            except (tk.TclError, ValueError):
+                pass
+        box.bind("<Configure>", fit, add="+")
+        label.after_idle(fit)
+
     def _answer_box(self, parent, it):
         if it.get("chat_answer"):
-            tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg=TINT, fg=ACCENT_DK,
-                     font=(FONT, 9), wraplength=wrap_width(680), justify="left", padx=8, pady=4,
-                     anchor="w").pack(fill="x", pady=(6, 0))
+            said = tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg=TINT,
+                            fg=ACCENT_DK, font=(FONT, 9), wraplength=wrap_width(680),
+                            justify="left", padx=8, pady=4, anchor="w")
+            said.pack(fill="x", pady=(6, 0))
+            self._fit_text(said, said, margin=20)       # its own width, less its padding
 
     def _ask_link(self, parent, job, kind, it, txt=None, text=None, **pack):
         if not getattr(self, "_ai_ok", False):
@@ -3281,15 +3326,19 @@ class App(tk.Tk):
         box = tk.Frame(holder, bg=TINT, padx=8, pady=6)
         box.pack(fill="x", pady=(4, 0))
         hint = "Tip: highlight part of the text above first to point at it. " if txt is not None else ""
-        tk.Label(box, text=hint + "e.g. \u201ckeep this\u201d, \u201cjust mute that word\u201d, "
-                 "\u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d", bg=TINT,
-                 fg=MUTED, font=(FONT, 8), wraplength=wrap_width(640), justify="left").pack(anchor="w")
+        tip = tk.Label(box, text=hint + "e.g. \u201ckeep this\u201d, \u201cjust mute that "
+                       "word\u201d, \u201ccut a bit more after it\u201d, \u201cwhy was this "
+                       "flagged?\u201d", bg=TINT, fg=MUTED, font=(FONT, 8),
+                       wraplength=wrap_width(640), justify="left", anchor="w")
+        tip.pack(anchor="w")
+        self._fit_text(tip, box, margin=20)             # the box's width, less its padding
         row = tk.Frame(box, bg=TINT)
         row.pack(fill="x", pady=(2, 0))
         entry = ttk.Entry(row)
         entry.pack(side="left", fill="x", expand=True)
         box.reply = tk.Label(box, text="", bg=TINT, fg=ACCENT_DK, font=(FONT, 9),
-                             wraplength=wrap_width(640), justify="left")
+                             wraplength=wrap_width(640), justify="left", anchor="w")
+        self._fit_text(box.reply, box, margin=20)
         box.item = it
         ref = self._item_ref(job, it)
         if kind == "scene":

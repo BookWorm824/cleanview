@@ -29,6 +29,42 @@ class StripperPole(unittest.TestCase):
         self.assertEqual(found("She used to be a stripper."), ["stripper"])
         self.assertEqual(found("The strippers left at nine."), ["strippers"])
 
+    def test_a_person_not_a_tool(self):
+        # (the owner, 2026-11-13: "read the context. like a paint stripper would be ok. but a
+        # person stripper isnt. a pole by itself is fine but with stripper it isn't")
+        for text in ("He hired a stripper for the bachelor party.",
+                     "The stripper's name was Candy.",
+                     "Two strippers walked into the precinct.",
+                     "She worked as a stripper to pay for college."):
+            self.assertTrue(found(text), text)
+        for text in ("Hand me the paint stripper.",
+                     "Use the wire strippers to bare the ends.",
+                     "The stripper took the varnish off the floor.",
+                     "He brushed the stripper onto the old paintwork.",
+                     "A good wallpaper stripper saves hours.",
+                     "He made his money as an asset stripper.",
+                     "Load the rifle with a stripper clip.",
+                     "It came from a stripper well in Texas.",
+                     "Get the weed stripper out of the shed."):
+            self.assertEqual(found(text), [], text)
+            self.assertIsNone(SEXREF.search(text), text)
+
+    def test_with_a_pole_its_never_the_tool(self):
+        self.assertEqual(found("They painted the stripper pole gold."), ["stripper pole"])
+
+    def test_the_tool_isnt_muted_in_a_line(self):
+        st = state(["Hand me the paint stripper and a brush."], sexref=True)
+        st["lines"] = []
+        self.assertEqual(engine.list_words_only(st), 0)
+        self.assertEqual(st["mutes"], [])
+
+    def test_the_rest_of_the_list_as_before(self):
+        self.assertEqual(found("It kind of reminds me of porn."), ["porn"])
+        self.assertEqual(found("Sexy. Sexy's not a crime."), ["sexy", "sexy"])
+        self.assertTrue(SEXREF.search("They were having sex."))
+        self.assertIsNone(SEXREF.search("The fair sex was well represented."))
+        self.assertTrue(SEXREF.pattern)                 # still usable as the pattern it is
+
     def test_a_pole_anywhere_else_is_fine(self):
         for text in ("He flew to the North Pole.", "Hand me that fishing pole.",
                      "The flag pole fell on the stripper's car."[:23]):

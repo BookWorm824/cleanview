@@ -175,9 +175,34 @@ class Steps(unittest.TestCase):
         self.assertEqual(self.shown(), [3])
 
     def test_every_setting_is_there_whichever_step_shows(self):
-        for k in list(ui.FILTER_KEYS) + ["autosubs", "ai", "reader", "look"]:
+        for k in list(ui.FILTER_KEYS) + ["ai", "reader", "look"]:
             self.assertIn(k, self.app.opts, k)
         self.assertIn("swearing", self.app._current_opts())
+
+    def test_subtitles_are_always_looked_for(self):
+        # (the owner, 2026-11-13: "that part says look for subtitles with a choice. i think
+        # subtitles are important enough that they should be standard")
+        import json
+        app = self.app
+        self.assertNotIn("autosubs", app.opts)                  # no switch for it any more
+        self.assertIs(app._current_opts()["autosubs"], True)
+        settings = app._load_settings()
+        settings["autosubs"] = False                            # turned off in an older version
+        (support.APP_DATA / "cleanview_settings.json").write_text(json.dumps(settings))
+        app.show_setup()
+        app.update()
+        self.assertIs(app._current_opts()["autosubs"], True)
+        app._save_settings()
+        self.assertIs(app._load_settings()["autosubs"], True)
+
+        def texts(w):
+            out = [str(w.cget("text"))] if isinstance(w, tk.Label) else []
+            for c in w.winfo_children():
+                out += texts(c)
+            return out
+        said = " ".join(texts(app))
+        self.assertNotIn("Find subtitles online for videos that don't have any", said)
+        self.assertIn("ones found online when it has none", said)
 
     def test_the_list_says_what_is_chosen(self):
         app = self.app

@@ -65,6 +65,19 @@ class WidePictures(unittest.TestCase):
         for p in self.app._round_tabs[0]:
             self.assertGreaterEqual(p.width() - p.height(), look.STRETCH)
 
+    def test_the_rounded_drop_downs_pictures(self):
+        # (1.18.85: the language list's box, rounded like the rest)
+        pictures, r = self.app._round_drop
+        self.assertEqual(len(pictures), 2)                  # resting, and the one being used
+        for p in pictures:
+            self.assertGreaterEqual(p.width() - p.height(), look.STRETCH)
+        box = ttk.Combobox(self.app, values=["English", "A much longer language name"],
+                           state="readonly", width=4, style="Round.TCombobox")
+        box.pack()
+        self.addCleanup(box.destroy)
+        self.app.update()
+        self.assertLess(box.winfo_reqwidth(), pictures[0].width())     # no wider for it
+
     def test_buttons_are_no_bigger_for_it(self):
         self.assertEqual(look._slim(9), {"width": 21, "height": 21})
         # a button told to be as narrow as its word is narrower than its picture

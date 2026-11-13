@@ -31,6 +31,9 @@ CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such t
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
     "orgasm", "thanks for the quickie", "penis", "penises", "private parts",
     "sexy",            # in LINE_WORDS["sexref"] here (CleanListen 1.17.22's tests have it)
+    # a person, not the tool (the owner, 2026-11-13): LINE_WORDS["sexref"] here, with the
+    # same guard (cleanview.stripper_tool)
+    "stripper", "strippers", "stripper's",
     # "pole" right after "stripper" (the owner, 2026-11-13): LINE_WORDS["sexref"] here
     "stripper pole", "stripper poles", "stripper's pole", "stripper's poles", "strippers pole",
     "strippers poles",

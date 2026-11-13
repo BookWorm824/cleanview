@@ -380,6 +380,28 @@ class StartPage(unittest.TestCase):
         self.app.opts["language"].set("en")
         self.app._save_settings()
 
+    def test_a_drop_down_list_of_every_language(self):
+        # (the owner, 2026-11-13: "as we get more languages, instead of labelling them all on
+        # the front page, should we have a a drop down")
+        self.app.show_setup()
+        self.app._go_step(1)                                # the step it's on
+        self.app.update()
+        box = self.app.language_box
+        self.assertTrue(box.winfo_ismapped())
+        self.assertEqual(list(box.cget("values")), list(cvlang.LANGS.values()))
+        self.assertEqual(str(box.cget("state")), "readonly")
+        self.assertEqual(str(box.cget("style")), "Round.TCombobox")     # "yes round them"
+        self.assertEqual(box.get(), "English")
+        box.set("French")                                   # as picking it from the list does
+        box.event_generate("<<ComboboxSelected>>")
+        self.app.update()
+        self.assertEqual(self.app.opts["language"].get(), "fr")
+        self.assertEqual(self.app._current_opts()["language"], "fr")
+        self.app.opts["language"].set("es")                 # and the other way round
+        self.assertEqual(box.get(), "Spanish")
+        self.app.opts["language"].set("en")
+        self.assertEqual(box.get(), "English")
+
     def test_a_language_this_version_doesnt_know(self):
         settings = self.app._load_settings()
         settings["language"] = "klingon"

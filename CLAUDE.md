@@ -347,6 +347,41 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Subtitles are always looked for (1.18.85, 2026-11-13; the owner, of step 1's "Find subtitles
+  online for videos that don't have any" switch: "that part says look for subtitles with a
+  choice. i think subtitles are important enough that they should be standard"). The switch is
+  gone; `_current_opts` always gives `autosubs` True (a saved "off" from before no longer
+  counts), and the small print under step 1 says subtitles are always used, the video's own or
+  ones found online. The engine's `autosubs` option stays (tests and the command line use it).
+  No internet (the owner: "if there s no internet connected could it pop up a small window
+  saying no internet, cant look up subtitles. want to clean without them?", "with a yes no
+  button"): Start cleaning asks `engine.online()` (opens and closes a connection to
+  `ONLINE_HOSTS`, 1.5 s each, nothing sent; `CLEANVIEW_ONLINE` 1/0 answers without trying, and
+  the tests set 1) and, offline, shows `NO_INTERNET_ASK` with Yes and No. No stays on the start
+  page; Yes cleans with `opts["offline"]`: `fetch_subtitles` still uses the video's own
+  subtitles and ones downloaded before, looks nothing up, remembers no "none online", and the
+  note says "No subtitles: there was no internet connection to look for them". Not asked
+  about: Claude, ChatGPT and Gemini also need the internet (they say so themselves when they
+  can't be reached).
+- "stripper" is a person or a tool (1.18.85, 2026-11-13; the owner, in the CleanListen session
+  for every app: "read the context. like a paint stripper would be ok. but a person stripper
+  isnt. a pole by itself is fine but with stripper it isn't"). `stripper_tool(text, match)`
+  leaves a find of `LINE_WORDS["sexref"]` out when it's the tool or chemical: the next word is
+  clip(s)/well(s), the word before is asset/weed/tobacco/cotton, or one of `STRIPPER_THINGS`
+  (paint, varnish, wallpaper, wire, cable, floor, furniture, chemical, solvent, brush...) is
+  among the 3 words before or 5 after; "stripper pole" is never the tool. The same words as
+  CleanListen's guard. `LINE_WORDS["sexref"]` is now a `Listed` (its pattern plus that check;
+  `search` and `finditer` as before, anything else goes to the pattern): put a context guard
+  for a list word there, not in the pattern.
+- The answer under an item wraps to the room it has (1.18.85, 2026-11-13; the owner: "in the
+  after report. when looking at what was found and you hit ask the box that opens on the
+  response is clipping off on both left and right. i cant see the full response"). The Ask box
+  under a scene, line or word (`_ask_inline`) wrapped its tip and its answer at a set 640
+  pixels (times the text size); in the lines card the box is only about 660 wide in the
+  standard window, and narrower in a smaller window or with a second column, so the label was
+  squeezed and its words, centred, ran off both sides. `_fit_text(label, box, margin)` sets the
+  wrap width from the box's real width and again on every `<Configure>`; the tip, the answer
+  and the kept answer (`_answer_box`) use it, and the answer is anchored left.
 - "CleanView was updated to version ..." goes away by itself (1.18.84, 2026-11-13; the owner:
   "when it updates clean view it leaves a long bar on the top it should go away after 3
   seconds", "it says updated to version"). The tinted line at the top of the start page after
@@ -435,7 +470,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   spanish", "maybe the 10 most spoken languages", then "i would do the easier group of
   languages": Spanish, French, Portuguese, Russian; Mandarin, Hindi, Arabic, Bengali and Urdu
   need a different, slower model and are for later). Step 1 has "Language spoken in the video"
-  (English / Spanish; `opts["language"]`, kept in the settings; `cvlang.LANGS` is the list).
+  (`opts["language"]`, the language's code, kept in the settings; `cvlang.LANGS` is the list),
+  since 1.18.85 a drop-down list of the names (`language_box`; the owner: "as we get more
+  languages, instead of labelling them all on the front page, should we have a a drop down";
+  it was three buttons side by side, and the wheel over it doesn't change it), its box rounded
+  like the rest ("yes round them": `look.style_dropdown`, style "Round.TCombobox", in
+  cvlook.py, so CleanListen's copy must follow). Names used by its handlers are its own
+  (`lang_var`, `lang_names`...): `v` and `names` are reused further down `show_setup`, and a
+  handler that closed over them set a different option (caught by its test before release).
   English is untouched: its own listening model and `cvcore`'s word lists. Another language:
   - listens with NeMo Parakeet TDT 0.6B v3 (about 25 European languages; loads with
     `load_recognizer` unchanged), downloaded once on "Getting ready" the first time another
@@ -1188,11 +1230,21 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   everyday look-alikes left alone (un baiser, la ferme, pique-nique, Homo sapiens, elle est
   mince), Quebec's swears, French .srt files and sound track; real French heard with
   `CLEANVIEW_TEST_MULTI`.
+- `test_no_internet.py`: the check without touching the network (a stand-in socket; the
+  setting for tests), nothing looked up offline but the video's own and earlier downloads
+  still used and no miss remembered, the note; Start cleaning offline asks, No stays put, Yes
+  cleans without looking online, and online nothing is asked.
+- `test_sections.py` (Steps): no subtitle switch on step 1, subtitles asked for whatever an
+  older settings file says, and the small print saying so.
+- `test_ask_box.py`: a long answer under a scene, a line and a word is never wider than its
+  box, at each text size, in the standard window and a narrow one, and after the window is made
+  narrower; the answer kept on the card too.
 - `test_updated_note.py`: the "updated to version" line shows after an update, is gone after
   its seconds (also "up to date"), isn't there without an update, and a page built again
   meanwhile doesn't trip over it.
 - `test_castle_s2e1_words.py`: "stripper pole" found and muted from "stripper" to "pole"
-  (stripper alone as before, other poles left alone); "Sexy. Sexy's" gets a mute each, heard
+  (other poles left alone); a stripper who's a person found, the tool or chemical not (paint,
+  wire, wallpaper, asset stripper, stripper clip) and not muted in a line; "Sexy. Sexy's" gets a mute each, heard
   or not, and a word asked for twice but said once gets one; the two Castle false alarms built
   in as fine.
 - `test_plain_notes.py`: which notes are technical and which are about the video, the review
@@ -1363,6 +1415,14 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `update.json`.
 - `test_answers.py`: saved Claude/ChatGPT answers (the asking itself is faked), and that
   contact sheets come out byte-for-byte the same each run.
+- `tests/support.py` also keeps a run from being lost (1.18.85, 2026-11-13, after two were):
+  the collector is off and runs on the main thread after each test, because Tk objects of a
+  closed window let go on a worker thread stop Python ("Tcl_AsyncDelete: async handler deleted
+  by the wrong thread"); every `tkinter.messagebox` box is a quiet stand-in that answers
+  no/OK and is listed in `support.BOXES_SHOWN`, so a box nobody expected can't hold the run
+  until someone clicks (the freeze note's "send it in?" at the next start did); and
+  `CLEANVIEW_ONLINE` is "1". Scratch scripts that open the real window for a screenshot must
+  `import support` first too: one without it saved Dark into this PC's real settings.
 - When fixing a bug, add a test that fails before the fix, and run the suite before every
   release.
 

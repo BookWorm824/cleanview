@@ -545,6 +545,30 @@ def parse_srt(text):
     return cues
 
 
+# Whether the internet can be reached, asked before a clean starts so she can be told there'll
+# be no looking for subtitles online (the owner, 2026-11-13: "if there s no internet connected
+# could it pop up a small window saying no internet, cant look up subtitles. want to clean
+# without them?"). Places CleanView already talks to: its updates, and a subtitle site.
+ONLINE_HOSTS = (("raw.githubusercontent.com", 443), ("www.opensubtitles.org", 443))
+NO_INTERNET = "there was no internet connection to look for them"
+
+
+def online(timeout=1.5):
+    """True if one of ONLINE_HOSTS answers. A connection is opened and closed; nothing is
+    sent. CLEANVIEW_ONLINE "1" or "0" answers without trying (the tests use no internet)."""
+    forced = os.environ.get("CLEANVIEW_ONLINE")
+    if forced in ("0", "1"):
+        return forced == "1"
+    import socket
+    for host in ONLINE_HOSTS:
+        try:
+            socket.create_connection(host, timeout=timeout).close()
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def fetch_subtitles(path, info, work, o, log=print):
     """The subtitles: a matching .srt or a text track (find_subtitles), else (if "find
     subtitles online" is on) ones downloaded before, or a download now unless none were online
@@ -560,6 +584,8 @@ def fetch_subtitles(path, info, work, o, log=print):
     if dl.exists():
         text, why = (dl.read_text("utf8", "replace"),
                      (work / _lang_file("downloaded.txt")).read_text("utf8"))
+    elif o.get("offline"):            # she chose to clean without (no internet just now)
+        why = NO_INTERNET
     elif not remembered_miss(miss):
         try:
             text, why = download_subtitles(path, work, log)
@@ -1884,6 +1910,55 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"energy|power|devices?))|vampiric|vampirism|dracula|nosferatu|"
                            r"the undead|werewol(f|ves|f's)|lycanthrop\w*|wolf ?m[ae]n)\b", re.I),
 }
+
+# "stripper" is a person or a tool (the owner, 2026-11-13, in the CleanListen session, for
+# every app: "read the context. like a paint stripper would be ok. but a person stripper
+# isnt. a pole by itself is fine but with stripper it isn't"). The same words as CleanListen's
+# stripper_tool: a tool or chemical when the next word is one of STRIPPER_NEXT, the word
+# before one of STRIPPER_BEFORE, or one of STRIPPER_THINGS is among the 3 words before or the
+# 5 after. "stripper pole" is never the tool.
+STRIPPER_NEXT = {"clip", "clips", "well", "wells"}
+STRIPPER_BEFORE = {"asset", "weed", "tobacco", "cotton"}
+STRIPPER_THINGS = {
+    "paint", "paints", "painted", "paintwork", "varnish", "varnished", "lacquer", "enamel",
+    "stain", "shellac", "finish", "coating", "sealer", "sealant", "wax", "polish", "wallpaper",
+    "glue", "adhesive", "rust", "wire", "wires", "wiring", "cable", "cables", "insulation",
+    "floor", "floors", "floorboards", "furniture", "woodwork", "chemical", "chemicals",
+    "solvent", "solvents", "scraper", "sandpaper", "sander", "sanding", "sanded", "brush",
+    "brushed", "pliers", "cutters", "crimper", "toolbox", "hardware"}
+
+
+def stripper_tool(text, m):
+    """Whether this find of the sexual-references list is "stripper" the tool or chemical."""
+    found = m.group(0).lower()
+    if not found.startswith("stripper") or found.rstrip("s").endswith("pole"):
+        return False
+    before = re.findall(r"[a-z']+", text[:m.start()].lower())[-3:]
+    rest = text[m.end():].lower()
+    rest = re.sub(r"^[a-z']+", "", rest)              # the end of this word: "stripper's"
+    after = re.findall(r"[a-z']+", rest)[:5]
+    return bool((after and after[0] in STRIPPER_NEXT) or (before and before[-1] in STRIPPER_BEFORE)
+                or STRIPPER_THINGS.intersection(before + after))
+
+
+class Listed:
+    """A filter's short list of phrases: its pattern, with the finds that are innocent where
+    they stand left out (innocent(text, match)). Used like the pattern itself."""
+
+    def __init__(self, pattern, innocent):
+        self.rx, self.innocent = pattern, innocent
+
+    def finditer(self, text, *a):
+        return (m for m in self.rx.finditer(text, *a) if not self.innocent(text, m))
+
+    def search(self, text, *a):
+        return next(self.finditer(text, *a), None)
+
+    def __getattr__(self, name):
+        return getattr(self.rx, name)
+
+
+LINE_WORDS["sexref"] = Listed(LINE_WORDS["sexref"], stripper_tool)
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
               "disrespect": "Disrespect",
               "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
@@ -3775,7 +3850,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 tried_before = NEIGHBOUR_LOOKUP in tried.read_text("utf8", "replace")
             except OSError:
                 tried_before = False
-            if not tried_before:
+            if not tried_before and not o.get("offline"):
                 tried.write_text(f"{why}\n{NEIGHBOUR_LOOKUP}\n", encoding="utf8")
 
                 def others():

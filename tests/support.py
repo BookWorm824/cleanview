@@ -27,10 +27,51 @@ os.environ.pop("CLEANVIEW_RESUME", None)
 # at its own little server; anything else goes nowhere.
 NO_INBOX = "http://127.0.0.1:9/exec"
 os.environ["CLEANVIEW_INBOX"] = NO_INBOX
+# "Is there internet?" (Start cleaning asks): yes, without trying. A test that wants no
+# internet sets it to "0".
+os.environ["CLEANVIEW_ONLINE"] = "1"
 APP_DATA = SANDBOX / "CleanView"
 (APP_DATA / "learned").mkdir(parents=True)
 sys.path.insert(0, str(ROOT))
 atexit.register(shutil.rmtree, SANDBOX, ignore_errors=True)
+
+
+# Windows that tests have closed are let go here, on the main thread, after each test. Left to
+# Python's collector they could be let go while a worker thread was running, and Tk stops
+# Python outright when that happens ("Tcl_AsyncDelete: async handler deleted by the wrong
+# thread": a whole run was lost to it, 2026-11-13).
+import gc  # noqa: E402
+import unittest  # noqa: E402
+
+gc.disable()
+_run_test = unittest.TestCase.run
+
+
+def _run_then_collect(self, result=None):
+    try:
+        return _run_test(self, result)
+    finally:
+        gc.collect()
+
+
+unittest.TestCase.run = _run_then_collect
+
+
+# No test ever waits on a real message box. A test that cares what a box says puts its own
+# stand-in in (and puts this one back after). Without this, a box nobody expected stopped the
+# whole run until someone clicked it: for one, CleanView asks at its next start whether to
+# send in a note when a window went 20 seconds without answering, which a slow test can do.
+import tkinter.messagebox as _boxes  # noqa: E402
+
+BOXES_SHOWN = []          # (kind, message) of every box a test let through to here
+
+for _kind, _answer in (("showinfo", "ok"), ("showwarning", "ok"), ("showerror", "ok"),
+                       ("askyesno", False), ("askokcancel", False), ("askyesnocancel", None),
+                       ("askretrycancel", False), ("askquestion", "no")):
+    def _quiet(title=None, message=None, _kind=_kind, _answer=_answer, **options):
+        BOXES_SHOWN.append((_kind, message))
+        return _answer
+    setattr(_boxes, _kind, _quiet)
 
 
 def old_learned():
