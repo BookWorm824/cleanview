@@ -319,6 +319,22 @@ def short(name, n=60):
     return name if len(name) <= n else name[:n - 1] + "…"
 
 
+def no_room(ex):
+    """The save failed because the drive is full (Windows' error 112, or ffmpeg's "No space
+    left on device", which engine.render raises as error 28)."""
+    return isinstance(ex, OSError) and (getattr(ex, "winerror", None) == 112 or ex.errno == 28)
+
+
+def her_fix(ex):
+    """A save that failed for something on the PC she can put right herself: a full drive, a
+    drive that can't hold a file this big, a file open in a player or a folder she can't
+    write to. She's told what to do; there's nothing to send in."""
+    return (no_room(ex) or isinstance(ex, PermissionError)
+            or getattr(ex, "winerror", None) in (5, 32, 33)
+            or str(ex).startswith(("The drive the clean copy goes to can't hold",
+                                   "CleanView wasn't allowed to write")))
+
+
 ICON = Path(__file__).resolve().parent / "cleanview.ico"
 NO_INTERNET_ASK = ("There's no internet connection, so CleanView can't look for subtitles "
                    "online.\n\nVideos that have their own subtitles will still use them.\n\n"
@@ -2191,6 +2207,8 @@ class App(tk.Tk):
                 elif "error" in msg:
                     error = (msg.get("raw") or msg["error"]) if msg.get("video_error") else \
                         f"{Path(j['video']).name}: {msg['error']}"
+                    # (the video's own trouble, like copy protection: nothing to send in)
+                    j["video_error"] = bool(msg.get("video_error"))
                     failed(k, error, f"{j['video']}\n\n{msg.get('details', '')}")
                 elif "exit" in msg:
                     if k in procs:
@@ -2281,8 +2299,10 @@ class App(tk.Tk):
                 except Exception as ex:     # carry on with the other episodes
                     details = f"{j['video']}\n\n{traceback.format_exc()}"
                     save_details(details)
-                    self._save_failures.append(details)
-                    failed.append(f"{Path(j['video']).name}: {plain_error(ex)}")
+                    if not her_fix(ex):     # (what she can put right isn't sent in)
+                        self._save_failures.append(details)
+                    why = self._no_room_said() if no_room(ex) else plain_error(ex)
+                    failed.append(f"{Path(j['video']).name}: {why}")
                     put(("job", k, "failed", failed[-1], details))
             put(("rendered", results, failed))
         except KeyboardInterrupt:
@@ -2505,6 +2525,63 @@ class App(tk.Tk):
                                "up where I left off” on the start page to try these again.")
         self.show_done(results, keep_review=True)
 
+    def _no_room_said(self):
+        """Why a save failed when the drive filled up, with how much is free there and what
+        to do (the owner, 2026-11-13: "i was saving a file before and i didnt have enough
+        storage but didn't know cause it only failed but didn't say why")."""
+        folder = os.path.normpath(self._save_folder() or "")
+        free = engine.free_space(folder) if folder else None
+        room = f" Only {fmt_bytes(free)} is free there." if free is not None else ""
+        return (f"There isn't enough room on the drive it's being saved to ({folder}).{room} "
+                "Free up some space, or use \u201cChange\u2026\u201d beside Save clean copy "
+                "to save it somewhere else.")
+
+    def _tell_check_failed(self, bad):
+        """Say which videos couldn't be watched and listened to, and offer to send in what
+        went wrong, as a failed save and a crash already do (the owner, 2026-11-13: "if
+        clean view crashes or has a save issue. is that sent to you someway?", then "yes"
+        to adding this one). Not offered when it's only the video's own trouble (copy
+        protection, no sound) or there's no inbox: then it's the box with the details file."""
+        text = ("These couldn't be cleaned and will be skipped:\n\n" +
+                "\n\n".join(j["error"] for j in bad))
+        details = "\n\n----------\n\n".join(j.get("details") or j["error"] for j in bad)
+        if all(j.get("video_error") for j in bad) or not learn.send_url():
+            self._problem(text, details)
+            return
+        save_details(details)
+        chime()
+        if not messagebox.askyesno(
+                "CleanView ran into a problem", text + "\n\nSend a note about what went "
+                "wrong, so it can be fixed? It has the video's name and the error. No video or "
+                "sound.", icon="error", parent=self):
+            return
+        o = getattr(self, "scan_opts", None) or {}
+        path = APP_DATA / f"CleanView couldn't check {time.strftime('%Y-%m-%d %H-%M')}.json"
+        try:
+            path.write_text(json.dumps(
+                {"app": "CleanView", "version": _app_version(),
+                 "what": "couldn't check a video",
+                 "note": details.replace(str(Path.home()), "~"),
+                 "videos": len(self.jobs), "failed": len(bad),
+                 "settings": {k: o.get(k) for k in ("reader", "ai", "look", "language",
+                                                    "offline", "profile")}}, indent=1),
+                encoding="utf8")
+        except OSError:
+            return
+
+        def go():
+            try:
+                learn.send(path, "problem")
+                self.q.put(("call", lambda: messagebox.showinfo(
+                    "CleanView", "Sent. Thank you!", parent=self)))
+            except Exception as ex:
+                save_details(f"Sending {path}\n\n{traceback.format_exc()}")
+                why = plain_error(ex)
+                self.q.put(("call", lambda: self._send_by_hand(
+                    path, f"Couldn't send it ({why[:1].lower() + why[1:].rstrip('.')}). "
+                          f"Check the internet connection.\n\n")))
+        threading.Thread(target=go, daemon=True).start()
+
     def _tell_save_failed(self, text):
         """Say what couldn't be saved, and offer to send in what went wrong (Jason,
         2026-11-07: Snow White failed four times at about the same spot, and nobody
@@ -2543,9 +2620,7 @@ class App(tk.Tk):
     def after_analyze(self):
         bad = [j for j in self.jobs if j["error"]]
         if bad:
-            details = "\n\n----------\n\n".join(j.get("details") or j["error"] for j in bad)
-            self._problem("These couldn't be cleaned and will be skipped:\n\n" +
-                          "\n\n".join(j["error"] for j in bad), details)
+            self._tell_check_failed(bad)
         good = [j for j in self.jobs if j["analysis"]]
         if not good:
             self.show_setup()

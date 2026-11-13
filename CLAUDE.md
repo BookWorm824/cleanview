@@ -347,6 +347,25 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- A video that fails while it's checked offers to send a note (1.18.87, 2026-11-13; the owner:
+  "if clean view crashes or has a save issue. is that sent to you someway? is it in any report
+  you would get?", and "yes" to adding the one case that wasn't offered). What reaches the
+  inbox, always only on her Yes and with internet (kind "problem", the Drive folder "CleanView
+  learned"): "CleanView closed suddenly ..." and "CleanView stopped responding ..." (asked at
+  the next start, `_offer_problem_note`), "CleanView couldn't save ..." (`_tell_save_failed`),
+  and now "CleanView couldn't check ..." (`_tell_check_failed`, from `after_analyze`: the
+  error and traceback or worker log of each failed video with the home folder as "~", how many
+  failed, and reader / ai / look / language / offline / profile). Not offered when every
+  failure is the video's own (`video_error`: copy protection, no sound) or there's no inbox:
+  then the old box with the details file. The report file and "Send what we refined" never
+  mention problems (a failed video has neither), and nothing is sent by itself.
+  A save that fails says why and what to do (the owner: "i was saving a file before and i
+  didnt have enough storage but didn't know cause it only failed but didn't say why"; since
+  1.18.24-1.18.25 a full drive was said plainly and the room was checked before saving, so
+  hers was likely before that or with "save it there anyway"). A full drive (`no_room`) now
+  says where, how much is free and to use "Change..." (`_no_room_said`); and for what she
+  can put right herself (`her_fix`: full drive, a 4 GB drive, a file open in a player, a
+  folder she can't write to) no "send a note?" is asked, only the reason.
 - CleanView says "AI", not "Claude" (1.18.86, 2026-11-13; the owner: "Not in the Claud, chat,
   gemini section, but everywhere else in clean view, instead of saying "claude" say "Ai"").
   Step 3 (the AI helper: the cards, the sign-in lines) and the messages that send her there
@@ -1261,6 +1280,12 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   everyday look-alikes left alone (un baiser, la ferme, pique-nique, Homo sapiens, elle est
   mince), Quebec's swears, French .srt files and sound track; real French heard with
   `CLEANVIEW_TEST_MULTI`.
+- `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
+  free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_check_failed.py`: a video that failed while checked asks once, with the reason; Yes
+  writes the note (no home folder in it) and sends it as a problem, No sends nothing; a
+  copy-protected video alone, or no inbox, gets the old box; a send that fails keeps the file
+  and says where it is.
 - `test_say_ai.py`: older notes and labels shown the new way (a name at the start, after by /
   Asked / per; nothing else touched), the steps still told apart, the review page naming none
   of the three for each of them while a character called Claude keeps his name, which one it

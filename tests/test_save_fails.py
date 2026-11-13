@@ -133,5 +133,90 @@ class OfferToSendIt(unittest.TestCase):
         self.assertEqual(said, ["The clean copy couldn't be saved."])
 
 
+class NoRoom(unittest.TestCase):
+    """A save that fails for lack of room says so (1.18.87; the owner, 2026-11-13: "i was saving
+    a file before and i didnt have enough storage but didn't know cause it only failed but
+    didn't say why")."""
+
+    def test_what_counts_as_a_full_drive(self):
+        self.assertTrue(ui.no_room(OSError(28, "No space left on device: av_interleaved_write")))
+        full = OSError(28, "There is not enough space on the disk")
+        full.winerror = 112
+        self.assertTrue(ui.no_room(full))
+        self.assertFalse(ui.no_room(RuntimeError("Couldn't save the clean copy of x.mp4")))
+        self.assertFalse(ui.no_room(PermissionError(13, "Permission denied")))
+
+    def test_what_she_can_put_right_herself(self):
+        self.assertTrue(ui.her_fix(OSError(28, "No space left on device")))
+        self.assertTrue(ui.her_fix(PermissionError(13, "Permission denied")))
+        self.assertTrue(ui.her_fix(RuntimeError(
+            "The drive the clean copy goes to can't hold a file this big (it only takes files "
+            "up to 4 GB). Save it to another drive:\nlibx264: File too large")))
+        self.assertTrue(ui.her_fix(RuntimeError(
+            "CleanView wasn't allowed to write the clean copy there. It may be open in a video "
+            "player:\nlibx264: Permission denied")))
+        self.assertFalse(ui.her_fix(RuntimeError("Couldn't save the clean copy of x.mp4:\n...")))
+        self.assertFalse(ui.her_fix(KeyError("lines")))
+
+    def test_says_where_how_much_is_free_and_what_to_do(self):
+        win = types.SimpleNamespace(_save_folder=lambda: "E:/Movies/Clean")
+        with mock.patch.object(ui.engine, "free_space", lambda folder: 350 * 1024 ** 2):
+            said = ui.App._no_room_said(win)
+        self.assertIn("There isn't enough room on the drive", said)
+        self.assertIn("Movies", said)
+        self.assertIn("Only 350 MB is free there.", said)
+        self.assertIn("Change", said)
+        with mock.patch.object(ui.engine, "free_space", lambda folder: None):     # can't tell
+            self.assertNotIn("is free there", ui.App._no_room_said(win))
+
+    def save(self, error):
+        """The saving step with a save that fails this way: (what she's told, what's kept to
+        send in)."""
+        out = []
+        win = types.SimpleNamespace(
+            jobs=[{"video": r"D:\Shows\Castle S01E01.mp4", "analysis": {"x": 1}, "work": "w",
+                   "cuts": [], "lines": [], "words": None, "quiet": None}],
+            outdir="E:/Clean", cancel_flag=False, run=0, _save_failures=["an older one"],
+            q=types.SimpleNamespace(put=out.append), _no_room_said=lambda: "No room. Do this.")
+
+        def fails(*a, **k):
+            raise error
+        with mock.patch.object(ui.engine, "render", fails), \
+                mock.patch.object(ui, "save_details", lambda text: None):
+            ui.App._render_now(win, 0)
+        failed = next(m[2][2] for m in out if m[2][0] == "rendered")
+        return failed, win._save_failures
+
+    def test_a_full_drive_is_told_plainly_and_not_sent_in(self):
+        failed, to_send = self.save(OSError(28, "No space left on device: writing trailer"))
+        self.assertEqual(failed, ["Castle S01E01.mp4: No room. Do this."])
+        self.assertEqual(to_send, [])                     # nothing to offer to send
+
+    def test_a_file_open_in_a_player_is_told_and_not_sent_in(self):
+        locked = PermissionError(13, "Permission denied")
+        failed, to_send = self.save(locked)
+        self.assertIn("open in another program", failed[0])
+        self.assertEqual(to_send, [])
+
+    def test_an_unexpected_failure_is_still_offered(self):
+        failed, to_send = self.save(RuntimeError("Couldn't save the clean copy of Castle "
+                                                 "S01E01.mp4:\nlibx264: Error while decoding"))
+        self.assertIn("Couldn't save the clean copy", failed[0])
+        self.assertEqual(len(to_send), 1)
+        self.assertIn("Error while decoding", to_send[0])
+
+    def test_with_nothing_to_send_shes_only_told(self):
+        said, asked = [], []
+        win = types.SimpleNamespace(_save_failures=[])
+        with mock.patch.object(ui.learn, "send_url", lambda: "https://example.invalid"), \
+                mock.patch.object(ui.messagebox, "showwarning",
+                                  lambda t, m, **k: said.append(m)), \
+                mock.patch.object(ui.messagebox, "askyesno",
+                                  lambda *a, **k: asked.append(a) or True):
+            ui.App._tell_save_failed(win, "The clean copy couldn't be saved:\n\nx.mp4: No room.")
+        self.assertEqual(len(said), 1)
+        self.assertEqual(asked, [])
+
+
 if __name__ == "__main__":
     unittest.main()
