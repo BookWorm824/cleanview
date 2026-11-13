@@ -29,8 +29,52 @@ BUTTON_EDGE = "#B9AFA2"
 # the step-by-step look (1.18.77): the list of steps, tints, soft panels, quieter words
 SIDE, TINT, SOFT, FAINT = "#EFEAE2", "#EAF2EF", "#FBFAF7", "#A39C93"
 HEAD = "Segoe UI Semibold" if os.name == "nt" else "DejaVu Sans"
-look.use(bg=BG, card=CARD, ink=INK, muted=MUTED, accent=ACCENT, accent_dk=ACCENT_DK, line=LINE,
-         side=SIDE, tint=TINT, soft=SOFT, faint=FAINT)
+# Light and dark (1.18.78; the owner, 2026-11-13: "how hard would it be to add a dark mode",
+# "yes it should be optional", "just light dark button option. no windows choice"). Every
+# colour the window uses has a name here and a value for each look; `use_theme` sets the
+# module's names (BG, CARD, ...) and the drawn pieces' colours, so code that builds a page
+# always reads the look in use. Never write a colour as a literal in a page: name it here.
+LIGHT = dict(
+    BG="#F6F3EE", CARD="#FFFFFF", INK="#23211F", MUTED="#6D6862", ACCENT="#2F6F62",
+    ACCENT_DK="#24574D", LINE="#E3DED6", BUTTON_EDGE="#B9AFA2", SIDE="#EFEAE2", TINT="#EAF2EF",
+    SOFT="#FBFAF7", FAINT="#A39C93",
+    NOTE="#FFF4EC", NOTE_EDGE="#EBCDB8", NOTE_INK="#C2581F",     # a note box, its edge, its heading
+    DISABLED="#A9C2BC", GREY="#ECE7E0", GREY_HOVER="#E0D9CF", TROUGH="#E6E1DA",
+    PLAIN_DIM="#F4F1EC", PLAIN_EDGE="#D9D2C7", RING="#CFC6B8", SOFT_EDGE="#DCD4C7",
+    WARN="#B5523B", WORD_BG="#F3E3DF", WORD_INK="#8A3B2E", SHADE="#FAF8F5",
+    SAY_REMOVE="#8E2B2B", SAY_FINE="#2E7D4F", SAY_WORD="#A0663A",
+    PIECES=dict(off="#D8D1C6", some="#8FB5AC", tick_off="#FFFFFF", tick_edge="#9C958B",
+                dim_fill="#F1EEEA", dim_edge="#CFC9C1", dim_on="#A9C2BC", bar="#D3CBC0",
+                bar_hover="#B7AEA2"))
+DARK = dict(
+    BG="#1B1C1E", CARD="#27292C", INK="#ECE9E4", MUTED="#A39E96", ACCENT="#3F9482",
+    ACCENT_DK="#4FA896", LINE="#3A3D41", BUTTON_EDGE="#4C4F54", SIDE="#141517", TINT="#20332E",
+    SOFT="#202225", FAINT="#7C7872",
+    # not brown in the dark look (she didn't like it round "Pick up where I left off")
+    NOTE="#20332E", NOTE_EDGE="#33574E", NOTE_INK="#8FD3C2",
+    DISABLED="#33504A", GREY="#303236", GREY_HOVER="#3B3E43", TROUGH="#35383C",
+    PLAIN_DIM="#2B2D31", PLAIN_EDGE="#4C4F54", RING="#585B61", SOFT_EDGE="#46494E",
+    WARN="#F28D76", WORD_BG="#4C2B27", WORD_INK="#F2AA9A", SHADE="#2B2D31",
+    SAY_REMOVE="#F0907E", SAY_FINE="#72C691", SAY_WORD="#E3A784",
+    PIECES=dict(off="#4C4F54", some="#35675C", tick_off="#27292C", tick_edge="#7A7E85",
+                dim_fill="#2B2D31", dim_edge="#4C4F54", dim_on="#33504A", bar="#4C4F54",
+                bar_hover="#63676E"))
+THEME = "light"
+
+
+def use_theme(name):
+    """Light or dark: sets every colour name in this module and the drawn pieces' colours.
+    Pages built after this are in that look."""
+    global THEME
+    THEME = "dark" if name == "dark" else "light"
+    pal = DARK if THEME == "dark" else LIGHT
+    globals().update({k: v for k, v in pal.items() if k != "PIECES"})
+    look.use(bg=BG, card=CARD, ink=INK, muted=MUTED, accent=ACCENT, accent_dk=ACCENT_DK,
+             line=LINE, side=SIDE, tint=TINT, soft=SOFT, faint=FAINT, disabled=DISABLED,
+             **pal["PIECES"])
+
+
+use_theme("light")
 NEXT_TO_VIDEO = "A “Clean” folder next to the video"
 CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Disturbing": "#5E3A6E", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Medical": "#7A4A4A", "Smoking": "#5D6470", "Drinking": "#5D6470",
@@ -115,17 +159,18 @@ def wrap_width(px):
 
 
 AI_NAME = "Claude"      # whichever online AI did the review (Claude, ChatGPT or Gemini)
-CLAUDE_SAYS = {"remove": ("mute the whole line", "#8E2B2B"),
-               "not an issue": ("not an issue", "#2E7D4F"),
-               "just the word": ("mute just the word", "#A0663A"),
-               "can't tell": ("can't tell", "#6D6862")}
+CLAUDE_SAYS = {"remove": ("mute the whole line", "SAY_REMOVE"),      # (the colours by name:
+               "not an issue": ("not an issue", "SAY_FINE"),           # light or dark)
+               "just the word": ("mute just the word", "SAY_WORD"),
+               "can't tell": ("can't tell", "MUTED")}
 
 
 def claude_note(item, on=None):
     c = item.get("claude")
     if not c:
         return None, None
-    head, col = CLAUDE_SAYS.get(c.get("decision"), ("", "#6D6862"))
+    head, col = CLAUDE_SAYS.get(c.get("decision"), ("", "MUTED"))
+    col = globals()[col]
     if c.get("decision") == "remove" and not item.get("text"):     # a scene or a word
         head = "cut" if "kind" in item else "mute"
     head = AI_NAME + ": " + head
@@ -284,7 +329,10 @@ class App(tk.Tk):
         _text_scale = TEXT_SIZES[self.text_size]
         self.tk.call("tk", "scaling", self._base_scaling * _text_scale)
         self._fit_window()
+        self.theme = "dark" if self._load_settings().get("theme") == "dark" else "light"
+        use_theme(self.theme)
         self.configure(bg=BG)
+        self.after(80, self._title_bar)
         try:
             self.iconbitmap(str(Path(__file__).resolve().parent / "cleanview.ico"))
         except Exception:
@@ -358,10 +406,10 @@ class App(tk.Tk):
         if self.upd_bar is not None and self.upd_bar.winfo_exists():
             self.upd_lbl.config(text=f"A new version of CleanView ({ver}) is ready.")
             return
-        bar = tk.Frame(self, bg="#E3EFEC")
+        bar = tk.Frame(self, bg=TINT)
         bar.pack(side="top", fill="x", before=self.page)
         self.upd_lbl = tk.Label(bar, text=f"A new version of CleanView ({ver}) is ready.",
-                                bg="#E3EFEC", fg=ACCENT_DK, font=(FONT, 10), padx=12, pady=6)
+                                bg=TINT, fg=ACCENT_DK, font=(FONT, 10), padx=12, pady=6)
         self.upd_lbl.pack(side="left")
         self.upd_btn = ttk.Button(bar, text="Update now (keeps your place)", style="Small.TButton",
                                   command=self.update_now)
@@ -510,31 +558,31 @@ class App(tk.Tk):
         self._tick_boxes(s)
         s.configure("Accent.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 12, "bold"), padding=(22, 10), borderwidth=0)
-        s.map("Accent.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
+        s.map("Accent.TButton", background=[("active", ACCENT_DK), ("disabled", DISABLED)])
         # Each page's main step is the big green button, bottom right (Start cleaning, Save
         # clean copy, Clean another); a first step is a smaller green one (Choose files…).
         # Grey ones have an edge, so they read as buttons, not part of the page.
         s.configure("Go.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 11, "bold"), padding=(16, 7), borderwidth=0)
-        s.map("Go.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
+        s.map("Go.TButton", background=[("active", ACCENT_DK), ("disabled", DISABLED)])
         # Choose files, a fifth bigger than the other first steps (1.18.75)
         s.configure("Choose.TButton", background=ACCENT, foreground="white",
                     font=(FONT, 13, "bold"), padding=(20, 9), borderwidth=0)
-        s.map("Choose.TButton", background=[("active", ACCENT_DK), ("disabled", "#A9C2BC")])
-        edge = {"bordercolor": BUTTON_EDGE, "lightcolor": "#ECE7E0", "darkcolor": "#ECE7E0"}
-        s.configure("Plain.TButton", background="#ECE7E0", foreground=INK, padding=(14, 6),
+        s.map("Choose.TButton", background=[("active", ACCENT_DK), ("disabled", DISABLED)])
+        edge = {"bordercolor": BUTTON_EDGE, "lightcolor": GREY, "darkcolor": GREY}
+        s.configure("Plain.TButton", background=GREY, foreground=INK, padding=(14, 6),
                     borderwidth=1, font=(FONT, 10), **edge)
-        s.map("Plain.TButton", background=[("active", "#E0D9CF")])
-        s.configure("Small.TButton", background="#ECE7E0", foreground=INK, padding=(10, 3),
+        s.map("Plain.TButton", background=[("active", GREY_HOVER)])
+        s.configure("Small.TButton", background=GREY, foreground=INK, padding=(10, 3),
                     borderwidth=1, font=(FONT, 9), **edge)
-        s.map("Small.TButton", background=[("active", "#E0D9CF")])
-        s.configure("Green.Horizontal.TProgressbar", troughcolor="#E6E1DA",
-                    background=ACCENT, bordercolor="#E6E1DA", lightcolor=ACCENT, darkcolor=ACCENT)
+        s.map("Small.TButton", background=[("active", GREY_HOVER)])
+        s.configure("Green.Horizontal.TProgressbar", troughcolor=TROUGH,
+                    background=ACCENT, bordercolor=TROUGH, lightcolor=ACCENT, darkcolor=ACCENT)
         # The drawn look for the ttk widgets too (1.18.77): rounded buttons (green ones
         # filled, the others white with a soft edge), tabs as pills, thin scroll bars, a
         # rounded progress bar, and white fields that turn green at the edge when typed in.
-        green = (ACCENT, ACCENT_DK, "#A9C2BC", None, "#FFFFFF")
-        white = (CARD, TINT, "#F4F1EC", "#D9D2C7", FAINT)
+        green = (ACCENT, ACCENT_DK, DISABLED, None, "#FFFFFF")
+        white = (CARD, TINT, PLAIN_DIM, PLAIN_EDGE, FAINT)
         look.round_buttons(self, {"Accent.TButton": green, "Go.TButton": green,
                                   "Choose.TButton": green, "Plain.TButton": white,
                                   "Small.TButton": white})
@@ -542,6 +590,10 @@ class App(tk.Tk):
         look.style_tabs(self, s)
         look.style_progress(self, s, "Green.Horizontal.TProgressbar", bg=CARD)
         look.style_fields(s)
+        for what, colour in (("background", CARD), ("foreground", INK),
+                             ("selectBackground", TINT), ("selectForeground", INK)):
+            self.option_add(f"*TCombobox*Listbox.{what}", colour)
+        self.option_add("*Text.insertBackground", INK)
         s.configure("Treeview", background=CARD, fieldbackground=CARD, bordercolor=LINE,
                     lightcolor=CARD, darkcolor=CARD, borderwidth=1)
         s.configure("Treeview.Heading", background=SIDE, foreground=MUTED, relief="flat",
@@ -589,10 +641,11 @@ class App(tk.Tk):
                                                                       pady=(X(4), X(14)))
         return self.page
 
-    def _round_card(self, parent, before=None, fill=CARD, edge=LINE, pad=(16, 12)):
+    def _round_card(self, parent, before=None, fill=None, edge=None, pad=(16, 12)):
         """A rounded card on a scrolling page (a scene, the lines, the words); returns the
         frame to put things in."""
-        card = look.Card(parent, fill=fill, edge=edge, radius=12, pad=pad)
+        card = look.Card(parent, fill=fill or CARD, edge=LINE if edge is None else edge,
+                         radius=12, pad=pad)
         if before is not None:
             card.pack(fill="x", padx=self._px(8), pady=self._px(6), before=before)
         else:
@@ -726,7 +779,7 @@ class App(tk.Tk):
                 badge.set(icon="check", text=None, fill=ACCENT, fg="#FFFFFF", edge=None)
             else:
                 badge.set(icon=None, text=str(i), fill=card.fill,
-                          fg=ACCENT if current else MUTED, edge=ACCENT if current else "#CFC6B8")
+                          fg=ACCENT if current else MUTED, edge=ACCENT if current else RING)
             name.config(fg=INK if current else MUTED)
             summary.config(text=short(self._step_summary(i), 28))
 
@@ -736,6 +789,38 @@ class App(tk.Tk):
             m.add_command(label=("✓ " if name == self.text_size else "    ") + name,
                           command=lambda n=name: self._set_text_size(n))
         m.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() - self._px(90))
+
+    def _set_theme(self, name):
+        """Light or dark, from the button under the steps: the start page is built again in
+        that look (as a new text size does), keeping the videos chosen and every tick."""
+        name = "dark" if name == "dark" else "light"
+        if name == self.theme:
+            return
+        self.theme = name
+        self._save_settings()               # the ticks, which the page is built from
+        use_theme(name)
+        self.configure(bg=BG)
+        self._style()                       # the ttk styles and tick boxes in that look
+        bar = self.upd_bar
+        if bar is not None and bar.winfo_exists():      # "a new version is ready"
+            for w in [bar] + [c for c in bar.winfo_children() if isinstance(c, tk.Label)]:
+                w.configure(bg=TINT)
+            self.upd_lbl.configure(fg=ACCENT_DK)
+        self._title_bar()
+        self.show_setup()
+
+    def _title_bar(self):
+        """The window's own title bar dark with the dark look (Windows 10 and 11). Where
+        Windows can't, nothing happens."""
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+            on = ctypes.c_int(1 if self.theme == "dark" else 0)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(on), 4)
+            # the bar is only drawn again when the frame changes: say it has
+            ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+        except Exception:
+            pass
 
     def show_setup(self):
         self.page_name = "setup"
@@ -800,6 +885,11 @@ class App(tk.Tk):
                   icon="refresh", size=9, fg=MUTED, bold=False).pack(anchor="w", pady=X(3))
         look.link(extras, "Send what CleanView learned…", self.share_learned, icon="send",
                   size=9, fg=MUTED, bold=False).pack(anchor="w", pady=X(3))
+        # light or dark (1.18.78)
+        self.theme_var = tk.StringVar(value=self.theme)
+        look.Segmented(extras, [("light", "Light"), ("dark", "Dark")], self.theme_var,
+                       command=lambda: self._set_theme(self.theme_var.get()), size=9,
+                       tray=LINE).pack(anchor="w", pady=(X(12), 0))
 
         # ----- the step itself, on the right
         main = tk.Frame(p, bg=BG)
@@ -827,11 +917,11 @@ class App(tk.Tk):
         except Exception:
             sess = None
         if sess and names:
-            box = look.Card(main, fill="#FFF6EF", edge="#EBCDB8", radius=12, pad=(16, 10))
+            box = look.Card(main, fill=NOTE, edge=NOTE_EDGE, radius=12, pad=(16, 10))
             box.pack(fill="x", pady=(0, X(14)))
             what = short(names[0], 40) + (f" and {len(names) - 1} more" if len(names) > 1 else "")
             tk.Label(box.body, text=f"Your last review isn't finished: {what}\n(saved "
-                     f"{sess['saved']})", bg="#FFF6EF", fg=INK, font=(FONT, 10),
+                     f"{sess['saved']})", bg=NOTE, fg=INK, font=(FONT, 10),
                      justify="left", anchor="w").pack(side="left")
 
             def pick_up(sess=sess):
@@ -866,7 +956,7 @@ class App(tk.Tk):
 
         # ----- step 1: the videos
         p1 = pane(1)
-        drop = look.Card(p1, fill=SOFT, edge="#DCD4C7", radius=16, pad=(20, 18))
+        drop = look.Card(p1, fill=SOFT, edge=SOFT_EDGE, radius=16, pad=(20, 18))
         drop.pack(fill="x", padx=(0, X(4)))
         look.Badge(drop.body, "folder", size=54, icon_size=20).pack(side="left")
         words = tk.Frame(drop.body, bg=SOFT)
@@ -1494,6 +1584,7 @@ class App(tk.Tk):
             keep = {k: v for k, v in self._current_opts().items() if k not in FILTER_KEYS}
             keep.update(open_sections=sorted(getattr(self, "_open_sections", ()) or ()))
             keep.update(save_to=getattr(self, "save_to", None))
+            keep.update(theme=getattr(self, "theme", "light"))
             keep.update(profile=self.profile, profiles=self.profiles, text_size=self.text_size,
                         at_once=getattr(self, "at_once", None) or
                         self._load_settings().get("at_once"))
@@ -1687,8 +1778,8 @@ class App(tk.Tk):
         self.show_working("Watching and listening…", can_stop=True)
         self._start_work(self._analyze_thread)
 
-    JOB_LOOK = {"wait": ("○", MUTED), "now": ("▶", ACCENT), "done": ("✓", ACCENT_DK),
-                "failed": ("!", "#B5523B"), "skipped": ("–", MUTED)}
+    JOB_LOOK = {"wait": ("○", "MUTED"), "now": ("▶", "ACCENT"), "done": ("✓", "ACCENT_DK"),
+                "failed": ("!", "WARN"), "skipped": ("–", "MUTED")}      # colours by name
 
     def show_working(self, title, videos=None, can_stop=False):
         """The progress page. videos: the files being worked on, listed with how each
@@ -1825,6 +1916,7 @@ class App(tk.Tk):
         rows = getattr(self, "job_rows", [])
         if 0 <= k < len(rows) and rows[k][0].winfo_exists():
             sym, col = self.JOB_LOOK[state]
+            col = globals()[col]
             rows[k][0].config(text=sym, fg=col)
             if state != "now":
                 self._job_note(k, "")
@@ -2475,11 +2567,11 @@ class App(tk.Tk):
                 tk.Label(inner, text=Path(j["video"]).name, bg=BG, fg=INK,
                          font=(FONT, 12, "bold"), anchor="w").pack(fill="x", padx=8, pady=(14, 0))
             if st.get("claude_summary"):
-                box = self._round_card(inner, fill="#FFF4EC", edge="#EBCDB8")
-                tk.Label(box, text=f"{st.get('reviewer') or AI_NAME}'s review", bg="#FFF4EC",
-                         fg="#C2581F",
+                box = self._round_card(inner, fill=NOTE, edge=NOTE_EDGE)
+                tk.Label(box, text=f"{st.get('reviewer') or AI_NAME}'s review", bg=NOTE,
+                         fg=NOTE_INK,
                          font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
-                tk.Label(box, text=st["claude_summary"], bg="#FFF4EC", fg=INK, font=(FONT, 10),
+                tk.Label(box, text=st["claude_summary"], bg=NOTE, fg=INK, font=(FONT, 10),
                          wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x")
                 cnt = st.get("claude_counts") or {}
                 if cnt.get("dropped") or cnt.get("added") or cnt.get("words"):
@@ -2487,7 +2579,7 @@ class App(tk.Tk):
                              f"{cnt.get('added', 0)} missed item(s)" +
                              (f"; {cnt['words']} line(s) now mute just the bad word"
                               if cnt.get("words") else "") +
-                             ". Anything you change yourself stays the way you set it.", bg="#FFF4EC", fg=MUTED, font=(FONT, 9),
+                             ". Anything you change yourself stays the way you set it.", bg=NOTE, fg=MUTED, font=(FONT, 9),
                              wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
             for note in st.get("notes", []):
                 tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
@@ -2585,7 +2677,7 @@ class App(tk.Tk):
         text = f"Saves to  {path}\nAbout {fmt_bytes(need)}"
         if free is not None:
             text += f"  ·  {fmt_bytes(free)} free there"
-        lbl.config(text=text, fg="#B5523B" if free is not None and free < room_needed(need)
+        lbl.config(text=text, fg=WARN if free is not None and free < room_needed(need)
                    else MUTED)
 
     def _change_save_folder(self):
@@ -2750,7 +2842,7 @@ class App(tk.Tk):
             tv.heading(col, text=txt)
             tv.column(col, width=w, anchor="center" if col == "mute" else "w",
                       stretch=(col == "line"))
-        tv.tag_configure("muted", background="#F3E3DF", foreground="#8A3B2E")
+        tv.tag_configure("muted", background=WORD_BG, foreground=WORD_INK)
         sb = ttk.Scrollbar(box, orient="vertical", command=tv.yview)
         tv.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
@@ -3084,9 +3176,10 @@ class App(tk.Tk):
         threading.Thread(target=go, daemon=True).start()
 
     # --- the CleanListen way of editing: text you can highlight, ask right under the item
-    def _sel_text(self, parent, text, width_chars=95, max_lines=6, bg="#FBFAF8", fg=INK):
+    def _sel_text(self, parent, text, width_chars=95, max_lines=6, bg=None, fg=None):
         """Read-only text you can highlight with the mouse (to point Claude at part of it)."""
-        t = tk.Text(parent, wrap="word", width=20, font=(FONT, 10), bg=bg, fg=fg, relief="flat",
+        t = tk.Text(parent, wrap="word", width=20, font=(FONT, 10), bg=bg or SHADE,
+                    fg=fg or INK, relief="flat",
                     padx=8, pady=4, borderwidth=0, highlightthickness=0,
                     height=max(1, min(max_lines, 1 + len(text) // width_chars)))
         t.insert("1.0", text)
@@ -3095,7 +3188,7 @@ class App(tk.Tk):
 
     def _answer_box(self, parent, it):
         if it.get("chat_answer"):
-            tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg="#EEF5F3", fg=ACCENT_DK,
+            tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg=TINT, fg=ACCENT_DK,
                      font=(FONT, 9), wraplength=wrap_width(680), justify="left", padx=8, pady=4,
                      anchor="w").pack(fill="x", pady=(6, 0))
 
@@ -3115,17 +3208,17 @@ class App(tk.Tk):
             return
         link._open = True
         t = engine.cl.fmt_t
-        box = tk.Frame(holder, bg="#EEF5F3", padx=8, pady=6)
+        box = tk.Frame(holder, bg=TINT, padx=8, pady=6)
         box.pack(fill="x", pady=(4, 0))
         hint = "Tip: highlight part of the text above first to point at it. " if txt is not None else ""
         tk.Label(box, text=hint + "e.g. \u201ckeep this\u201d, \u201cjust mute that word\u201d, "
-                 "\u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d", bg="#EEF5F3",
+                 "\u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d", bg=TINT,
                  fg=MUTED, font=(FONT, 8), wraplength=wrap_width(640), justify="left").pack(anchor="w")
-        row = tk.Frame(box, bg="#EEF5F3")
+        row = tk.Frame(box, bg=TINT)
         row.pack(fill="x", pady=(2, 0))
         entry = ttk.Entry(row)
         entry.pack(side="left", fill="x", expand=True)
-        box.reply = tk.Label(box, text="", bg="#EEF5F3", fg=ACCENT_DK, font=(FONT, 9),
+        box.reply = tk.Label(box, text="", bg=TINT, fg=ACCENT_DK, font=(FONT, 9),
                              wraplength=wrap_width(640), justify="left")
         box.item = it
         ref = self._item_ref(job, it)
@@ -3303,7 +3396,7 @@ class App(tk.Tk):
             v = tk.BooleanVar(value=not m.get("keep"))
             m["_shown"] = v.get()
             self.word_vars.append((v, job, m))
-            wrap = tk.Frame(card, bg=CARD if n % 2 == 0 else "#FAF8F5", padx=4, pady=2)
+            wrap = tk.Frame(card, bg=CARD if n % 2 == 0 else SHADE, padx=4, pady=2)
             wrap.pack(fill="x")
             row = tk.Frame(wrap, bg=wrap.cget("bg"))
             row.pack(fill="x")
@@ -3325,7 +3418,7 @@ class App(tk.Tk):
             line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
                            fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
                            cursor="arrow")
-            line.tag_configure("w", background="#F3E3DF", foreground="#8A3B2E",
+            line.tag_configure("w", background=WORD_BG, foreground=WORD_INK,
                                font=(FONT, 10, "bold"))
 
             def fill(t=line, m=m, after=after, revealed=False):
@@ -3529,15 +3622,15 @@ class App(tk.Tk):
         self.again_btn.pack(side="right")
 
         # what we refined, to send in so CleanView's built-in knowledge improves
-        help_card = look.Card(p, fill="#FFF4EC", edge="#EBCDB8", radius=14, pad=(6, 6))
+        help_card = look.Card(p, fill=NOTE, edge=NOTE_EDGE, radius=14, pad=(6, 6))
         help_card.pack(fill="x", pady=(self._px(22), 0))
         box = help_card.body
-        tk.Label(box, text="Help CleanView get better", bg="#FFF4EC", fg="#C2581F",
+        tk.Label(box, text="Help CleanView get better", bg=NOTE, fg=NOTE_INK,
                  font=(FONT, 10, "bold"), padx=12, pady=(8)).pack(anchor="w")
         tk.Label(box, text="Send in what was refined on this one (what was found, what the AI "
                  "said, what you changed and what you kept). It's added to the knowledge every "
                  "copy of CleanView starts with. No video or sound is in it.",
-                 bg="#FFF4EC", fg=INK, font=(FONT, 10), wraplength=wrap_width(700), justify="left",
+                 bg=NOTE, fg=INK, font=(FONT, 10), wraplength=wrap_width(700), justify="left",
                  padx=12).pack(anchor="w")
         ttk.Button(box, text="Send what we refined\u2026", style="Small.TButton",
                    command=self.export_refined).pack(anchor="w", padx=12, pady=(6, 10))

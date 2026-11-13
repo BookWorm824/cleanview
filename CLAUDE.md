@@ -347,6 +347,25 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Light and dark (1.18.78, 2026-11-13; the owner: "how hard would it be to add a dark mode",
+  "yes it should be optional", of a sample "i like the look. i dont like the brown around the
+  pickup where i left off", and "just light dark button option. no windows choice"). A Light /
+  Dark button under the steps on the start page (`theme_var`, `_set_theme`: the page is built
+  again in that look, as a new text size does, keeping the videos, the ticks and the step);
+  light is the look as it was and the default; the choice is kept as `theme` in the settings
+  and read before the window is drawn. Every colour the window uses has a name with a value
+  for each look (`LIGHT`, `DARK`; `use_theme(name)` sets the module's names, BG, CARD, INK...,
+  and the drawn pieces' colours, `look.use`, `PIECES`): never write a colour into a page, name
+  it there (`test_theme` checks; white on green is the one literal left). New names for what
+  were one-off colours: `NOTE`/`NOTE_EDGE`/`NOTE_INK` (the note boxes: cream and orange in
+  light, green-tinted in dark, not brown), `WARN`, `WORD_BG`/`WORD_INK` (a muted word or
+  row), `SHADE`, `DISABLED`, `RING`, `SOFT_EDGE`, `PLAIN_DIM`/`PLAIN_EDGE`, `SAY_*` (what the
+  AI said). Colours fixed when the program starts are looked up by name when used
+  (`CLAUDE_SAYS`, `JOB_LOOK`; no colour as a default argument). The ttk pieces' pictures are
+  drawn again in place for a new look (`look._same_images`: an element can't be made twice).
+  The title bar goes dark too where Windows can (`_title_bar`, DwmSetWindowAttribute 20). The
+  file chooser and question boxes are Windows' own and follow Windows. Wanted in CleanListen
+  and CleanRead with the new look.
 - A new look, step by step (1.18.77, 2026-11-13; the owner: "the ui also feels clunky and dated,
   can you make it feel classy (all of them)"; a repaint was "just ... changed colors", so two
   real layouts were mocked up and she chose "B, step by step", then "finish the ui upgrade").
@@ -1026,6 +1045,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_theme.py`: both looks name the same colours, light is the look as it was, dark sets
+  every name and the drawn pieces, dark text can be read, the note box isn't brown in dark, no
+  colour written into a page; the button changes the look, keeps her choices and step, is
+  remembered; every page builds in dark.
 - `test_hard_rule.py`: fart, condom and semen always removed (not farther, condo, seaman); the
   word muted wherever it's said with its box ticked, also in a line left alone and in
   detective or coroner lines with that box on or off; no AI or built-in lesson keeps them; a

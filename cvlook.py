@@ -25,11 +25,16 @@ ICONS = {"folder": "", "video": "", "check": "", "next": "",
          "mute": "", "eye": "", "heart": "", "warning": "",
          "health": "", "smile": "", "cup": "", "star": "",
          "music": "", "pc": "", "chat": "", "cloud": "",
-         "spark": "", "down": "", "close": "", "info": ""}
+         "spark": "", "down": "", "close": "", "info": "", "sun": "", "moon": ""}
 
 C = dict(bg="#F6F3EE", card="#FFFFFF", ink="#22201E", muted="#77716A", faint="#A39C93",
          line="#E6E0D7", accent="#2F6F62", accent_dk="#245A4F", tint="#EAF2EF",
          side="#EFEAE2", soft="#FBFAF7", off="#D8D1C6", some="#8FB5AC")
+
+
+# the smaller parts' colours, so a dark look can change them too
+C.update(tick_off="#FFFFFF", tick_edge="#9C958B", dim_fill="#F1EEEA", dim_edge="#CFC9C1",
+         dim_on="#A9C2BC", disabled="#A9C2BC", bar="#D3CBC0", bar_hover="#B7AEA2")
 
 
 def use(**colours):
@@ -119,10 +124,10 @@ def tick_image(n, gap, state, ink=None):
     """A tick box n pixels square (with a see-through gap after it): "off", "on", "off_dim",
     "on_dim" or "some" (a dash)."""
     w = n + gap
-    fill, edge, mark = {"off": ("#FFFFFF", "#9C958B", None),
+    fill, edge, mark = {"off": (C["tick_off"], C["tick_edge"], None),
                         "on": (C["accent"], C["accent"], "#FFFFFF"),
-                        "off_dim": ("#F1EEEA", "#CFC9C1", None),
-                        "on_dim": ("#A9C2BC", "#A9C2BC", "#FFFFFF"),
+                        "off_dim": (C["dim_fill"], C["dim_edge"], None),
+                        "on_dim": (C["dim_on"], C["dim_on"], "#FFFFFF"),
                         "some": (C["accent"], C["accent"], "#FFFFFF")}[state]
     r = n * 0.24
     rgb = np.zeros((n, w, 3))
@@ -191,7 +196,7 @@ class Pill(tk.Canvas):
     def _colours(self):
         k, hov, off = self._kind, self._hover, self._state == "disabled"
         if k == "primary":
-            fill = "#A9C2BC" if off else C["accent_dk"] if hov else C["accent"]
+            fill = C["disabled"] if off else C["accent_dk"] if hov else C["accent"]
             return fill, None, "#FFFFFF"
         if k == "secondary":
             return (C["tint"] if hov and not off else C["card"]), C["line"], \
@@ -303,10 +308,11 @@ class Segmented(tk.Canvas):
     """One of a few choices, side by side in a rounded tray (the chosen one raised in
     white). Follows a StringVar both ways; command is called after a click."""
 
-    def __init__(self, parent, options, variable, command=None, bg=None, size=10):
+    def __init__(self, parent, options, variable, command=None, bg=None, size=10, tray=None):
         self._bg = bg or parent.cget("bg")
         super().__init__(parent, bg=self._bg, highlightthickness=0, bd=0, cursor="hand2")
         self.options, self.var, self._command, self._size = options, variable, command, size
+        self._tray = tray               # the tray's colour (else the side panel's)
         self._spots, self._img = [], None
         on_click(self, self._click)
         variable.trace_add("write", lambda *_: self.winfo_exists() and self._draw())
@@ -321,7 +327,7 @@ class Segmented(tk.Canvas):
         h = line + 2 * px(self, 7) + 2 * pad
         w = sum(widths) + gap * (len(widths) - 1) + 2 * pad
         self.configure(width=w, height=h)
-        rgb = shape(w, h, h / 2, C["side"], self._bg)[..., :3].astype(float)
+        rgb = shape(w, h, h / 2, self._tray or C["side"], self._bg)[..., :3].astype(float)
         x, self._spots = pad, []
         for (value, label), bw in zip(self.options, widths):
             if value == self.var.get():
@@ -619,38 +625,47 @@ def _round_one(root, w):
         w.configure(style=name)
 
 
+def _same_images(root, name, arrays, extra):
+    """The images kept under root.<name>, drawn again from arrays (a new look redraws them
+    in place: a ttk element can't be made twice). Returns (images, extra, first time?)."""
+    old = getattr(root, name, None)
+    if old:
+        for img, arr in zip(old[0], arrays):
+            photo(root, arr, into=img)
+        return old[0], old[1], False
+    imgs = [photo(root, arr) for arr in arrays]
+    setattr(root, name, (imgs, extra))
+    return imgs, extra, True
+
+
 def style_scrollbars(root, s):
     """Thin scroll bars with a rounded grip and no arrows."""
-    if getattr(root, "_round_bars", None):
-        return
-    n = px(root, 10)
-    imgs = [photo(root, _corner_img(n // 2 - 1, c, C["bg"], w=n, h=3 * n))
-            for c in ("#D3CBC0", "#B7AEA2")]
-    root._round_bars = imgs
-    s.element_create("Round.thumb", "image", imgs[0], ("active", imgs[1]),
-                     ("pressed", imgs[1]), border=n // 2, padding=0, sticky="nsew")
-    s.layout("Vertical.TScrollbar", [("Vertical.Scrollbar.trough", {"sticky": "ns", "children": [
-        ("Round.thumb", {"expand": "1", "sticky": "nswe"})]})])
+    n = (getattr(root, "_round_bars", None) or (None, px(root, 10)))[1]
+    imgs, n, first = _same_images(root, "_round_bars", [
+        _corner_img(n // 2 - 1, c, C["bg"], w=n, h=3 * n) for c in (C["bar"], C["bar_hover"])], n)
+    if first:
+        s.element_create("Round.thumb", "image", imgs[0], ("active", imgs[1]),
+                         ("pressed", imgs[1]), border=n // 2, padding=0, sticky="nsew")
+        s.layout("Vertical.TScrollbar", [("Vertical.Scrollbar.trough", {
+            "sticky": "ns", "children": [("Round.thumb", {"expand": "1", "sticky": "nswe"})]})])
     s.configure("Vertical.TScrollbar", troughcolor=C["bg"], background=C["bg"],
                 bordercolor=C["bg"], lightcolor=C["bg"], darkcolor=C["bg"], width=n,
                 arrowsize=n, gripcount=0)
 
 
 def style_tabs(root, s):
-    """Notebook tabs as rounded pills: the chosen one white with an edge."""
-    if getattr(root, "_round_tabs", None):
-        return
+    """Notebook tabs as rounded pills: the chosen one on the card colour with an edge."""
     font = tkfont.Font(root=root, font=("Segoe UI Semibold", 10))
-    h = font.metrics("linespace") + 2 * px(root, 8)
-    r = int(h / 2) - 1
-    imgs = [photo(root, _corner_img(r, *c)) for c in (
-        (C["bg"], C["bg"]), (C["card"], C["bg"], C["line"]), (C["side"], C["bg"]))]
-    root._round_tabs = imgs
-    s.element_create("Round.tab", "image", imgs[0], ("selected", imgs[1]), ("active", imgs[2]),
-                     border=r + 1, padding=0, sticky="nsew")
-    s.layout("TNotebook.Tab", [("Round.tab", {"sticky": "nswe", "children": [
-        ("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [
-            ("Notebook.label", {"side": "top", "sticky": ""})]})]})])
+    r = (getattr(root, "_round_tabs", None) or
+         (None, int((font.metrics("linespace") + 2 * px(root, 8)) / 2) - 1))[1]
+    imgs, r, first = _same_images(root, "_round_tabs", [_corner_img(r, *c) for c in (
+        (C["bg"], C["bg"]), (C["card"], C["bg"], C["line"]), (C["side"], C["bg"]))], r)
+    if first:
+        s.element_create("Round.tab", "image", imgs[0], ("selected", imgs[1]),
+                         ("active", imgs[2]), border=r + 1, padding=0, sticky="nsew")
+        s.layout("TNotebook.Tab", [("Round.tab", {"sticky": "nswe", "children": [
+            ("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [
+                ("Notebook.label", {"side": "top", "sticky": ""})]})]})])
     s.configure("TNotebook", background=C["bg"], borderwidth=0, tabmargins=(0, 0, 0, 8),
                 bordercolor=C["bg"], lightcolor=C["bg"], darkcolor=C["bg"])
     s.configure("TNotebook.Tab", padding=(px(root, 18), px(root, 8)),
@@ -661,17 +676,17 @@ def style_tabs(root, s):
 
 def style_progress(root, s, name, bg=None):
     """A rounded progress bar in the accent colour on a soft tray (bg: what it sits on)."""
-    if getattr(root, "_round_progress", None):
-        return
-    n = px(root, 12)
+    n = (getattr(root, "_round_progress", None) or (None, px(root, 12)))[1]
     r = n // 2 - 1
-    tray = photo(root, _corner_img(r, C["side"], bg or C["bg"], w=3 * n, h=n))
-    bar = photo(root, _corner_img(r, C["accent"], C["side"], w=3 * n, h=n))
-    root._round_progress = (tray, bar)
-    s.element_create("Round.trough", "image", tray, border=r + 1, padding=0, sticky="nsew")
-    s.element_create("Round.pbar", "image", bar, border=r + 1, padding=0, sticky="nsew")
-    s.layout(name, [("Round.trough", {"sticky": "nswe", "children": [
-        ("Round.pbar", {"side": "left", "sticky": "ns"})]})])
+    imgs, n, first = _same_images(root, "_round_progress", [
+        _corner_img(r, C["side"], bg or C["bg"], w=3 * n, h=n),
+        _corner_img(r, C["accent"], C["side"], w=3 * n, h=n)], n)
+    if first:
+        s.element_create("Round.trough", "image", imgs[0], border=r + 1, padding=0,
+                         sticky="nsew")
+        s.element_create("Round.pbar", "image", imgs[1], border=r + 1, padding=0, sticky="nsew")
+        s.layout(name, [("Round.trough", {"sticky": "nswe", "children": [
+            ("Round.pbar", {"side": "left", "sticky": "ns"})]})])
     s.configure(name, thickness=n)
 
 
@@ -680,7 +695,7 @@ def style_fields(s):
     for st in ("TEntry", "TCombobox"):
         s.configure(st, fieldbackground=C["card"], background=C["card"], bordercolor=C["line"],
                     lightcolor=C["card"], darkcolor=C["card"], arrowcolor=C["muted"],
-                    padding=(6, 4))
+                    foreground=C["ink"], insertcolor=C["ink"], padding=(6, 4))
         s.map(st, bordercolor=[("focus", C["accent"])], lightcolor=[("focus", C["card"])],
               fieldbackground=[("readonly", C["card"])],
               background=[("readonly", C["card"]), ("active", C["card"])])
