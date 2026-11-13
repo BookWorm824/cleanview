@@ -457,6 +457,7 @@ class App(tk.Tk):
         if not jobs:
             return False
         self.jobs = jobs
+        engine.cl.use_language((jobs[0]["analysis"].get("opts") or {}).get("language"))
         self.videos = [j["video"] for j in jobs]
         self.outdir = sess.get("outdir")
         self.show_fine = sess.get("show_fine", False)
@@ -985,6 +986,23 @@ class App(tk.Tk):
                  "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
                  fg=MUTED, font=(FONT, 9), wraplength=wrap_width(470), justify="left",
                  anchor="w").pack(anchor="w", pady=(X(2), 0))
+        # the language spoken (1.18.80; the owner: "like if i wanted to scan a movie in
+        # spanish"): English as always, or another one, with its own word lists
+        spoken = look.Card(p1)
+        spoken.pack(fill="x", pady=(X(10), 0), padx=(0, X(4)))
+        v = tk.StringVar(value=engine.cvlang.known(saved.get("language")))
+        self.opts["language"] = v
+        words = tk.Frame(spoken.body, bg=CARD)
+        words.pack(side="left", fill="x", expand=True, padx=(0, X(12)))
+        tk.Label(words, text="Language spoken in the video", bg=CARD, fg=INK, font=(HEAD, 10),
+                 anchor="w").pack(anchor="w")
+        tk.Label(words, text="For another language CleanView uses that language's own word "
+                 "lists. The first time, it gets a listening model for it (one time, about "
+                 f"{engine.cvlang.MODEL_MB} MB).", bg=CARD, fg=MUTED, font=(FONT, 9),
+                 wraplength=wrap_width(330), justify="left", anchor="w").pack(
+                     anchor="w", pady=(X(2), 0))
+        look.Segmented(spoken.body, list(engine.cvlang.LANGS.items()), v, bg=CARD).pack(
+            side="right")
         tk.Label(p1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
                  "downloads without copy protection. If the movie has subtitles, they're used "
                  "to catch extra words and get cleaned too.", bg=BG, fg=FAINT, font=(FONT, 9),
@@ -1754,6 +1772,7 @@ class App(tk.Tk):
         word_groups = ("swearing", "mild", "deity", "minced", "samesexwords", "rude")
         self.groups = [g for g in word_groups if o.get(g)]
         self.scan_opts = {k: v for k, v in o.items() if k not in word_groups}
+        engine.cl.use_language(o.get("language"))      # the word lists the review uses too
         # (only what's to be removed counts: not "who reads the dialogue" and the like)
         if not any(o.get(k) not in (False, "off", None) for k in FILTER_KEYS) and \
                 not o.get("mywords"):

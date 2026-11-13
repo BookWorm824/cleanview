@@ -29,6 +29,8 @@ from pathlib import Path
 
 import numpy as np
 
+import cvlang    # the language being cleaned (1.18.80)
+
 HERE = Path(__file__).resolve().parent
 
 
@@ -676,6 +678,8 @@ def chat(prompt, images=None, schema=None, timeout=300, model=None):
     (the owner, 2026-11-09, after CleanRead did the same in CleanListen 1.17.15: "Yes, add
     it"). Only an identical question counts: same model, words, stills, answer form and
     settings. Answers that went wrong are never kept."""
+    if not images:                    # a question about dialogue: say what language it's in
+        prompt += cvlang.reader_note(cvlang.LANG)
     msg = {"role": "user", "content": prompt}
     if images:
         msg["images"] = images

@@ -347,6 +347,42 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Other languages, Spanish first (1.18.80, 2026-11-13; the owner: "is it possible to add
+  additonal language capabilities to clean view? ... like if i wanted to scan a movie in
+  spanish", "maybe the 10 most spoken languages", then "i would do the easier group of
+  languages": Spanish, French, Portuguese, Russian; Mandarin, Hindi, Arabic, Bengali and Urdu
+  need a different, slower model and are for later). Step 1 has "Language spoken in the video"
+  (English / Spanish; `opts["language"]`, kept in the settings; `cvlang.LANGS` is the list).
+  English is untouched: its own listening model and `cvcore`'s word lists. Another language:
+  - listens with NeMo Parakeet TDT 0.6B v3 (about 25 European languages; loads with
+    `load_recognizer` unchanged), downloaded once on "Getting ready" the first time another
+    language is picked (`cvlang.install_model`, 490 MB, `models/<MODEL_NAME>`; `tools_missing`
+    "listening model for other languages"). English never needs it. On 15 minutes of The
+    Resident its English agreed 90.8% with the English model's words, so English stays on v2.
+  - uses that language's word lists in the same groups (`cvlang.ES`, `ES_PHRASES`, the guards
+    `ES_NOT_NEXT`/`ES_NOT_BEFORE`): `cvcore.use_language(code)` sets `cvlang.LANG`, and
+    `norm()`, `find_language()`, `listed_word()` and `mask()` hand over to cvlang when it isn't
+    "en" (accents come off before matching, ñ stays). `analyze` sets it from the options (each
+    video's worker is its own process), `render` from the saved options, the window on Start
+    and when a review is opened again. Words left off on purpose because the everyday meaning
+    is far more common: concha, perra, coger, huevos, capullo, tortillera, infierno, Jesús
+    (caught in phrases: "hijo de perra", "la concha de tu madre"). English swear lists aren't
+    run on Spanish ("negro", "Morón").
+  - takes the sound track and subtitles tagged in that language (`probe(path, language)`,
+    `find_subtitles(..., language)`, `cvlang.TAGS`/`FILE_TAGS`; an English .srt beside a Spanish
+    video isn't used), looks subtitles up online in it (`_sub_language`), and keeps its saved
+    words and downloads apart (`_lang_file`: "transcript_es.json").
+  - tells the dialogue readers what they're reading (`cvlang.reader_note`, added in `ai.chat`
+    for questions without pictures and to `cc.SYSTEM` in `cc.ask`).
+  Not done for other languages yet: the short no-AI phrase lists (`LINE_WORDS`), the hard rule's
+  words (only "semen" is the same word), explicit findings, bleeped subtitles, the God/name
+  heuristics from subtitles, sound descriptions in subtitles ([moans]) and the web test
+  version are English only, so in Spanish the dialogue filters lean on the AI reader. The
+  Spanish list was written without a native speaker's check and has only been heard on the
+  model's own clean sample (no Spanish swearing to test on here). Adding a language: `LANGS`,
+  `TAGS`, `FILE_TAGS`, `SUB_LANG`, its lists in `WORDS`/`PHRASES`/`NOT_NEXT`/`NOT_BEFORE`, and
+  `NO_ACCENTS` if accents should come off (not for Russian: й would become и). Word lists
+  go to CleanListen and CleanRead too once she has seen them.
 - A section's boxes open right under its own row of tiles (1.18.79, 2026-11-13; the owner: "when
   you click more it opens a window below all of the menus. id like each one to open right below
   its chosen option"). The tiles sit in rows 0, 2 and 4 of their grid and the card with the
@@ -985,6 +1021,7 @@ them in. Rules that follow from this:
 | `cleanview_gpt.py` | ChatGPT through the **Codex CLI** (`codex exec ... --output-schema`), same interface as the Claude path. Strict JSON schemas (all properties required). |
 | `cleanview_gemini.py` | Gemini through Google's **Gemini CLI** (`gemini -p ... -o json`, signed in with a Google account, no API key), same interface. Installed with npm (needs Node.js 20+). The CLI can't take a schema, so the shape is described in the prompt and the reply is checked (asked again once). The prompt goes in through stdin; pictures are copied into an empty work folder and named with `@picture1.jpg` on the command line. Chats are kept by CleanView (`APP_DATA\gemini\chats`), not the CLI. Provider key `"gemini"` (`cc.OTHERS`). |
 | `cleanview_accounts.py` | Each person's own Claude, ChatGPT or Gemini sign-in inside CleanView ("Use a different account" / "Sign out" on the start page). Claude Code, Codex and the Gemini CLI keep their sign-in in a folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_CLI_HOME`); CleanView's own is `APP_DATA\accounts\<ai>\<n>`, so the PC's own sign-in is never signed out or changed. A new sign-in goes in a new folder and is only used once it worked (`keep()`). With none, the PC's sign-in is used. |
+| `cvlang.py` | Other languages (1.18.80, Spanish first): the list of languages, each one's word lists and guards, the listening model for other languages and its one-time download, and the language being cleaned now (`LANG`). Must not import cvcore. |
 | `cvlook.py` | The drawn look (1.18.77): rounded cards, pill buttons, switches, the segmented choice, option cards, icon badges, chips and tick boxes, drawn with numpy as PNGs for Tk, and the ttk buttons, tabs, scroll bars, progress bar and fields in the same look. tkinter and numpy only. |
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
 | `videoqueue.py` | Several videos at once: each video is watched and listened to (`analyze`) in its own worker process, "Videos at once" at a time. `Workers` (the window side) and `main()` (the worker, run as `CleanView.exe videoqueue.py <work>/queue_task.json`, one JSON line per message). Also `plain_error`, used by the window too. |
@@ -1050,6 +1087,14 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_spanish.py`: Spanish words found by group (and everyday look-alikes left alone: folleto,
+  vergüenza, concha, perra, Jesús the name, rayos X), only ticked groups, her own words, only
+  listed words muted alone; English exactly as before and after switching back; the AI
+  readers told the language; the model only needed for another language, downloaded once from
+  a stand-in server and put in place, a wrong or failed download leaving nothing; a Spanish
+  video without the model says so; the video's own language for .srt files, the sound track
+  and the online lookup; the choice on step 1 kept. With `CLEANVIEW_TEST_MULTI` set to the
+  real model's folder, real Spanish is heard and one of its words muted.
 - `test_theme.py`: both looks name the same colours, light is the look as it was, dark sets
   every name and the drawn pieces, dark text can be read, the note box isn't brown in dark, no
   colour written into a page; the button changes the look, keeps her choices and step, is

@@ -22,6 +22,8 @@ from urllib.parse import unquote
 
 import numpy as np
 
+import cvlang    # other languages: their word lists and listening model (1.18.80)
+
 HERE = Path(__file__).resolve().parent
 DEFAULT_MODEL = HERE / "models" / "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
 SR = 16000
@@ -622,7 +624,16 @@ def unabbreviate(w):
     return w
 
 
+def use_language(code):
+    """The language being cleaned ("en", "es", ...; anything else counts as English). In
+    English everything here works as it always did; in another language norm(),
+    find_language(), listed_word() and mask() use that language's lists (cvlang.py)."""
+    return cvlang.use(code)
+
+
 def norm(w):
+    if cvlang.LANG != "en":
+        return cvlang.norm(w, cvlang.LANG)
     w = unbleep(unabbreviate(w)).lower().replace("’", "'").replace("‘", "'")
     w = re.sub(r"[^a-z0-9']", "", w)
     return w.strip("'")
@@ -649,6 +660,8 @@ def listed_word(word, mine=(), cats=None):
     words, or her own list (mine: word tuples). Used so an AI can't mute a misheard
     name ('Grafi') on its own. cats: only the lists of the word groups ticked (an AI
     muted "butts" with rude words off, 13 Going on 30); None: every list."""
+    if cvlang.LANG != "en":
+        return cvlang.listed_word(word, mine, cats, cvlang.LANG)
     on = set(CATS) if cats is None else set(cats)
     swear = bool(on & {"mild", "moderate"})
     w = norm(word.replace(" ", "").replace("-", ""))
@@ -683,6 +696,8 @@ def listed_word(word, mine=(), cats=None):
 def find_language(words, cats, mine=()):
     """Return (i, j, category) spans of words[i:j] to mute. mine: her own words and
     phrases (tuples of normalised words), always muted, as category "mine"."""
+    if cvlang.LANG != "en":
+        return cvlang.find_language(words, cats, mine, cvlang.LANG)
     hits, n, i = [], len(words), 0
     mine = sorted(set(mine), key=len, reverse=True)       # longest phrase first
 
@@ -856,6 +871,8 @@ def is_explicit(words):
 
 
 def mask(word):
+    if cvlang.LANG != "en":
+        return cvlang.mask(word)
     core = re.sub(r"[^A-Za-z]", "", word)
     return word if len(core) <= 1 else core[0] + "*" * (len(core) - 1)
 

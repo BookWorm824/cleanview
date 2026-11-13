@@ -43,6 +43,7 @@ def counted(progress, f, a, z, total, what=""):
 
 
 import cleanview_accounts as accounts  # noqa: E402
+import cvlang  # noqa: E402  (the language being cleaned, 1.18.80)
 import cleanview_gpt as gpt  # noqa: E402
 import cleanview_gemini as gem  # noqa: E402
 
@@ -261,6 +262,8 @@ def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, ti
     The same one-off question gets the same answer as last time: the AI doesn't answer
     the same way twice, so without this the same episode came out different each run.
     fresh=True asks again anyway (and keeps the new answer). Chats are never reused."""
+    if system is SYSTEM:              # the dialogue: say what language it's in
+        system = SYSTEM + cvlang.reader_note(cvlang.LANG)
     if session or keep:
         return _ask_now(prompt, schema, stdin_text, system, session, keep, timeout, images)
     key = _answer_key(prompt, schema, stdin_text, system, images)

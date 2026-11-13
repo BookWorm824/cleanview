@@ -30,6 +30,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cvcore as cl  # noqa: E402  (speech model, word lists, ffmpeg helpers)
+import cvlang  # noqa: E402  (other languages: word lists and their listening model)
 import cleanview_ai as ai  # noqa: E402  (picture AI and the local AI helper)
 import cleanview_claude as cc  # noqa: E402  (Claude, through Claude Code)
 import cleanview_learn as learn  # noqa: E402  (what your past choices taught it)
@@ -67,7 +68,18 @@ DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "go
             "holidays": False, "darkmagic": False,
             "magic": False, "vampires": False, "gestures": False, "mywords": (), "ai": True,
             "autosubs": True,
-            "reader": "local", "look": True}
+            "reader": "local", "look": True,
+            "language": "en"}        # the language spoken in the video (cvlang.LANGS)
+
+
+def _lang_file(name):
+    """A saved file's name for the language being cleaned: as it always was for English,
+    with the language in it otherwise ("transcript_es.json"), so a video cleaned again in
+    another language never uses the other one's words or subtitles."""
+    if cvlang.LANG == "en":
+        return name
+    stem, _, ext = name.rpartition(".")
+    return f"{stem}_{cvlang.LANG}.{ext}"
 
 
 def full_opts(opts=None):
@@ -328,6 +340,8 @@ def tools_missing(opts=None):
         need.append("faster picture checker")
     if (nd["sound"] or nd["voices"]) and not (TAG_DIR / "model.int8.onnx").exists():
         need.append("sound checker")
+    if cvlang.known(full_opts(opts).get("language")) != "en" and not cvlang.model_ready():
+        need.append("listening model for other languages")
     if nd["voices"] and not ai.speakers_ready():
         need.append("speaker separator")
     if nd["subs"] and importlib.util.find_spec("subliminal") is None and not _subs_tried():
@@ -406,6 +420,8 @@ def install_tools(opts=None, progress=None, log=print):
         except Exception as ex:
             log(f"Picture AI download failed: {ex}")   # the run goes on without it
         importlib.invalidate_caches()
+    if cvlang.known(full_opts(opts).get("language")) != "en" and not cvlang.model_ready():
+        cvlang.install_model(lambda f, m: say(0.05 + 0.25 * f, m))   # one time, about 490 MB
     if nd["ai"]:
         try:
             ai.ensure_ai(lambda f, m: say(0.3 + 0.7 * f, m))
@@ -435,7 +451,9 @@ def _dar(v):
     return w * sar / h if h else 16 / 9
 
 
-def probe(path):
+def probe(path, language="en"):
+    """What's in the video. language: the sound track in that language is the one listened
+    to (an untagged one counts as that language too)."""
     r = cl.run([cl._tool("ffprobe"), "-v", "error", "-show_streams", "-show_format",
                 "-of", "json", str(path)], capture_output=True, text=True, encoding="utf8",
                errors="replace")
@@ -467,7 +485,8 @@ def probe(path):
     def audio_rank(s):
         d = s.get("disposition") or {}
         return ("comment" in title(s) or d.get("comment") or d.get("visual_impaired"),
-                lang(s) not in ("", "eng", "en", "und"), not d.get("default"), s["index"])
+                lang(s) not in ("", "und") + cvlang.TAGS[cvlang.known(language)],
+                not d.get("default"), s["index"])
 
     audio = sorted(auds, key=audio_rank)[0]
     subs = []
@@ -532,14 +551,15 @@ def fetch_subtitles(path, info, work, o, log=print):
     last time. Needs only the file, so analyze() runs it while it listens (1.18.46).
     Returns (cues, note, downloaded_text, why)."""
     work = Path(work)
-    cues, sub_note = find_subtitles(path, info, work)
+    cues, sub_note = find_subtitles(path, info, work, cvlang.known(o.get("language")))
     text, why = None, ""
     if cues or not o.get("autosubs"):
         return cues, sub_note, text, why
-    dl = work / "downloaded.srt"
-    miss = work / "no_subtitles_online.txt"
+    dl = work / _lang_file("downloaded.srt")
+    miss = work / _lang_file("no_subtitles_online.txt")
     if dl.exists():
-        text, why = dl.read_text("utf8", "replace"), (work / "downloaded.txt").read_text("utf8")
+        text, why = (dl.read_text("utf8", "replace"),
+                     (work / _lang_file("downloaded.txt")).read_text("utf8"))
     elif not remembered_miss(miss):
         try:
             text, why = download_subtitles(path, work, log)
@@ -547,7 +567,7 @@ def fetch_subtitles(path, info, work, o, log=print):
             text, why = None, f"the subtitle finder ran into a problem ({str(ex)[:60]})"
         if text:
             dl.write_text(text, encoding="utf8")
-            (work / "downloaded.txt").write_text(why, encoding="utf8")
+            (work / _lang_file("downloaded.txt")).write_text(why, encoding="utf8")
         elif why.startswith(MISS_REMEMBER):   # only remember "none online", never an error
             miss.write_text(why + "\n" + SUB_LOOKUP, encoding="utf8")
         elif miss.exists():
@@ -557,20 +577,24 @@ def fetch_subtitles(path, info, work, o, log=print):
     return cues, sub_note, text, why
 
 
-def find_subtitles(path, info, workdir):
-    """Best English subtitles: a matching .srt next to the video, else a text
-    track inside it. Returns (cues, description) or ([], "")."""
+def find_subtitles(path, info, workdir, language="en"):
+    """Best subtitles in the video's language (English unless told): a matching .srt next to
+    the video, else a text track inside it. Returns (cues, description) or ([], "")."""
+    tags = cvlang.TAGS[cvlang.known(language)]
+    file_tag = cvlang.FILE_TAGS[cvlang.known(language)]
     p = Path(path)
     # this video's own: "Cars.srt", "Cars.en.srt"; not "Cars 2.srt" or "Show S01E10.srt" for
     # "Show S01E1.mkv" (the code check, 2026-11-13: the name only had to start the same)
     stem = p.stem.lower()
     sidecars = sorted(f for f in p.parent.iterdir() if f.is_file() and f.suffix.lower() == ".srt"
                       and f.name.lower().startswith(stem + "."))
-    sidecars.sort(key=lambda f: (not re.search(r"\.(en|eng|english)\b", f.name.lower()),
+    sidecars.sort(key=lambda f: (not re.search(file_tag, f.name.lower()),
                                  "forced" in f.name.lower(), len(f.name)))
     for f in sidecars:
         if "forced" in f.name.lower():
             continue
+        if language != "en" and re.search(cvlang.FILE_TAGS["en"], f.name.lower()):
+            continue                  # "Movie.en.srt" beside a Spanish video: not its words
         raw = f.read_bytes()
         for enc in ("utf-8-sig", "cp1252", "latin-1"):
             try:
@@ -580,9 +604,9 @@ def find_subtitles(path, info, workdir):
                 cues = []
         if len(cues) > 5:
             return cues, f"subtitles from {f.name}"
-    tracks = [s for s in info["subs"] if not s["forced"] and s["lang"] in ("", "eng", "en", "und")]
+    tracks = [s for s in info["subs"] if not s["forced"] and s["lang"] in ("", "und") + tags]
     best = []
-    for s in sorted(tracks, key=lambda s: (s["lang"] not in ("eng", "en"), not s["sdh"])):
+    for s in sorted(tracks, key=lambda s: (s["lang"] not in tags, not s["sdh"])):
         out = Path(workdir) / f"sub_{s['index']}.srt"
         if not out.exists():
             r = cl.run([cl._tool("ffmpeg"), "-y", "-v", "error", "-i", str(path), "-map",
@@ -700,9 +724,15 @@ def sub_video(t, ext):
     return subliminal.Movie(f"{t[0]}{ext}", title, year=year)
 
 
+def _sub_language():
+    """The language subtitles are looked up in: the one being cleaned."""
+    from babelfish import Language
+    return Language(cvlang.SUB_LANG[cvlang.LANG])
+
+
 def download_subtitles(path, workdir, log=print):
-    """Look up English subtitles online (hearing-impaired ones first). Returns
-    (srt_text, where_from) or (None, reason)."""
+    """Look up subtitles online in the video's language (hearing-impaired ones first).
+    Returns (srt_text, where_from) or (None, reason)."""
     if importlib.util.find_spec("subliminal") is None:
         return None, "the subtitle finder isn't installed"
     t = guess_title(path)
@@ -730,7 +760,7 @@ def download_subtitles(path, workdir, log=print):
     except Exception:
         pass
     try:
-        got = subliminal.download_best_subtitles({video}, {Language("eng")}, only_one=True,
+        got = subliminal.download_best_subtitles({video}, {_sub_language()}, only_one=True,
                                                  subtitle_categories="hi,n")
     except Exception as ex:
         return None, f"the subtitle sites couldn't be reached ({str(ex)[:60]})"
@@ -840,12 +870,12 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
         return
     try:
         video = sub_video(t, Path(path).suffix or ".mkv")
-        subs = subliminal.list_subtitles({video}, {Language("eng")}).get(video) or []
+        subs = subliminal.list_subtitles({video}, {_sub_language()}).get(video) or []
         if isinstance(video, subliminal.Movie) and not any(
                 _same_title(getattr(s, "movie_name", None), video.title) for s in subs):
             for alt in number_titles(video.title or ""):        # "Fifty First Dates"
                 v2 = subliminal.Movie(video.name, alt, year=video.year)
-                found = [s for s in subliminal.list_subtitles({v2}, {Language("eng")}).get(v2) or []
+                found = [s for s in subliminal.list_subtitles({v2}, {_sub_language()}).get(v2) or []
                          if _same_title(getattr(s, "movie_name", None), video.title)]
                 if found:
                     subs = found + subs
@@ -869,7 +899,7 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
     for s, e in neighbour_episodes(t[1], t[2]):
         try:
             v = sub_video((t[0], s, e), ext)
-            near = subliminal.list_subtitles({v}, {Language("eng")}).get(v) or []
+            near = subliminal.list_subtitles({v}, {_sub_language()}).get(v) or []
         except Exception as ex:
             log(f"subtitles for season {s} episode {e}: {ex}")
             continue
@@ -3426,6 +3456,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     closer look made its checks time out and be done again (16 minutes instead of 12); the
     picture scan during the listening was no faster (25 s slower)."""
     o = full_opts(opts)
+    lang = cl.use_language(o.get("language"))      # English, or another one's word lists
     for k_old, k_new in (("find_nudity", "nudity"), ("find_sex", "sex"), ("find_violence", "violence")):
         if k_old in legacy:
             o[k_new] = bool(legacy[k_old])
@@ -3435,7 +3466,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     path = str(Path(path).resolve())
     say_out = progress or (lambda f, m: None)
     # how this scan went, for the report and "Send what we refined" (1.18.58)
-    scan = {"app_version": app_version(),
+    scan = {"app_version": app_version(), "language": lang,
             "pc": {"threads": os.cpu_count(), "memory_gb": round(total_memory_gb(), 1),
                    # which picture-checker runtime did the scan (1.18.69: the laptop's first
                    # report after the switch couldn't say whether it had switched)
@@ -3449,7 +3480,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             took[now_step["step"]] = took.get(now_step["step"], 0.0) + t - now_step["t"]
             now_step.update(step=step, t=t)
         say_out(f, m)
-    info = probe(path)
+    info = probe(path, lang)
     dur = info["duration"] or 1.0
     cats = [c for g in groups for c in cl.GROUPS[g]]
     mine = my_words(o)            # her own words and phrases: always muted
@@ -3504,7 +3535,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         subs["found"] = fetch_subtitles(path, info, work, o, log)
     subs_job = in_background(get_subs)
 
-    tfile = work / "transcript.json"
+    tfile = work / _lang_file("transcript.json")
     snd, sfile, snd_job, sound = None, work / "sounds.json", None, {}
     if nd["sound"]:
         if sfile.exists():
@@ -3534,6 +3565,12 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         asr = json.loads(tfile.read_text())
     else:
         say(0.0, "Loading the listening model…")
+        if lang != "en":            # the model that hears other languages (English keeps its own)
+            if not cvlang.model_ready():
+                raise RuntimeError(f"The listening model for {cvlang.name(lang)} isn't on this "
+                                   "PC yet. Check your internet connection and press Start "
+                                   "cleaning again.")
+            model_dir = cvlang.model_dir()
         rec = load_listeners(model_dir, threads)
 
         def p_asr(sec):
@@ -3571,15 +3608,18 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # language and subtitles now, before the picture (they need only what was heard); their
     # notes still go after the picture's, as before
     lang_notes = []
+    if lang != "en":
+        lang_notes.append(f"Cleaned as a {cvlang.name(lang)} video, with the "
+                          f"{cvlang.name(lang)} word lists.")
     say(at("lang", 0), "Finding language…")
     if subs_job["thread"].is_alive():
         say(at("lang", 0.5), "Looking for subtitles online…")
     wait_for(subs_job, None, cancel)
     cues, sub_note, text, why = subs["found"]
-    dl = work / "downloaded.srt"
+    dl = work / _lang_file("downloaded.srt")
     if not cues and o.get("autosubs") and asr:
         if text:
-            tried = work / "other_subtitles_tried.txt"     # once per video, not every run
+            tried = work / _lang_file("other_subtitles_tried.txt")   # once per video, not every run
             others = ()
             try:                        # tried before 1.18.59: once more, with the neighbours
                 tried_before = NEIGHBOUR_LOOKUP in tried.read_text("utf8", "replace")
@@ -3599,7 +3639,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             synced, frac, text, why = pick_subtitles(text, why, asr, others)
             if synced and text != first:
                 dl.write_text(text, encoding="utf8")
-                (work / "downloaded.txt").write_text(why, encoding="utf8")
+                (work / _lang_file("downloaded.txt")).write_text(why, encoding="utf8")
             if synced:
                 cues = synced
                 sub_note = f"{why} and matched to the sound ({frac:.0%} of words lined up)"
@@ -4470,6 +4510,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     lines: dialogue lines to mute (default: lines with mute=True)."""
     work = Path(workdir)
     st = json.loads((work / "analysis.json").read_text())
+    cl.use_language((st.get("opts") or {}).get("language"))
     if cuts is None:
         cuts = [c for c in st["scenes"] if c.get("cut")]
     say = progress or (lambda f, m: None)
