@@ -101,6 +101,22 @@ class StartPage(unittest.TestCase):
         self.app._profile_changed()
         self.assertEqual(self.heads["Medical"][1].cget("text"), "2 of 2 on")
 
+    def test_boxes_open_right_under_their_own_row_of_tiles(self):
+        # (the owner, 2026-11-13: they opened below all nine; "id like each one to open right
+        # below its chosen option")
+        detail = self.app._section_detail
+        self.app._go_step(2)                        # the step the tiles are on
+        for title in ("Bad language", "Romance and relationships", "Violence", "Attitude",
+                      "Music"):
+            row = SECTIONS.index(title) // 3
+            self.heads[title][3](True)
+            self.app.update()
+            self.assertEqual(int(detail.grid_info()["row"]), 2 * row + 1, title)
+            self.assertEqual(int(detail.grid_info()["columnspan"]), 3)
+            self.assertTrue(detail.winfo_ismapped())
+        self.heads["Music"][3](False)
+        self.assertEqual(detail.grid_info(), {})
+
     def test_one_section_open_at_a_time(self):
         self.heads["Attitude"][3](True)
         self.heads["Violence"][3](True)

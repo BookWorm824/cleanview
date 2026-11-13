@@ -1017,7 +1017,11 @@ class App(tk.Tk):
         tiles.pack(fill="x", pady=(X(10), 0))
         for c in range(3):
             tiles.columnconfigure(c, weight=1, uniform="tiles")
-        detail = look.Card(p2, radius=14, pad=(18, 14))
+        # A section's boxes open right under its own row of tiles, not under all nine (the
+        # owner, 2026-11-13: "id like each one to open right below its chosen option"): the
+        # tiles are in rows 0, 2 and 4 of the grid, and this card goes in the row between.
+        detail = self._section_detail = look.Card(tiles, radius=14, pad=(18, 14), edge=ACCENT,
+                                                  edge_w=2.0)
         dhead = tk.Frame(detail.body, bg=CARD)
         dhead.pack(fill="x", pady=(0, X(8)))
         dname = tk.Label(dhead, text="", bg=CARD, fg=INK, font=(HEAD, 12), anchor="w")
@@ -1082,7 +1086,8 @@ class App(tk.Tk):
             are on; its boxes are shown under the tiles when it's opened."""
             n = len(self._section_heads)
             tile = look.Card(tiles, radius=14, pad=(13, 11))
-            tile.grid(row=n // 3, column=n % 3, sticky="nsew", padx=(0, X(10)), pady=(0, X(10)))
+            tile.grid(row=2 * (n // 3), column=n % 3, sticky="nsew", padx=(0, X(10)),
+                      pady=(0, X(10)))
             top = tk.Frame(tile.body, bg=CARD)
             top.pack(fill="x")
             badge = look.Badge(top, icon, size=30)
@@ -1134,21 +1139,22 @@ class App(tk.Tk):
                             other(False)
                     body.pack(fill="x")
                     dname.config(text=title)
-                    detail.pack(fill="x", padx=(0, X(10)), pady=(X(2), X(6)))
+                    detail.grid(row=2 * (n // 3) + 1, column=0, columnspan=3, sticky="ew",
+                                padx=(0, X(10)), pady=(0, X(10)))      # under its own row
                     self._open_sections = {title}
                 else:
                     body.pack_forget()
                     if title in self._open_sections:
                         self._open_sections.discard(title)
-                        detail.pack_forget()
+                        detail.grid_forget()
                 tile.recolour(edge=ACCENT if opened else LINE, edge_w=2.0 if opened else 1.0)
                 more.label.config(text="Hide ‹" if opened else "Choose ›")
 
             def flip(_=None):
                 opening = title not in self._open_sections
                 show(opening)
-                if opening:                     # its boxes are under the tiles: show them
-                    self.after(50, lambda: self._scroll_to(dname))
+                if opening:                     # its tile and the boxes under it in view
+                    self.after(50, lambda: self._scroll_to(tile))
             switch._command = tick_all
             for w in (badge, name):
                 look.on_click(w, flip)

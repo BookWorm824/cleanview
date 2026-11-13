@@ -687,7 +687,14 @@ class Window(unittest.TestCase):
             app.scan_opts = {"ai": False, "sample": str(sample)}
             app.show_working("Watching and listening…", can_stop=True)
             app.update()
-            self.assertTrue(app.stop_btn.winfo_ismapped())
+            if app.state() == "iconic":          # the test window was minimised meanwhile:
+                app.deiconify()                  # nothing in it is on screen then
+                app.update()
+            self.assertTrue(app.stop_btn.winfo_ismapped(),
+                            f"window {app.state()} {app.winfo_width()}x{app.winfo_height()}, "
+                            f"footer {app.footer.winfo_width()} wide, page shown: "
+                            f"{app.page.winfo_ismapped()}, button packed: "
+                            f"{app.stop_btn.winfo_manager()!r}")
             self.assertEqual(app.stop_btn.cget("text"), "Stop after this video")
             with mock.patch.dict(os.environ, env):
                 app._analyze_thread()            # (on this thread, for the test)

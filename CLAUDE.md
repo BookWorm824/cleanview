@@ -347,6 +347,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- A section's boxes open right under its own row of tiles (1.18.79, 2026-11-13; the owner: "when
+  you click more it opens a window below all of the menus. id like each one to open right below
+  its chosen option"). The tiles sit in rows 0, 2 and 4 of their grid and the card with the
+  boxes (`_section_detail`, edged in green like the chosen tile) goes in the row between, under
+  the chosen tile's row; the page scrolls to the tile.
 - Light and dark (1.18.78, 2026-11-13; the owner: "how hard would it be to add a dark mode",
   "yes it should be optional", of a sample "i like the look. i dont like the brown around the
   pickup where i left off", and "just light dark button option. no windows choice"). A Light /
