@@ -374,6 +374,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
     words and downloads apart (`_lang_file`: "transcript_es.json").
   - tells the dialogue readers what they're reading (`cvlang.reader_note`, added in `ai.chat`
     for questions without pictures and to `cc.SYSTEM` in `cc.ask`).
+  French (1.18.81; the owner: "French next") is the same again: `cvlang.FR`, `FR_PHRASES`,
+  `FR_NOT_NEXT`/`FR_NOT_BEFORE`, France and Quebec (tabarnak, câlisse...). Accents come off,
+  and so do the short words French joins on with an apostrophe (`ELIDED`: "l'idiot" is
+  "idiot", "j'm'en fous" is "en fous", so "nom d'un chien" is written `("nom", "un",
+  "chien")`). Left off as mostly innocent: baiser (a kiss), chatte (a cat), queue, fou/fous,
+  mince, punaise, purée, flûte, la vache, la ferme (the farm), calvaire, sacré.
   Not done for other languages yet: the short no-AI phrase lists (`LINE_WORDS`), the hard rule's
   words (only "semen" is the same word), explicit findings, bleeped subtitles, the God/name
   heuristics from subtitles, sound descriptions in subtitles ([moans]) and the web test
@@ -1095,6 +1101,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   video without the model says so; the video's own language for .srt files, the sound track
   and the online lookup; the choice on step 1 kept. With `CLEANVIEW_TEST_MULTI` set to the
   real model's folder, real Spanish is heard and one of its words muted.
+- `test_french.py`: the same for French: words by group, the joined-on short words taken off,
+  everyday look-alikes left alone (un baiser, la ferme, pique-nique, Homo sapiens, elle est
+  mince), Quebec's swears, French .srt files and sound track; real French heard with
+  `CLEANVIEW_TEST_MULTI`.
 - `test_theme.py`: both looks name the same colours, light is the look as it was, dark sets
   every name and the drawn pieces, dark text can be read, the note box isn't brown in dark, no
   colour written into a page; the button changes the look, keeps her choices and step, is

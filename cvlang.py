@@ -27,15 +27,17 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 # code -> name, in the order the start page shows them
-LANGS = {"en": "English", "es": "Spanish"}
+LANGS = {"en": "English", "es": "Spanish", "fr": "French"}
 
 # what a sound track or subtitle track of this language is tagged as inside a video, and how
 # a subtitle file next to it is named ("Movie.es.srt", "Movie.spa.srt")
 TAGS = {"en": ("eng", "en"),
-        "es": ("spa", "es", "esp", "es-es", "es-mx", "es-419", "spanish")}
+        "es": ("spa", "es", "esp", "es-es", "es-mx", "es-419", "spanish"),
+        "fr": ("fre", "fra", "fr", "fr-fr", "fr-ca", "french")}
 FILE_TAGS = {"en": r"\.(en|eng|english)\b",
-             "es": r"\.(es|spa|esp|spanish|español|espanol|castellano|latino)\b"}
-SUB_LANG = {"en": "eng", "es": "spa"}          # for the subtitle finder (ISO 639-3)
+             "es": r"\.(es|spa|esp|spanish|español|espanol|castellano|latino)\b",
+             "fr": r"\.(fr|fre|fra|french|français|francais|vf|vff|vfq)\b"}
+SUB_LANG = {"en": "eng", "es": "spa", "fr": "fra"}   # for the subtitle finder (ISO 639-3)
 
 
 # the language being cleaned now. One video's worker process cleans one language, and the
@@ -145,7 +147,10 @@ def install_model(progress=None, url=None):
 # ---------------------------------------------------------------------------
 # accents are taken off before matching ("cabrón" = "cabron", "cállate" = "callate"), because
 # subtitles and speech recognition often leave them out. Spanish ñ stays: "año" is a year.
-NO_ACCENTS = {"es"}
+NO_ACCENTS = {"es", "fr"}
+# French joins short words on with an apostrophe ("l'idiot", "t'es", "qu'il", "j'm'en"): they
+# come off, so the word after them is the one matched
+ELIDED = {"fr": re.compile(r"^(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu|quelqu)'")}
 
 
 def norm(w, lang="es"):
@@ -156,6 +161,9 @@ def norm(w, lang="es"):
         w = "".join(c for c in unicodedata.normalize("NFD", w) if not unicodedata.combining(c))
         w = w.replace("\0", "ñ")
     w = re.sub(r"[^\w']|_", "", w)
+    if lang in ELIDED:
+        while ELIDED[lang].match(w):
+            w = ELIDED[lang].sub("", w, count=1)
     return w.strip("'")
 
 
@@ -271,10 +279,93 @@ ES_NOT_BEFORE = {"rayos": {"los", "unos", "dos", "tres", "muchos", "con", "sus",
                  "hostias": {"sagradas", "santas", "consagradas"},
                  }
 
-WORDS = {"es": {k: _c(v) for k, v in ES.items()}}
-PHRASES = {"es": ES_PHRASES}
-NOT_NEXT = {"es": ES_NOT_NEXT}
-NOT_BEFORE = {"es": ES_NOT_BEFORE}
+
+# French, written as norm() leaves the words: no accents ("enculé" = "encule", "ça" = "ca")
+# and without the short words joined on with an apostrophe ("l'idiot" = "idiot", "j'm'en
+# fous" = "en fous", "nom d'un chien" = "nom un chien"). France and Quebec both.
+# Left out on purpose, because the everyday meaning is far more common than the rude one:
+# baiser (a kiss), chatte (a female cat), queue (a tail), fou/fous (crazy), mince (thin),
+# punaise (a thumbtack), purée (mash), flûte (a flute), la vache (the cow), la ferme (the
+# farm), tapette (a fly swatter), calvaire (an ordeal), andouille (a sausage), sacré (sacred).
+# Some are still caught in phrases ("oh mince", "ferme-la", "oh la vache").
+FR = {
+    "strong": [
+        r"put(e|es|ain|ains|asse|asses)", r"encul(e|es|ee|ees|er|ait|ant|ons|ez|eur|eurs|ade)",
+        r"niqu(e|es|er|ent|ez|ons|ait|ais)", r"bais(e|es|ent|ait|ais|ant|ee|ees|ez|ons)",
+        r"foutre", r"bites?", r"teub", r"salop(e|es|ard|ards|erie|eries)", r"salauds?",
+        r"enfoire(s|e|es)?", r"conn(ard|ards|asse|asses)", r"batard(e|s|es)?",
+        r"pouff?iasses?", r"petasses?", r"trouducs?",
+        r"branl(er|e|es|ent|eur|eurs|euse|euses|ette|ettes|ee|ait)",
+        r"tabarna[kc]", r"cali(ss|sse|ce)", r"cri(ss|sse)", r"(o|e)sti(e)?", r"sacrament",
+        r"ciboire", r"viarge",
+    ],
+    "moderate": [
+        r"merd(e|es|ier|ique|iques|eux|euse|er|ait|ouille)",
+        r"emmerd(e|es|er|ent|eur|eurs|euse|ant|ante|ants|antes|ement|ements|ez|ait|ais)",
+        r"demerd(e|er|ez|es|ent)",
+        r"chi(er|e|es|ent|ant|ante|ants|antes|ait|ais|ottes|asse|eur|eurs|erie|eries)",
+        r"culs?", r"cons?", r"conn(e|es)", r"conneries?",
+        r"deconn(e|er|es|ez|ait|ais|ent)", r"couill(e|es|on|ons|onne|onner|onnade|u|us)",
+        r"piss(e|er|es|ent|ait|eux|euse|ou)", r"foutu(e|s|es)?", r"foutez", r"foutaises?",
+        r"foutoir", r"garces?", r"nichons?", r"ducon",
+    ],
+    "mild": [r"bordel", r"maudit(e|s|es)?", r"damne(e|s|es)?"],
+    "minced": [
+        r"zut", r"sapristi", r"saperlipopette", r"sacrebleu", r"morbleu", r"parbleu",
+        r"palsambleu", r"ventrebleu", r"diantre", r"fichtre", r"bigre", r"mazette",
+        r"scrogneugneu", r"tabarnouche", r"tabarouette", r"mautadit", r"mautadine", r"torrieu",
+    ],
+    "deity": [r"jesuschrist", r"omg"],
+    "samesex": [
+        r"gays?", r"homosexuel(s|le|les)?", r"homosexualite", r"lesbiennes?",
+        r"bisexuel(s|le|les)?", r"homos?", r"pd", r"pedes?", r"tarlouzes?", r"tantouzes?",
+        r"gouines?", r"goudous?", r"queers?",
+    ],
+    "rude": [
+        r"idiot(e|s|es)?", r"imbeciles?", r"stupides?", r"debiles?", r"abruti(e|s|es)?",
+        r"cretin(e|s|es)?", r"na[sz]es?", r"nigaud(e|s|es)?", r"benets?", r"minables?",
+        r"tocard(e|s|es)?", r"bouffon(s|ne|nes)?", r"ploucs?", r"morveux", r"morveuses?",
+        r"pleurnichard(e|s|es)?", r"pleurnicheu(r|se|rs|ses)", r"mauviettes?", r"chochottes?",
+        r"taistoi", r"taisezvous", r"fermela",
+    ],
+    "sex": [
+        r"sexes?", r"sexuel(s|le|les)?", r"penis", r"vagins?", r"orgasmes?", r"masturb[a-z]+",
+        r"erections?", r"ejacul[a-z]+", r"sperme", r"preservatifs?", r"coit", r"pornos?",
+        r"pornographie", r"prostituee?s?", r"forniqu[a-z]+", r"fornication",
+    ],
+}
+FR_PHRASES = {
+    "moderate": [("en", "fous"), ("en", "fout"), ("me", "fous"), ("te", "fous"), ("se", "fout"),
+                 ("fous", "le", "camp"), ("fous", "moi")],
+    "mild": [("au", "diable"), ("que", "diable"), ("va", "au", "diable"),
+             ("allez", "au", "diable"), ("va", "en", "enfer"), ("allez", "en", "enfer")],
+    "minced": [("oh", "mince"), ("ah", "mince"), ("mince", "alors"), ("oh", "punaise"),
+               ("oh", "puree"), ("oh", "flute"), ("flute", "alors"), ("bon", "sang"),
+               ("nom", "un", "chien"), ("nom", "une", "pipe"), ("oh", "la", "vache"),
+               ("ah", "la", "vache"), ("juste", "ciel")],
+    "deity": [("oh", "mon", "dieu"), ("ah", "mon", "dieu"), ("mon", "dieu"), ("bon", "dieu"),
+              ("nom", "de", "dieu"), ("dieu", "du", "ciel"), ("grand", "dieu"),
+              ("grands", "dieux"), ("doux", "jesus"), ("jesus", "marie", "joseph"),
+              ("jesus", "christ"), ("seigneur", "dieu"), ("oh", "seigneur"), ("ah", "seigneur"),
+              ("doux", "seigneur"), ("dieu", "merci"), ("par", "dieu"),
+              ("pour", "amour", "de", "dieu"), ("dieu", "seul", "sait"), ("dieu", "sait"),
+              ("jure", "devant", "dieu"), ("dieu", "me", "garde"), ("dieu", "nous", "garde"),
+              ("dieu", "ne", "plaise"), ("sainte", "vierge"), ("sainte", "mere", "de", "dieu"),
+              ("mere", "de", "dieu"), ("dieu", "tout", "puissant"), ("bonte", "divine")],
+    "rude": [("tais", "toi"), ("taisez", "vous"), ("ferme", "la"), ("ferme", "ta", "gueule"),
+             ("ta", "gueule"), ("vos", "gueules"), ("ferme", "ta", "bouche"),
+             ("ferme", "ton", "clapet"), ("boucle", "la"), ("je", "te", "deteste"),
+             ("tu", "crains"), ("tu", "pues"), ("ca", "craint"), ("est", "nul"),
+             ("poule", "mouillee")],
+}
+FR_NOT_NEXT = {"con": {"carne", "brio"}, "cul": {"sec"},
+               "homo": {"sapiens", "erectus", "habilis"}, "bouffon": {"du"}}
+FR_NOT_BEFORE = {"nique": {"pique"}, "batard": {"pain"}, "branle": {"en"}}
+
+WORDS = {"es": {k: _c(v) for k, v in ES.items()}, "fr": {k: _c(v) for k, v in FR.items()}}
+PHRASES = {"es": ES_PHRASES, "fr": FR_PHRASES}
+NOT_NEXT = {"es": ES_NOT_NEXT, "fr": FR_NOT_NEXT}
+NOT_BEFORE = {"es": ES_NOT_BEFORE, "fr": FR_NOT_BEFORE}
 ORDER = ("strong", "moderate", "deity", "samesex", "mild", "minced", "rude")
 
 
