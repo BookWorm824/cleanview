@@ -347,6 +347,32 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- "CleanView was updated to version ..." goes away by itself (1.18.84, 2026-11-13; the owner:
+  "when it updates clean view it leaves a long bar on the top it should go away after 3
+  seconds", "it says updated to version"). The tinted line at the top of the start page after
+  an update or "Check for updates" (`CLEANVIEW_UPDATED`; also "CleanView is up to date.") is
+  `self.updated_note` and is removed after `UPDATED_SHOWN_SECS` (3).
+- Lauren's Castle S2E1 tests (1.18.84, 2026-11-13, adults, laptop, made on 1.18.78; four
+  "refined" files in the Drive folder: 16:48 with the AI helper off, 17:23 and 17:27 with it
+  on, 17:36 the same after asking Claude; she attached the last one and called it "without the
+  ai helper"). Off: 5 min, the short list's words only, and a "Condom shown" at 18:21 (the
+  latex glove being dusted inside) offered unticked as not double-checked. On: 29 min (reading
+  the dialogue 16.2, each conversation 11.7; dialogue model 63% on the card), the glove
+  dropped by the closer look, and four more lines: "spotlights shining up my booty" and "You
+  could be wearing a skirt" (she made each just the word), "Try unbuttoning his shirt" (the
+  photographer; she unticked it) and "You do remind me a little of Hooch" (a dog; wrong, left
+  muted). Fixed: "stripper pole" is muted whole (`LINE_WORDS["sexref"]`
+  `strippers?(?: poles?)?`; only "stripper" was, and in the chat she said "if pole ever comes
+  after stripper it should be muted, keep pole other instances"); "Sexy. Sexy's not a crime."
+  had its second mute put on top of the first (`word_mute`: a possessive is the word said
+  again, `cl._base`; a word asked for more often than it's said gets no second mute on top; a
+  heard word counts as already muted by its middle, since a mute is a little wider than its
+  word). Taught for Castle as fine (her "Yes, teach them"; a "CleanView reviewed" file through
+  merge_learned.py): "You do remind me a little of Hooch" and "Try unbuttoning his shirt. Just,
+  just the first one right there." Not flagged by either run and put to her, not taught (she
+  named none): "Because I don't wanna get paid in singles", "Ever consider becoming a mohel?"
+  / "Keep talking and I'll practice on you", "Now excuse me while I change my shorts", "before
+  he goes and takes a leak", "That he was cheating?".
 - Technical notes are off the review page (1.18.82, 2026-11-13; the owner: "in the after
   report that is visible in clean view after cleaning a video, you are able to see the qwen
   version and timers and such. i dont care if that in the report to send to you, but not
@@ -1162,6 +1188,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   everyday look-alikes left alone (un baiser, la ferme, pique-nique, Homo sapiens, elle est
   mince), Quebec's swears, French .srt files and sound track; real French heard with
   `CLEANVIEW_TEST_MULTI`.
+- `test_updated_note.py`: the "updated to version" line shows after an update, is gone after
+  its seconds (also "up to date"), isn't there without an update, and a page built again
+  meanwhile doesn't trip over it.
+- `test_castle_s2e1_words.py`: "stripper pole" found and muted from "stripper" to "pole"
+  (stripper alone as before, other poles left alone); "Sexy. Sexy's" gets a mute each, heard
+  or not, and a word asked for twice but said once gets one; the two Castle false alarms built
+  in as fine.
 - `test_plain_notes.py`: which notes are technical and which are about the video, the review
   page showing only the video's, a real saved report file with them as its last lines under
   their heading (the version too), the saved review keeping them all, and "Send what we

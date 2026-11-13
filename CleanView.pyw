@@ -316,6 +316,7 @@ def short(name, n=60):
 
 
 ICON = Path(__file__).resolve().parent / "cleanview.ico"
+UPDATED_SHOWN_SECS = 3      # how long "CleanView was updated to version ..." stays up
 ICON_AGAIN = (0.5, 3.0)       # seconds after the window is made that its logo is set again
 
 
@@ -948,8 +949,14 @@ class App(tk.Tk):
 
         upd = os.environ.pop("CLEANVIEW_UPDATED", None)
         if upd:
-            tk.Label(main, text="✓ " + upd, bg=TINT, fg=ACCENT_DK, font=(FONT, 10),
-                     padx=X(12), pady=X(7), anchor="w").pack(fill="x", pady=(0, X(12)))
+            # said for a few seconds, then gone (the owner, 2026-11-13: "when it updates clean
+            # view it leaves a long bar on the top it should go away after 3 seconds")
+            said = self.updated_note = tk.Label(main, text="✓ " + upd, bg=TINT, fg=ACCENT_DK,
+                                                font=(FONT, 10), padx=X(12), pady=X(7),
+                                                anchor="w")
+            said.pack(fill="x", pady=(0, X(12)))
+            self.after(int(UPDATED_SHOWN_SECS * 1000),
+                       lambda: said.winfo_exists() and said.destroy())
         try:
             sess = json.loads(self.SESSION.read_text("utf8"))
             names = [Path(j["video"]).name for j in sess["jobs"]]

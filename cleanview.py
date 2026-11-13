@@ -1782,7 +1782,11 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # belt", "Naked photos"; not "skinny dippers found her" (police talk)
                          r"skinny[- ]?dip(?:ping|ped|s)?|chastity belts?|"
                          r"naked (?:photos?|pictures?|pics?|selfies?)|"
-                         r"hookers?|prostitutes?|strippers?|orgasms?|threesome|blow ?job|porn|"
+                         # "stripper pole" goes whole (the owner in the chat, 2026-11-13, Castle
+                         # S2E1: "if pole ever comes after stripper it should be muted, keep pole
+                         # other instances"); only "stripper" was muted
+                         r"hookers?|prostitutes?|strippers?(?: poles?)?|orgasms?|threesome|"
+                         r"blow ?job|porn|"
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
                          r"viagra|cialis|levitra|erectile dysfunction|little blue pills?|"
@@ -2111,8 +2115,10 @@ def word_mute(st, line, word, why, used=None):
     # was having an affair" muted "Affairs", and "Hello? What the hell" muted "Hello"
     for loose in (False, True):
         for k, w in enumerate(heard):
-            if any(u["s"] - 0.05 <= w[1] <= u["e"] + 0.05 for u in taken):
-                continue                     # this pass's mute of the word said before
+            # this pass's mute of the word said before (by the word's middle: a mute is a
+            # little wider than its word, and reached the start of a "Sexy's" said right after)
+            if any(u["s"] <= (w[1] + w[2]) / 2 <= u["e"] for u in taken):
+                continue
             n = cl.norm(w[0])
             if n == target or (loose and len(parts) == 1 and len(target) > 3 and target in n):
                 s, e = w[1], w[2]
@@ -2134,12 +2140,18 @@ def word_mute(st, line, word, why, used=None):
     if s is None:                 # not heard clearly: place it by its position in the line
         toks = [cl.norm(t) for t in (line.get("plain") or line["text"]).replace("-", " ").split()]
         parts = parts or [target]
-        places = [k for k in range(len(toks)) if toks[k:k + len(parts)] == parts]
-        before = sum(1 for u in taken if line["s"] - 0.6 <= u["s"] <= line["e"] + 0.6 and
-                     target in cl.norm((u.get("raw") or u["word"]).replace(" ", "")))
-        pos = places[min(before, len(places) - 1)] if places else None    # said again: the next
-        if pos is None:
+        # "Sexy. Sexy's not a crime." is the word twice (Castle S2E1, 2026-11-13: the second
+        # was put on top of the first, two mutes at 0:45.3, and "Sexy's" played)
+        own = [cl._base(t) for t in toks]
+        places = [k for k in range(len(toks)) if toks[k:k + len(parts)] == parts
+                  or (len(parts) == 1 and own[k] == parts[0])]
+        said = [u for u in taken if line["s"] - 0.6 <= u["s"] <= line["e"] + 0.6 and
+                target in cl.norm((u.get("raw") or u["word"]).replace(" ", ""))]
+        if not places:
             return None
+        if len(said) >= len(places):      # every time it's said has its mute: not one on top
+            return said[-1]
+        pos = places[len(said)]           # said again: the next place
         dur, n_t = line["e"] - line["s"], max(1, len(toks))
         mid = line["s"] + dur * (pos + len(parts) / 2) / n_t
         start = line["s"] + dur * pos / n_t - 0.3

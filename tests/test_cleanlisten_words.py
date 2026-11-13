@@ -31,6 +31,9 @@ CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such t
     "sex", "sexual", "porn", "made love", "one night stand", "slept with her", "arousal",
     "orgasm", "thanks for the quickie", "penis", "penises", "private parts",
     "sexy",            # in LINE_WORDS["sexref"] here (CleanListen 1.17.22's tests have it)
+    # "pole" right after "stripper" (the owner, 2026-11-13): LINE_WORDS["sexref"] here
+    "stripper pole", "stripper poles", "stripper's pole", "stripper's poles", "strippers pole",
+    "strippers poles",
     # the owner's hard rule (2026-11-13): always removed. Here they're line-list words
     # (LINE_WORDS "crude" and "sexref", hard_rule_words), not cvcore words
     "fart", "farts", "farted", "farting", "condom", "condoms", "semen",
