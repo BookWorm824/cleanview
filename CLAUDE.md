@@ -347,6 +347,37 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- CleanView says "AI", not "Claude" (1.18.86, 2026-11-13; the owner: "Not in the Claud, chat,
+  gemini section, but everywhere else in clean view, instead of saying "claude" say "Ai"").
+  Step 3 (the AI helper: the cards, the sign-in lines) and the messages that send her there
+  ("... isn't signed in yet", "This needs Claude, ChatGPT or Gemini") still name them.
+  Everywhere else: the window's `AI_NAME` is "AI" ("Ask AI", "AI: cut - ...", "Ask AI about
+  this...", "Found by AI"), sentences say "the AI" ("The AI's review", "that the AI says are
+  fine", "The AI is reading the dialogue...", "The AI's findings on this video"); the engine
+  writes `THE_AI` in its notes and progress lines ("The AI reviewed everything", "The AI
+  couldn't read the dialogue this time", "The AI is looking through the whole picture") and
+  the labels "Found by AI", "Seen by AI", "Asked AI", "(widened by the AI)"; the report file
+  says "per the AI review". Which one helped is still kept (`st["reviewer"]`, `st["reader"]`,
+  the settings) and sent in. Older reviews are shown the new way: `engine.plain_ai(text)`
+  changes a name at the start of a note or after by / Asked / per; it's used only on notes
+  and labels CleanView wrote itself (a scene's "why" and the dialogue can have a Claude of
+  their own). `scan_step` knows both wordings. Not changed: "your chat with Claude" in the
+  offline "Send what CleanView learned" message (that's this chat), file and function names
+  (`claude_findings.csv`), and the learned counts under the old label names.
+- A short list of Spanish swear words is on the English lists (1.18.86, 2026-11-13). The owner
+  asked what happens to the Spanish in a mostly English movie (cleaned as English: the Spanish
+  lists aren't used, the English model can't hear Spanish, so its swearing gets through), then
+  "would loading spanish known swear words into the english filter help without using a
+  separate filter?" and "add the short list and we will look at the other option later". In
+  `cvcore.MODERATE`: puta/puto(s), hijueputa, pendejo/a(s), cabrón (cabrona, cabrones),
+  joder, jodido/a(s), jódete, carajo, gilipollas, chinga/chingar/chingada/chingado/chingón...;
+  in `SAMESEX_WORDS`: maricón(es). Only words that mean nothing else in English; "mierda" was
+  there already. `norm()` drops an accented letter in English ("cabrón" -> "cabrn"), so each
+  pattern takes both spellings. Left off: con, concha, polla (words and names), culo, verga,
+  and coño, which `norm()` makes "coo". A stopgap: they're caught where subtitles spell them
+  out, rarely from the sound. The real fix, put off by her ("the other option later"), is to
+  listen with the model for other languages and use each line's own list; "Auto" (tell the
+  language from the sound track's label or a short sample) was discussed too, not decided.
 - Subtitles are always looked for (1.18.85, 2026-11-13; the owner, of step 1's "Find subtitles
   online for videos that don't have any" switch: "that part says look for subtitles with a
   choice. i think subtitles are important enough that they should be standard"). The switch is
@@ -1230,6 +1261,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   everyday look-alikes left alone (un baiser, la ferme, pique-nique, Homo sapiens, elle est
   mince), Quebec's swears, French .srt files and sound track; real French heard with
   `CLEANVIEW_TEST_MULTI`.
+- `test_say_ai.py`: older notes and labels shown the new way (a name at the start, after by /
+  Asked / per; nothing else touched), the steps still told apart, the review page naming none
+  of the three for each of them while a character called Claude keeps his name, which one it
+  was still kept, and step 3 still naming them.
+- `test_spanish_in_english.py`: the short Spanish list found in English sentences (with and
+  without accents, the slur with the same-sex words, only with swearing ticked, an AI may
+  mute them alone), and everyday English left alone (coo, con carne, Concha, Mr. Ching).
 - `test_no_internet.py`: the check without touching the network (a stand-in socket; the
   setting for tests), nothing looked up offline but the video's own and earlier downloads
   still used and no miss remembered, the note; Start cleaning offline asks, No stays put, Yes

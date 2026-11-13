@@ -136,15 +136,17 @@ class EnglishAsBefore(unittest.TestCase):
         self.assertEqual(found("Well damn it, you stupid idiot"),
                          [("damn", "mild"), ("stupid", "rude"), ("idiot", "rude")])
         self.assertEqual(cl.norm("Cabrón!"), "cabrn")        # English leaves accents out
-        self.assertEqual(found("Eres un cabrón, joder"), [])
+        # (a short list of Spanish swear words is on the English lists since 1.18.86:
+        # test_spanish_in_english.py; these two aren't on it)
+        self.assertEqual(found("Qué coño haces, follador"), [])
         self.assertEqual(cl.mask("damn"), "d***")
         self.assertEqual(engine._lang_file("transcript.json"), "transcript.json")
 
     def test_going_back_to_english(self):
         cl.use_language("es")
-        self.assertEqual(found("¡Joder!"), [("joder", "strong")])
+        self.assertEqual(found("¡Coño!"), [("coño", "strong")])
         cl.use_language("en")
-        self.assertEqual(found("¡Joder!"), [])
+        self.assertEqual(found("¡Coño!"), [])
 
 
 class Readers(unittest.TestCase):

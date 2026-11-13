@@ -82,7 +82,7 @@ class AskBox(unittest.TestCase):
     def ask_everything(self):
         """Open the Ask box under every scene, line and word and put a long answer in each."""
         for link in [l for l in every(self.app, tk.Label)
-                     if str(l.cget("text")) in ("Ask", "Ask Claude about this…")]:
+                     if str(l.cget("text")) in ("Ask", "Ask AI about this…")]:
             link.event_generate("<Button-1>")
             self.app.update()
         boxes = [f for f in every(self.app, tk.Frame) if hasattr(f, "reply")]

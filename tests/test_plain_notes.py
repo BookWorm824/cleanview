@@ -120,7 +120,7 @@ class WhichNotes(unittest.TestCase):
                "Plain Notes Show S01E01 - CleanView report.txt").read_text("utf8")
         top, _, last = rep.partition(engine.TECHNICAL_HEAD)
         for note in ABOUT_THE_VIDEO:
-            self.assertIn(note, top)
+            self.assertIn(engine.plain_ai(note), top)
         for note in TECHNICAL:
             self.assertNotIn(note, top)             # not among what's about the video
             self.assertIn(note, last)               # the last lines, under their heading
@@ -155,10 +155,11 @@ class ReviewPage(unittest.TestCase):
                     out += texts(c)
                 return out
             shown = "\n".join(str(t) for t in texts(app))
-            for note in ABOUT_THE_VIDEO:
-                self.assertIn(note, shown)
+            for note in ABOUT_THE_VIDEO:            # (said as "the AI" since 1.18.86)
+                self.assertIn(engine.plain_ai(note), shown)
             for note in TECHNICAL:
                 self.assertNotIn(note, shown)
+                self.assertNotIn(engine.plain_ai(note), shown)
             for word in ("qwen", "Took ", "stills)", "speakers told apart"):
                 self.assertNotIn(word, shown)
             self.assertEqual(len(app.jobs[0]["analysis"]["notes"]), len(mixed()))     # still kept

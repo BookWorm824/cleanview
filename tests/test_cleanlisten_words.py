@@ -61,6 +61,8 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # CleanListen 1.14.2 has CleanView 1.18.13's prayer guards (Wings of a Dream)
 # CleanListen 1.17.7 has CleanView 1.18.30-1.18.39's words (West Side Story slurs, nympho,
 # private parts, bondage, safe word), 2026-11-09
+# (the short list of Spanish swear words on the English lists, 1.18.86, waited here until
+# CleanListen 1.17.32 had it, the same day)
 WAITING_ON_CLEANLISTEN = set()
 
 

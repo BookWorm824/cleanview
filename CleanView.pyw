@@ -86,7 +86,7 @@ CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Distur
         "Dark": "#4A2E5E", "Magic": "#5A4FA0", "St.": "#2E7D4F", "Vampires": "#6B2238"}
 
 
-CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = "#C2581F"
+CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = CHIP["AI"] = "#C2581F"
 
 
 # ---------- who you're filtering for: each has its own ticks, remembered separately ----------
@@ -158,7 +158,11 @@ def wrap_width(px):
     return round(px * _text_scale)
 
 
-AI_NAME = "Claude"      # whichever online AI did the review (Claude, ChatGPT or Gemini)
+# What the window calls whichever of Claude, ChatGPT or Gemini is helping: "AI", everywhere
+# but step 3, where one is chosen and set up, and the messages that send her there (the
+# owner, 2026-11-13: "Not in the Claud, chat, gemini section, but everywhere else in clean
+# view, instead of saying "claude" say "Ai""). In a sentence it's "the AI".
+AI_NAME = "AI"
 CLAUDE_SAYS = {"remove": ("mute the whole line", "SAY_REMOVE"),      # (the colours by name:
                "not an issue": ("not an issue", "SAY_FINE"),           # light or dark)
                "just the word": ("mute just the word", "SAY_WORD"),
@@ -1929,7 +1933,7 @@ class App(tk.Tk):
             box_n.pack(side="left", padx=(6, 0))
             box_n.bind("<<ComboboxSelected>>", lambda e: self._set_at_once(int(at_var.get())))
             tk.Label(top, text="More at once finishes a season sooner, but each video takes "
-                     "longer and the PC is busier. With Claude, ChatGPT or Gemini it also uses "
+                     "longer and the PC is busier. With an online AI it also uses "
                      "up your plan's limits faster.", bg=BG, fg=MUTED, font=(FONT, 9),
                      wraplength=wrap_width(520), justify="left").pack(side="left", padx=(12, 0))
         if n > 1:                       # each video, ticked off as it's done
@@ -2570,7 +2574,6 @@ class App(tk.Tk):
         return None
 
     def show_review(self, tab=0):
-        global AI_NAME
         keep = None                 # rebuilding after a change: stay where you were
         if self.page_name == "review":
             try:
@@ -2582,7 +2585,6 @@ class App(tk.Tk):
         self.review_ai = self._pick_review_ai(good)
         if not self.review_ai:
             self._check_every_ai()
-        AI_NAME = cc.name(self.review_ai)
         if self.review_ai:
             cc.use(self.review_ai)
         self._ai_ok = bool(self.review_ai) and (
@@ -2626,7 +2628,7 @@ class App(tk.Tk):
         t_chat = tk.Frame(nb, bg=BG)
         nb.add(t_found, text="  Found  ")
         nb.add(t_dlg, text="  All dialogue  ")
-        nb.add(t_chat, text=f"  Ask {AI_NAME if self.review_ai else 'Claude, ChatGPT or Gemini'}  ")
+        nb.add(t_chat, text=f"  Ask {AI_NAME}  ")
 
         # Found
         add = tk.Frame(t_found, bg=BG)
@@ -2650,7 +2652,7 @@ class App(tk.Tk):
             frow = tk.Frame(t_found, bg=BG)
             frow.pack(fill="x", pady=(0, 4))
             self.fine_var = tk.BooleanVar(value=self.show_fine)
-            ttk.Checkbutton(frow, text=f"Also show the {n_fine} that {AI_NAME} says are fine "
+            ttk.Checkbutton(frow, text=f"Also show the {n_fine} that the AI says are fine "
                             "(they won't be muted or cut)", variable=self.fine_var,
                             command=self._toggle_fine).pack(side="left")
         inner = self._scroll_area(t_found)
@@ -2663,7 +2665,7 @@ class App(tk.Tk):
                          font=(FONT, 12, "bold"), anchor="w").pack(fill="x", padx=8, pady=(14, 0))
             if st.get("claude_summary"):
                 box = self._round_card(inner, fill=NOTE, edge=NOTE_EDGE)
-                tk.Label(box, text=f"{st.get('reviewer') or AI_NAME}'s review", bg=NOTE,
+                tk.Label(box, text="The AI's review", bg=NOTE,
                          fg=NOTE_INK,
                          font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
                 tk.Label(box, text=st["claude_summary"], bg=NOTE, fg=INK, font=(FONT, 10),
@@ -2677,7 +2679,8 @@ class App(tk.Tk):
                              ". Anything you change yourself stays the way you set it.", bg=NOTE, fg=MUTED, font=(FONT, 9),
                              wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
             for note in engine.video_notes(st):     # not which AI model or how long it took
-                tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
+                tk.Label(inner, text="\u2139 " + engine.plain_ai(note), bg=BG, fg=MUTED,
+                         font=(FONT, 9),
                          wraplength=wrap_width(720), justify="left", anchor="w").pack(fill="x", padx=8)
             holder = tk.Frame(inner, bg=BG)
             holder.pack(fill="x")
@@ -3092,13 +3095,14 @@ class App(tk.Tk):
                    state="normal" if self.undo_stack else "disabled").pack(side="right",
                                                                          padx=(0, 8))
         several = sum(1 for j in self.jobs if j.get("analysis")) > 1
-        ttk.Button(top, text=f"{n}'s findings on {'these videos' if several else 'this video'}",
+        ttk.Button(top, text=f"The AI's findings on "
+                             f"{'these videos' if several else 'this video'}",
                    style="Small.TButton",
                    command=self._open_findings).pack(side="right", padx=(0, 8))
-        tk.Label(tab, text=f"\u201cReview everything again\u201d has {n} look over every scene, "
+        tk.Label(tab, text="\u201cReview everything again\u201d has the AI look over every scene, "
                  "line and word on the Found tab (including what you've added or unticked) "
                  "together with the whole dialogue, and decide what really needs removing, what's "
-                 f"a false alarm and what was missed. Your own changes are never undone. {n}'s "
+                 "a false alarm and what was missed. Your own changes are never undone. Its "
                  "calls are also saved to teach the AI on this PC, and kept in a spreadsheet.",
                  bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(720), justify="left").pack(anchor="w")
         tk.Label(tab, text="Ask about this episode or tell it what to change, and the list updates "
@@ -3133,7 +3137,7 @@ class App(tk.Tk):
         vids = [j["video"] for j in self.jobs if j.get("analysis")]
         if not learn.findings_rows(vids):
             messagebox.showinfo("CleanView", "Nothing saved for this video yet. Findings are "
-                                "saved each time Claude, ChatGPT or Gemini reviews a video.")
+                                "saved each time the AI reviews a video.")
             return
         for name in ("Findings for this video.csv",       # (a copy still open in Excel is locked)
                      f"Findings for this video {time.strftime('%H%M%S')}.csv"):
@@ -3195,7 +3199,7 @@ class App(tk.Tk):
         self.review_btn.config(state="disabled")
         self.chat_btn.config(state="disabled")
         cc.use(self.review_ai)
-        self._log(f"{AI_NAME} is reviewing everything that was found, with the whole dialogue. "
+        self._log("The AI is reviewing everything that was found, with the whole dialogue. "
                   "This can take a minute or two\u2026", "note")
 
         copy_ = copy.deepcopy(job["analysis"])    # she can keep ticking while it reads
@@ -3221,7 +3225,7 @@ class App(tk.Tk):
         self._sync_job(job)                  # ticks she changed meanwhile count as hers
         engine.finish_review(st, engine.match_review(st, res), job["work"])
         cnt = st.get("claude_counts") or {}
-        self._log(f"{AI_NAME}'s review: " + (st.get("claude_summary") or "done."))
+        self._log("The AI's review: " + (st.get("claude_summary") or "done."))
         self.after(200, self._save_session)
         self._log(f"Unticked {cnt.get('dropped', 0)} false alarm(s), added {cnt.get('added', 0)} "
                   "missed item(s)" + (f", {cnt['words']} line(s) now mute just the bad word"
@@ -3252,7 +3256,7 @@ class App(tk.Tk):
             self.chat_btn.config(state="disabled")
         self._log(shown, "you")
         cc.use(self.review_ai)
-        self._log(f"{AI_NAME} is reading the dialogue\u2026", "note")
+        self._log("The AI is reading the dialogue\u2026", "note")
         st = job["analysis"]
         self._sync_job(job)
 
@@ -3367,7 +3371,7 @@ class App(tk.Tk):
                     picked = ""
             entry.delete(0, "end")
             btn.config(state="disabled")
-            box.reply.config(text=f"{AI_NAME} is reading\u2026", fg=MUTED)
+            box.reply.config(text="The AI is reading\u2026", fg=MUTED)
             box.reply.pack(anchor="w", pady=(4, 0))
             self._send_chat(job, focus + (f" They highlighted: \"{picked}\"." if picked else "") +
                             f" They say: {q}", f"You (about {head}): {q}", box=box)
@@ -3418,7 +3422,7 @@ class App(tk.Tk):
         win.geometry("+%d+%d" % (self.winfo_rootx() + 120, self.winfo_rooty() + 160))
         tk.Label(win, text=title, bg=BG, fg=INK, font=(FONT, 10), wraplength=wrap_width(520),
                  justify="left").pack(anchor="w", padx=14, pady=(12, 6))
-        tk.Label(win, text=f"What should {AI_NAME} do? (e.g. \u201ckeep this\u201d, \u201cjust mute "
+        tk.Label(win, text="What should the AI do? (e.g. \u201ckeep this\u201d, \u201cjust mute "
                  "the word\u201d, \u201ccut a bit more after it\u201d, \u201cwhy was this flagged?\u201d)",
                  bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(520),
                  justify="left").pack(anchor="w", padx=14)
@@ -3436,7 +3440,7 @@ class App(tk.Tk):
             if not q:
                 return
             ent.delete(0, "end")
-            win.reply.config(text=f"{AI_NAME} is thinking\u2026", fg=MUTED)
+            win.reply.config(text="The AI is thinking\u2026", fg=MUTED)
             btn.config(state="disabled")
             head = title.splitlines()[0].rstrip(":")
             self._send_chat(job, f"{focus} They say: {q}",
@@ -3579,7 +3583,8 @@ class App(tk.Tk):
             ttk.Checkbutton(row, text=f"Turn down   ·   {engine.cl.fmt_t(q['s'])}   ·   "
                             f"{q['e'] - q['s']:.0f} sec", variable=v).pack(side="left")
             kind = q.get("kind", "Loud music")
-            look.chip(row, kind, chip_color(kind)).pack(side="left", padx=(10, 0))
+            look.chip(row, engine.plain_ai(kind), chip_color(kind)).pack(side="left",
+                                                                         padx=(10, 0))
             ttk.Button(row, text="Preview ▸", style="Small.TButton",
                        command=lambda q=q: self.preview(job, q)).pack(side="right")
 
@@ -3626,7 +3631,8 @@ class App(tk.Tk):
         ttk.Checkbutton(top_row, text=f"Cut   ·   {engine.cl.fmt_t(sc['s'])}   ·   {length}",
                         variable=v).pack(side="left")
         for k in sc["kind"]:
-            look.chip(top_row, k, chip_color(k), size=9).pack(side="left", padx=(10, 0))
+            look.chip(top_row, engine.plain_ai(k), chip_color(k), size=9).pack(
+                side="left", padx=(10, 0))
         ttk.Button(top_row, text="Preview ▸", style="Small.TButton",
                    command=lambda: self.preview(job, sc)).pack(side="right")
         mid = tk.Frame(card, bg=CARD)

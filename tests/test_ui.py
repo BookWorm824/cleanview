@@ -524,7 +524,7 @@ class Window(unittest.TestCase):
                 time.sleep(0.02)
             app.update()
             self.assertEqual(app.review_ai, "chatgpt")
-            self.assertIn("Ask ChatGPT", app._nb.tab(2, "text"))
+            self.assertIn("Ask AI", app._nb.tab(2, "text"))       # (1.18.86: "AI")
             self.assertEqual(app._nb.index("current"), 2, "still on the chat tab")
             self.assertTrue(app.chat_entry.winfo_exists())
             app.ai_state = {"gemini": "ready", "claude": "ready"}

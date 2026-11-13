@@ -1147,6 +1147,22 @@ SCAN_STEPS = [("Loading the listening model", "listening"), ("Listening to the d
               ("Reading each conversation", "reading each conversation"),
               ("Putting the scene list together", "scene list"), ("Done", "scene list")]
 CLOUD_NAMES = ("Claude", "ChatGPT", "Gemini")
+# What CleanView calls whichever of them is helping, everywhere but the step where one is
+# chosen and set up (the owner, 2026-11-13: "Not in the Claud, chat, gemini section, but
+# everywhere else in clean view, instead of saying "claude" say "Ai""). Which one it was is
+# still kept with the review (st["reviewer"], st["reader"]) and sent in.
+THE_AI = "The AI"
+_AI_FIRST = re.compile(r"^(?:Claude|ChatGPT|Gemini)(?='s\b| )")
+_AI_AFTER = re.compile(r"\b(by|Asked|per) (?:Claude|ChatGPT|Gemini)\b")
+
+
+def plain_ai(text):
+    """One of CleanView's own notes or labels from an older review, saying "AI" where it
+    named Claude, ChatGPT or Gemini: at its start ("Claude reviewed everything" -> "The AI
+    reviewed everything") or after by / Asked / per ("Found by Claude" -> "Found by AI").
+    Only for words CleanView wrote itself: a film can have a Claude in it."""
+    text = _AI_FIRST.sub(THE_AI, str(text))
+    return _AI_AFTER.sub(lambda m: m.group(1) + " AI", text)
 
 
 def scan_step(message):
@@ -1154,7 +1170,7 @@ def scan_step(message):
     for start, step in SCAN_STEPS:
         if m.startswith(start):
             return step
-    if m.startswith(CLOUD_NAMES):
+    if m.startswith(CLOUD_NAMES + (THE_AI + " ",)):
         if " is reading the dialogue" in m:
             return "reading the dialogue"
         if " is reviewing everything" in m:
@@ -1177,7 +1193,7 @@ def scan_step(message):
 TECHNICAL_NOTES = re.compile(
     r"Checked with: |The AI helper used |Voices: \d|The AI helper took a closer look at |"
     r"Nudity check: |Dialogue was checked with |Took (under a minute|\d+ min)|"
-    r"\S+ looked through the whole picture \(")
+    r"(The AI|\S+) looked through the whole picture \(")
 TECHNICAL_HEAD = "For CleanView's maker, to look into a problem (how this video was checked):"
 
 
@@ -1966,7 +1982,7 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
               "magic": "Magic", "stpatricks": "St. Patrick's Day",
               "vampires": "Vampires and werewolves",
               "learned": "You muted this before",
-              "added": "Added by you", "claude": "Found by Claude",
+              "added": "Added by you", "claude": "Found by AI",
               "shared": "CleanView learned", "chat": "You asked in the chat",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "forensic": "Coroner and doctor talk",
@@ -2387,14 +2403,14 @@ def apply_review(st, result):
             sc = over[0]
             sc["s"], sc["e"] = round(min(sc["s"], a), 2), round(max(sc["e"], b), 2)
             sc["cut"] = True
-            sc["claude"] = {"decision": "remove", "why": s["why"] + f" (widened by {st.get('reviewer', 'Claude')})"}
+            sc["claude"] = {"decision": "remove", "why": s["why"] + " (widened by the AI)"}
             sc["said"] = " ".join(l["text"] for l in lines if sc["s"] - 0.5 <= l["s"] <= sc["e"])[:600]
             sc.pop("thumbs", None)
             n_add += 1
             continue
         st["scenes"].append({"id": max([sc.get("id", 0) for sc in st["scenes"]] + [0]) + 1,
                              "s": round(a, 2), "e": round(b, 2),
-                             "kind": ["Found by " + st.get("reviewer", "Claude")],
+                             "kind": ["Found by AI"],
                              "why": s["why"], "cut": True,
                              "said": " ".join(l["text"] for l in lines[s["from"]:s["to"] + 1])[:600],
                              "claude": {"decision": "remove", "why": s["why"]}})
@@ -2471,7 +2487,7 @@ def apply_chat(st, items, acts, work=None):
             new.append((a, min(b, dur), c["why"]))
     for a, b, why in new:
         sc = {"id": max([x.get("id", 0) for x in st["scenes"]] + [0]) + 1,
-              "s": round(a, 2), "e": round(b, 2), "kind": [f"Asked {who}"],
+              "s": round(a, 2), "e": round(b, 2), "kind": ["Asked AI"],
               "why": why or "you asked in the chat", "cut": True, "by_you": True,
               "added": True,
               "said": " ".join(l["text"] for l in lines if a - 0.5 <= l["s"] <= b)[:600]}
@@ -2524,7 +2540,7 @@ def finish_review(st, res, work=None):
     who = st.get("reviewer", "Claude")
     st["notes"] = [x for x in st.get("notes", []) if " reviewed everything:" not in x]
     nw = st["claude_counts"].get("words", 0)
-    st["notes"].append(f"{who} reviewed everything: {n[0]} found item(s) look fine in context "
+    st["notes"].append(f"{THE_AI} reviewed everything: {n[0]} found item(s) look fine in context "
                        f"and were unticked, {n[1]} missed item(s) were added"
                        + (f", and {nw} line(s) now mute just the bad word instead of the whole line"
                           if nw else "") + ".")
@@ -2961,7 +2977,7 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
                     else:
                         dec, why = "not an issue", "only implied nudity: " + why
                 elif nud == "none" and dec == "remove":       # not nudity, but something else
-                    sc["kind"] = [f"Seen by {cc.name()}"]
+                    sc["kind"] = ["Seen by AI"]
                     why = "not nudity, but: " + why
                 elif nud == "none" and dec != "can't tell":   # unsure stays as it is
                     dec, why = "not an issue", "no nudity: " + why
@@ -3021,7 +3037,7 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
             if sc.get("cut", True):
                 snap_to_shots(path, sc, dur=dur)
     who = cc.name()
-    note = (f"{who} looked through the whole picture ({n_stills} stills): it confirmed "
+    note = (f"{THE_AI} looked through the whole picture ({n_stills} stills): it confirmed "
             f"{confirmed} scene(s), ruled out {ruled_out} false alarm(s) and found {len(new)} "
             f"the other checks missed" + (f", and set where {widened} cut(s) start and end "
                                           f"(just the part with the problem)" if widened else "") + ".")
@@ -4044,7 +4060,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             notes.append(f"Voices couldn't be told apart this time ({str(ex)[:80]}).")
     claude_found, claude_scenes, unread = None, [], []
     if use_claude:
-        say(at("lines", 0.1), f"{who} is reading the dialogue…")
+        say(at("lines", 0.1), f"{THE_AI} is reading the dialogue…")
         try:
             claude_found, claude_scenes = cc.check_dialogue(
                 lines, genders, [k for k in LINE_KINDS if o[k]], examples, unread=unread)
@@ -4052,7 +4068,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 parts = -(-len(lines) // 500)
                 spans = ", ".join(f"{cl.fmt_t(lines[a]['s'])}\u2013{cl.fmt_t(lines[b - 1]['e'])}"
                                   for a, b in unread)
-                notes.append(f"{who} couldn't read {len(unread)} of {parts} parts of the dialogue "
+                notes.append(f"{THE_AI} couldn't read {len(unread)} of {parts} parts of the dialogue "
                              f"({spans}), so " + ("the AI on this PC and the word lists"
                                                   if have_ai else "the word lists") +
                              " read those parts.")
@@ -4062,7 +4078,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                         claude_found.setdefault(i, set()).add(c["type"])
         except cc.ClaudeError as ex:
             claude_found, unread = None, []
-            notes.append(f"{who} couldn't read the dialogue this time: {ex}")
+            notes.append(f"{THE_AI} couldn't read the dialogue this time: {ex}")
     if look_job and have_ai and (claude_found is None or unread):
         # the AI on this PC reads it instead: let it finish its closer look at the picture
         # first, so the two never share the graphics card
@@ -4165,25 +4181,25 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         said = [w["t"] for w in asr if sc["s"] <= w["s"] <= sc["e"]]
         sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
     if o.get("reader") in CLOUD and o.get("look", True) and dur > 5:
-        say(at("pics", 0), f"{who} is looking through the whole picture…")
+        say(at("pics", 0), f"{THE_AI} is looking through the whole picture…")
         try:
             finds = None
             if pics_job is not None:    # started earlier, while the PC did its own checks
                 wait_for(pics_job, lambda f, n="": say(
-                    at("pics", f), f"{who} {n or 'is looking through the whole picture'} · "
+                    at("pics", f), f"{THE_AI} {n or 'is looking through the whole picture'} · "
                                    f"{eta(at('pics', f))}"), cancel)
                 finds = pics.get("finds")
             scenes, pic_note = look_at_picture(
                 path, work, dur, scenes, o, asr,
-                lambda f, m: say(at("pics", f), f"{who} {m} · {eta(at('pics', f))}"), cancel,
+                lambda f, m: say(at("pics", f), f"{THE_AI} {m} · {eta(at('pics', f))}"), cancel,
                 cues=cues, finds=finds)
             notes.append(pic_note)
         except cc.ClaudeError as ex:
-            notes.append(f"{who} couldn't look at the picture this time: {ex}")
+            notes.append(f"{THE_AI} couldn't look at the picture this time: {ex}")
         except KeyboardInterrupt:
             raise
         except Exception as ex:
-            notes.append(f"{who} couldn't look at the picture this time ({str(ex)[:80]}).")
+            notes.append(f"{THE_AI} couldn't look at the picture this time ({str(ex)[:80]}).")
     if not (o.get("reader") in CLOUD and o.get("look", True)):
         for sc in scenes:               # no AI looking: at least start and end on a shot change
             if not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", [])):
@@ -4229,13 +4245,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         notes.append(f"Muted just the word in {n_wo} line(s), as you did before.")
     # Claude's final review: everything above, judged together in context
     if o.get("reader") in CLOUD and (lines or scenes or mutes):
-        say(at("end", 0.75), f"{who} is reviewing everything that was found…")
+        say(at("end", 0.75), f"{THE_AI} is reviewing everything that was found…")
         try:
             claude_review(st)
         except cc.ClaudeError as ex:
-            notes.append(f"{who} couldn't do the final review this time: {ex}")
+            notes.append(f"{THE_AI} couldn't do the final review this time: {ex}")
         except Exception as ex:          # never lose the scan over the review
-            notes.append(f"Claude's final review didn't work this time ({str(ex)[:80]}).")
+            notes.append(f"{THE_AI}'s final review didn't work this time ({str(ex)[:80]}).")
     make_thumbs(path, st["scenes"], work)
     say(1.0, "Done.")
     took[now_step["step"]] = took.get(now_step["step"], 0.0) + time.time() - now_step["t"]
@@ -4990,20 +5006,21 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     if careful:
         rep.append("It was saved the careful way, after the usual way didn't work, so the "
                    "clean copy has no subtitle track.")
-    rep += video_notes(st)
+    rep += [plain_ai(n) for n in video_notes(st)]
     if info.get("audio_tracks", 1) > 1:
         rep.append("Only the main soundtrack was kept (other languages and commentary "
                    "weren't cleaned, so they were left out).")
     rep.append("")
-    src_note = {"audio": "", "claude": f"   (only this word, per {st.get('reviewer') or 'the AI review'})",
-                "claude-estimated": f"   (only this word, per {st.get('reviewer') or 'the AI review'})"}
+    src_note = {"audio": "", "claude": "   (only this word, per the AI review)",
+                "claude-estimated": "   (only this word, per the AI review)"}
     events = [(m["s"], f"muted  {m['word']}" + src_note.get(m.get("src"), "   (caught by subtitles)"))
               for m in st["mutes"]]
     events += [(l["s"], "muted line  (" + ", ".join(LINE_LABEL.get(t, t) for t in l["types"]) + ")")
                for l in lines]
     events += [(q["s"], f"turned down  {q.get('kind', 'loud music').lower()} for "
                         f"{q['e'] - q['s']:.0f} seconds") for q in quiet]
-    events += [(c["s"], f"CUT {c['e'] - c['s']:.0f} seconds  {' + '.join(c.get('kind') or ['scene'])}"
+    events += [(c["s"], f"CUT {c['e'] - c['s']:.0f} seconds  "
+                        f"{' + '.join(plain_ai(k) for k in c.get('kind') or ['scene'])}"
                         f"  ({c.get('why', '')})") for c in cuts]
     events += [(s, f"CUT {e - s:.0f} seconds  instead of a long silence (muted lines or words)")
                for s, e in long_rs]

@@ -143,6 +143,15 @@ MODERATE = [
     r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
     # German, French and Spanish ones said in English films (National Treasure: "Merde")
     r"merde", r"scheisse", r"mierda",
+    # A short list of Spanish swear words that mean nothing else in English, for the Spanish
+    # in a mostly English video (cleaned as English, so the Spanish lists in cvlang.py aren't
+    # used): the owner, 2026-11-13, "add the short list and we will look at the other option
+    # later". Caught where the subtitles spell them out. Written as norm() leaves them: an
+    # accented letter is dropped ("cabrón" -> "cabrn"), so each takes both spellings. Left
+    # off: con, concha, polla (ordinary words and names), and coño, which norm() makes "coo".
+    r"put[ao]s?", r"hijueputas?", r"pendej[ao]s?", r"cabro?n(a|es|as)?", r"joder",
+    r"jodid[ao]s?", r"jo?dete", r"carajo", r"gilipollas",
+    r"ching(a|as|ar|ada|adas|ado|ados|o?n|ona|ones|adera|aderas)",
     # more crude slang heard in TV and films
     r"a-?holes?", r"lardass(es)?", r"bia?y?o?tch(es)?", r"beyotch", r"shat",
     r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts", r"knobheads?", r"tossers?",
@@ -563,7 +572,9 @@ SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score thi
 
 SAMESEX_WORDS = [r"gays?", r"homosexuals?", r"homosexuality", r"lesbians?", r"bisexuals?",
                  r"queers?", r"fags?", r"faggots?", r"dykes?", r"homos?", r"lesbos?",
-                 r"lez(z?ie|z?ies|bos?)"]
+                 r"lez(z?ie|z?ies|bos?)",
+                 # Spanish, with the short list above (a slur, as "faggot" is here)
+                 r"marico?n(es)?"]
 
 # Checkbox groups shown in the app → word-list categories
 GROUPS = {
