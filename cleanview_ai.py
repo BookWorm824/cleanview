@@ -1085,6 +1085,8 @@ LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around
 
 
 def _letters(t):
+    if cvlang.LANG != "en":           # other alphabets too (Russian was left with nothing)
+        return re.sub(r"[^\w]+|_", " ", t.lower().replace("ё", "е")).strip()
     return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 
 

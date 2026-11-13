@@ -89,6 +89,60 @@ class WhileReading(unittest.TestCase):
         self.assertEqual(tl.say(1.0), "estimating time…")       # nothing left to time
 
 
+class TheWaitBeforeAStepMoves(unittest.TestCase):
+    """(1.18.88; the owner, 2026-11-13, one movie of 1,700 lines: "said checking diologue 200-225
+    of 1700 65 minutes left. then it jumped to 250 minutes. is that right?") The step before
+    ends on the next one's first mark, and telling voices apart comes before the reading with
+    no count of its own. Those minutes were counted as reading time."""
+
+    def reading(self, wait, each=60.0, upto=0.30, pace=None):
+        """The reading step: `wait` seconds after the picture step ends before the first
+        lines are read, then a hundredth of the step every `each` seconds. Returns
+        [(share done, seconds really left in the step, seconds said)]."""
+        clock = Clock()
+        tl = engine.TimeLeft(DUR, pace, clock)
+        tl.base = dict(BASE)
+        b, w = BASE["lines"]
+        clock.t = 1000.0 + 420                       # listening and the picture took 7 min
+        tl.left(b)                                   # the picture step's last word: 100%
+        clock.t += wait                              # telling voices apart: nothing counted
+        out = []
+        for k in range(int(upto * 100) + 1):
+            said = tl.left(b + w * k / 100)
+            out.append((k / 100, each * (100 - k), said))
+            clock.t += each
+        return out
+
+    def test_the_wait_isnt_taken_for_reading_time(self):
+        # 8 minutes of telling voices apart, then a hundredth of the reading a minute: 100
+        # minutes of reading in all. At 5% the old way said 257 minutes.
+        for share, real, said in self.reading(wait=480):
+            if share >= 0.06:
+                self.assertAlmostEqual(said - TAKES["end"], real, delta=0.12 * real, msg=share)
+
+    def test_the_same_with_no_wait(self):
+        for share, real, said in self.reading(wait=0):
+            if share >= 0.06:
+                self.assertAlmostEqual(said - TAKES["end"], real, delta=0.12 * real, msg=share)
+
+    def test_no_jump_when_its_own_speed_takes_over(self):
+        # last time this step went at the same speed: what's said before and after the
+        # switch (at 5%) is about the same, wait or no wait
+        pace = {"lines": 6000.0 / DUR, "vis": 300.0 / DUR, "asr": 120.0 / DUR}
+        for wait in (0, 480):
+            said = {round(share, 2): s for share, real, s in self.reading(wait=wait, pace=pace)}
+            self.assertAlmostEqual(said[0.04], said[0.06], delta=0.1 * said[0.04], msg=wait)
+
+    def test_long_times_in_hours(self):
+        clock = Clock()
+        tl = engine.TimeLeft(DUR, {"asr": 15000.0 / DUR}, clock)
+        tl.base = {"asr": (0.0, 1.0)}
+        self.assertEqual(tl.say(0.0), "about 4 hr 10 min left")
+        self.assertEqual(tl.say(0.64), "about 1 hr 30 min left")
+        self.assertEqual(tl.say(0.65), "about 88 min left")              # under an hour and a half
+        self.assertEqual(tl.say(0.995), "about 1 min left")
+
+
 class Remembered(unittest.TestCase):
     """How long each step took here last time is remembered, so it's right from the start."""
 

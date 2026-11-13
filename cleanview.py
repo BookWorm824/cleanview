@@ -676,13 +676,13 @@ def guess_title(path):
         elif fs or re.search(r"(?i)\b(s\d{1,2}|d\d|t\d{1,2}|disc|title|track)\b", stem):
             return None   # a disc/track name: can't tell which episode
     if season is not None:
-        if not re.search(r"[A-Za-z]{2}", show):
+        if not re.search(r"[^\W\d_]{2}", show):
             fs = re.match(r"(?i)\s*(season|series|s)\s*\d{1,2}\s*$", parent)
             show = grand if fs else parent
         show = re.sub(r"\s*[\(\[].*?[\)\]]\s*", " ", show).strip()
         return (show, season, episode) if show else None
     title = stem.strip()
-    return (title, None, None) if re.search(r"[A-Za-z]{2}", title) else None
+    return (title, None, None) if re.search(r"[^\W\d_]{2}", title) else None
 
 
 def learned_key(path, o):
@@ -3187,6 +3187,13 @@ class TimeLeft:
         b, w = self.base[step]
         share = (frac_done - b) / w
         seen = self.seen.setdefault(step, [el, share, el, share])
+        if share <= seen[1] + 1e-9:
+            # Not moving yet: the step's clock starts when it does. The step before ends on
+            # this one's first mark, and telling voices apart comes before the reading with
+            # no count of its own; those minutes were taken for reading time, so a long
+            # movie's 65 minutes became 250 once its own speed was used (the owner,
+            # 2026-11-13).
+            seen[0] = el
         seen[2], seen[3] = el, share
         spent, done = el - seen[0], share - seen[1]
         at_start = b + seen[1] * w              # how full the bar was when this step began
@@ -3214,7 +3221,10 @@ class TimeLeft:
         left = self.left(frac_done)
         if left is None:
             return "estimating time…"
-        return f"about {max(1, left / 60):.0f} min left"
+        mins = int(f"{max(1, left / 60):.0f}")
+        if mins >= 90:                  # "about 4 hr 10 min left" reads easier than 250 min
+            return f"about {mins // 60} hr {mins % 60:02d} min left"
+        return f"about {mins} min left"
 
     def paces(self):
         """This scan's speed for each step that was done from its start and wasn't just saved

@@ -157,7 +157,7 @@ class FrenchFiles(unittest.TestCase):
         self.assertEqual(engine.probe(out, "fr")["audio"]["index"], 2)
 
     def test_on_the_start_pages_list(self):
-        self.assertEqual(list(cvlang.LANGS.items()),
+        self.assertEqual(list(cvlang.LANGS.items())[:3],
                          [("en", "English"), ("es", "Spanish"), ("fr", "French")])
         for code in cvlang.LANGS:               # every language has all its pieces
             self.assertIn(code, cvlang.TAGS)

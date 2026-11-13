@@ -347,6 +347,34 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Portuguese and Russian (1.18.88, 2026-11-13; the owner: "can do both portuguise and russian
+  now"), the last two of the "easier group". `cvlang.PT` (Brazil and Portugal; accents come
+  off, a hyphen joins: "foda-se" is "fodase") and `cvlang.RU` (Cyrillic, ё written as е
+  through `SAME_LETTER`; accents are NOT taken off, й would become и; built on the few roots
+  the swearing uses, e.g. `ху[йяеию][а-я]*`, `[а-я]*пизд[а-я]*`, prefix + `еб...`), each
+  with phrases and guards. Left off as mostly innocent, Portuguese: puto (a boy in
+  Portugal), pau, pica, bicha (a queue), veado, piranha, cadela, corno, burro, droga, nossa,
+  fogo; Russian: козёл, свинья, голубой, зараза, ёлки, черта (a trait; чёрт and its phrases
+  are in), and "блин" is guarded as a pancake. Russian is the first language in another
+  alphabet, so three places that only knew English letters follow the language now:
+  `ai._letters` (an AI's quoted words were never found in a Russian line, so nothing it
+  flagged would have counted), `learn.norm` (a Russian line was learned as an empty line) and
+  `guess_title` (a video named in Cyrillic had no name to look subtitles up by). Still Latin
+  only: `cc._only_word` (an AI's "just the word" in Russian falls back to the whole line) and
+  the subtitle title match `_same_title`. Not heard: the listening model's samples are
+  Spanish, French, German and English, so no Portuguese or Russian speech has been through
+  CleanView here; the lists had no native speaker's check. cvlang.py changed: CleanListen's
+  copy must follow.
+- The time left doesn't count the wait before a step moves (1.18.88, 2026-11-13; the owner, one
+  movie of 1,700 lines on the laptop: "said checking diologue 200-225 of 1700 65 minutes left.
+  then it jumped to 250 minutes. is that right?"). `TimeLeft` took a step as begun when the
+  step before it said 100% (which is the next step's first mark), and "Telling voices
+  apart..." comes before the reading with no count of its own; those minutes were divided by
+  the 5% of the reading done when its own speed took over, which is exactly lines 200-225 of
+  1,700 with sexual references off. The step's clock now starts when its share first moves.
+  Times of an hour and a half or more are said as "about 4 hr 10 min left". The reading's
+  parts still aren't equally fast for their share of the bar (first read, second look,
+  sexual talk, each conversation), so the figure can drift within the step.
 - A video that fails while it's checked offers to send a note (1.18.87, 2026-11-13; the owner:
   "if clean view crashes or has a save issue. is that sent to you someway? is it in any report
   you would get?", and "yes" to adding the one case that wasn't offered). What reaches the
@@ -1282,6 +1310,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_portuguese_russian.py`: each language's swearing by group, everyday look-alikes left
+  alone (o puto, a bicha, raios X; хуже, небо, хлеб, блин the pancake, черта, Херсон,
+  гейзер), only ticked groups, listed words; an AI's quoted words found in a Russian line, a
+  Russian line learned as itself, a Cyrillic file name; each language's .srt files, saved
+  files and lookup; every language having all its pieces.
+- `test_time_left.py` also: the wait before a step moves isn't counted as its time, no jump
+  when its own speed takes over, long times in hours.
 - `test_check_failed.py`: a video that failed while checked asks once, with the reason; Yes
   writes the note (no home folder in it) and sends it as a problem, No sends nothing; a
   copy-protected video alone, or no inbox, gets the old box; a send that fails keeps the file

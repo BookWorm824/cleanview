@@ -33,6 +33,7 @@ import urllib.request
 from pathlib import Path
 
 import cvcore
+import cvlang     # the language being cleaned: lines in another alphabet are kept as they are
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 DIR = APP_DATA / "learned"
@@ -134,6 +135,8 @@ def show_key(title):
 
 
 def norm(text):
+    if cvlang.LANG != "en":           # letters of any alphabet (a Russian line came out empty)
+        return " ".join(re.sub(r"[^\w' ]+|_", " ", text.lower().replace("’", "'")).split())
     return " ".join(re.sub(r"[^a-z0-9' ]+", " ", text.lower().replace("’", "'")).split())
 
 
