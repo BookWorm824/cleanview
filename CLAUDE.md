@@ -347,6 +347,59 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Technical notes are off the review page (1.18.82, 2026-11-13; the owner: "in the after
+  report that is visible in clean view after cleaning a video, you are able to see the qwen
+  version and timers and such. i dont care if that in the report to send to you, but not
+  visbible to all. just keep things relative to the video,; the scenes cut, words muted etc.").
+  `engine.technical(note)` (`TECHNICAL_NOTES`): "Checked with: ...", "The AI helper used ...
+  (CleanView x)", "Voices: N speakers ...", "The AI helper took a closer look at ...", "Nudity
+  check: ...", "Dialogue was checked with ...", "Took N min: ...", "<AI> looked through the
+  whole picture (N stills) ...". The review page and the report file beside the clean copy
+  show `engine.video_notes(st)` only (of the report file she said: "i only want you to know
+  what is being used"). They stay in the saved review (`st["notes"]`, `st["scan"]`) and go out
+  with "Send what we refined", so a report .txt sent in no longer says the version, the models
+  or the times: ask for "Send what we refined" when those matter. Notes that say something wasn't checked or went wrong (no subtitles, no
+  AI read the dialogue, the picture AI isn't installed, an AI couldn't read or look) are about
+  the video and still show. A new note about how a scan went belongs in `TECHNICAL_NOTES`.
+- The logo, not Tk's feather (1.18.82, 2026-11-13; the owner: "sometimes the logo for clean
+  view down in the start bar of the computer becomes a big feather. i noticed it after doing
+  the recent update but it has done it before. the logo is correct currently"). Not
+  reproduced, cause unknown: the feather is what a Tk window shows when it has no icon of its
+  own. Ruled out here: an icon file held by another program (Tk then quietly uses Windows'
+  icon for the file, no error), the .ico itself (7 sizes, read fine). `set_icon(win)` now
+  makes the logo the default for every window of the app (`iconbitmap(default=)`; the "Ask"
+  box had none), sets it on the window, and sets it again 0.5 s and 3 s later (`ICON_AGAIN`);
+  a failure is written to `APP_DATA/icon_problem.txt` (time, version, error). The "Opening
+  CleanView..." box (launcher.pyw `splash`) sets the default too. If she sees it again: ask
+  what she had just done (update, Update now, text size, Light/Dark) and read that file.
+- The review page draws again quickly (1.18.82, 2026-11-13; the owner: asking Claude a question
+  on the review page, "while claude is working on the answer if you click anywhere else clean
+  view says not responding and then the whole screen refreshes. it comes back with a response
+  ... i just think it shouldn't do that"). The asking is in a thread; when the answer changes
+  the list, `_chat_reply` builds the whole review page again on the window's thread
+  (`show_review`), and that took 4-5 s here for a review with 1 scene and 38 words (longer on
+  her laptop): the window can't answer meanwhile. Nearly all of it was Tk drawing the rounded
+  ttk buttons: it stretches an image element by repeating its middle one copy at a time, and
+  the middle was 1 pixel wide (18 buttons: 2.5 s; plain: 0.2 s). `look._corner_img` pictures
+  are `STRETCH` (64) pixels wider now and the elements keep their smallest size (`_slim`:
+  `width`/`height` on `element_create`), for buttons and tabs; buttons are the same size.
+  Rebuilding that page: 3.9 s -> 1.7 s. Still on the window's thread (not changed): the
+  rebuild itself (each word row is about 20 ms), and `cc.status()` runs `claude auth status`
+  there when the AI's state isn't known yet. cvlook.py changed: CleanListen's copy must follow.
+- The time left is right while the dialogue is read (1.18.82, 2026-11-13; the owner: "when it
+  says checking dialogue or reading conversations. the green progress bar works correctly but
+  the timer doesnt. it said 1 minute remaining and it been working for 20"). It was worked out
+  from how full the bar was, as if every step filled it at the same speed; on her laptop the
+  AI helper's reading is 12% of the bar and two thirds of the time. `TimeLeft` (analyze's
+  `eta`) times the step being done by itself (once 5% of it and 20 s are done), and for the
+  steps to come uses how long each took on this PC last time, per second of video
+  (`APP_DATA/step_pace.json`, `load_pace`/`save_pace`, half old and half new each scan; keys
+  `asr`, `snd`, `vis`/`vis+ai`, `look`, `lines+local`/`lines+claude`..., `pics+...`; a step
+  under `PACE_MIN_SECS` or first seen partway was saved work and isn't remembered), else the
+  speed the bar moved at before that step. The bar itself is unchanged. Reading the dialogue
+  is now the whole of its step when each conversation isn't read after it (`read_part`; it
+  stopped at 60%). Not changed: "About ... left for all N" on the working page still goes by
+  the bar, and paused time counts as time spent.
 - Other languages, Spanish first (1.18.80, 2026-11-13; the owner: "is it possible to add
   additonal language capabilities to clean view? ... like if i wanted to scan a movie in
   spanish", "maybe the 10 most spoken languages", then "i would do the easier group of
@@ -1105,6 +1158,19 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   everyday look-alikes left alone (un baiser, la ferme, pique-nique, Homo sapiens, elle est
   mince), Quebec's swears, French .srt files and sound track; real French heard with
   `CLEANVIEW_TEST_MULTI`.
+- `test_plain_notes.py`: which notes are technical and which are about the video, the review
+  page showing only the video's, a real saved report file without them, the saved review
+  keeping them all, and "Send what we refined" carrying them.
+- `test_icon.py`: the window and its taskbar button get the logo (Windows says the window has
+  an icon), it's set again after the window is up, a try that fails is written down and the
+  next one still sets it, a closed window is left alone.
+- `test_review_speed.py`: the rounded buttons' and tabs' pictures have a wide middle for Tk to
+  repeat, pieces that give their own size keep it, and a button is no bigger for it.
+- `test_time_left.py`: a made-up laptop scan (reading the dialogue most of the time, a small
+  part of the bar): the time left within a tenth all through the reading, never "a minute"
+  with many to go, as before in the first step with nothing remembered; each step's speed
+  remembered and used from the first minute next time, scaled by the video's length, by who
+  reads; saved work not remembered; the file blended, and a broken one ignored.
 - `test_theme.py`: both looks name the same colours, light is the look as it was, dark sets
   every name and the drawn pieces, dark text can be read, the note box isn't brown in dark, no
   colour written into a page; the button changes the look, keeps her choices and step, is

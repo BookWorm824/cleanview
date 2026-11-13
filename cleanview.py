@@ -1137,6 +1137,30 @@ def scan_step(message):
     return "getting ready"
 
 
+# Notes about how the scan went (which checks and AI models, how long it took, how many
+# closer looks), as against what it means for this video. They are for whoever looks into a
+# problem, so they're kept in the saved review and sent with "Send what we refined", and
+# shown nowhere: not on the review page and not in the report file beside the clean copy
+# (the owner, 2026-11-13: "you are able to see the qwen version and timers and such. i dont
+# care if that in the report to send to you, but not visbible to all. just keep things
+# relative to the video,; the scenes cut, words muted etc.", and of the report file: "i only
+# want you to know what is being used").
+# Notes that say something wasn't checked or went wrong are about the video and stay.
+TECHNICAL_NOTES = re.compile(
+    r"Checked with: |The AI helper used |Voices: \d|The AI helper took a closer look at |"
+    r"Nudity check: |Dialogue was checked with |Took (under a minute|\d+ min)|"
+    r"\S+ looked through the whole picture \(")
+
+
+def technical(note):
+    return bool(TECHNICAL_NOTES.match(str(note)))
+
+
+def video_notes(st):
+    """The notes about this video, in order, for the review page and the report file."""
+    return [n for n in st.get("notes") or [] if not technical(n)]
+
+
 def took_note(minutes):
     """"Took 12 min: listening 1.8, picture scan 4.3, ..." (steps under 3 seconds left out)."""
     total = sum(minutes.values())
@@ -2985,6 +3009,107 @@ def in_background(work):
     return job
 
 
+# How long each step took on this PC last time, in seconds for each second of video, so the
+# time left knows from the start that (say) reading the dialogue is the slow part here.
+PACE_FILE = ai.APP_DATA / "step_pace.json"
+PACE_MIN_SECS = 10          # a step quicker than this was mostly saved work: not remembered
+
+
+def load_pace():
+    try:
+        d = json.loads(PACE_FILE.read_text())
+        return {k: float(v) for k, v in d.items() if isinstance(v, (int, float)) and v > 0}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def save_pace(new):
+    """Blend this scan's step speeds into the remembered ones (half old, half new)."""
+    if not new:
+        return
+    try:
+        d = load_pace()
+        for k, v in new.items():
+            d[k] = round(v if k not in d else (d[k] + v) / 2, 5)
+        PACE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = PACE_FILE.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(d))
+        os.replace(tmp, PACE_FILE)
+    except OSError:
+        pass
+
+
+class TimeLeft:
+    """The time left on a scan (the owner, 2026-11-13: "the green progress bar works correctly
+    but the timer doesnt. it said 1 minute remaining and it been working for 20").
+
+    The old way took the time so far and the share of the bar that was filled, as if every
+    step moved the bar at the same speed. On her laptop the AI helper's reading is an eighth
+    of the bar and two thirds of the time, so at 90% of the bar it said a minute for as long
+    as the reading took. Now the step being done is timed by itself (how long it has taken
+    for the share of it that's done), and the steps still to come use how long they took on
+    this PC last time (`pace`), or failing that the speed the bar moved at before this step.
+
+    base: step -> (where it starts on the bar, how wide it is), as analyze lays them out.
+    keys: step -> its name in the remembered speeds ("lines+local")."""
+
+    def __init__(self, dur, pace=None, clock=time.time):
+        self.dur, self.pace, self.clock = dur or 1.0, dict(pace or {}), clock
+        self.t0 = clock()
+        self.base, self.keys = {}, {}
+        self.seen = {}        # step -> [seconds in and share done when first seen, and now]
+
+    def _pace(self, step):
+        return self.pace.get(self.keys.get(step, step))
+
+    def left(self, frac_done):
+        """Seconds left, or None when there's nothing to go on yet."""
+        el = self.clock() - self.t0
+        step = next((k for k, (b, w) in self.base.items() if w and b <= frac_done < b + w), None)
+        if step is None:
+            return None
+        b, w = self.base[step]
+        share = (frac_done - b) / w
+        seen = self.seen.setdefault(step, [el, share, el, share])
+        seen[2], seen[3] = el, share
+        spent, done = el - seen[0], share - seen[1]
+        at_start = b + seen[1] * w              # how full the bar was when this step began
+        before = seen[0] / at_start if at_start > 0.03 and seen[0] > 20 else None
+        if done >= 0.05 and spent >= 20:
+            here = spent / done * (1 - share)             # at this step's own speed
+        elif self._pace(step) is not None:
+            here = self._pace(step) * self.dur * (1 - share)
+        elif before is not None:
+            here = before * w * (1 - share)
+        else:
+            return None
+        after = 0.0
+        for k, (kb, kw) in self.base.items():
+            if kw and kb >= b + w - 1e-9:
+                if self._pace(k) is not None:
+                    after += self._pace(k) * self.dur
+                elif before is not None:
+                    after += before * kw
+                else:                           # the first step, nothing remembered: as it goes
+                    after += here / max(1e-6, 1 - share) / w * kw
+        return here + after
+
+    def say(self, frac_done):
+        left = self.left(frac_done)
+        if left is None:
+            return "estimating time…"
+        return f"about {max(1, left / 60):.0f} min left"
+
+    def paces(self):
+        """This scan's speed for each step that was done from its start and wasn't just saved
+        work, to remember for next time."""
+        out = {}
+        for step, (t_in, s_in, t_now, s_now) in self.seen.items():
+            if s_in <= 0.2 and s_now - s_in >= 0.5 and t_now - t_in >= PACE_MIN_SECS:
+                out[self.keys.get(step, step)] = (t_now - t_in) / (s_now - s_in) / self.dur
+        return out
+
+
 def also(n):
     """" · 3 of 40" for the line under the progress bar, when a step said how far it got."""
     return f" \u00b7 {n}" if n else ""
@@ -3484,7 +3609,6 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     dur = info["duration"] or 1.0
     cats = [c for g in groups for c in cl.GROUPS[g]]
     mine = my_words(o)            # her own words and phrases: always muted
-    t_start = time.time()
     use_clip = bool(nd["clip"]) and ai.clip_ready()
     # the AI helper starts in the background while it listens (1.18.54: waiting for it first
     # took ~20 s); it's first needed once the listening is done
@@ -3496,11 +3620,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     have_ai = nd["ai"]          # until it's known (laying out the progress bar)
     notes = []
 
-    def eta(frac_done):
-        el = time.time() - t_start
-        if frac_done < 0.03 or el < 20:
-            return "estimating time…"
-        return f"about {max(1, el / frac_done * (1 - frac_done) / 60):.0f} min left"
+    time_left = TimeLeft(dur, load_pace())     # each step timed by itself (1.18.82)
+    eta = time_left.say
 
     local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
     base = {}
@@ -3522,6 +3643,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         for k, w in steps:
             base[k] = (acc / tot, w / tot)
             acc += w
+        time_left.base = dict(base)
+        reader = o.get("reader") if o.get("reader") in CLOUD else "local"
+        time_left.keys = {"vis": "vis+ai" if use_clip else "vis", "lines": f"lines+{reader}",
+                          "pics": f"pics+{reader}"}
     lay_out()
 
     def at(step, frac):
@@ -3843,10 +3968,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         # first, so the two never share the graphics card
         finish_look()
         look_job = None
+    # each conversation is read after this only for same-sex flirting: without that the
+    # reading is the whole step (it stopped at 60% of it, which threw the time left off)
+    talk_too = bool(have_ai and o["samesex"] and lines and claude_found is None)
+    read_part = 0.6 if talk_too else 1.0
     line_mutes, line_how = find_lines(
         lines, o, have_ai and (claude_found is None or bool(unread)),
-        lambda f, n="": say(at("lines", 0.6 * f),
-                            f"Reading the dialogue{also(n)} · {eta(at('lines', 0.6 * f))}"),
+        lambda f, n="": say(at("lines", read_part * f),
+                            f"Reading the dialogue{also(n)} · {eta(at('lines', read_part * f))}"),
         cancel, genders, claude_found, examples, unread)
     if have_ai and (claude_found is None or unread):
         scan["pc"]["dialogue_model_on_card"] = ai.on_card_share(ai.TEXT_MODEL)
@@ -3855,7 +3984,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         if c["type"] == "samesex":
             flirts.append({"s": lines[c["from"]]["s"], "e": lines[c["to"]]["e"], "between": "ss",
                            "what": c["why"] or "same-sex romance or flirting"})
-    if have_ai and o["samesex"] and lines and claude_found is None:
+    if talk_too:
         flirts = ai.romance_scenes(
             lines, genders,
             lambda f, n="": say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation{also(n)}"
@@ -4011,6 +4140,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     say(1.0, "Done.")
     took[now_step["step"]] = took.get(now_step["step"], 0.0) + time.time() - now_step["t"]
     scan["minutes"] = {k: round(v / 60, 2) for k, v in took.items()}
+    save_pace(time_left.paces())       # how fast each step went here, for next time's time left
     notes.append(took_note(scan["minutes"]))
     (work / "analysis.json").write_text(json.dumps(st, indent=1))
     return st
@@ -4760,7 +4890,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     if careful:
         rep.append("It was saved the careful way, after the usual way didn't work, so the "
                    "clean copy has no subtitle track.")
-    rep += st.get("notes", [])
+    rep += video_notes(st)
     if info.get("audio_tracks", 1) > 1:
         rep.append("Only the main soundtrack was kept (other languages and commentary "
                    "weren't cleaned, so they were left out).")

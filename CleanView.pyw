@@ -315,6 +315,47 @@ def short(name, n=60):
     return name if len(name) <= n else name[:n - 1] + "…"
 
 
+ICON = Path(__file__).resolve().parent / "cleanview.ico"
+ICON_AGAIN = (0.5, 3.0)       # seconds after the window is made that its logo is set again
+
+
+def set_icon(win, path=None, again=ICON_AGAIN):
+    """CleanView's logo on a window and on its button in the taskbar, not Tk's own feather
+    (the owner, 2026-11-13: "sometimes the logo for clean view down in the start bar of the
+    computer becomes a big feather. i noticed it after doing the recent update but it has
+    done it before"). It couldn't be made to happen here, so this covers each way it could:
+    the logo is made the one every window of CleanView gets (the "Ask" box had none), it's
+    set on this window, and it's set again once the window is up, in case the first time
+    came too early or the file had only just been written by an update. If it can't be set,
+    why is kept in icon_problem.txt (APP_DATA), to read if she sees the feather again.
+    Returns whether the first try worked."""
+    path = str(path or ICON)
+
+    def put():
+        try:
+            if not win.winfo_exists():
+                return True
+            win.iconbitmap(default=path)
+            win.iconbitmap(path)
+            return True
+        except Exception as ex:
+            try:
+                APP_DATA.mkdir(parents=True, exist_ok=True)
+                with open(APP_DATA / "icon_problem.txt", "a", encoding="utf8") as f:
+                    f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {engine.app_version()} "
+                            f"{type(ex).__name__}: {ex}\n")
+            except Exception:
+                pass
+            return False
+    ok = put()
+    for secs in again:
+        try:
+            win.after(int(secs * 1000), put)
+        except Exception:
+            pass
+    return ok
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -333,10 +374,7 @@ class App(tk.Tk):
         use_theme(self.theme)
         self.configure(bg=BG)
         self.after(80, self._title_bar)
-        try:
-            self.iconbitmap(str(Path(__file__).resolve().parent / "cleanview.ico"))
-        except Exception:
-            pass
+        set_icon(self)
         self.q = queue.Queue()
         self.cancel_flag = False
         self.videos, self.outdir, self.jobs = [], None, []
@@ -2606,7 +2644,7 @@ class App(tk.Tk):
                               if cnt.get("words") else "") +
                              ". Anything you change yourself stays the way you set it.", bg=NOTE, fg=MUTED, font=(FONT, 9),
                              wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
-            for note in st.get("notes", []):
+            for note in engine.video_notes(st):     # not which AI model or how long it took
                 tk.Label(inner, text="\u2139 " + note, bg=BG, fg=MUTED, font=(FONT, 9),
                          wraplength=wrap_width(720), justify="left", anchor="w").pack(fill="x", padx=8)
             holder = tk.Frame(inner, bg=BG)

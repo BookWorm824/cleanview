@@ -451,7 +451,8 @@ def splash(child, most=SPLASH_MOST):
     from tkinter import ttk
     root = tk.Tk()
     root.title(APP_NAME)
-    try:
+    try:                # the logo for every window of this program, and for this one
+        root.iconbitmap(default=str(HERE / "cleanview.ico"))
         root.iconbitmap(str(HERE / "cleanview.ico"))
     except Exception:
         pass
