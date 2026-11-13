@@ -354,11 +354,15 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `engine.technical(note)` (`TECHNICAL_NOTES`): "Checked with: ...", "The AI helper used ...
   (CleanView x)", "Voices: N speakers ...", "The AI helper took a closer look at ...", "Nudity
   check: ...", "Dialogue was checked with ...", "Took N min: ...", "<AI> looked through the
-  whole picture (N stills) ...". The review page and the report file beside the clean copy
-  show `engine.video_notes(st)` only (of the report file she said: "i only want you to know
-  what is being used"). They stay in the saved review (`st["notes"]`, `st["scan"]`) and go out
-  with "Send what we refined", so a report .txt sent in no longer says the version, the models
-  or the times: ask for "Send what we refined" when those matter. Notes that say something wasn't checked or went wrong (no subtitles, no
+  whole picture (N stills) ...". The review page shows `engine.video_notes(st)` only. They
+  stay in the saved review (`st["notes"]`, `st["scan"]`) and in "Send what we refined". The
+  report file: 1.18.82 left them out ("i only want you to know what is being used"); told a
+  report sent in would then no longer say the version or the times, she said "i want you to
+  know pertinent information of the report. if you need to put some things back on the report
+  for you is good", so since 1.18.83 they are its last lines, after the list of mutes and
+  cuts, under "For CleanView's maker, to look into a problem (how this video was checked):"
+  (`technical_notes`, `TECHNICAL_HEAD`; the version first when no AI helper note says it).
+  Notes that say something wasn't checked or went wrong (no subtitles, no
   AI read the dialogue, the picture AI isn't installed, an AI couldn't read or look) are about
   the video and still show. A new note about how a scan went belongs in `TECHNICAL_NOTES`.
 - The logo, not Tk's feather (1.18.82, 2026-11-13; the owner: "sometimes the logo for clean
@@ -1159,8 +1163,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   mince), Quebec's swears, French .srt files and sound track; real French heard with
   `CLEANVIEW_TEST_MULTI`.
 - `test_plain_notes.py`: which notes are technical and which are about the video, the review
-  page showing only the video's, a real saved report file without them, the saved review
-  keeping them all, and "Send what we refined" carrying them.
+  page showing only the video's, a real saved report file with them as its last lines under
+  their heading (the version too), the saved review keeping them all, and "Send what we
+  refined" carrying them.
 - `test_icon.py`: the window and its taskbar button get the logo (Windows says the window has
   an icon), it's set again after the window is up, a try that fails is written down and the
   next one still sets it, a closed window is left alone.

@@ -4,8 +4,11 @@ version and timers and such. i dont care if that in the report to send to you, b
 to all. just keep things relative to the video,; the scenes cut, words muted etc.").
 
 Then, asked whether they should stay in the report file beside the clean copy: "i only want you
-to know what is being used". So notes about how the scan went stay in the saved review and in
-what's sent in ("Send what we refined"), and are shown nowhere."""
+to know what is being used"; and told a report file would then no longer say the version or
+the times: "i want you to know pertinent information of the report. if you need to put some
+things back on the report for you is good" (1.18.83). So notes about how the scan went are off
+the review page; they stay in the saved review, in "Send what we refined", and are the last
+lines of the report file, under a heading that says who they're for."""
 import json
 import tempfile
 import unittest
@@ -88,8 +91,19 @@ class WhichNotes(unittest.TestCase):
         self.assertEqual(sent["videos"][0]["notes"], mixed())
         self.assertEqual(sent["videos"][0]["scan"]["models"]["pictures"], "qwen3-vl:8b-instruct")
 
+    def test_the_report_files_last_lines(self):
+        lines = engine.technical_notes({"notes": mixed()})
+        self.assertEqual(lines[:2], ["", engine.TECHNICAL_HEAD])
+        self.assertEqual(lines[2:], ["  " + n for n in TECHNICAL])
+        self.assertEqual(engine.technical_notes({"notes": ABOUT_THE_VIDEO}), [])    # no heading
+        # the version, also when no AI helper ran to say it; not said twice
+        no_ai = {"notes": [TECHNICAL[0], TECHNICAL[-1]], "scan": {"app_version": "1.18.83"}}
+        self.assertEqual(engine.technical_notes(no_ai)[2], "  CleanView 1.18.83.")
+        with_ai = {"notes": TECHNICAL[:2], "scan": {"app_version": "1.18.82"}}
+        self.assertEqual(len(engine.technical_notes(with_ai)), 4)
+
     @T.needs_ffmpeg
-    def test_not_in_the_report_file_beside_the_clean_copy(self):
+    def test_last_in_the_report_file_beside_the_clean_copy(self):
         video = support.SANDBOX / "Plain Notes Show S01E01.mp4"
         if not video.exists():
             T.ffmpeg("-f", "lavfi", "-i", "testsrc=size=64x48:rate=10:duration=6", "-f", "lavfi",
@@ -104,12 +118,14 @@ class WhichNotes(unittest.TestCase):
                             encoders=[engine.ENCODERS[-1]], log=lambda m: None)
         rep = (Path(res["folder"]) / "Reports" /
                "Plain Notes Show S01E01 - CleanView report.txt").read_text("utf8")
+        top, _, last = rep.partition(engine.TECHNICAL_HEAD)
         for note in ABOUT_THE_VIDEO:
-            self.assertIn(note, rep)
+            self.assertIn(note, top)
         for note in TECHNICAL:
-            self.assertNotIn(note, rep)
-        for word in ("qwen", "Took ", "stills)", "speakers told apart", "Checked with"):
-            self.assertNotIn(word, rep)
+            self.assertNotIn(note, top)             # not among what's about the video
+            self.assertIn(note, last)               # the last lines, under their heading
+        self.assertEqual(last.strip().splitlines()[-1].strip(), TECHNICAL[-1])
+        self.assertIn("muted", top)                 # the summary and the list come first
         self.assertEqual(json.loads((work / "analysis.json").read_text())["notes"], mixed())
 
 

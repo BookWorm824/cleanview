@@ -1139,17 +1139,20 @@ def scan_step(message):
 
 # Notes about how the scan went (which checks and AI models, how long it took, how many
 # closer looks), as against what it means for this video. They are for whoever looks into a
-# problem, so they're kept in the saved review and sent with "Send what we refined", and
-# shown nowhere: not on the review page and not in the report file beside the clean copy
-# (the owner, 2026-11-13: "you are able to see the qwen version and timers and such. i dont
-# care if that in the report to send to you, but not visbible to all. just keep things
-# relative to the video,; the scenes cut, words muted etc.", and of the report file: "i only
-# want you to know what is being used").
+# problem: kept in the saved review, sent with "Send what we refined", and listed last in the
+# report file under their own heading, since the report file is what gets sent in most. They
+# are not on the review page (the owner, 2026-11-13: "you are able to see the qwen version
+# and timers and such. i dont care if that in the report to send to you, but not visbible to
+# all. just keep things relative to the video,; the scenes cut, words muted etc.", then "i
+# only want you to know what is being used", and, told a report file would then no longer
+# say the version or the times: "i want you to know pertinent information of the report. if
+# you need to put some things back on the report for you is good").
 # Notes that say something wasn't checked or went wrong are about the video and stay.
 TECHNICAL_NOTES = re.compile(
     r"Checked with: |The AI helper used |Voices: \d|The AI helper took a closer look at |"
     r"Nudity check: |Dialogue was checked with |Took (under a minute|\d+ min)|"
     r"\S+ looked through the whole picture \(")
+TECHNICAL_HEAD = "For CleanView's maker, to look into a problem (how this video was checked):"
 
 
 def technical(note):
@@ -1157,8 +1160,18 @@ def technical(note):
 
 
 def video_notes(st):
-    """The notes about this video, in order, for the review page and the report file."""
+    """The notes about this video, in order, for the review page and the top of the report."""
     return [n for n in st.get("notes") or [] if not technical(n)]
+
+
+def technical_notes(st):
+    """The last lines of the report file: how the scan went, for whoever looks into a
+    problem (the version first, also when no AI helper ran to say it)."""
+    tech = [n for n in st.get("notes") or [] if technical(n)]
+    version = (st.get("scan") or {}).get("app_version")
+    if version and not any(f"(CleanView {version})" in n for n in tech):
+        tech.insert(0, f"CleanView {version}.")
+    return ["", TECHNICAL_HEAD] + ["  " + n for n in tech] if tech else []
 
 
 def took_note(minutes):
@@ -4921,6 +4934,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                  f"[{cl.fmt_t(ct)}]" if ct is not None else
                  f"[{cl.fmt_t(t - sum(min(b, t) - a for a, b in cut_rs if a < t))}]")
         rep.append(f"  {cl.fmt_t(t)}  {where:>10}  {txt}")
+    rep += technical_notes(st)                # how the scan went, last
     reports = out / "Reports"                 # kept apart from the episodes
     reports.mkdir(parents=True, exist_ok=True)
     (reports / f"{src.stem} - CleanView report.txt").write_text("\n".join(rep) + "\n", encoding="utf8")
