@@ -384,7 +384,7 @@ SYSTEM = ("You help a family make movies and TV shows fit their standards by mut
           "word just because it looks odd, only words that really are on their list. Don't "
           "lecture or add opinions about their choices.")
 
-NOT_CASE = ("a coroner's, medical examiner's, doctor's or detective's case talk about a body or a crime (findings, rape or sexual assault, sex offenders, evidence), which is a separate choice")
+NOT_CASE = ("a coroner's, medical examiner's, doctor's or detective's case talk about a body or a crime (findings, rape or sexual assault, sex offenders, evidence), which is a separate choice; but explicit detail in it (vaginal or anal injuries, tearing, penetration) always counts")
 TYPE_TEXT = {
     "sexref": "sexual references, sexual jokes or innuendo, including "
               "talk of sex drugs: pills for sex or erections (Viagra, Cialis, 'the little blue pill', erectile dysfunction), aphrodisiacs ('Spanish fly', a love potion meant to make someone want sex) and drugging someone to have sex with them, talk of oral sex or of "
@@ -672,7 +672,7 @@ def look_spans(asked, dur=None):
     out, left = [], LOOK_MOST
     for a, b in sorted(spans):
         if out and a <= out[-1][1] + 2:
-            a = out[-1][0]
+            a, b = out[-1][0], max(b, out[-1][1])      # one inside another keeps the longer
             left += out[-1][1] - out[-1][0]
             out.pop()
         b = min(b, a + left)
@@ -1028,7 +1028,7 @@ PIC_KINDS = ["violence", "graphic violence", "gore", "medical", "disturbing", "n
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
              "halloween", "birthday", "valentine", "easter", "st patrick's day", "dark magic",
              "magic", "vampires",
-             "rude gesture", "couple affection"]
+             "rude gesture", "couple affection", "condom"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing", "medical"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
@@ -1113,6 +1113,8 @@ PIC_RULES = (
     "crude sexual gesture (a hand gesture mimicking sex or oral sex, thrusting the hips, "
     "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "
     "Waving, pointing, a thumbs up, a peace sign or dancing are NOT. "
+    "\"condom\" is a condom shown, however briefly: the condom itself, its small square foil "
+    "wrapper, or a box or packet of condoms; a balloon, a glove or another small packet is NOT. "
     "\"couple affection\" is two people being affectionate AS A COUPLE: holding hands, "
     "cuddling, an arm around each other, a caress, a romantic embrace (kissing is "
     "\"kissing\"). Judge it by the context, not the touch alone (Lauren, 2026-11-08): the "

@@ -361,20 +361,25 @@ class Window(unittest.TestCase):
         app.show_done([{"cut_minutes": 1.0, "mutes": 3, "cuts": 1,
                         "folder": str(support.SANDBOX), "out": str(support.SANDBOX)}])
         app.update()
-        self.assertEqual(app.again_btn.cget("style"), "Accent.TButton")
+        # (drawn rounded since 1.18.77: its style is a copy of Accent.TButton made for the
+        # colour it sits on, "on_<colour>_<scale>.Accent.TButton")
+        self.assertTrue(app.again_btn.cget("style").endswith("Accent.TButton"))
         app.show_setup()
         app.update()
-        styles = {}
-        todo = [app]
+        # the start page's buttons are drawn pills (1.18.77): Start cleaning the green one
+        self.assertEqual((app.start_btn.cget("text"), app.start_btn.cget("kind")),
+                         ("Start cleaning", "primary"))
+        # one bigger Choose files, no folder button (1.18.75: "doesn't seem to do anything")
+        self.assertEqual((app.choose_btn.cget("text"), app.choose_btn.cget("kind")),
+                         ("Choose files…", "primary"))
+        self.assertGreater(app.choose_btn._size, app.next_btn._size)
+        texts, todo = [], [app]
         while todo:
             w = todo.pop()
             todo += w.winfo_children()
-            if isinstance(w, ui.ttk.Button):
-                styles[w.cget("text")] = w.cget("style")
-        self.assertEqual(styles["Start cleaning"], "Accent.TButton")
-        # one bigger Choose files, no folder button (1.18.75: "doesn't seem to do anything")
-        self.assertEqual(styles["Choose files…"], "Choose.TButton")
-        self.assertNotIn("Choose a folder of episodes…", styles)
+            if isinstance(w, (ui.ttk.Button, ui.look.Pill)):
+                texts.append(w.cget("text"))
+        self.assertNotIn("Choose a folder of episodes…", texts)
         s0 = ui.ttk.Style(app)
         self.assertGreater(int(str(s0.lookup("Choose.TButton", "font")).split()[-2]),
                            int(str(s0.lookup("Go.TButton", "font")).split()[-2]))
@@ -473,6 +478,7 @@ class Window(unittest.TestCase):
         cc.sign_out = lambda p=None: out.append(p)
         try:
             app.show_setup()
+            app._go_step(3)                      # the AI helper's step
             ais = ("claude", "chatgpt", "gemini")
             app.ai_state = {p: "ready" for p in ais}
             app.ai_who = {p: "sister@example.com" for p in ais}
@@ -580,7 +586,7 @@ class Window(unittest.TestCase):
         app.update()
 
         def title_height():
-            return app.page.winfo_children()[1].winfo_reqheight()    # after the footer
+            return app._step_title.winfo_reqheight()
 
         def tick_text_height():         # a tick box's words: their font comes from the theme
             todo = [app.page]

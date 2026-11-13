@@ -70,6 +70,9 @@ class SaveFolder(unittest.TestCase):
         self.reopen()
         self.assertEqual(self.app.outdir, str(self.folder))
         self.assertIn("My clean movies", self.app.out_lbl.cget("text"))
+        self.assertTrue(self.app.next_to_btn.winfo_manager(), "on the Save to step")
+        self.app._go_step(4)
+        self.app.update()
         self.assertTrue(self.app.next_to_btn.winfo_ismapped())
 
     def test_choosing_videos_keeps_it(self):
@@ -88,7 +91,7 @@ class SaveFolder(unittest.TestCase):
         self.assertIsNone(self.app.outdir)
         self.assertIsNone(settings().get("save_to"))
         self.assertEqual(self.app.out_lbl.cget("text"), ui.NEXT_TO_VIDEO)
-        self.assertFalse(self.app.next_to_btn.winfo_ismapped())
+        self.assertFalse(self.app.next_to_btn.winfo_manager())
         self.reopen()
         self.assertIsNone(self.app.outdir)
 

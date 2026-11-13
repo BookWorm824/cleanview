@@ -101,13 +101,31 @@ NEVER_FINE = [re.compile(p) for p in (
     r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?")]
 
 
+# The owner's hard rule (2026-11-13): "Sometimes i forget reasons for having words removed....so
+# these words: Fart, Condom (always falls under sexual reference), Seman (always falls under
+# sexual reference) Should always be removed", and "fart is fine to leave under crude humor".
+# With their filter ticked they are always muted: never "fine here" to an AI, never learned or
+# shared as fine. (If she asks to change it: say it's a hard rule set that day, then do as she
+# says if she still wants it.)
+ALWAYS_REMOVED = [re.compile(p) for p in (r"farts?", r"farted", r"farting", r"condoms?",
+                                          r"semen")]
+
+
+def always_removed(text):
+    """True if text (a word or a short phrase) has one of the owner's always-removed words."""
+    words = [w for w in (norm(w) for w in str(text).split()) if w]
+    return any(p.fullmatch(w) for p in ALWAYS_REMOVED for w in words + [_base(w) for w in words])
+
+
 def never_fine(text):
-    """True if text (a word or a short phrase) has a word no AI may call fine."""
+    """True if text (a word or a short phrase) has a word no AI may call fine: a slur, or
+    one of the owner's always-removed words."""
     words = [norm(w) for w in str(text).split()]
     words = [w for w in words if w]
     bases = words + [_base(w) for w in words]          # "a greaseball's got feelings"
     return any(p.fullmatch(w) for p in NEVER_FINE for w in bases) or \
-        any(p.fullmatch(" ".join(words[k:k + 2])) for p in NEVER_FINE for k in range(len(words)))
+        any(p.fullmatch(" ".join(words[k:k + 2])) for p in NEVER_FINE
+            for k in range(len(words))) or always_removed(text)
 MODERATE = [
     r".*shit.*", r"bitch.*", r"son(of|ofa|uva|na)?bitch.*", r"sumbitch.*", r"ass", r"asses",
     r"ass(holes?|wipes?|hats?|clowns?|face|faces|heads?|kick(s|ed|er|ers|ing)?|"

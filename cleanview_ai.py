@@ -126,6 +126,10 @@ CLIP_CATS = {
                  "a person making a crude sexual gesture with their hands",
                  "a person thrusting their hips in a crude sexual way",
                  "a person grabbing their own crotch"],
+    # the owner's hard rule (2026-11-13): "visuals of a condom needs to be removed"; under
+    # the sexual references box, as the word is
+    "condom": ["a condom", "a condom in its foil wrapper", "a box of condoms",
+               "a hand holding a condom"],
 }
 # kiss_mf / kiss_mm / kiss_ff only decide *who*, never whether there is a kiss
 WHO = ("kiss_mf", "kiss_mm", "kiss_ff")
@@ -343,12 +347,16 @@ THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
           "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
           "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65,
           "easter": 0.65, "darkmagic": 0.65, "magic": 0.65, "stpatricks": 0.65,
-          "vampires": 0.65}
+          "vampires": 0.65,
+          # lower: on Castle S1E2's saved stills the box of condoms Castle holds up scored
+          # 0.58, and of 10,674 stills from nine other videos one scored 0.5 or more
+          "condom": 0.5}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
               "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
               "valentine": 3, "easter": 3, "stpatricks": 3, "darkmagic": 2, "vampires": 2,
               "magic": 2,      # a spell's flash can be over in a couple of seconds
-              "gestures": 1}   # seconds of hits a scene needs (a rude gesture is over in a second)
+              "gestures": 1,   # seconds of hits a scene needs (a rude gesture is over in a second)
+              "condom": 1}     # a wrapper is held up for a moment
 
 
 def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0, lum=None, fps=2.0, lifted=None):
@@ -886,6 +894,11 @@ LOOK = {
                  "a hand or finger gesture that mimics sex or oral sex, thrusting the hips "
                  "suggestively, or grabbing their own crotch. Waving, pointing, a thumbs up, a "
                  "peace sign, counting on fingers, dancing or ordinary exercise is NOT.", _YES),
+    "condom": ("Question: is a condom shown? That means the condom itself, a condom in its "
+               "small square foil wrapper, or a box or packet of condoms (in a hand, on a "
+               "table, in a drawer, a wallet or a shop). A balloon, a rubber glove, a sweet, "
+               "gum or tea-bag wrapper, a sauce packet, a pill packet or another small packet "
+               "is NOT.", _YES),
 }
 CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are too dark, blurry "
              "or unclear to judge (dark hair, dark clothes or a dark room you can still see "
@@ -971,7 +984,8 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
 # ---------------------------------------------------------------------------
 NOT_CASE = ("a coroner's, medical examiner's, doctor's or detective's case talk about a body or "
             "a crime (findings, rape or sexual assault, sex offenders, evidence), which is a "
-            "separate choice")
+            "separate choice; but explicit detail in it (vaginal or anal injuries, tearing, "
+            "penetration) always counts")
 LINE_TYPES = {
     "sexref": ("talks about sex or sexual body parts, or makes a sexual joke or sexual double "
                "meaning, including oral sex or touching someone's private parts, bragging "
@@ -1713,7 +1727,7 @@ def conversations(lines):
     for i in range(1, len(lines)):
         if lines[i]["s"] - lines[i - 1]["e"] > 6 or len(cur) >= 30:
             convs.append(cur)
-            cur = [max(cur[-1] - 2, cur[0])] if len(cur) >= 30 else []
+            cur = cur[-2:] if len(cur) >= 30 else []
         cur.append(i)
     convs.append(cur)
     return [c for c in convs if len(c) >= 2]
@@ -1810,7 +1824,7 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
     for i in range(1, len(lines)):
         if lines[i]["s"] - lines[i - 1]["e"] > 6 or len(cur) >= 30:
             convs.append(cur)
-            cur = [max(cur[-1] - 2, cur[0])] if len(cur) >= 30 else []
+            cur = cur[-2:] if len(cur) >= 30 else []
         cur.append(i)
     convs.append(cur)
     convs = [c for c in convs if len(c) >= 2]

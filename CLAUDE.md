@@ -347,6 +347,107 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- A new look, step by step (1.18.77, 2026-11-13; the owner: "the ui also feels clunky and dated,
+  can you make it feel classy (all of them)"; a repaint was "just ... changed colors", so two
+  real layouts were mocked up and she chose "B, step by step", then "finish the ui upgrade").
+  The start page shows one step at a time (`STEPS`, `_go_step`, `_panes`): the four steps are
+  listed down the left, each saying what's chosen (`_step_summary`, `_show_steps`: "3 videos
+  chosen", "Young kids", "Claude", "Next to the videos"; step 1 gets a tick once videos are
+  chosen), clicking one goes to it, with Back, "Next: ..." and Start cleaning (always there,
+  since her choices are remembered) at the bottom, and Text size, Check for updates and Send
+  what CleanView learned as quiet links under the list. Step 1: a "Choose a movie or episodes"
+  panel and a switch for finding subtitles. Step 2: ages as one rounded choice
+  (`look.Segmented`), and each section a tile (`fold_group`): an icon, a switch for all of it
+  (on, off, or pale for some), "N of M on" / "Off" and "Choose"; its boxes open under the tiles,
+  one section at a time, and the page scrolls to them; the kissing choices are Keep /
+  Passionate / All kisses. Step 3: the AI helper's switch and four cards (This PC, Claude,
+  ChatGPT, Gemini), the sign-in line under them as before. Step 4: where it saves. Every
+  option, tick and saved choice is as before (`self.opts` holds them all whichever step shows).
+  The other pages match: what's being done on a card, scenes, lines and words on rounded cards
+  (`_round_card`) with the kinds as small chips, tabs as pills, rounded buttons, thin scroll
+  bars, a rounded progress bar; the review page's "Saves to ..." line has its own row.
+  The drawn pieces are in `cvlook.py` (the same file can serve CleanListen and CleanRead): Tk
+  can't smooth edges, so rounded shapes are drawn with numpy as PNGs (Tk reads PNG itself; no
+  Pillow) with ordinary Tk text on top: `Card` (only its four corners are pictures), `Pill`,
+  `Switch`, `Segmented`, `OptionCard`, `Badge` (Windows' "Segoe MDL2 Assets" icons), `chip`,
+  `link`, `tick_images`. A click is a press and a let-go on the same piece (`on_click`). The
+  ttk buttons keep their styles (`Accent`, `Go`, `Plain`, `Small`) and are drawn rounded by
+  `look.round_buttons`: when one is shown it gets a copy of its style made for the colour
+  it sits on ("on_<colour>_<scale>.Accent.TButton"), so test a style with `endswith`.
+  `SIDE`, `TINT`, `SOFT`, `FAINT`, `HEAD` (Segoe UI Semibold) join the colours. Give sizes
+  through `self._px(n)` (pixels at normal size) so they follow the text size.
+- The owner's hard rule (1.18.77, 2026-11-13): "Sometimes i forget reasons for having words
+  removed....so these words: Fart, Condom (always falls under sexual reference), Seman (always
+  falls under sexual reference) Should always be removed...if I ever say they shouldn't mention
+  this was decided on today's date as a hard rule - dont override", then "fart is fine to leave
+  under crude humor", "Also add visuals of a condom needs to be removed", and (in the CleanListen
+  session) "Detective or coroner lines - condom and semen should still be removed even in this
+  instance". If she asks to leave one in: say it's a hard rule set on 2026-11-13, then do as
+  she says if she still wants it. `cvcore.ALWAYS_REMOVED` (fart/farts/farted/farting,
+  condom/condoms, semen; not farther, condo, seaman) and `always_removed()`; `never_fine()`
+  covers them, so an AI's "not an issue" is ignored (`apply_review`, `HARD_RULE_WHY`) and they're
+  never learned or shared as fine. `hard_rule_words(st)` (after `list_words_only`) mutes the
+  word wherever it's said in the dialogue when its box is ticked (fart: crude humor; condom,
+  semen: sexual references), also in a line left alone (learned as fine, case talk with the
+  coroner box off) or one she unticks. "semen" joined `LINE_WORDS["sexref"]`; the Castle lesson
+  that kept "called Calvin Klein a boring old fart" is gone. A condom in the picture is a
+  "Condom shown" scene under the sexual references box: a picture category (`CLIP_CATS`,
+  `THRESH` 0.5, `MIN_FRAMES` 1, `LOOK["condom"]`, `CAT_LABEL`, `needs`), and Claude, ChatGPT
+  and Gemini get a "condom" kind (`PIC_KINDS`, `PIC_RULES`, `PIC_TEXT["sexref"]`,
+  `_pic_wanted`). On Castle S1E2's saved stills (every 2 s) the box of condoms Castle holds up
+  at 27:38 scored 0.58 and nothing else in the episode 0.4; of 10,674 stills from nine other
+  videos one scored 0.5 or more. The AI helper's closer look said yes to that still and no to
+  five others near it (a phone in a hand, a bathroom shelf, a medicine cabinet). Older picture
+  scans are done once more (the descriptions changed). CleanListen and CleanRead have the
+  words since 1.17.24.
+- Explicit detail in findings is always removed (1.18.77, 2026-11-13; the owner, in the
+  CleanListen session, for every app: "any explicit talk should be removed from coroner talk
+  regardless of medical /coroner - tearing, vaginal bruising etc", and how: "whole line on
+  sexual reference"). With sexual references ticked, a line with explicit detail in a
+  coroner's, doctor's or detective's findings is muted whole, with the coroner box on or off:
+  `EXPLICIT_FINDING` (vaginal, anal, penile, hymen, labia, vulva, sodomy/sodomize, "forced /
+  signs of / evidence of penetration") and "tearing" as a finding (`TEARING`: not tearing
+  up/down/off/the...; with `TEARING_NEAR`, e.g. sexual, assault, rape, vaginal, penetration,
+  within about 30 words before or 10 after, across lines). `explicit_findings(lines)` in
+  `find_lines` marks the line `explicit` (never "just the word"); a review's "not an issue"
+  or "just the word" on it is ignored (`apply_review`, `EXPLICIT_WHY`), and a built-in or AI
+  "fine before" hint doesn't untick it (`explicit_stay`); her own choice still does. Plain
+  case talk ("any signs of sexual assault?") still follows the coroner box; `NOT_CASE` tells
+  the readers explicit detail always counts. CleanListen and CleanRead have the same words.
+- The code check (1.18.77, 2026-11-13; the owner: "also look through the rest of the code for
+  errors"; three read-only reviews of every file). Fixed, each with a test in
+  `test_code_check.py` or `test_sections.py`: a word said twice (in one line, or two lines close
+  together) got one mute and both lines were unticked as "just the word" (`word_mute(used=)`:
+  the mutes one pass has already given out; `list_words_only` and `hard_rule_words` pass it);
+  asked for "affair", `word_mute` muted the longer "Affairs" earlier in the line (the word
+  itself first, then a longer one with it inside); a video took the subtitles of another whose
+  name starts the same ("Cars 2.srt" for Cars.mkv: its own are `<name>.srt` or
+  `<name>.<lang>.srt`); `look_spans` shrank a stretch that had another inside it;
+  `LearnedLines.match` stopped at the first candidate that was too short for its length
+  (`continue`, not `break`); a conversation over 30 lines started its next part with one stray
+  earlier line and skipped two (`cur[-2:]`, in `conversations` and `romance_scenes`); a
+  scene's preview was kept by its start only (now start and end); "Update now" from the start
+  page lost ticks just changed; Start cleaning with a chosen video gone did nothing (it says
+  so now). Found and NOT changed yet (each needs a decision or testing on real videos):
+  1. `look_at_picture`: a cloud find that overlaps a local scene is dropped, its span and kind
+     too (a local Kiss at 100-105 s and a cloud "Sex scene" at 90-212 s leave one 5-second Kiss).
+  2. Subtitle words joined by punctuation: `norm()` drops it, so "Irish-Italian" and "I
+     wish...it were" match `.*shit.*`, and "Well...damn" is missed (`spoken_words` splits on
+     spaces only).
+  3. Word lists: `darn.*` takes Darnell and darning; "for Christ sake", "I swear to Christ" and
+     "And Jesus, it hurt" pass as reverent; "Homo sapiens", "Dick Van Dyke", "ball peen
+     hammer", and "SOB STORY" in all-capital subtitles are flagged; `unbleep` fills in "A*" and
+     "C#"; "where the idiot went" mutes "where the" too (`with_lead_in` on every category).
+  4. The AI helper's dialogue questions that fail are dropped silently, and the report still
+     says the dialogue was checked with it.
+  5. The stuck-save watch may stop a big save while ffmpeg moves its index to the front (after
+     the last progress line) on a slow drive.
+  6. `guess_title` gives up on "D2 The Mighty Ducks", "T2 Trainspotting", "Fast Track".
+  7. Gemini's answers are only checked at the top level (a wrong shape inside one fails the
+     video instead of falling back); a hung `codex.cmd`/`gemini.cmd` can outlast its time limit.
+  8. `MORE_THAN_WORD` has `bull\w*` (meant for bully), so a "just the word" for "bullshit"
+     becomes the whole line; "- JESUS: Follow me." keeps the speaker label as a word;
+     `ollama_care.CLEAN_APPS` never matches an installed window (only its workers).
 - The save folder is remembered (1.18.76, 2026-11-12; the owner: "on the save to area, when
   someone selects a folder to save can it be remembered even when clean view closes and
   reopens"). A folder chosen with "Change..." under "Save to" (or on the review page) is kept
@@ -860,6 +961,7 @@ them in. Rules that follow from this:
 | `cleanview_gpt.py` | ChatGPT through the **Codex CLI** (`codex exec ... --output-schema`), same interface as the Claude path. Strict JSON schemas (all properties required). |
 | `cleanview_gemini.py` | Gemini through Google's **Gemini CLI** (`gemini -p ... -o json`, signed in with a Google account, no API key), same interface. Installed with npm (needs Node.js 20+). The CLI can't take a schema, so the shape is described in the prompt and the reply is checked (asked again once). The prompt goes in through stdin; pictures are copied into an empty work folder and named with `@picture1.jpg` on the command line. Chats are kept by CleanView (`APP_DATA\gemini\chats`), not the CLI. Provider key `"gemini"` (`cc.OTHERS`). |
 | `cleanview_accounts.py` | Each person's own Claude, ChatGPT or Gemini sign-in inside CleanView ("Use a different account" / "Sign out" on the start page). Claude Code, Codex and the Gemini CLI keep their sign-in in a folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_CLI_HOME`); CleanView's own is `APP_DATA\accounts\<ai>\<n>`, so the PC's own sign-in is never signed out or changed. A new sign-in goes in a new folder and is only used once it worked (`keep()`). With none, the PC's sign-in is used. |
+| `cvlook.py` | The drawn look (1.18.77): rounded cards, pill buttons, switches, the segmented choice, option cards, icon badges, chips and tick boxes, drawn with numpy as PNGs for Tk, and the ttk buttons, tabs, scroll bars, progress bar and fields in the same look. tkinter and numpy only. |
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
 | `videoqueue.py` | Several videos at once: each video is watched and listened to (`analyze`) in its own worker process, "Videos at once" at a time. `Workers` (the window side) and `main()` (the worker, run as `CleanView.exe videoqueue.py <work>/queue_task.json`, one JSON line per message). Also `plain_error`, used by the window too. |
 | `ollama_care.py` | Ollama only while the apps are open: out of Windows startup, stopped after the last one closes (same file as CleanListen's, plus `videoqueue.py` in `CLEAN_APPS`). Standard library only. |
@@ -924,12 +1026,26 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   (none for an older review).
 - `test_save_space.py`: the size estimate, the save folder and room on the review page,
   and asking before saving when it won't fit.
+- `test_hard_rule.py`: fart, condom and semen always removed (not farther, condo, seaman); the
+  word muted wherever it's said with its box ticked, also in a line left alone and in
+  detective or coroner lines with that box on or off; no AI or built-in lesson keeps them; a
+  condom in the picture looked for with the sexual references box, double-checked, offered
+  unticked when it isn't, and asked of Claude, ChatGPT and Gemini.
+- `test_explicit_findings.py`: what counts as explicit detail in a finding (not tearing up a
+  letter, a bullet that penetrated, plain case talk); the whole line muted with sexual
+  references ticked, the coroner box on or off; not undone by an AI or a "fine before" hint,
+  still by her own choice.
+- `test_code_check.py`: the bugs the code check found (a word said twice, the word itself
+  before a longer one, another video's subtitles, a stretch inside another, a shorter lesson
+  further on, a long conversation's split, a preview kept by start and end).
 - `test_save_folder.py`: the chosen save folder kept after closing and when videos are chosen,
   "Next to the video" going back, a missing folder passed over but kept, other settings not
   losing it, and "Change..." on the review page kept too.
-- `test_sections.py`: the nine sections hold every filter, Medical on its own, the tick-all box
-  (some -> all -> none, the kissing menus too), the counts after changing age, and open sections
-  remembered.
+- `test_sections.py`: the nine sections hold every filter, Medical on its own, each tile's
+  switch (some -> all -> none, the kissing choices too), the counts after changing age, one
+  section open at a time and remembered; the steps (one shown at a time, Next and Back, the
+  list saying what's chosen, Start without videos going to step 1, a video that has gone, a
+  click needing a press and a let-go on the button).
 - `test_coroner_talk.py`: the coroner/doctor filter everywhere a filter needs, per age; its
   short list (not everyday talk); case talk not a sexual reference and left alone with it off,
   whole lines muted with it on; the Castle coroner lessons only with it.

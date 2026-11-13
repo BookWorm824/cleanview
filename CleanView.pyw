@@ -20,11 +20,17 @@ import cleanview as engine  # noqa: E402
 import cleanview_claude as cc  # noqa: E402
 import cleanview_learn as learn  # noqa: E402
 import videoqueue as VQ  # noqa: E402  (several videos at once)
+import cvlook as look  # noqa: E402  (the drawn look: cards, switches, pill buttons)
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
     "#F6F3EE", "#FFFFFF", "#23211F", "#6D6862", "#2F6F62", "#24574D", "#E3DED6")
 BUTTON_EDGE = "#B9AFA2"
+# the step-by-step look (1.18.77): the list of steps, tints, soft panels, quieter words
+SIDE, TINT, SOFT, FAINT = "#EFEAE2", "#EAF2EF", "#FBFAF7", "#A39C93"
+HEAD = "Segoe UI Semibold" if os.name == "nt" else "DejaVu Sans"
+look.use(bg=BG, card=CARD, ink=INK, muted=MUTED, accent=ACCENT, accent_dk=ACCENT_DK, line=LINE,
+         side=SIDE, tint=TINT, soft=SOFT, faint=FAINT)
 NEXT_TO_VIDEO = "A “Clean” folder next to the video"
 CHIP = {"Nudity": "#B5523B", "Implied": "#C47A5A", "Graphic": "#9A4A2A", "Disturbing": "#5E3A6E", "Sex": "#9A3E66", "Intimate": "#9A3E66", "Kiss": "#B0457A",
         "Violence": "#7A5A1E", "Gore": "#8E2B2B", "Medical": "#7A4A4A", "Smoking": "#5D6470", "Drinking": "#5D6470",
@@ -305,7 +311,7 @@ class App(tk.Tk):
         text size change, never smaller than she has made it (and left alone maximised)."""
         scale = max(1.0, self.winfo_fpixels("1i") / 96.0)
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = min(int(860 * scale), sw - 40)
+        w = min(int(940 * scale), sw - 40)       # the list of steps down the left (1.18.77)
         h = min(int(800 * scale), sh - 90)
         self.minsize(min(w, int(660 * scale)), min(h, int(500 * scale)))
         if grow_only:
@@ -456,6 +462,7 @@ class App(tk.Tk):
             messagebox.showinfo("CleanView", "CleanView is busy right now. Update when it's "
                                 "finished (the button will still be here).")
             return
+        self._save_settings()           # the start page's ticks, changed since it opened
         self._save_session()
         self.upd_btn.config(state="disabled")
         self.upd_lbl.config(text="Updating\u2026")
@@ -495,6 +502,8 @@ class App(tk.Tk):
         s.configure("TNotebook.Tab", padding=(16, 6), font=(FONT, 10))
         s.configure("Treeview", rowheight=round(self.winfo_fpixels("18p")), font=(FONT, 9))
         s.map("TCheckbutton", background=[("active", CARD)])
+        s.configure("Bg.TCheckbutton", background=BG, font=(FONT, 10))
+        s.map("Bg.TCheckbutton", background=[("active", BG)])
         # the AI helper's tick box, one size bigger so it stands out (1.18.76)
         s.configure("Big.TCheckbutton", background=CARD, font=(FONT, 11))
         s.map("Big.TCheckbutton", background=[("active", CARD)])
@@ -521,42 +530,33 @@ class App(tk.Tk):
         s.map("Small.TButton", background=[("active", "#E0D9CF")])
         s.configure("Green.Horizontal.TProgressbar", troughcolor="#E6E1DA",
                     background=ACCENT, bordercolor="#E6E1DA", lightcolor=ACCENT, darkcolor=ACCENT)
+        # The drawn look for the ttk widgets too (1.18.77): rounded buttons (green ones
+        # filled, the others white with a soft edge), tabs as pills, thin scroll bars, a
+        # rounded progress bar, and white fields that turn green at the edge when typed in.
+        green = (ACCENT, ACCENT_DK, "#A9C2BC", None, "#FFFFFF")
+        white = (CARD, TINT, "#F4F1EC", "#D9D2C7", FAINT)
+        look.round_buttons(self, {"Accent.TButton": green, "Go.TButton": green,
+                                  "Choose.TButton": green, "Plain.TButton": white,
+                                  "Small.TButton": white})
+        look.style_scrollbars(self, s)
+        look.style_tabs(self, s)
+        look.style_progress(self, s, "Green.Horizontal.TProgressbar", bg=CARD)
+        look.style_fields(s)
+        s.configure("Treeview", background=CARD, fieldbackground=CARD, bordercolor=LINE,
+                    lightcolor=CARD, darkcolor=CARD, borderwidth=1)
+        s.configure("Treeview.Heading", background=SIDE, foreground=MUTED, relief="flat",
+                    font=(HEAD, 9), padding=(6, 4))
+        s.map("Treeview.Heading", background=[("active", SIDE)])
+        s.map("Treeview", background=[("selected", TINT)], foreground=[("selected", INK)])
 
     def _tick_boxes(self, s):
         """Tick boxes that show a tick when ticked. The theme's own show an ✗, which
         reads as "no" (so a ticked "Swearing" looked like swearing was left in)."""
-        n = max(13, round(self.winfo_fpixels("10p")))      # grows with the text size
-        gap = max(5, n // 2)                                # see-through, before the words
-
-        # Drawn into the same images each time (a new text size redraws them): the theme
-        # can't be given a second "Tick.indicator".
+        # Drawn smooth and rounded (cvlook, 1.18.77) into the same images each time (a new
+        # text size redraws them): the theme can't be given a second "Tick.indicator".
         first = not hasattr(self, "_ticks")
-        if first:
-            self._ticks = {k: tk.PhotoImage() for k in ("off", "on", "off_dim", "on_dim",
-                                                         "some")}
-
-        def box(img, fill, edge, tick=None):
-            img.blank()
-            img.configure(width=n + gap, height=n)
-            img.put(edge, to=(0, 0, n, n))
-            img.put(fill, to=(1, 1, n - 1, n - 1))
-            if tick:
-                w = max(2, round(n / 7))
-                pts = [(0.2, 0.52), (0.42, 0.74), (0.8, 0.28)]
-                for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-                    for k in range(2 * n + 1):
-                        x = round((x0 + (x1 - x0) * k / (2 * n)) * n - w / 2)
-                        y = round((y0 + (y1 - y0) * k / (2 * n)) * n - w / 2)
-                        img.put(tick, to=(max(0, x), max(0, y), min(n, x + w), min(n, y + w)))
+        self._ticks = look.tick_images(self, None if first else self._ticks)
         t = self._ticks
-        box(t["off"], "#FFFFFF", "#8C857C")
-        box(t["on"], ACCENT, ACCENT, "#FFFFFF")
-        box(t["off_dim"], "#F1EEEA", "#C9C3BB")
-        box(t["on_dim"], "#A9C2BC", "#A9C2BC", "#FFFFFF")
-        box(t["some"], ACCENT, ACCENT)                      # some of a section ticked: a dash
-        d = max(2, round(n / 7))
-        t["some"].put("#FFFFFF", to=(round(n * 0.25), (n - d) // 2, round(n * 0.75),
-                                     (n - d) // 2 + d))
         if not first:
             return
         s.element_create("Tick.indicator", "image", t["off"],
@@ -573,27 +573,46 @@ class App(tk.Tk):
         if self.page:
             self.page.destroy()
         self._imgs = []
+        X = self._px
         self.page = tk.Frame(self, bg=BG)
-        self.page.pack(fill="both", expand=True, padx=28, pady=(20, 16))
+        self.page.pack(fill="both", expand=True, padx=X(36), pady=(X(24), X(16)))
         self.footer = tk.Frame(self.page, bg=BG)
-        self.footer.pack(side="bottom", fill="x", pady=(12, 0))
+        self.footer.pack(side="bottom", fill="x", pady=(X(10), 0))
+        tk.Frame(self.footer, bg=LINE, height=1).pack(side="top", fill="x", pady=(0, X(12)))
         if name:                # which video this is (Jason: "you don't know what you've cleaned")
-            tk.Label(self.page, text=name, bg=BG, fg=ACCENT_DK, font=(FONT, 16, "bold"),
-                     wraplength=wrap_width(860), justify="left").pack(anchor="w", pady=(0, 2))
-        tk.Label(self.page, text=title, bg=BG, fg=INK, font=(FONT, 20, "bold")).pack(anchor="w")
+            tk.Label(self.page, text=name, bg=BG, fg=ACCENT, font=(HEAD, 11),
+                     wraplength=wrap_width(860), justify="left").pack(anchor="w", pady=(0, X(2)))
+        tk.Label(self.page, text=title, bg=BG, fg=INK, font=(HEAD, 21)).pack(anchor="w")
         if subtitle:
-            tk.Label(self.page, text=subtitle, bg=BG, fg=MUTED, font=(FONT, 11),
-                     wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(2, 12))
+            tk.Label(self.page, text=subtitle, bg=BG, fg=MUTED, font=(FONT, 10),
+                     wraplength=wrap_width(760), justify="left").pack(anchor="w",
+                                                                      pady=(X(4), X(14)))
         return self.page
 
+    def _round_card(self, parent, before=None, fill=CARD, edge=LINE, pad=(16, 12)):
+        """A rounded card on a scrolling page (a scene, the lines, the words); returns the
+        frame to put things in."""
+        card = look.Card(parent, fill=fill, edge=edge, radius=12, pad=pad)
+        if before is not None:
+            card.pack(fill="x", padx=self._px(8), pady=self._px(6), before=before)
+        else:
+            card.pack(fill="x", padx=self._px(8), pady=self._px(6))
+        return card.body
+
     def _scroll_to(self, w):
-        """Scroll the page w is on (a _scroll_area) so w can be seen."""
-        inner = w
-        while inner.master is not None and not isinstance(inner.master, tk.Canvas):
+        """Scroll the page w is on (a _scroll_area) so w can be seen (on the start page,
+        showing its step first)."""
+        step = w
+        while step is not None and getattr(step, "_step_no", None) is None:
+            step = step.master
+        if step is not None and step._step_no != getattr(self, "_setup_step", 1):
+            self._go_step(step._step_no)
+        inner = w                       # the scroll area's own frame (a look.Card is a
+        while inner is not None and getattr(inner, "_canvas", None) is None:    # canvas too)
             inner = inner.master
-        canvas = inner.master
-        if canvas is None:
+        if inner is None:
             return
+        canvas = inner._canvas
         self.update_idletasks()
         h = inner.winfo_height()
         if h > 0:
@@ -630,44 +649,190 @@ class App(tk.Tk):
         inner._canvas = canvas
         return inner
 
-    def _card(self, parent, step, heading, note=""):
-        outer = tk.Frame(parent, bg=LINE)
-        outer.pack(fill="x", pady=6)
-        c = tk.Frame(outer, bg=CARD, padx=16, pady=12)
-        c.pack(fill="x", padx=1, pady=1)
-        top = tk.Frame(c, bg=CARD)
-        top.pack(fill="x")
-        tk.Label(top, text=step, bg=ACCENT, fg="white", font=(FONT, 10, "bold"),
-                 width=2).pack(side="left", padx=(0, 10))
-        tk.Label(top, text=heading, bg=CARD, fg=INK, font=(FONT, 12, "bold")).pack(side="left")
-        if note:
-            tk.Label(top, text=note, bg=CARD, fg=MUTED, font=(FONT, 9)).pack(side="left", padx=8)
-        body = tk.Frame(c, bg=CARD)
-        body.pack(fill="x", pady=(8, 0), padx=(32, 0))
-        return body
+    # ---------- page 1: setup, one step at a time ----------
+    # The owner, 2026-11-12: "the ui also feels clunky and dated, can you make it feel classy
+    # (all of them)", then chose "B, step by step" of two mock-ups: a list of the four steps
+    # down the left (each saying what's chosen), one step at a time on the right, Back and
+    # Next, and Start cleaning always there (her choices are remembered, so once the videos
+    # are chosen she can start). Drawn pieces are in cvlook.py (1.18.77).
+    STEPS = [("Movie or episodes", "Choose what to clean. Your original files are never changed."),
+             ("What to remove", "Swear words are muted automatically. Everything else is listed "
+                                "for you to check before anything is muted or cut."),
+             ("AI helper", "It double-checks the scenes and reads the dialogue. Recommended."),
+             ("Save to", "Where the clean copies go.")]
 
-    # ---------- page 1: setup ----------
+    def _px(self, n):
+        return look.px(self, n)
+
+    def _go_step(self, n):
+        """Show step n (1-4) of the start page, and only that step."""
+        n = max(1, min(len(self.STEPS), n))
+        self._setup_step = n
+        panes = getattr(self, "_panes", None)
+        if not panes or not panes[0].winfo_exists():
+            return
+        for i, pane in enumerate(panes, 1):
+            if i == n:
+                pane.pack(fill="x")
+            else:
+                pane.pack_forget()
+        title, sub = self.STEPS[n - 1]
+        self._step_tag.config(text=f"STEP {n} OF {len(self.STEPS)}")
+        self._step_title.config(text=title)
+        self._step_sub.config(text=sub)
+        canvas = getattr(self._panes_inner, "_canvas", None)
+        if canvas is not None:
+            canvas.yview_moveto(0)
+        if n > 1:
+            self.back_btn.pack(side="left")
+        else:
+            self.back_btn.pack_forget()
+        if n < len(self.STEPS):
+            self.next_btn.config(text=f"Next: {self.STEPS[n][0]}")
+            self.next_btn.pack(side="right", padx=(0, self._px(10)))
+        else:
+            self.next_btn.pack_forget()
+        self._show_steps()
+
+    def _step_summary(self, n):
+        """What's chosen in step n, in a few words, for the list on the left."""
+        if n == 1:
+            k = len(self.videos)
+            return ("Nothing chosen yet" if not k else
+                    "1 video chosen" if k == 1 else f"{k} videos chosen")
+        if n == 2:
+            return dict(PROFILES).get(getattr(self, "profile", ""), "")
+        if n == 3:
+            o = getattr(self, "opts", {})
+            r = o["reader"].get() if "reader" in o else "local"
+            if r in cc.NAMES:
+                return cc.name(r)
+            return "This PC" if o.get("ai") is None or o["ai"].get() else "Off"
+        if self.outdir:
+            p = Path(self.outdir)
+            return p.name or str(p)
+        return "Next to the videos"
+
+    def _show_steps(self):
+        rows = getattr(self, "_step_rows", None)
+        if not rows or not rows[0][0].winfo_exists():
+            return
+        now = getattr(self, "_setup_step", 1)
+        for i, (card, badge, name, summary) in enumerate(rows, 1):
+            current = i == now
+            card.recolour(fill=CARD if current else SIDE, edge=LINE if current else "")
+            done = i == 1 and bool(self.videos)
+            if done:
+                badge.set(icon="check", text=None, fill=ACCENT, fg="#FFFFFF", edge=None)
+            else:
+                badge.set(icon=None, text=str(i), fill=card.fill,
+                          fg=ACCENT if current else MUTED, edge=ACCENT if current else "#CFC6B8")
+            name.config(fg=INK if current else MUTED)
+            summary.config(text=short(self._step_summary(i), 28))
+
+    def _text_size_menu(self, widget):
+        m = tk.Menu(self, tearoff=0)
+        for name in TEXT_SIZES:
+            m.add_command(label=("✓ " if name == self.text_size else "    ") + name,
+                          command=lambda n=name: self._set_text_size(n))
+        m.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() - self._px(90))
+
     def show_setup(self):
         self.page_name = "setup"
-        p = self._new_page("CleanView", "Clean up a movie or TV episodes you own: mute bad "
-                           "language and cut out nudity, sex scenes and violence.")
+        for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            self.unbind_all(seq)
+        if self.page:
+            self.page.destroy()
+        self._imgs = []
+        X = self._px
+        p = self.page = tk.Frame(self, bg=BG)
+        p.pack(fill="both", expand=True)
+        try:
+            ver = json.loads((Path(__file__).resolve().parent / "version.json").read_text())["version"]
+            self.title(f"CleanView {ver}")
+        except Exception:
+            pass
+
+        # ----- the list of steps, down the left
+        side = tk.Frame(p, bg=SIDE, width=X(236))
+        side.pack(side="left", fill="y")
+        side.pack_propagate(False)
+        brand = tk.Frame(side, bg=SIDE)
+        brand.pack(fill="x", padx=X(22), pady=(X(26), X(22)))
+        logo = None
+        png = logo_png(X(40))
+        if png:
+            try:
+                logo = tk.PhotoImage(data=base64.b64encode(png).decode())
+                while logo.width() > X(52):
+                    logo = logo.subsample(2)
+            except tk.TclError:
+                logo = None
+        if logo is not None:
+            self._imgs.append(logo)
+            tk.Label(brand, image=logo, bg=SIDE).pack(side="left", padx=(0, X(10)))
+        else:
+            look.Badge(brand, "video", size=38, fill=ACCENT, fg="#FFFFFF").pack(
+                side="left", padx=(0, X(10)))
+        tk.Label(brand, text="CleanView", bg=SIDE, fg=INK, font=(HEAD, 15)).pack(side="left")
+        self._step_rows = []
+        for i, (title, _) in enumerate(self.STEPS, 1):
+            card = look.Card(side, fill=SIDE, edge="", radius=12, pad=(12, 9))
+            card.pack(fill="x", padx=X(14), pady=X(2))
+            row = card.body
+            badge = look.Badge(row, None, size=26, circle=True, text=str(i))
+            badge.pack(side="left", padx=(0, X(12)))
+            words = tk.Frame(row, bg=SIDE)
+            words.pack(side="left", fill="x", expand=True)
+            name = tk.Label(words, text=title, bg=SIDE, fg=MUTED, font=(HEAD, 10), anchor="w")
+            name.pack(anchor="w")
+            summary = tk.Label(words, text="", bg=SIDE, fg=FAINT, font=(FONT, 9), anchor="w")
+            summary.pack(anchor="w")
+            card.clickable(lambda i=i: self._go_step(i))
+            self._step_rows.append((card, badge, name, summary))
+        extras = tk.Frame(side, bg=SIDE)
+        extras.pack(side="bottom", fill="x", padx=X(24), pady=(0, X(22)))
+        self.size_link = look.link(extras, f"Text size: {self.text_size}",
+                                   lambda: self._text_size_menu(self.size_link), icon="text",
+                                   size=9, fg=MUTED, bold=False)
+        self.size_link.pack(anchor="w", pady=X(3))
+        look.link(extras, "Check for updates", lambda: self._check_update(manual=True),
+                  icon="refresh", size=9, fg=MUTED, bold=False).pack(anchor="w", pady=X(3))
+        look.link(extras, "Send what CleanView learned…", self.share_learned, icon="send",
+                  size=9, fg=MUTED, bold=False).pack(anchor="w", pady=X(3))
+
+        # ----- the step itself, on the right
+        main = tk.Frame(p, bg=BG)
+        main.pack(side="left", fill="both", expand=True, padx=(X(36), X(32)), pady=(X(24), 0))
+        self.footer = tk.Frame(main, bg=BG)
+        self.footer.pack(side="bottom", fill="x")
+        tk.Frame(self.footer, bg=LINE, height=1).pack(fill="x")
+        nav = tk.Frame(self.footer, bg=BG)
+        nav.pack(fill="x", pady=(X(14), X(18)))
+        self.start_btn = look.Pill(nav, "Start cleaning", self.start, after="next", size=12,
+                                   pad=(24, 11))
+        self.start_btn.pack(side="right")
+        self.next_btn = look.Pill(nav, "Next", lambda: self._go_step(self._setup_step + 1),
+                                  kind="secondary", after="next", size=11, pad=(20, 10))
+        self.back_btn = look.Pill(nav, "Back", lambda: self._go_step(self._setup_step - 1),
+                                  kind="quiet", icon="back", size=11, pad=(16, 10))
+
         upd = os.environ.pop("CLEANVIEW_UPDATED", None)
         if upd:
-            tk.Label(p, text="\u2713 " + upd,
-                     bg="#E3EFEC", fg=ACCENT_DK, font=(FONT, 10), padx=10, pady=6,
-                     anchor="w").pack(fill="x", pady=(0, 8))
+            tk.Label(main, text="✓ " + upd, bg=TINT, fg=ACCENT_DK, font=(FONT, 10),
+                     padx=X(12), pady=X(7), anchor="w").pack(fill="x", pady=(0, X(12)))
         try:
             sess = json.loads(self.SESSION.read_text("utf8"))
             names = [Path(j["video"]).name for j in sess["jobs"]]
         except Exception:
             sess = None
         if sess and names:
-            box = tk.Frame(p, bg="#FFF4EC", highlightbackground="#E9C9B3", highlightthickness=1)
-            box.pack(fill="x", pady=(0, 8))
-            what = short(names[0], 50) + (f" and {len(names) - 1} more" if len(names) > 1 else "")
-            tk.Label(box, text=f"Your last review isn't finished: {what} (saved {sess['saved']}).",
-                     bg="#FFF4EC", fg=INK, font=(FONT, 10), padx=10, pady=6,
-                     anchor="w").pack(side="left")
+            box = look.Card(main, fill="#FFF6EF", edge="#EBCDB8", radius=12, pad=(16, 10))
+            box.pack(fill="x", pady=(0, X(14)))
+            what = short(names[0], 40) + (f" and {len(names) - 1} more" if len(names) > 1 else "")
+            tk.Label(box.body, text=f"Your last review isn't finished: {what}\n(saved "
+                     f"{sess['saved']})", bg="#FFF6EF", fg=INK, font=(FONT, 10),
+                     justify="left", anchor="w").pack(side="left")
 
             def pick_up(sess=sess):
                 if not self._resume(sess):
@@ -676,59 +841,67 @@ class App(tk.Tk):
                     self._forget_session()
                     self.show_setup()
 
-            ttk.Button(box, text="Pick up where I left off", style="Go.TButton",
-                       command=pick_up).pack(side="right", padx=8, pady=4)
-            ttk.Button(box, text="Discard", style="Small.TButton",
-                       command=lambda: (self._forget_session(), box.destroy())).pack(
-                side="right", pady=4)
-        try:
-            ver = json.loads((Path(__file__).resolve().parent / "version.json").read_text())["version"]
-            self.title(f"CleanView {ver}")
-        except Exception:
-            pass
-        self.start_btn = ttk.Button(self.footer, text="Start cleaning", style="Accent.TButton",
-                                    command=self.start)
-        self.start_btn.pack(side="right")
-        ttk.Button(self.footer, text="Send what CleanView learned\u2026", style="Plain.TButton",
-                   command=self.share_learned).pack(side="left")
-        ttk.Button(self.footer, text="\u21bb Check for updates", style="Plain.TButton",
-                   command=lambda: self._check_update(manual=True)).pack(side="left", padx=(8, 0))
-        tk.Label(self.footer, text="Text size", bg=BG, fg=MUTED, font=(FONT, 10)).pack(
-            side="left", padx=(18, 6))
-        size_var = tk.StringVar(value=self.text_size)
-        size_box = ttk.Combobox(self.footer, textvariable=size_var, values=list(TEXT_SIZES),
-                                state="readonly", width=8, font=(FONT, 10))
-        size_box.pack(side="left")
-        size_box.bind("<<ComboboxSelected>>", lambda e: self._set_text_size(size_var.get()))
-        body = self._scroll_area(p)
+            look.Pill(box.body, "Pick up where I left off", pick_up, size=10,
+                      pad=(16, 8)).pack(side="right")
+            look.Pill(box.body, "Discard", lambda: (self._forget_session(), box.destroy()),
+                      kind="quiet", size=10, pad=(12, 8)).pack(side="right", padx=(0, X(6)))
+        self._step_tag = tk.Label(main, text="", bg=BG, fg=ACCENT, font=(HEAD, 8), anchor="w")
+        self._step_tag.pack(anchor="w")
+        self._step_title = tk.Label(main, text="", bg=BG, fg=INK, font=(HEAD, 21), anchor="w")
+        self._step_title.pack(anchor="w", pady=(X(2), 0))
+        self._step_sub = tk.Label(main, text="", bg=BG, fg=MUTED, font=(FONT, 10), anchor="w",
+                                  justify="left", wraplength=wrap_width(540))
+        self._step_sub.pack(anchor="w", pady=(X(4), X(16)))
+        body = self._panes_inner = self._scroll_area(main)
+        self._panes = []
+
+        def pane(n):
+            f = tk.Frame(body, bg=BG)
+            f._step_no = n
+            self._panes.append(f)
+            return f
 
         self.opts = {}
-        b1 = self._card(body, "1", "Movie or episodes")
-        row = tk.Frame(b1, bg=CARD)
-        row.pack(fill="x")
-        ttk.Button(row, text="Choose files…", style="Choose.TButton",
-                   command=self.pick_files).pack(side="left")
-        tk.Label(row, text="For a whole season, open its folder and press Ctrl+A to choose "
-                 "every episode.", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(380),
-                 justify="left").pack(side="left", padx=(14, 0))
-        self.vid_lbl = tk.Label(b1, text="Nothing chosen yet", bg=CARD, fg=MUTED,
-                                font=(FONT, 10), wraplength=wrap_width(640), justify="left")
-        self.vid_lbl.pack(anchor="w", pady=(8, 0))
-        v = tk.BooleanVar(value=self._load_settings().get("autosubs", True))
-        self.opts["autosubs"] = v
-        ttk.Checkbutton(b1, text="Find subtitles online for videos that don't have any",
-                        variable=v).pack(anchor="w", pady=(8, 0))
-        tk.Label(b1, text="Recommended: subtitles give the exact words, who's talking and "
-                 "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
-                 fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(anchor="w",
-                                                                             padx=(22, 0))
-        tk.Label(b1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
-                 "downloads without copy protection. If the movie has subtitles, they're used "
-                 "to catch extra words and get cleaned too.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(6, 0))
-
-        b2 = self._card(body, "2", "What to remove")
         saved = self._load_settings()
+
+        # ----- step 1: the videos
+        p1 = pane(1)
+        drop = look.Card(p1, fill=SOFT, edge="#DCD4C7", radius=16, pad=(20, 18))
+        drop.pack(fill="x", padx=(0, X(4)))
+        look.Badge(drop.body, "folder", size=54, icon_size=20).pack(side="left")
+        words = tk.Frame(drop.body, bg=SOFT)
+        words.pack(side="left", fill="x", expand=True, padx=(X(16), X(12)))
+        tk.Label(words, text="Choose a movie or episodes", bg=SOFT, fg=INK, font=(HEAD, 13),
+                 anchor="w").pack(anchor="w")
+        tk.Label(words, text="For a whole season, open its folder and press Ctrl+A to choose "
+                 "every episode.", bg=SOFT, fg=MUTED, font=(FONT, 9), anchor="w",
+                 wraplength=wrap_width(260), justify="left").pack(anchor="w", pady=(X(2), 0))
+        self.choose_btn = look.Pill(drop.body, "Choose files…", self.pick_files, size=12,
+                                    pad=(22, 11))
+        self.choose_btn.pack(side="right")
+        self.vid_lbl = tk.Label(p1, text="Nothing chosen yet", bg=BG, fg=MUTED, font=(FONT, 10),
+                                wraplength=wrap_width(560), justify="left", anchor="w")
+        self.vid_lbl.pack(anchor="w", pady=(X(12), 0))
+        subs = look.Card(p1)
+        subs.pack(fill="x", pady=(X(14), 0), padx=(0, X(4)))
+        v = tk.BooleanVar(value=saved.get("autosubs", True))
+        self.opts["autosubs"] = v
+        look.Switch(subs.body, v).pack(side="left", anchor="n", pady=(X(2), 0))
+        words = tk.Frame(subs.body, bg=CARD)
+        words.pack(side="left", fill="x", expand=True, padx=(X(14), 0))
+        tk.Label(words, text="Find subtitles online for videos that don't have any", bg=CARD,
+                 fg=INK, font=(HEAD, 10), anchor="w").pack(anchor="w")
+        tk.Label(words, text="Recommended: subtitles give the exact words, who's talking and "
+                 "descriptions like [kissing], which makes every check more accurate.", bg=CARD,
+                 fg=MUTED, font=(FONT, 9), wraplength=wrap_width(470), justify="left",
+                 anchor="w").pack(anchor="w", pady=(X(2), 0))
+        tk.Label(p1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
+                 "downloads without copy protection. If the movie has subtitles, they're used "
+                 "to catch extra words and get cleaned too.", bg=BG, fg=FAINT, font=(FONT, 9),
+                 wraplength=wrap_width(560), justify="left").pack(anchor="w", pady=(X(16), 0))
+
+        # ----- step 2: what to remove
+        p2 = pane(2)
         # the folder she chose to save in, kept when CleanView closes (1.18.76)
         self.save_to = saved.get("save_to") or None
         if not self.outdir:
@@ -741,32 +914,37 @@ class App(tk.Tk):
                          for p, _ in PROFILES}
         self.profile = saved.get("profile") or ("adults" if profiles.get("adults") else "young")
         cur = self.profiles[self.profile]
-        prow = tk.Frame(b2, bg=CARD)
-        prow.pack(fill="x", pady=(0, 4))
-        tk.Label(prow, text="Filtering for:", bg=CARD, fg=INK, font=(FONT, 10, "bold")).pack(
-            side="left", padx=(0, 8))
+        prow = tk.Frame(p2, bg=BG)
+        prow.pack(fill="x", padx=(0, X(4)))
         self.profile_var = tk.StringVar(value=self.profile)
-        for key, name in PROFILES:
-            ttk.Radiobutton(prow, text=name, value=key, variable=self.profile_var,
-                            style="Card.TRadiobutton",
-                            command=self._profile_changed).pack(side="left", padx=(0, 10))
-        reset = tk.Label(prow, text="Reset to the standard for this age", bg=CARD, fg=ACCENT,
-                         font=(FONT, 9, "underline"), cursor="hand2")
-        reset.pack(side="right")
-        reset.bind("<Button-1>", lambda e: self._profile_reset())
-        tk.Label(b2, text="Each one remembers its own ticks, and what CleanView learns from "
-                 "your choices is kept separately for each.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=wrap_width(640), justify="left").pack(anchor="w")
+        look.Segmented(prow, PROFILES, self.profile_var, command=self._profile_changed).pack(
+            side="left")
+        look.link(prow, "Reset to standard", self._profile_reset, size=9).pack(side="right")
+        tk.Label(p2, text="Each age remembers its own choices, and what CleanView learns from "
+                 "them is kept separately for each.", bg=BG, fg=MUTED, font=(FONT, 9),
+                 wraplength=wrap_width(560), justify="left").pack(anchor="w", pady=(X(8), 0))
+        tiles = tk.Frame(p2, bg=BG)
+        tiles.pack(fill="x", pady=(X(10), 0))
+        for c in range(3):
+            tiles.columnconfigure(c, weight=1, uniform="tiles")
+        detail = look.Card(p2, radius=14, pad=(18, 14))
+        dhead = tk.Frame(detail.body, bg=CARD)
+        dhead.pack(fill="x", pady=(0, X(8)))
+        dname = tk.Label(dhead, text="", bg=CARD, fg=INK, font=(HEAD, 12), anchor="w")
+        dname.pack(side="left")
+        dbody = tk.Frame(detail.body, bg=CARD)
+        dbody.pack(fill="x")
 
-        # Sections by topic, each with a box that ticks or unticks all of it and folds away to
-        # one line (the owner, 2026-11-12: "a main box for each category to tick all if
-        # wanted, but if only some of the subcategories are wanted just those can be ticked.
-        # vid angel had a system like that", and "maybe not as long"; Medical its own).
+        # Sections by topic, each a tile with a switch that turns all of it on or off, and
+        # its boxes shown under the tiles when opened (the owner, 2026-11-12: "a main box for
+        # each category to tick all if wanted, but if only some of the subcategories are
+        # wanted just those can be ticked. vid angel had a system like that").
         levels = {"Keep": "off", "Cut passionate kisses": "passionate", "Cut all kisses": "all"}
         self.level_names = {v: k for k, v in levels.items()}
         self.level_values = levels
-        self._open_sections = set(saved.get("open_sections") or [])
+        self._open_sections = set((saved.get("open_sections") or [])[:1])
         self._section_heads = {}
+        shows = {}
 
         def checks(grid, items, cols=2):
             out = []
@@ -774,7 +952,7 @@ class App(tk.Tk):
                 v = tk.BooleanVar(value=cur.get(key, on))
                 self.opts[key] = v
                 ttk.Checkbutton(grid, text=label, variable=v).grid(
-                    row=n // cols, column=n % cols, sticky="w", padx=(0, 26), pady=1)
+                    row=n // cols, column=n % cols, sticky="w", padx=(0, X(26)), pady=X(2))
                 out.append(v)
             return out
 
@@ -785,51 +963,59 @@ class App(tk.Tk):
                                                          ("kiss_ss", "Same-sex kissing",
                                                           "passionate")]):
                 tk.Label(grid, text=label, bg=CARD, fg=INK, font=(FONT, 10)).grid(
-                    row=row, column=0, sticky="w", padx=(0, 12), pady=2)
+                    row=row, column=0, sticky="w", padx=(0, X(14)), pady=X(3))
                 v = tk.StringVar(value=self.level_names[cur.get(key, default)])
                 self.opts[key] = v
-                ttk.Combobox(grid, textvariable=v, values=list(levels), state="readonly",
-                             width=22).grid(row=row, column=1, sticky="w", pady=2)
+                look.Segmented(grid, [("Keep", "Keep"), ("Cut passionate kisses", "Passionate"),
+                                      ("Cut all kisses", "All kisses")], v, size=9).grid(
+                    row=row, column=1, sticky="w", pady=X(3))
                 out.append(v)
             return out
 
         def own_words(body):
             tk.Label(body, text="Your own words and phrases to mute  (one per line, for every "
-                     "age)", bg=CARD, fg=INK, font=(FONT, 10)).pack(anchor="w", pady=(8, 2))
+                     "age)", bg=CARD, fg=INK, font=(HEAD, 10)).pack(anchor="w", pady=(X(12), X(4)))
             self.mywords_box = tk.Text(body, height=4, font=(FONT, 10), wrap="none",
-                                       relief="solid", borderwidth=1, highlightthickness=0,
-                                       padx=6, pady=4)
+                                       relief="flat", borderwidth=0, highlightthickness=1,
+                                       highlightbackground=LINE, highlightcolor=ACCENT,
+                                       bg=SOFT, padx=X(8), pady=X(6))
             self.mywords_box.insert("1.0", "\n".join(saved.get("mywords") or []))
             self.mywords_box.pack(anchor="w", fill="x")
             tk.Label(body, text="Muted wherever they're said, the whole phrase: for example "
-                     "\u201cgrow some stones\u201d. Whole words only, so \u201cstones\u201d on "
-                     "its own wouldn't touch \u201cmilestones\u201d. Put other forms on their own "
+                     "“grow some stones”. Whole words only, so “stones” on "
+                     "its own wouldn't touch “milestones”. Put other forms on their own "
                      "lines (dork, dorks).", bg=CARD, fg=MUTED, font=(FONT, 9),
-                     wraplength=wrap_width(620), justify="left").pack(anchor="w", pady=(2, 0))
+                     wraplength=wrap_width(520), justify="left").pack(anchor="w", pady=(X(4), 0))
 
-        def fold_group(title, items, cols=2, menus=False, extra=None):
-            """A section: its tick-all box, its name, how many are ticked, and its boxes
-            (folded away until opened; which are open is remembered)."""
-            head = tk.Frame(b2, bg=CARD)
-            head.pack(fill="x", pady=(6, 0))
-            body = tk.Frame(b2, bg=CARD)
-            master = tk.Label(head, image=self._ticks["off"], bg=CARD, cursor="hand2")
-            master.pack(side="left")
-            name = tk.Label(head, text=title, bg=CARD, fg=ACCENT_DK, font=(FONT, 10, "bold"),
-                            cursor="hand2")
-            name.pack(side="left")
-            count = tk.Label(head, text="", bg=CARD, fg=MUTED, font=(FONT, 9))
-            count.pack(side="left", padx=(10, 0))
-            more = tk.Label(head, text="", bg=CARD, fg=ACCENT, font=(FONT, 9, "underline"),
-                            cursor="hand2")
-            more.pack(side="left", padx=(10, 0))
+        def fold_group(title, icon, items, cols=1, menus=False, extra=None):
+            """A section: a tile with its icon, its name, a switch for all of it and how many
+            are on; its boxes are shown under the tiles when it's opened."""
+            n = len(self._section_heads)
+            tile = look.Card(tiles, radius=14, pad=(13, 11))
+            tile.grid(row=n // 3, column=n % 3, sticky="nsew", padx=(0, X(10)), pady=(0, X(10)))
+            top = tk.Frame(tile.body, bg=CARD)
+            top.pack(fill="x")
+            badge = look.Badge(top, icon, size=30)
+            badge.pack(side="left", anchor="n")
+            switch = look.Switch(top)
+            switch.pack(side="right", anchor="n", pady=(X(4), 0))
+            name = tk.Label(tile.body, text=title, bg=CARD, fg=INK, font=(HEAD, 10), anchor="w",
+                            justify="left", wraplength=wrap_width(150), cursor="hand2")
+            name.pack(fill="x", pady=(X(8), 0))
+            low = tk.Frame(tile.body, bg=CARD)
+            low.pack(fill="x", side="bottom", pady=(X(4), 0))
+            count = tk.Label(low, text="", bg=CARD, fg=MUTED, font=(FONT, 9))
+            count.pack(side="left")
+            more = look.link(low, "Choose ›", lambda: flip(), size=9)
+            more.pack(side="right")
+            body = tk.Frame(dbody, bg=CARD)
             grid = tk.Frame(body, bg=CARD)
-            grid.pack(fill="x", padx=(wrap_width(26), 0))
+            grid.pack(fill="x")
             got = (kiss_menus(grid) if menus else []) + checks(
                 tk.Frame(grid, bg=CARD) if menus else grid, items, cols)
             if menus:                                       # the boxes under the two menus
                 grid.winfo_children()[-1].grid(row=2, column=0, columnspan=2, sticky="w",
-                                               pady=(4, 0))
+                                               pady=(X(8), 0))
             if extra:
                 extra(body)
 
@@ -838,12 +1024,12 @@ class App(tk.Tk):
                 return val != "Keep" if isinstance(val, str) else bool(val)
 
             def refresh(*_):
-                if not master.winfo_exists():
+                if not switch.winfo_exists():
                     return
-                n = sum(on(v) for v in got)
-                master.config(image=self._ticks["on" if n == len(got) else
-                                                 "off" if n == 0 else "some"])
-                count.config(text=f"{n} of {len(got)} ticked")
+                k = sum(on(v) for v in got)
+                switch.set("on" if k == len(got) else "off" if k == 0 else "some")
+                count.config(text=f"{k} of {len(got)} on" if k else "Off")
+                badge.set(fill=TINT if k else SIDE, fg=ACCENT if k else FAINT)
 
             def tick_all(_=None):
                 want = not all(on(v) for v in got)
@@ -853,65 +1039,75 @@ class App(tk.Tk):
 
             def show(opened):
                 if opened:
-                    body.pack(fill="x", after=head)
-                    self._open_sections.add(title)
+                    for t, other in shows.items():
+                        if t != title:
+                            other(False)
+                    body.pack(fill="x")
+                    dname.config(text=title)
+                    detail.pack(fill="x", padx=(0, X(10)), pady=(X(2), X(6)))
+                    self._open_sections = {title}
                 else:
                     body.pack_forget()
-                    self._open_sections.discard(title)
-                more.config(text="Hide" if opened else "Choose which\u2026")
+                    if title in self._open_sections:
+                        self._open_sections.discard(title)
+                        detail.pack_forget()
+                tile.recolour(edge=ACCENT if opened else LINE, edge_w=2.0 if opened else 1.0)
+                more.label.config(text="Hide ‹" if opened else "Choose ›")
 
             def flip(_=None):
-                show(title not in self._open_sections)
-            master.bind("<Button-1>", tick_all)
-            for w in (name, more):
-                w.bind("<Button-1>", flip)
+                opening = title not in self._open_sections
+                show(opening)
+                if opening:                     # its boxes are under the tiles: show them
+                    self.after(50, lambda: self._scroll_to(dname))
+            switch._command = tick_all
+            for w in (badge, name):
+                look.on_click(w, flip)
             for v in got:
                 v.trace_add("write", refresh)
             refresh()
-            show(title in self._open_sections)
-            self._section_heads[title] = (master, count, tick_all, show)
+            shows[title] = show
+            self._section_heads[title] = (switch, count, tick_all, show)
 
-        fold_group("Bad language", [
-            ("swearing", "Swearing  (f-word, s-word, b-word\u2026)", True),
+        fold_group("Bad language", "mute", [
+            ("swearing", "Swearing  (f-word, s-word, b-word…)", True),
             ("mild", "Mild words  (damn, hell, crap)", True),
             ("deity", "God's name used as a swear", True),
             ("minced", "Soft substitutes  (gosh, heck, freaking)", False),
-            ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up\u2026)", False),
-            ("samesexwords", "Words about same-sex relationships  (gay, lesbian\u2026)", True)],
-            cols=1, extra=own_words)
-        fold_group("Sex and nudity", [
+            ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up…)", False),
+            ("samesexwords", "Words about same-sex relationships  (gay, lesbian…)", True)],
+            extra=own_words)
+        fold_group("Sex and nudity", "eye", [
             ("sexref", "Sexual references and innuendo", True),
             ("sex", "Sex scenes", True),
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
             ("immodest", "Immodest clothing  (swimsuits, underwear, sexy dancing)", False),
             ("gestures", "Rude and sexual gestures  (the middle finger, crude motions)",
-             True)], cols=1)
-        fold_group("Romance and relationships", [
+             True)])
+        fold_group("Romance and relationships", "heart", [
             ("casual", "Sleeping around  (casual sex, affairs)", True),
             ("oppsex", "Unmarried couples living or sleeping together", False),
             ("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False)],
-            cols=1, menus=True)
-        fold_group("Violence", [
+            menus=True)
+        fold_group("Violence", "warning", [
             ("violence", "Violence  (fights, shootings, attacks)", True),
             ("graphic", "Graphic violence  (blood, bloody wounds)", True),
             ("gore", "Gore  (insides showing: organs, dismemberment)", True),
-            ("disturbing", "Disturbing  (torture, executions, cruelty, bloody accidents)", True)],
-            cols=1)
-        fold_group("Medical", [
+            ("disturbing", "Disturbing  (torture, executions, cruelty, bloody accidents)", True)])
+        fold_group("Medical", "health", [
             ("medical", "Medical scenes  (surgery, autopsies, wounds being treated, needles)",
              True),
             ("forensic", "Coroner and doctor talk  (graphic findings: wounds, autopsies, "
-                         "sexual assault)", False)], cols=1)
-        fold_group("Attitude", [
+                         "sexual assault)", False)])
+        fold_group("Attitude", "smile", [
             ("bullying", "Bullying and mocking", False),
             ("disrespect", "Disrespect  (bratty, talking back, disobeying parents)", False),
-            ("crude", "Crude humor  (bathroom and gross-out jokes)", False)], cols=1)
-        fold_group("Smoking, drinking and drugs", [
+            ("crude", "Crude humor  (bathroom and gross-out jokes)", False)])
+        fold_group("Smoking, drinking and drugs", "cup", [
             ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
             ("drugs", "Drug use", True)], cols=3)
-        fold_group("Faith, holidays and magic", [
-            ("religion", "Religious conversations  (prayer, church, faith, the Bible\u2026)",
+        fold_group("Faith, holidays and magic", "star", [
+            ("religion", "Religious conversations  (prayer, church, faith, the Bible…)",
              False),
             ("holidays", "Holidays  (Christmas, Halloween, Easter, Valentine's Day, "
                          "St. Patrick's Day)", False),
@@ -919,73 +1115,101 @@ class App(tk.Tk):
             ("darkmagic", "Dark magic  (witchcraft, wizards, curses, the occult, fortune "
                           "telling)", False),
             ("magic", "Magic  (spells, wands, potions, fairies)", False),
-            ("vampires", "Vampires and werewolves", False)], cols=1)
-        fold_group("Music", [
+            ("vampires", "Vampires and werewolves", False)])
+        fold_group("Music", "music", [
             ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
-             False)], cols=1)
-        tk.Label(b2, text="Swear words are muted automatically. Everything else is listed for "
-                 "you to check before anything is muted or cut.", bg=CARD, fg=MUTED,
-                 font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(10, 0))
+             False)])
+        look.link(dhead, "Done", lambda: [s(False) for s in shows.values()], size=9).pack(
+            side="right")
+        for t in list(self._open_sections):
+            if t in shows:
+                shows[t](True)
 
-        b25 = self._card(body, "3", "AI helper", "recommended")
+        # ----- step 3: the AI helper
+        p3 = pane(3)
+        top = look.Card(p3)
+        top.pack(fill="x", padx=(0, X(4)))
         v = tk.BooleanVar(value=saved.get("ai", True))
         self.opts["ai"] = v
-        ttk.Checkbutton(b25, text="Use the AI helper to double-check scenes and read the dialogue",
-                        variable=v, style="Big.TCheckbutton").pack(anchor="w")
-        tk.Label(b25, text="Runs on your own PC, nothing is uploaded. The first time, it downloads "
-                 "Ollama and two AI models (about 11 GB, one time only). Without it, kissing and "
-                 "dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
-                 wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(4, 0))
-        tk.Label(b25, text="Who reads the dialogue and checks the scenes", bg=CARD, fg=ACCENT_DK,
-                 font=(FONT, 10, "bold")).pack(anchor="w", pady=(10, 2))
+        look.Switch(top.body, v).pack(side="left", anchor="n", pady=(X(2), 0))
+        words = tk.Frame(top.body, bg=CARD)
+        words.pack(side="left", fill="x", expand=True, padx=(X(14), 0))
+        tk.Label(words, text="Use the AI helper to double-check scenes and read the dialogue",
+                 bg=CARD, fg=INK, font=(HEAD, 11), anchor="w", justify="left",
+                 wraplength=wrap_width(470)).pack(anchor="w")
+        tk.Label(words, text="Runs on your own PC, nothing is uploaded. The first time, it "
+                 "downloads Ollama and two AI models (about 11 GB, one time only). Without it, "
+                 "kissing and dialogue checks are rougher.", bg=CARD, fg=MUTED, font=(FONT, 9),
+                 wraplength=wrap_width(470), justify="left").pack(anchor="w", pady=(X(3), 0))
+        tk.Label(p3, text="Who reads the dialogue and checks the scenes", bg=BG, fg=INK,
+                 font=(HEAD, 11)).pack(anchor="w", pady=(X(18), X(8)))
         v = tk.StringVar(value=saved.get("reader", "local"))
         self.opts["reader"] = v
-        ttk.Radiobutton(b25, text="The AI on this PC  (free, nothing leaves your PC)", value="local",
-                        variable=v, style="Card.TRadiobutton").pack(anchor="w")
-        ttk.Radiobutton(b25, text="Claude  (more accurate; uses your Claude premium plan)", value="claude",
-                        variable=v, style="Card.TRadiobutton").pack(anchor="w")
-        ttk.Radiobutton(b25, text="ChatGPT  (more accurate; uses your ChatGPT premium plan)",
-                        value="chatgpt", variable=v, style="Card.TRadiobutton").pack(anchor="w")
-        ttk.Radiobutton(b25, text="Gemini  (more accurate; uses your Google account)",
-                        value="gemini", variable=v, style="Card.TRadiobutton").pack(anchor="w")
-        crow = tk.Frame(b25, bg=CARD)
-        crow.pack(fill="x", padx=(22, 0), pady=(2, 0))
-        self.claude_lbl = tk.Label(crow, text="", bg=CARD, fg=MUTED,
-                                   font=(FONT, 9), wraplength=wrap_width(430), justify="left")
+        choices = tk.Frame(p3, bg=BG)
+        choices.pack(fill="x")
+        for c in range(2):
+            choices.columnconfigure(c, weight=1, uniform="ai")
+        for n, (key, title, sub, icon) in enumerate([
+                ("local", "This PC", "Free, nothing leaves your PC", "pc"),
+                ("claude", "Claude", "More accurate; uses your Claude premium plan", "spark"),
+                ("chatgpt", "ChatGPT", "More accurate; uses your ChatGPT premium plan", "chat"),
+                ("gemini", "Gemini", "More accurate; uses your Google account", "cloud")]):
+            card = look.OptionCard(choices, key, v, title, sub, icon=icon)
+            card.sub.config(wraplength=wrap_width(190))
+            card.grid(row=n // 2, column=n % 2, sticky="nsew", padx=(0, X(10)), pady=(0, X(10)))
+        status = tk.Frame(p3, bg=BG)
+        status.pack(fill="x", pady=(X(4), 0))
+        crow = tk.Frame(status, bg=BG)
+        crow.pack(fill="x")
+        self.claude_lbl = tk.Label(crow, text="", bg=BG, fg=MUTED, font=(FONT, 9),
+                                   wraplength=wrap_width(380), justify="left")
         self.claude_lbl.pack(side="left")
-        self.claude_btn = ttk.Button(crow, text="Set up", style="Go.TButton",
-                                     command=self.setup_claude)
-        arow = tk.Frame(b25, bg=CARD)          # someone else's own account
-        arow.pack(fill="x", padx=(22, 0))
-        self.switch_btn = ttk.Button(arow, text="Use a different account", style="Small.TButton",
-                                     command=self.use_other_account)
-        self.signout_btn = ttk.Button(arow, text="Sign out", style="Small.TButton",
-                                      command=self.sign_out_account)
+        self.claude_btn = look.Pill(crow, "Set up", self.setup_claude, size=10, pad=(16, 8))
+        arow = tk.Frame(status, bg=BG)          # someone else's own account
+        arow.pack(fill="x")
+        self.switch_btn = look.Pill(arow, "Use a different account", self.use_other_account,
+                                    kind="secondary", size=9, pad=(14, 6), bold=False)
+        self.signout_btn = look.Pill(arow, "Sign out", self.sign_out_account, kind="secondary",
+                                     size=9, pad=(14, 6), bold=False)
         lv = tk.BooleanVar(value=saved.get("look", True))
         self.opts["look"] = lv
-        self.look_chk = ttk.Checkbutton(b25, text="", variable=lv)
-        self.look_chk.pack(anchor="w", padx=(22, 0), pady=(4, 0))
-        self.cloud_note = tk.Label(b25, text="", bg=CARD, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640),
-                                   justify="left")
-        self.cloud_note.pack(anchor="w", padx=(22, 0))
+        self.look_chk = ttk.Checkbutton(status, text="", variable=lv, style="Bg.TCheckbutton")
+        self.look_chk.pack(anchor="w", pady=(X(6), 0))
+        self.cloud_note = tk.Label(status, text="", bg=BG, fg=MUTED, font=(FONT, 9),
+                                   wraplength=wrap_width(560), justify="left")
+        self.cloud_note.pack(anchor="w", pady=(X(6), 0))
         lv.trace_add("write", lambda *_: self._reader_changed())
         self.ai_state = getattr(self, "ai_state", {})
         v.trace_add("write", lambda *_: self._reader_changed())
+        v.trace_add("write", lambda *_: self._show_steps())
+        self.opts["ai"].trace_add("write", lambda *_: self._show_steps())
         self._reader_changed()
 
-        b3 = self._card(body, "4", "Save to")
-        row = tk.Frame(b3, bg=CARD)
+        # ----- step 4: where to save
+        p4 = pane(4)
+        card = look.Card(p4)
+        card.pack(fill="x", padx=(0, X(4)))
+        row = tk.Frame(card.body, bg=CARD)
         row.pack(fill="x")
-        ttk.Button(row, text="Change…", style="Plain.TButton",
-                   command=self.pick_out).pack(side="right")
-        self.next_to_btn = ttk.Button(row, text="Next to the video", style="Plain.TButton",
-                                      command=self.use_video_folder)
-        self.out_lbl = tk.Label(row, text=NEXT_TO_VIDEO, bg=CARD,
-                                fg=MUTED, font=(FONT, 10), wraplength=wrap_width(500), justify="left")
-        self.out_lbl.pack(side="left")
-        tk.Label(b3, text="Your original files are never changed.", bg=CARD, fg=MUTED,
-                 font=(FONT, 9)).pack(anchor="w", pady=(6, 0))
+        look.Badge(row, "folder", size=40, icon_size=15).pack(side="left", anchor="n")
+        words = tk.Frame(row, bg=CARD)
+        words.pack(side="left", fill="x", expand=True, padx=(X(14), 0))
+        tk.Label(words, text="Clean copies are saved in", bg=CARD, fg=MUTED,
+                 font=(FONT, 9)).pack(anchor="w")
+        self.out_lbl = tk.Label(words, text=NEXT_TO_VIDEO, bg=CARD, fg=MUTED,
+                                font=(HEAD, 10), wraplength=wrap_width(440), justify="left",
+                                anchor="w")
+        self.out_lbl.pack(anchor="w", pady=(X(2), 0))
+        brow = tk.Frame(words, bg=CARD)
+        brow.pack(anchor="w", pady=(X(12), 0))
+        look.Pill(brow, "Change…", self.pick_out, kind="secondary", size=10,
+                  pad=(16, 7)).pack(side="left")
+        self.next_to_btn = look.Pill(brow, "Next to the video", self.use_video_folder,
+                                     kind="secondary", size=10, pad=(16, 7))
+        tk.Label(p4, text="Your original files are never changed.", bg=BG, fg=FAINT,
+                 font=(FONT, 9)).pack(anchor="w", pady=(X(14), 0))
         self._refresh_labels()
+        self._go_step(getattr(self, "_setup_step", 1))
 
     def share_learned(self):
         try:
@@ -1058,6 +1282,7 @@ class App(tk.Tk):
         self.profiles[self.profile] = self._filter_values()     # keep what you set
         self.profile = new
         self._set_filters(self.profiles[new])
+        self._show_steps()
 
     def _profile_reset(self):
         self.profiles[self.profile] = dict(PRESETS[self.profile])
@@ -1351,12 +1576,11 @@ class App(tk.Tk):
         btn = getattr(self, "next_to_btn", None)
         if btn is not None and btn.winfo_exists():
             if getattr(self, "save_to", None) and self.outdir == self.save_to:
-                if not btn.winfo_ismapped():      # its room before the folder's name
-                    btn.pack(side="right", padx=(0, 8), before=self.out_lbl)
-                self.out_lbl.config(wraplength=wrap_width(380))
+                if not btn.winfo_manager():
+                    btn.pack(side="left", padx=(self._px(8), 0))
             else:
                 btn.pack_forget()
-                self.out_lbl.config(wraplength=wrap_width(500))
+        self._show_steps()
 
     def _remembered_folder(self):
         """The folder she chose to save in, when it's there now (a USB drive may be
@@ -1406,7 +1630,7 @@ class App(tk.Tk):
     def start(self):
         if not self.videos:          # the button is always on, so it never looks broken
             messagebox.showinfo("CleanView", "First choose the movie or episodes to clean, "
-                                "with the green Choose files button in step 1 at the top.", parent=self)
+                                "with Choose files in step 1.", parent=self)
             lbl = getattr(self, "vid_lbl", None)
             if lbl is not None and lbl.winfo_exists():
                 self._scroll_to(lbl)
@@ -1438,6 +1662,13 @@ class App(tk.Tk):
                 not o.get("mywords"):
             messagebox.showinfo("CleanView", "Tick at least one thing to remove, or type your "
                                 "own words to mute.")
+            return
+        gone = [v for v in self.videos if not os.path.isfile(v)]
+        if gone:
+            more = f" and {len(gone) - 1} more" if len(gone) > 1 else ""
+            messagebox.showinfo("CleanView", f"Can't find {short(Path(gone[0]).name, 60)}{more}. "
+                                "It may have been moved, or its drive unplugged. Choose the "
+                                "files again.", parent=self)
             return
         self._save_settings()
         if not self.outdir:
@@ -1473,17 +1704,18 @@ class App(tk.Tk):
         length.pack(anchor="w")
         self._lengths(videos, lambda dur: length.winfo_exists() and length.config(
             text=f"{what} {'are' if n > 1 else 'is'} {fmt_len(dur)} long."))
-        box = tk.Frame(p, bg=BG)
-        box.pack(fill="x", pady=(24, 0))
-        self.which = tk.Label(box, text="", bg=BG, fg=INK, font=(FONT, 15, "bold"),
-                              wraplength=wrap_width(760), justify="left")   # the title
-        self.which.pack(anchor="w", pady=(0, 8))
+        doing = look.Card(p, radius=16, pad=(24, 20))
+        doing.pack(fill="x", pady=(self._px(16), 0))
+        box = doing.body
+        self.which = tk.Label(box, text="", bg=CARD, fg=INK, font=(FONT, 15, "bold"),
+                              wraplength=wrap_width(720), justify="left")   # the title
+        self.which.pack(anchor="w", pady=(0, 10))
         self.pb = ttk.Progressbar(box, style="Green.Horizontal.TProgressbar", maximum=1000,
                                   length=640)
         self.pb.pack(fill="x")
-        self.status = tk.Label(box, text="Starting…", bg=BG, fg=INK, font=(FONT, 12))
-        self.status.pack(anchor="w", pady=(12, 0))
-        self.overall = tk.Label(box, text="", bg=BG, fg=ACCENT_DK, font=(FONT, 11, "bold"))
+        self.status = tk.Label(box, text="Starting…", bg=CARD, fg=INK, font=(FONT, 12))
+        self.status.pack(anchor="w", pady=(14, 0))
+        self.overall = tk.Label(box, text="", bg=CARD, fg=ACCENT, font=(HEAD, 11))
         self.overall.pack(anchor="w", pady=(4, 0))
         if n == 1:                      # the logo in the empty space (Jason, 2026-11-07)
             png = logo_png(128)
@@ -2243,9 +2475,7 @@ class App(tk.Tk):
                 tk.Label(inner, text=Path(j["video"]).name, bg=BG, fg=INK,
                          font=(FONT, 12, "bold"), anchor="w").pack(fill="x", padx=8, pady=(14, 0))
             if st.get("claude_summary"):
-                box = tk.Frame(inner, bg="#FFF4EC", padx=12, pady=8, highlightbackground="#E9C9B3",
-                               highlightthickness=1)
-                box.pack(fill="x", padx=8, pady=(8, 4))
+                box = self._round_card(inner, fill="#FFF4EC", edge="#EBCDB8")
                 tk.Label(box, text=f"{st.get('reviewer') or AI_NAME}'s review", bg="#FFF4EC",
                          fg="#C2581F",
                          font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
@@ -2297,15 +2527,19 @@ class App(tk.Tk):
                     self.after(60, lambda: restore(tries - 1))
             self.after(20, restore)
         self._chat_tab(t_chat, good)
+        # where it saves, on its own row above the buttons (beside them it squeezed "Send
+        # what we refined…" until its words were cut off)
+        where = tk.Frame(self.footer, bg=BG)
+        where.pack(side="top", fill="x", pady=(0, self._px(8)))
         ttk.Button(self.footer, text="Save clean copies" if multi else "Save clean copy",
                    style="Accent.TButton", command=self._save_from_review).pack(side="right")
         # where it goes, how big it'll be and the room there (Jason, 2026-11-07: the drive
         # filled up, and he didn't know he could choose where it saves)
-        ttk.Button(self.footer, text="Change…", style="Small.TButton",
-                   command=self._change_save_folder).pack(side="right", padx=(0, 12))
-        self.space_lbl = tk.Label(self.footer, text="", bg=BG, fg=MUTED, font=(FONT, 9),
+        ttk.Button(where, text="Change…", style="Small.TButton",
+                   command=self._change_save_folder).pack(side="right")
+        self.space_lbl = tk.Label(where, text="", bg=BG, fg=MUTED, font=(FONT, 9),
                                   justify="right", anchor="e")
-        self.space_lbl.pack(side="right", padx=(0, 6))
+        self.space_lbl.pack(side="right", padx=(0, self._px(10)))
         self._show_space()
         for v, _, _ in self.scene_vars:          # a cut ticked or unticked changes the size
             v.trace_add("write", lambda *a: self.after_idle(self._show_space))
@@ -3061,10 +3295,9 @@ class App(tk.Tk):
         self._save_session()
 
     def _words_card(self, parent, job, mutes):
-        card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
-                        highlightthickness=1)
-        card.pack(fill="x", padx=8, pady=6)
-        tk.Label(card, text="Words to mute", bg=CARD, fg=INK, font=(FONT, 11, "bold")).pack(anchor="w")
+        card = self._round_card(parent)
+        tk.Label(card, text="Words to mute", bg=CARD, fg=INK, font=(HEAD, 11)).pack(
+            anchor="w", pady=(0, 4))
         heard = job["analysis"].get("asr") or []
         for n, m in enumerate(mutes):
             v = tk.BooleanVar(value=not m.get("keep"))
@@ -3118,11 +3351,9 @@ class App(tk.Tk):
 
     def _music_card(self, parent, job, quiet):
         """Loud hard rock, metal or rap with nobody talking: ticked ones are turned down."""
-        card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
-                        highlightthickness=1)
-        card.pack(fill="x", padx=8, pady=6)
+        card = self._round_card(parent)
         tk.Label(card, text="Loud music to turn down", bg=CARD, fg=INK,
-                 font=(FONT, 11, "bold")).pack(anchor="w")
+                 font=(HEAD, 11)).pack(anchor="w")
         tk.Label(card, text="Ticked music plays at a quarter of its volume, only where nobody is "
                  "talking. Use Preview to listen, and untick anything that's fine.", bg=CARD,
                  fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(
@@ -3136,16 +3367,14 @@ class App(tk.Tk):
             ttk.Checkbutton(row, text=f"Turn down   ·   {engine.cl.fmt_t(q['s'])}   ·   "
                             f"{q['e'] - q['s']:.0f} sec", variable=v).pack(side="left")
             kind = q.get("kind", "Loud music")
-            tk.Label(row, text=kind, bg=chip_color(kind), fg="white", font=(FONT, 8, "bold"),
-                     padx=6).pack(side="left", padx=(10, 0))
+            look.chip(row, kind, chip_color(kind)).pack(side="left", padx=(10, 0))
             ttk.Button(row, text="Preview ▸", style="Small.TButton",
                        command=lambda q=q: self.preview(job, q)).pack(side="right")
 
     def _lines_card(self, parent, job, lines):
-        card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
-                        highlightthickness=1)
-        card.pack(fill="x", padx=8, pady=6)
-        tk.Label(card, text="Lines to mute", bg=CARD, fg=INK, font=(FONT, 11, "bold")).pack(anchor="w")
+        card = self._round_card(parent)
+        tk.Label(card, text="Lines to mute", bg=CARD, fg=INK, font=(HEAD, 11)).pack(
+            anchor="w", pady=(0, 4))
         for l in lines:
             row = tk.Frame(card, bg=CARD)
             row.pack(fill="x", pady=2)
@@ -3155,8 +3384,8 @@ class App(tk.Tk):
             ttk.Checkbutton(row, text=engine.cl.fmt_t(l["s"]), variable=v).pack(side="left", anchor="n")
             for t in l["types"]:
                 name = f"Found by {AI_NAME}" if t == "claude" else engine.LINE_LABEL.get(t, t)
-                tk.Label(row, text=name, bg=chip_color(name), fg="white", font=(FONT, 8, "bold"),
-                         padx=6).pack(side="left", padx=(8, 0), anchor="n")
+                look.chip(row, name, chip_color(name)).pack(side="left", padx=(8, 0),
+                                                            anchor="n")
             txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"
             why_ = l.get("learned") or l.get("hint")
             if why_ and "learned" not in l["types"]:     # that chip already says so
@@ -3173,13 +3402,8 @@ class App(tk.Tk):
             self._ask_link(col_, job, "line", l, tw, text="Ask", anchor="e")
 
     def _scene_card(self, parent, job, sc, top=False):
-        card = tk.Frame(parent, bg=CARD, padx=14, pady=10, highlightbackground=LINE,
-                        highlightthickness=1)
         kids = parent.pack_slaves()
-        if top and kids:
-            card.pack(fill="x", padx=8, pady=6, before=kids[0])
-        else:
-            card.pack(fill="x", padx=8, pady=6)
+        card = self._round_card(parent, before=kids[0] if top and kids else None)
         top_row = tk.Frame(card, bg=CARD)
         top_row.pack(fill="x")
         v = tk.BooleanVar(value=sc.get("cut", True))
@@ -3190,8 +3414,7 @@ class App(tk.Tk):
         ttk.Checkbutton(top_row, text=f"Cut   ·   {engine.cl.fmt_t(sc['s'])}   ·   {length}",
                         variable=v).pack(side="left")
         for k in sc["kind"]:
-            tk.Label(top_row, text=k, bg=chip_color(k), fg="white", font=(FONT, 9, "bold"),
-                     padx=8, pady=1).pack(side="left", padx=(10, 0))
+            look.chip(top_row, k, chip_color(k), size=9).pack(side="left", padx=(10, 0))
         ttk.Button(top_row, text="Preview ▸", style="Small.TButton",
                    command=lambda: self.preview(job, sc)).pack(side="right")
         mid = tk.Frame(card, bg=CARD)
@@ -3285,11 +3508,10 @@ class App(tk.Tk):
         removed = (f"{cm:.0f}", "minutes removed") if cm >= 1 else (f"{cm * 60:.0f}", "seconds removed")
         for big, small in [(str(sum(r["mutes"] for r in results)), "words & lines muted"),
                            (str(sum(r["cuts"] for r in results)), "scenes cut"), removed]:
-            box = tk.Frame(stats, bg=CARD, padx=24, pady=14, highlightbackground=LINE,
-                           highlightthickness=1)
-            box.pack(side="left", padx=(0, 12))
-            tk.Label(box, text=big, bg=CARD, fg=ACCENT, font=(FONT, 26, "bold")).pack()
-            tk.Label(box, text=small, bg=CARD, fg=MUTED, font=(FONT, 10)).pack()
+            stat = look.Card(stats, radius=16, pad=(18, 14), width=196)
+            stat.pack(side="left", padx=(0, self._px(12)))
+            tk.Label(stat.body, text=big, bg=CARD, fg=ACCENT, font=(HEAD, 26)).pack()
+            tk.Label(stat.body, text=small, bg=CARD, fg=MUTED, font=(FONT, 10)).pack()
         tk.Label(p, text=f"Saved in:  {os.path.normpath(results[0]['folder'])}", bg=BG, fg=INK,
                  font=(FONT, 10), wraplength=wrap_width(740), justify="left").pack(anchor="w", pady=(4, 4))
         tk.Label(p, text="Each clean copy has “(Clean)” in its name. Its report, listing everything "
@@ -3307,8 +3529,9 @@ class App(tk.Tk):
         self.again_btn.pack(side="right")
 
         # what we refined, to send in so CleanView's built-in knowledge improves
-        box = tk.Frame(p, bg="#FFF4EC", highlightbackground="#E9C9B3", highlightthickness=1)
-        box.pack(fill="x", pady=(22, 0))
+        help_card = look.Card(p, fill="#FFF4EC", edge="#EBCDB8", radius=14, pad=(6, 6))
+        help_card.pack(fill="x", pady=(self._px(22), 0))
+        box = help_card.body
         tk.Label(box, text="Help CleanView get better", bg="#FFF4EC", fg="#C2581F",
                  font=(FONT, 10, "bold"), padx=12, pady=(8)).pack(anchor="w")
         tk.Label(box, text="Send in what was refined on this one (what was found, what the AI "
@@ -3340,6 +3563,7 @@ class App(tk.Tk):
 
     def reset(self):
         self.videos, self.outdir, self.jobs = [], None, []
+        self._setup_step = 1
         self.show_setup()
 
 

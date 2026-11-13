@@ -365,7 +365,7 @@ class LearnedLines:
         for k, shared in sorted(votes.items(), key=lambda kv: -kv[1]):
             name, t = self.lines[k]
             if shared < 0.5 * min(len(t), len(d)):
-                break
+                continue        # (not "break": a shorter lesson further on can still fit)
             if self.LONG <= len(t) <= len(d) and self._inside(t, d):
                 return name                              # all of it, inside a longer line
             if len(t) >= self.LONG and len(d) >= LEARNED_SHORTEST and \

@@ -34,9 +34,11 @@ class BuiltIn(unittest.TestCase):
             with self.subTest(t):
                 self.assertIsNone(self.find.match(learn.norm(t)))
 
-    def test_the_insult_was_a_false_alarm(self):
-        self.assertIn(learn.norm("and called Calvin Klein a boring old fart, to his face."),
-                      self.castle["kept"])
+    def test_the_insult_isnt_taught_as_fine_any_more(self):
+        # taught as a false alarm in 1.18.69; "fart" is always removed since the owner's hard
+        # rule of 2026-11-13 (test_hard_rule.py), so no lesson keeps it
+        self.assertNotIn(learn.norm("and called Calvin Klein a boring old fart, to his face."),
+                         self.castle["kept"])
 
 
 class ShortList(unittest.TestCase):

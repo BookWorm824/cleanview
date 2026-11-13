@@ -103,6 +103,8 @@ def needs(opts):
             ("birthday",) + MAGIC:
         if o[k] or (k == "drugs" and o["medical"]):     # needles: the drug finds
             clip_cats.append(k)
+    if o["sexref"]:                 # a condom shown goes with the word (the owner's hard rule)
+        clip_cats.append("condom")
     lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"] or o["loudmusic"],
             "voices": (o["ai"] or o.get("reader") in CLOUD) and bool(lines),
@@ -559,8 +561,11 @@ def find_subtitles(path, info, workdir):
     """Best English subtitles: a matching .srt next to the video, else a text
     track inside it. Returns (cues, description) or ([], "")."""
     p = Path(path)
+    # this video's own: "Cars.srt", "Cars.en.srt"; not "Cars 2.srt" or "Show S01E10.srt" for
+    # "Show S01E1.mkv" (the code check, 2026-11-13: the name only had to start the same)
+    stem = p.stem.lower()
     sidecars = sorted(f for f in p.parent.iterdir() if f.is_file() and f.suffix.lower() == ".srt"
-                      and f.name.lower().startswith(p.stem.lower()))
+                      and f.name.lower().startswith(stem + "."))
     sidecars.sort(key=lambda f: (not re.search(r"\.(en|eng|english)\b", f.name.lower()),
                                  "forced" in f.name.lower(), len(f.name)))
     for f in sidecars:
@@ -1698,7 +1703,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     # not "sex" meaning men or women: "your sex", "the fair sex" (Pride and Prejudice)
     "sexref": re.compile(r"\b((?<!your )(?<!our )(?<!her )(?<!his )(?<!fair )(?<!fairer )"
                          r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )(?<!my )(?<!marvelous )"
-                         r"(?<!stronger )sex(?! (offenders?|crimes?|trafficking|abuse)\b)|sexy|horny|make love|made love|making love|condoms?|boobs|"
+                         r"(?<!stronger )sex(?! (offenders?|crimes?|trafficking|abuse)\b)|sexy|horny|make love|made love|making love|condoms?|semen|boobs|"
                          # 50 First Dates (2026-11-08): walrus jokes, sharks biting
                          r"penis(es)?|private parts|"
                          # Lauren, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
@@ -1844,7 +1849,8 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
              "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
              "magic": "Magic", "stpatricks": "St. Patrick's Day",
-             "vampires": "Vampires and werewolves", "gestures": "Rude or sexual gesture"}
+             "vampires": "Vampires and werewolves", "gestures": "Rude or sexual gesture",
+             "condom": "Condom shown"}
 
 
 GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
@@ -1954,6 +1960,40 @@ def _set_on(kind, it, on):
 UNLISTED = (" (not on a word list you ticked, so left unticked: it may be a name the speech "
             "recognition misheard. Tick it if it really is a bad word.)")
 NEVER_FINE_WHY = "a slur: always muted, even said as a description"
+HARD_RULE_WHY = "always removed (your hard rule, set 13 November 2026)"
+# the owner's always-removed words (cvcore.ALWAYS_REMOVED), as they're found in a line
+HARD_RULE_WORDS = re.compile(r"\b(farts?|farted|farting|condoms?|semen)\b", re.I)
+
+
+def hard_rule_filter(word):
+    """The tick box an always-removed word belongs to: fart is crude humor, condom and semen
+    are sexual references."""
+    return "crude" if cl.norm(word).startswith("fart") else "sexref"
+
+
+def hard_rule_words(st):
+    """The owner's hard rule (2026-11-13): with its filter ticked, "fart", "condom" and "semen"
+    are muted wherever they're said, also in a line that was left alone (learned as fine, an
+    AI's "not an issue", a coroner's case talk with that filter off) or that she unticks.
+    Returns how many were muted."""
+    o = st.get("opts") or {}
+    n = 0
+    used = []                           # so a word said twice is muted twice
+    for l in st.get("dialogue", []):
+        for w in (m.group(0).lower() for m in HARD_RULE_WORDS.finditer(l["text"])):
+            k = hard_rule_filter(w)
+            if not o.get(k):
+                continue
+            m = word_mute(st, l, w, HARD_RULE_WHY, used)
+            if m is None or m.get("by_you"):
+                continue
+            if m.get("cat") == "claude":
+                m["cat"] = k
+            m["keep"] = False
+            m["hard"] = True
+            m.pop("hint", None)
+            n += 1
+    return n
 
 
 def _words_listed(word, mine=(), groups=None):
@@ -1974,10 +2014,14 @@ def my_words(o):
     return out
 
 
-def word_mute(st, line, word, why):
+def word_mute(st, line, word, why, used=None):
     """Mute just one word of a dialogue line (Claude's "just the word").
     Uses a word already on the list if there is one, else finds the word's
-    time in what was heard, else estimates it from its place in the line."""
+    time in what was heard, else estimates it from its place in the line.
+    used: the mutes this pass has already given to a word (a list, added to here). A word
+    said again, later in the line or in the next line, then gets its own mute instead of
+    being taken for the one just made (the code check, 2026-11-13: "Was it about sex?" "It's
+    always about sex." had one mute and both lines unticked, so the second was heard)."""
     # a phrase is found word by word and muted from its first word to its last (Castle S1E2,
     # 2026-11-09: "explain how that works later" was squashed into one word, wasn't found in
     # what was heard, and only 1.2 s around its middle was muted)
@@ -1986,32 +2030,47 @@ def word_mute(st, line, word, why):
     if not target:
         return None
     a, b = line["s"] - 0.6, line["e"] + 0.6
+    taken = used or []
     for m in st.get("mutes", []):          # already on the list (timings can be ~2 s off)
-        if a - 2.0 <= m["s"] <= b + 1.0 and \
+        if a - 2.0 <= m["s"] <= b + 1.0 and not any(m is u for u in taken) and \
                 target in cl.norm((m.get("raw") or m["word"]).replace(" ", "")):
+            if used is not None:
+                used.append(m)
             return m
     s = e = None
     src = "claude"
     heard = [w for w in st.get("asr", []) if a <= w[1] <= b]
-    for k, w in enumerate(heard):
-        n = cl.norm(w[0])
-        if n == target or (len(parts) == 1 and len(target) > 3 and target in n):
-            s, e = w[1], w[2]
-            break
-        joined = n                       # "sweet" "ass", "explain" "how" "that" ...
-        for j in range(k + 1, min(len(heard), k + 12)):    # stops once it can't match
-            joined += cl.norm(heard[j][0])
-            if joined == target:
-                s, e = w[1], heard[j][2]
+    # the word itself first, then a longer word with it inside: "Internal Affairs thinks he
+    # was having an affair" muted "Affairs", and "Hello? What the hell" muted "Hello"
+    for loose in (False, True):
+        for k, w in enumerate(heard):
+            if any(u["s"] - 0.05 <= w[1] <= u["e"] + 0.05 for u in taken):
+                continue                     # this pass's mute of the word said before
+            n = cl.norm(w[0])
+            if n == target or (loose and len(parts) == 1 and len(target) > 3 and target in n):
+                s, e = w[1], w[2]
                 break
-            if not target.startswith(joined):
+            if loose:
+                continue
+            joined = n                   # "sweet" "ass", "explain" "how" "that" ...
+            for j in range(k + 1, min(len(heard), k + 12)):    # stops once it can't match
+                joined += cl.norm(heard[j][0])
+                if joined == target:
+                    s, e = w[1], heard[j][2]
+                    break
+                if not target.startswith(joined):
+                    break
+            if s is not None:
                 break
         if s is not None:
             break
     if s is None:                 # not heard clearly: place it by its position in the line
         toks = [cl.norm(t) for t in (line.get("plain") or line["text"]).replace("-", " ").split()]
         parts = parts or [target]
-        pos = next((k for k in range(len(toks)) if toks[k:k + len(parts)] == parts), None)
+        places = [k for k in range(len(toks)) if toks[k:k + len(parts)] == parts]
+        before = sum(1 for u in taken if line["s"] - 0.6 <= u["s"] <= line["e"] + 0.6 and
+                     target in cl.norm((u.get("raw") or u["word"]).replace(" ", "")))
+        pos = places[min(before, len(places) - 1)] if places else None    # said again: the next
         if pos is None:
             return None
         dur, n_t = line["e"] - line["s"], max(1, len(toks))
@@ -2031,6 +2090,8 @@ def word_mute(st, line, word, why):
         pass
     st.setdefault("mutes", []).append(m)
     st["mutes"].sort(key=lambda x: x["s"])
+    if used is not None:
+        used.append(m)
     return m
 
 
@@ -2088,6 +2149,10 @@ def apply_review(st, result):
         if word and dec == "just the word":
             it["claude"]["word"] = word
         mine = it.get("by_you") or it.get("learned")
+        if kind == "line" and it.get("explicit") and not mine and dec != "remove":
+            it["claude"] = {"decision": "remove", "why": EXPLICIT_WHY}     # stays muted whole
+            _set_on(kind, it, True)
+            continue
         if dec == "just the word" and not _words_listed(word, own_words, st.get("groups")):
             # not a word on any list: often a name the speech recognition misheard
             # ("Grafi" for Gruffi). Offer it unticked; the line stays as it was.
@@ -2118,7 +2183,9 @@ def apply_review(st, result):
         elif mine:
             continue
         elif dec == "not an issue" and kind == "word" and cl.never_fine(it.get("raw", "")):
-            it["claude"] = {"decision": "remove", "why": NEVER_FINE_WHY}     # stays muted
+            it["claude"] = {"decision": "remove",                            # stays muted
+                            "why": HARD_RULE_WHY if cl.always_removed(it.get("raw", ""))
+                            else NEVER_FINE_WHY}
             _set_on(kind, it, True)
         elif dec == "not an issue":
             n_drop += 1
@@ -2364,7 +2431,10 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
                         "wolf; not a real bat or an ordinary wolf)",
             "gestures": "rude gesture (someone raising the middle finger, or a crude sexual "
                         "gesture: a hand gesture mimicking sex or oral sex, thrusting the hips, "
-                        "grabbing the crotch)"}
+                        "grabbing the crotch)",
+            # asked for with the sexual references box, as the word "condom" is
+            "sexref": "condom (a condom shown: the condom itself, its small foil wrapper, or a "
+                      "box or packet of condoms)"}
 PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "rude gesture": "Rude or sexual gesture",
              "easter": "Easter", "dark magic": "Dark magic", "magic": "Magic",
@@ -2373,7 +2443,7 @@ PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Bi
              "medical": "Medical", "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
              "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
-             "drugs": "Drugs"}
+             "drugs": "Drugs", "condom": "Condom shown"}
 WHO_FROM = {"man & woman": "mf", "two men": "mm", "two women": "ff"}
 
 
@@ -2418,6 +2488,8 @@ def _pic_wanted(f, o):
         return "Graphic violence" if o.get("graphic") else None
     if w == "gore":                      # gore is graphic too
         return "Gore" if o.get("gore") else "Graphic violence" if o.get("graphic") else None
+    if w == "condom":                    # the tick box is "sexref", as for the word
+        return "Condom shown" if o.get("sexref") else None
     if w == "rude gesture":              # the tick box is "gestures"
         return "Rude or sexual gesture" if o.get("gestures") else None
     if w == "dark magic":                # the tick box is "darkmagic"
@@ -3080,6 +3152,11 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                 if k not in found.get(i, set()):
                     listed.setdefault(i, {})[k] = hits
                 found.setdefault(i, set()).add(k)
+    explicit = set()
+    if "sexref" in wanted:              # explicit findings: whole lines, whoever read them
+        for i in explicit_findings(lines):
+            found.setdefault(i, set()).add("sexref")
+            explicit.add(i)
     for k in WHOLE_CONVERSATIONS:
         if k in wanted:
             fill_conversations(found, lines, k)
@@ -3094,10 +3171,62 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
         out.append({"id": len(out) + 1, "s": round(l["s"], 2), "e": round(l["e"], 2),
                     "text": " ".join(toks), "plain": l["text"], "types": sorted(found[i]),
                     "mute": True, "idx": i})
-        if set(listed.get(i, {})) == found[i] and found[i] <= set(LIST_WORDS_ONLY):
+        if i in explicit:               # the whole line, never just a word of it
+            out[-1]["explicit"] = True
+        elif set(listed.get(i, {})) == found[i] and found[i] <= set(LIST_WORDS_ONLY):
             out[-1]["words"] = [LIST_WORD_TRIM.sub("", w) for k in sorted(found[i])
                                 for w in listed[i][k]]
     return out, how
+
+
+# Explicit detail in a coroner's, doctor's or detective's findings is removed whatever the
+# coroner box says (the owner, 2026-11-13, in the CleanListen session: "any explicit talk
+# should be removed from coroner talk regardless of medical /coroner - tearing, vaginal
+# bruising etc", and how: "whole line on sexual reference"). Plain case talk ("any signs of
+# sexual assault?") still follows the coroner box. The same words as CleanListen 1.17.25.
+EXPLICIT_FINDING = re.compile(
+    r"\b(vaginal(?:ly)?|anal(?:ly)?|penile|hymen|labia|vulva|sodomy|sodomi[sz]e[ds]?|"
+    r"(?:forced|signs of|evidence of) penetration)\b", re.I)
+# "tearing" only as a finding: not tearing something up, down the road, the paper...
+TEARING = re.compile(r"\btearing\b(?!\W+(?:up|down|off|apart|at|into|through|away|out|open|it|"
+                     r"him|her|them|the|a|an|his|their|my|your|our|its|this|that)\b)", re.I)
+# ... with one of these within about 30 words before it or 10 after
+TEARING_NEAR = re.compile(r"\b(sexual(?:ly)?|assault(?:ed)?|raped?|rapist|vaginal|anal|rectal|"
+                          r"genitals?|penetrat(?:ion|ed)|intercourse|molested|violated)\b", re.I)
+EXPLICIT_WHY = "explicit detail in a finding: always removed with sexual references ticked"
+
+
+def explicit_findings(lines):
+    """The numbers of the dialogue lines with explicit detail in a finding."""
+    out = []
+    for i, l in enumerate(lines):
+        t = l["text"]
+        if EXPLICIT_FINDING.search(t):
+            out.append(i)
+            continue
+        m = TEARING.search(t)
+        if not m:
+            continue
+        before = " ".join(x["text"] for x in lines[max(0, i - 6):i]) + " " + t[:m.start()]
+        after = t[m.end():] + " " + " ".join(x["text"] for x in lines[i + 1:i + 4])
+        if TEARING_NEAR.search(" ".join(before.split()[-30:])) or \
+                TEARING_NEAR.search(" ".join(after.split()[:10])):
+            out.append(i)
+    return out
+
+
+def explicit_stay(st):
+    """A line with explicit detail in a finding stays muted when something other than her
+    own choice unticked it (a built-in or an AI's "fine before"). Returns how many."""
+    n = 0
+    for l in st.get("lines", []):
+        if l.get("explicit") and not l.get("mute", True) and not l.get("learned") and \
+                not l.get("by_you"):
+            l["mute"] = True
+            l.pop("hint", None)
+            l["why"] = EXPLICIT_WHY
+            n += 1
+    return n
 
 
 # The short no-AI list mutes just its words, not the whole line (Lauren, 2026-11-09, Castle
@@ -3116,6 +3245,7 @@ def list_words_only(st):
     it found, the line unticked so she can still mute all of it. Returns how many lines."""
     n = 0
     on = [k for k in LIST_WORDS_ONLY if (st.get("opts") or {}).get(k)]
+    used = []                           # so a word said twice is muted twice
     for l in st.get("lines", []):
         words = l.pop("words", None)
         if l.get("mute", True) and (not words or l.get("learned") or l.get("hint")):
@@ -3123,9 +3253,9 @@ def list_words_only(st):
             # unticking the line still mutes them (Castle S1E5: she unticked "Please. No one
             # ends an affair", a learned line, and "affair" went through)
             text = l.get("plain") or l["text"]
-            for w in dict.fromkeys(LIST_WORD_TRIM.sub("", m.group(0)) for k in on
-                                   for m in LINE_WORDS[k].finditer(text)):
-                m = word_mute(st, l, w, "on the word list")
+            for w in [LIST_WORD_TRIM.sub("", m.group(0)) for k in on
+                      for m in LINE_WORDS[k].finditer(text)]:
+                m = word_mute(st, l, w, "on the word list", used)
                 if m is not None:
                     m["keep"] = False
                     if m.get("cat") == "claude":
@@ -3134,16 +3264,16 @@ def list_words_only(st):
         if not words or not l.get("mute", True):
             continue
         done = []
-        for w in dict.fromkeys(words):
-            m = word_mute(st, l, w, "on the word list")
+        for w in words:
+            m = word_mute(st, l, w, "on the word list", used)
             if m is not None:
                 m["keep"] = False
                 if m.get("cat") == "claude":
                     m["cat"] = l["types"][0]
                 done.append(w)
-        if len(done) == len(dict.fromkeys(words)):
+        if len(done) == len(words):
             l["mute"] = False
-            l["why"] = "just " + ", ".join(f"“{w}”" for w in done) + \
+            l["why"] = "just " + ", ".join(f"“{w}”" for w in dict.fromkeys(done)) + \
                 " muted; tick to mute the whole line"
             n += 1
     return n
@@ -3823,6 +3953,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if n_lw:
         notes.append(f"Muted just the word in {n_lw} line(s) the word list found (sexual "
                      "references, sleeping around); tick a line to mute all of it.")
+    hard_rule_words(st)                 # fart, condom, semen: always (1.18.77)
+    explicit_stay(st)                   # explicit findings: the whole line (1.18.77)
     n_wo = learned_word_only(st, key)
     if n_wo:
         notes.append(f"Muted just the word in {n_wo} line(s), as you did before.")
@@ -3867,7 +3999,8 @@ def make_thumbs(path, scenes, work):
 
 def make_preview(path, s, e, workdir):
     """A short copy of one scene to look at in your own video player."""
-    out = Path(workdir) / f"preview_{int(s)}.mkv"
+    out = Path(workdir) / f"preview_{int(s)}_{int(e)}.mkv"     # its end too: a cut made
+    # longer showed the old, shorter clip
     if not out.exists():
         start = max(0.0, s - 2)
         r = cl.run([cl._tool("ffmpeg"), "-y", "-v", "error", "-ss", f"{start:.2f}", "-i", str(path),
