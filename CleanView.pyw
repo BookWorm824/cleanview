@@ -1050,7 +1050,7 @@ class App(tk.Tk):
         # spanish"): English as always, or another one, with its own word lists
         spoken = look.Card(p1)
         spoken.pack(fill="x", pady=(X(14), 0), padx=(0, X(4)))
-        v = tk.StringVar(value=engine.cvlang.known(saved.get("language")))
+        v = tk.StringVar(value=engine.cvlang.choice(saved.get("language")))
         self.opts["language"] = v
         words = tk.Frame(spoken.body, bg=CARD)
         words.pack(side="left", fill="x", expand=True, padx=(0, X(12)))
@@ -1058,7 +1058,8 @@ class App(tk.Tk):
                  anchor="w").pack(anchor="w")
         tk.Label(words, text="For another language CleanView uses that language's own word "
                  "lists. The first time, it gets a listening model for it (one time, about "
-                 f"{engine.cvlang.MODEL_MB} MB).", bg=CARD, fg=MUTED, font=(FONT, 9),
+                 f"{engine.cvlang.MODEL_MB} MB). Not sure? Auto works it out from the video.",
+                 bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=wrap_width(330), justify="left", anchor="w").pack(
                      anchor="w", pady=(X(2), 0))
         # a drop-down list, so more languages don't crowd the page (the owner, 2026-11-13: "as
@@ -1066,7 +1067,7 @@ class App(tk.Tk):
         # have a a drop down"). It shows the names; the choice kept is the language's code.
         # (its own names for everything: `v`, `names` and the like are used again further down
         # this page, and what's picked here must still mean the language then)
-        lang_var, lang_names = v, dict(engine.cvlang.LANGS)
+        lang_var, lang_names = v, dict(engine.cvlang.CHOICES)       # the languages, and Auto
         lang_codes = {name: code for code, name in lang_names.items()}
         lang_shown = tk.StringVar(value=lang_names[lang_var.get()])
         lang_box = self.language_box = ttk.Combobox(
@@ -1080,7 +1081,7 @@ class App(tk.Tk):
         lang_box.bind("<<ComboboxSelected>>", lang_picked)
         lang_box.bind("<MouseWheel>", lambda e: "break")    # scrolling past mustn't change it
         lang_var.trace_add("write", lambda *_: lang_shown.set(
-            lang_names[engine.cvlang.known(lang_var.get())]))
+            lang_names[engine.cvlang.choice(lang_var.get())]))
         tk.Label(p1, text="Works with DRM-free files: DVD and Blu-ray rips, home videos and "
                  "downloads without copy protection. Subtitles give the exact words, who's "
                  "talking and descriptions like [kissing], so they're always used: the video's "
@@ -2625,6 +2626,8 @@ class App(tk.Tk):
         if not good:
             self.show_setup()
             return
+        # the language it was cleaned in (on Auto, the one CleanView worked out)
+        engine.cl.use_language((good[0]["analysis"].get("opts") or {}).get("language"))
         self.show_review()   # always: so every mute and cut can be seen and unticked
         self._save_session()   # so closing or updating never loses it
 

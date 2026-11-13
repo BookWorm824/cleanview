@@ -347,6 +347,32 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Auto works the language out (1.18.89, 2026-11-13; the owner: "we have a tab now to check
+  different languages, but what if the person doesn't know it, would it be possible to have
+  an "auto" tab", then "do auto clean"). "Auto" is the second choice in step 1's drop-down
+  (`cvlang.CHOICES`, `AUTO`, `choice()`); English is still what the page starts with, because
+  Auto needs the listening model for other languages even for an English video
+  (`needs_model`). `analyze` on Auto calls `tell_language` right after `probe`, and from
+  there on it's as if she had chosen that language (`o["language"]` is the one worked out,
+  `o["language_auto"]` how; a note says "Auto took this for Spanish (from what was heard).").
+  1. The sound track's own label (`cvlang.tag_language`: eng/spa/fre/por/rus...); on Auto
+     `probe` takes the video's own main track, not the English one.
+  2. No label: `language_sample` hears 30 s at 20%, 50% and 80% of the video (two more spots
+     if under 60 words) with the model for other languages, and `cvlang.which_language`
+     tells by each language's everyday words (`LITTLE_WORDS`): accents ignored, a word only
+     one language has (`OWN_WORDS`) counts three times, Cyrillic is Russian (Ukrainian by
+     its own letters). The model's own Spanish sample was taken for Portuguese until then.
+     Under 15 words only a very clear case is told; when it can't tell, English.
+  3. A language CleanView has no lists for (a label like ger/jpn, or German or Italian
+     heard) is a `VideoError`: "... is in German, which CleanView doesn't clean yet. To clean
+     it anyway, pick a language yourself in step 1."
+  Kept in `<work>/language.json`. Checked: the model's es/fr/en samples told right and its
+  German one refused, a whole clean on Auto of the Spanish one, and the stretches Auto would
+  hear in all 146 past reviews here (English): every one English. Not checked: real
+  Portuguese or Russian speech, or a film that mixes languages (it gets the one heard most;
+  cleaning both in one video is still "the other option later"). Videos cleaned together on
+  Auto can differ: `render`, `apply_chat` and `claude_review` set the language of the video
+  they work on (`_language_of`); the review page itself uses the first video's.
 - Portuguese and Russian (1.18.88, 2026-11-13; the owner: "can do both portuguise and russian
   now"), the last two of the "easier group". `cvlang.PT` (Brazil and Portugal; accents come
   off, a hyphen joins: "foda-se" is "fodase") and `cvlang.RU` (Cyrillic, ё written as е
@@ -1310,6 +1336,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_auto_language.py`: each language told from a sentence of it (also as the model writes
+  it, accents or not, Spanish from Portuguese), German, Italian and Ukrainian named as not
+  cleaned yet, too little or only names not told; the sound track's labels; English first then
+  Auto in the list, Auto needing the model; working it out with stand-ins (the label alone,
+  listening when there's none, kept, English when it can't tell, a plain refusal, no model);
+  Auto taking the video's own main track; the drop-down; and with `CLEANVIEW_TEST_MULTI` the
+  model's real samples and a whole clean on Auto.
 - `test_portuguese_russian.py`: each language's swearing by group, everyday look-alikes left
   alone (o puto, a bicha, raios X; хуже, небо, хлеб, блин the pancake, черта, Херсон,
   гейзер), only ticked groups, listed words; an AI's quoted words found in a Russian line, a

@@ -390,7 +390,7 @@ class StartPage(unittest.TestCase):
         self.app.update()
         box = self.app.language_box
         self.assertTrue(box.winfo_ismapped())
-        self.assertEqual(list(box.cget("values")), list(cvlang.LANGS.values()))
+        self.assertEqual(list(box.cget("values")), list(cvlang.CHOICES.values()))   # and Auto
         self.assertEqual(str(box.cget("state")), "readonly")
         self.assertEqual(str(box.cget("style")), "Round.TCombobox")     # "yes round them"
         self.assertEqual(box.get(), "English")

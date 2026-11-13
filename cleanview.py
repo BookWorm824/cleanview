@@ -340,7 +340,7 @@ def tools_missing(opts=None):
         need.append("faster picture checker")
     if (nd["sound"] or nd["voices"]) and not (TAG_DIR / "model.int8.onnx").exists():
         need.append("sound checker")
-    if cvlang.known(full_opts(opts).get("language")) != "en" and not cvlang.model_ready():
+    if cvlang.needs_model(full_opts(opts).get("language")) and not cvlang.model_ready():
         need.append("listening model for other languages")
     if nd["voices"] and not ai.speakers_ready():
         need.append("speaker separator")
@@ -420,7 +420,7 @@ def install_tools(opts=None, progress=None, log=print):
         except Exception as ex:
             log(f"Picture AI download failed: {ex}")   # the run goes on without it
         importlib.invalidate_caches()
-    if cvlang.known(full_opts(opts).get("language")) != "en" and not cvlang.model_ready():
+    if cvlang.needs_model(full_opts(opts).get("language")) and not cvlang.model_ready():
         cvlang.install_model(lambda f, m: say(0.05 + 0.25 * f, m))   # one time, about 490 MB
     if nd["ai"]:
         try:
@@ -484,9 +484,11 @@ def probe(path, language="en"):
 
     def audio_rank(s):
         d = s.get("disposition") or {}
+        # (Auto: the video's own main sound track, whatever language it's in)
+        other = language != cvlang.AUTO and \
+            lang(s) not in ("", "und") + cvlang.TAGS[cvlang.known(language)]
         return ("comment" in title(s) or d.get("comment") or d.get("visual_impaired"),
-                lang(s) not in ("", "und") + cvlang.TAGS[cvlang.known(language)],
-                not d.get("default"), s["index"])
+                other, not d.get("default"), s["index"])
 
     audio = sorted(auds, key=audio_rank)[0]
     subs = []
@@ -1045,6 +1047,73 @@ def _mono(a, dialogue):
     if dialogue and a["channels"] >= 5:
         return ["-af", chain + ",pan=mono|c0=FC"]
     return ["-af", chain, "-ac", "1"]
+
+
+LANGUAGE_SPOTS = (0.2, 0.5, 0.8, 0.35, 0.65)     # where in the video Auto listens
+LANGUAGE_SECS = 30.0                             # for this long at each
+LANGUAGE_ENOUGH = 60                             # words heard that are plenty to tell by
+
+
+def language_sample(path, info, rec, dur, cancel=None):
+    """The words heard in a few short stretches of the video (Auto tells the language from
+    them). Stops once it has heard plenty; a quiet or musical stretch just adds nothing."""
+    words = []
+    for n, spot in enumerate(LANGUAGE_SPOTS):
+        if cancel and cancel():
+            raise KeyboardInterrupt
+        start = max(0.0, min(dur - LANGUAGE_SECS, dur * spot))
+        cmd = _audio_cmd(path, info, True)
+        at = cmd.index("-i")
+        cmd[at:at] = ["-ss", f"{start:.2f}", "-t", f"{LANGUAGE_SECS:.0f}"]
+        r = cl.run(cmd, capture_output=True)
+        samples = np.frombuffer(r.stdout[:len(r.stdout) // 4 * 4], dtype=np.float32)
+        if len(samples) > SR:
+            s = rec.create_stream()
+            s.accept_waveform(SR, samples)
+            rec.decode_stream(s)
+            words += [w["t"] for w in cl.tokens_to_words(s.result, 0.0)]
+        if dur <= LANGUAGE_SECS or (n >= 2 and len(words) >= LANGUAGE_ENOUGH):
+            break
+    return words
+
+
+def tell_language(path, info, work, dur, say=None, cancel=None, threads=None):
+    """Auto: which language this video is in, and how that was told: the sound track's own
+    label, else a short listen (kept in language.json, so it's worked out once). Returns
+    (code, how). A language CleanView doesn't clean yet is said plainly (VideoError)."""
+    kept = Path(work) / "language.json"
+    try:
+        d = json.loads(kept.read_text(encoding="utf8"))
+        if d["language"] in cvlang.LANGS:
+            return d["language"], d["how"]
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    code, name = cvlang.tag_language(info["audio"].get("lang"))
+    how = "from the sound track's label"
+    if code is None:
+        if not cvlang.model_ready():
+            raise RuntimeError("Auto needs the listening model for other languages to tell "
+                               "the language, and it isn't on this PC yet. Check your "
+                               "internet connection and press Start cleaning again.")
+        if say:
+            say(0.0, "Working out the language…")
+        rec = cl.load_recognizer(cvlang.model_dir(), threads)
+        try:
+            heard = language_sample(path, info, rec, dur, cancel)
+        finally:
+            del rec
+        code, name = cvlang.which_language(heard)
+        how = "from what was heard"
+        if code is None:
+            code, how = "en", "it couldn't be told from what was heard, so English"
+    if code == "other":
+        raise VideoError(f"{Path(path).name} is in {name}, which CleanView doesn't clean yet. "
+                         "To clean it anyway, pick a language yourself in step 1.")
+    try:
+        kept.write_text(json.dumps({"language": code, "how": how}), encoding="utf8")
+    except OSError:
+        pass
+    return code, how
 
 
 def _audio_cmd(path, info, dialogue):
@@ -2431,12 +2500,20 @@ def _secs(t):
         return None
 
 
+def _language_of(st):
+    """Use the word lists of the language this review was cleaned in (videos cleaned
+    together on Auto can each be in their own)."""
+    cl.use_language((st.get("opts") or {}).get("language"))
+
+
 def apply_chat(st, items, acts, work=None):
     """Make the changes asked for in the chat, straight away. Everything changed
     counts as the person's own choice. Returns a list of plain descriptions."""
     lines = st.get("dialogue", [])
     who = st.get("reviewer") or cc.name()
     done = []
+
+    _language_of(st)
 
     def t(sec):
         return cl.fmt_t(sec)
@@ -2504,6 +2581,7 @@ def apply_chat(st, items, acts, work=None):
 
 def claude_review(st, work=None, fresh=False):
     """Claude's final review of everything found. Raises cc.ClaudeError."""
+    _language_of(st)
     return finish_review(st, fetch_review(st, fresh), work)
 
 
@@ -3707,6 +3785,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     closer look made its checks time out and be done again (16 minutes instead of 12); the
     picture scan during the listening was no faster (25 s slower)."""
     o = full_opts(opts)
+    auto = o.get("language") == cvlang.AUTO        # (English until it's worked out, below)
     lang = cl.use_language(o.get("language"))      # English, or another one's word lists
     for k_old, k_new in (("find_nudity", "nudity"), ("find_sex", "sex"), ("find_violence", "violence")):
         if k_old in legacy:
@@ -3731,8 +3810,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             took[now_step["step"]] = took.get(now_step["step"], 0.0) + t - now_step["t"]
             now_step.update(step=step, t=t)
         say_out(f, m)
-    info = probe(path, lang)
+    info = probe(path, cvlang.AUTO if auto else lang)
     dur = info["duration"] or 1.0
+    lang_how = ""
+    if auto:                      # work the language out; from here on it's as if she chose it
+        lang, lang_how = tell_language(path, info, work, dur, say, cancel, threads)
+        lang = cl.use_language(lang)
+        o["language"], o["language_auto"] = lang, lang_how
+        scan["language"] = lang
     cats = [c for g in groups for c in cl.GROUPS[g]]
     mine = my_words(o)            # her own words and phrases: always muted
     use_clip = bool(nd["clip"]) and ai.clip_ready()
@@ -3859,6 +3944,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # language and subtitles now, before the picture (they need only what was heard); their
     # notes still go after the picture's, as before
     lang_notes = []
+    if auto:
+        lang_notes.append(f"Auto took this for {cvlang.name(lang)} ({lang_how}).")
     if lang != "en":
         lang_notes.append(f"Cleaned as a {cvlang.name(lang)} video, with the "
                           f"{cvlang.name(lang)} word lists.")
