@@ -777,5 +777,21 @@ class FromCleanReadReports(unittest.TestCase):
             self.assertIn(word, [w for w, _ in found(text)], text)
 
 
+
+class Blasted(unittest.TestCase):
+    """The oath "blasted" / "blast it" (1.18.93, Poldark; the owner: "Yes, add it"). The same
+    sentences are in test_blasted.py; here the CleanListen cross-check reads them too."""
+    def test_the_oath(self):
+        for text in ("lather and blasted brat", "Get that blasted dog out of my kitchen",
+                     "Blast it, the horse has thrown a shoe", "Blast and damnation"):
+            self.assertTrue(any("blast" in w for w, _ in found(text)), text)
+
+    def test_left_alone(self):
+        for text in ("The rocket blasted off at dawn", "They blasted through the rock",
+                     "He got blasted at the party", "We had a blast at the fair",
+                     "Blast it open with the charge"):
+            self.assertFalse(any("blast" in w for w, _ in found(text)), text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -347,6 +347,16 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- "blasted" and "blast it" are mild oaths (1.18.93, 2026-11-14; from Poldark's "lather and
+  blasted brat", the owner: "Yes, add it", for all three apps). `cvcore.MINCED` has "blasted",
+  guarded as blown up, loud or drunk: not before off/through/away/open/apart, the/a/him/it...,
+  heath/rock/crater..., and not after was/got/is/he/they/it/the music/cannon...
+  (`INNOCENT_NEXT`/`INNOCENT_PREV["blasted"]`; "you blasted fool" and "and blasted brat" count).
+  `MINCED_SLANG`: "blast it/you/him/her/them", "blast your eyes/hide", "blast and damnation",
+  "oh blast" (not "blast it open", "a blast", "full blast"). In the 35 lines with "blast" in the
+  past reviews here only Gummi Bears' "those blasted bears" is muted. Sent to CleanListen
+  (`WAITING_ON_CLEANLISTEN` lists the four test sentences until it has them); web/words.js
+  (another chat's uncommitted work) doesn't have it yet.
 - Lauren's Poldark S1E1 report (1.18.92, 2026-11-14, kids, the AI helper, made on 1.18.89; the
   owner: "Yes, check it"). "Poldark S1 Ep. 1.mp4" got "No subtitles: couldn't tell which
   episode this is from its name": `guess_title` knew S01E01, "Season 1 Ep. 3" and "1 - Ep. 1",
@@ -1397,6 +1407,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_blasted.py`: the oath (blasted before a noun, blast it/you, blast and damnation, oh
+  blast), only with the minced oaths, and blown up / loud / drunk / "a blast" left alone; also in
+  `test_words.py` (Blasted) for the CleanListen cross-check.
 - `test_poldark.py`: "<show> S1 Ep. 1" names (with or without the dot, a dash, "episode",
   underscores) read as season and episode, the names that worked still do, disc names still
   can't be told, learned under the show.

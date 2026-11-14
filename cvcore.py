@@ -177,7 +177,10 @@ MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r
           r"crim[ie]ny", r"egads?", r"gadzooks", r"zounds", r"lawdy", r"lawd", r"doggone(d|it)?",
           r"dadgum(med|mit|it)?", r"dadburn(ed|it)?", r"consarn(ed|it)?", r"tarnation",
           r"d[eu]rn(ed|it)?", r"crud", r"cruddy", r"shiz", r"shiznit", r"gee",
-          r"diddl[ey]+squat", r"jacksquat"]
+          r"diddl[ey]+squat", r"jacksquat",
+          # "lather and blasted brat" (Poldark; the owner, 2026-11-14: "Yes, add it"), not
+          # blasted through the rock (guards in INNOCENT_NEXT / INNOCENT_PREV)
+          r"blasted"]
 DEITY_PHRASES = [
     ("oh", "my", "god"), ("my", "god"), ("oh", "god"), ("good", "god"),
     ("dear", "god"), ("god", "almighty"), ("for", "god's", "sake"),
@@ -273,7 +276,15 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  # "queer" meaning strange, in older stories (CleanRead, The Boxcar Children,
                  # 2026-11-07): "a queer noise in the night", "looked at Henry in a queer way"
                  "queer": {"noise", "noises", "sound", "sounds", "way", "look", "looks", "looking", "feeling", "feelings", "smell", "sort", "kind", "thing", "things", "sensation", "notion", "idea", "business", "light", "taste", "dream", "dreams", "turn", "start", "fish", "old", "little"},
-                 "bullshit": {"degree", "degrees"}}                 # "a BS degree"
+                 "bullshit": {"degree", "degrees"},                 # "a BS degree"
+                 # blown up, not the oath: "blasted off", "blasted the door open", "blasted
+                 # through the wall", "a blasted heath", "the blasted rock"
+                 "blasted": {"off", "through", "away", "out", "open", "apart", "into", "the",
+                             "a", "an", "him", "her", "them", "it", "us", "me", "you", "his",
+                             "their", "our", "my", "your", "its", "at", "from", "to", "with",
+                             "down", "up", "back", "across", "past", "on", "in", "by", "for",
+                             "over", "heath", "landscape", "ruins", "crater", "craters", "rock",
+                             "rocks", "oak", "holes", "hole"}}
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WWI army camp
                  "cum": {"summa", "magna"},
                  # a small sting: "a tiny prick of black", "a jealous prick at my heart",
@@ -296,7 +307,17 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                  "craps": {"two", "play", "playing", "played", "shoot", "shooting", "rolled",
                            "roll", "of", "at"},                    # "two craps in a row"
                  "crud": {"the", "some", "of", "that", "this", "all", "any", "green", "black",
-                          "brown", "gray", "grey"}}                 # "the crud on the floor"
+                          "brown", "gray", "grey"},                 # "the crud on the floor"
+                 # "he got blasted" (drunk), "the music blasted", "it was blasted": the verb
+                 # (never "you blasted fool", "that blasted dog", "lather and blasted brat")
+                 "blasted": {"was", "wasn't", "were", "weren't", "been", "being", "be", "got",
+                             "get", "gets", "getting", "is", "isn't", "are", "aren't", "am",
+                             "he", "she", "they", "we", "i", "it", "who", "which", "had", "has",
+                             "have", "just", "then", "completely", "totally", "absolutely",
+                             "utterly", "he's", "she's", "they're", "i'm", "you're", "we're",
+                             "it's", "guns", "gun", "cannon", "cannons", "wind", "winds",
+                             "lightning", "bombs", "shells", "music", "speakers", "radio",
+                             "horn", "horns", "trumpets", "trumpet"}}
 # Slang for a man's private parts. "Stones", "balls" and "nuts" are everyday words on their
 # own (garden stones, tennis balls, mixed nuts), so only the phrases that make them slang
 # count: "grow some stones", "grow a pair", "has the balls to", "kicked him in the nuts".
@@ -392,6 +413,12 @@ MINCED_SLANG = [re.compile(p) for p in (
     r"(oh|aw|ah|ahh|aww) (fudge|shoot|sugar)\b",
     r"gee (whiz|whizz|willikers|whillikers|wilikers)\b", r"jeepers creepers\b",
     r"(diddly|diddley|diddlee|doodly|jack) squat\b",          # "jack squat" = "jack shit"
+    # "Blast it!", "blast you", "oh blast", "blast and damnation" (with "blasted", 2026-11-14),
+    # not "blast it open", "blast it off the map", "a blast", "had a blast", "full blast"
+    r"(oh |ah |aw )?blast (it|you|ye|him|her|them|your eyes|your hide|and damnation|"
+    r"and botheration)\b(?! (open|down|apart|away|off|out|loose|free|clear|into|through|with|"
+    r"to|from|up|back|across|over|again))",
+    r"(oh|ah|aw) blast\b(?! (of|from|off|it|you|ye|him|her|them|your|and))",
     r"son of a (gun|biscuit|b)\b",
     r"good (grief|golly|gravy|heavens?|gracious)\b", r"goodness gracious\b",
     r"(oh )?my goodness\b", r"thank (goodness|heavens?)\b", r"(oh )?heavens to (betsy|murgatroyd)\b",
