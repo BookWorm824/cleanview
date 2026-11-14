@@ -3897,6 +3897,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             vis = None
         elif use_clip and vis["clip"].get("sig") != ai.clip_signature():
             vis = None           # saved before the picture AI's descriptions changed: again
+    en_model = model_dir            # English's own listening model (used again below)
     if tfile.exists():
         asr = json.loads(tfile.read_text())
     else:
@@ -3916,6 +3917,39 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         tfile.write_text(json.dumps(asr))
         del rec
     log(f"Heard {len(asr)} words")
+    # The language she picked, checked against what was heard (1.18.91; the owner tried
+    # Monsters University set to Spanish: the model for other languages heard its English
+    # word for word, the Spanish lists found nothing in it and 10 English words went
+    # through; then "switch and say so"). Only for another language than English: that
+    # model hears every language it knows as itself, while English's own model hears
+    # everything as English, so a Spanish video picked as English can't be told this way.
+    switched, not_cleaned = None, None
+    if not auto and lang != "en" and asr:
+        heard, other = cvlang.which_language([w["t"] for w in asr])
+        if heard in cvlang.LANGS and heard != lang:
+            wait_for(subs_job, None, cancel)    # it names its files by the language: let it end
+            switched, lang = lang, cl.use_language(heard)
+            o["language"], o["language_switched"] = lang, switched
+            scan["language"] = lang
+            subs_job = in_background(get_subs)   # the subtitles again, in the language it's in
+            tfile = work / _lang_file("transcript.json")
+            if lang == "en":                # English has its own model, which hears it best
+                if tfile.exists():
+                    asr = json.loads(tfile.read_text())
+                else:
+                    say(at("lang", 0), "This video is in English: listening again with the "
+                                       "English listening model…")
+                    rec = load_listeners(en_model, threads)
+
+                    def p_again(sec):
+                        say(at("lang", 0), "This video is in English: listening again with "
+                                           f"the English listening model · {sec / dur:.0%}")
+                    asr = transcribe(path, info, rec, p_again, cancel)
+                    tfile.write_text(json.dumps(asr))
+                    del rec
+                log(f"Heard {len(asr)} words in English")
+        elif heard == "other" and other:
+            not_cleaned = other
     for w in asr:
         w["n"], w["part"] = cl.norm(w["t"]), 0
     asr_n = [w["n"] for w in asr]
@@ -3946,6 +3980,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     lang_notes = []
     if auto:
         lang_notes.append(f"Auto took this for {cvlang.name(lang)} ({lang_how}).")
+    if switched:
+        lang_notes.append(f"You picked {cvlang.name(switched)}, but this video is in "
+                          f"{cvlang.name(lang)} (from what was heard), so it was cleaned as "
+                          f"{cvlang.name(lang)}.")
+    elif not_cleaned:
+        lang_notes.append(f"This sounds like {not_cleaned}, which CleanView doesn't clean "
+                          f"yet, so only the {cvlang.name(lang)} word lists you picked were "
+                          f"used.")
     if lang != "en":
         lang_notes.append(f"Cleaned as a {cvlang.name(lang)} video, with the "
                           f"{cvlang.name(lang)} word lists.")

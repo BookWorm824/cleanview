@@ -226,6 +226,13 @@ def room_needed(n):
     return int(n * 1.1) + 200 * 1024 ** 2
 
 
+# A preview being opened: Preview does nothing more until the clip is made and the player has
+# had this long to come up (the owner, 2026-11-13: it takes a few seconds, "so if you think it
+# not opening you can click preview again and it opens a 2nd player. it should only open one").
+PREVIEW_OPENING_SECS = 6
+PREVIEW_TEXT, PREVIEW_OPENING = "Preview ▸", "Opening…"
+
+
 def open_path(p):
     if os.name == "nt":
         os.startfile(p)  # noqa
@@ -2482,6 +2489,8 @@ class App(tk.Tk):
             self.show_setup()
         elif kind == "preview_ready":
             open_path(msg[1])
+            btn = msg[2] if len(msg) > 2 else None
+            self.after(int(PREVIEW_OPENING_SECS * 1000), lambda: self._preview_done(btn))
         elif kind == "claude_status":
             self._show_claude_status(msg[1])
         elif kind == "claude_wait":
@@ -2504,6 +2513,7 @@ class App(tk.Tk):
         elif kind == "warn":
             messagebox.showwarning("CleanView", msg[1])
         elif kind == "preview_error":
+            self._preview_done(msg[2] if len(msg) > 2 else None)
             messagebox.showerror("CleanView", msg[1])
         elif kind == "error":
             self._problem(msg[1], msg[2])
@@ -3663,8 +3673,9 @@ class App(tk.Tk):
             kind = q.get("kind", "Loud music")
             look.chip(row, engine.plain_ai(kind), chip_color(kind)).pack(side="left",
                                                                          padx=(10, 0))
-            ttk.Button(row, text="Preview ▸", style="Small.TButton",
-                       command=lambda q=q: self.preview(job, q)).pack(side="right")
+            pv = ttk.Button(row, text=PREVIEW_TEXT, style="Small.TButton")
+            pv.config(command=lambda q=q, pv=pv: self.preview(job, q, pv))
+            pv.pack(side="right")
 
     def _lines_card(self, parent, job, lines):
         card = self._round_card(parent)
@@ -3711,8 +3722,9 @@ class App(tk.Tk):
         for k in sc["kind"]:
             look.chip(top_row, engine.plain_ai(k), chip_color(k), size=9).pack(
                 side="left", padx=(10, 0))
-        ttk.Button(top_row, text="Preview ▸", style="Small.TButton",
-                   command=lambda: self.preview(job, sc)).pack(side="right")
+        pv = ttk.Button(top_row, text=PREVIEW_TEXT, style="Small.TButton")
+        pv.config(command=lambda: self.preview(job, sc, pv))
+        pv.pack(side="right")
         mid = tk.Frame(card, bg=CARD)
         mid.pack(fill="x", pady=(8, 0))
         for t in sc.get("thumbs", [])[:3]:
@@ -3739,15 +3751,33 @@ class App(tk.Tk):
         self._answer_box(card, sc)
         self._ask_link(card, job, "scene", sc, txt, anchor="e", pady=(4, 0))
 
-    def preview(self, job, sc):
+    def preview(self, job, sc, btn=None):
+        """A short clip of the scene in her own player: one at a time (PREVIEW_OPENING_SECS)."""
+        if getattr(self, "_previewing", False):
+            return
+        self._previewing = True
+        self._preview_text(btn, PREVIEW_OPENING)
+
         def go():
             try:
                 self.q.put(("preview_ready", engine.make_preview(job["video"], sc["s"], sc["e"],
-                                                                 job["work"])))
+                                                                 job["work"]), btn))
             except Exception as ex:
                 save_details(traceback.format_exc())
-                self.q.put(("preview_error", plain_error(ex)))
+                self.q.put(("preview_error", plain_error(ex), btn))
         threading.Thread(target=go, daemon=True).start()
+
+    def _preview_done(self, btn):
+        self._previewing = False
+        self._preview_text(btn, PREVIEW_TEXT)
+
+    @staticmethod
+    def _preview_text(btn, text):
+        try:
+            if btn is not None and btn.winfo_exists():
+                btn.config(text=text)
+        except tk.TclError:           # the page was built again meanwhile
+            pass
 
     def _save_from_review(self):
         for j in self.jobs:

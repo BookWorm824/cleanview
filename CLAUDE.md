@@ -347,6 +347,38 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The language picked is checked against what was heard (1.18.91, 2026-11-14; the owner
+  cleaned Monsters University set to Spanish "to see what it did", then "switch and say so").
+  On 1.18.89 the model for other languages heard its English word for word, the Spanish lists
+  found nothing (10 English words, "jerk", "fools", "dang"..., went through), Spanish subtitles
+  were looked up and didn't line up (1%), the AI helper was told the dialogue was Spanish, and
+  nothing said so. Now, picked another language than English (not Auto), `analyze` tells what
+  was heard with `cvlang.which_language` right after the listening: when it's clearly another
+  language CleanView cleans it's cleaned as that one (`o["language"]`, and
+  `o["language_switched"]` the one she picked; English is listened to again with English's own
+  model, `en_model`, kept as `transcript.json`; the subtitles are looked for again in that
+  language once the first look has ended, since `fetch_subtitles` names its files by
+  `cvlang.LANG`), and the note says "You picked Spanish, but this video is in English (from
+  what was heard), so it was cleaned as English." A language CleanView doesn't clean is only
+  said ("This sounds like German, which CleanView doesn't clean yet, so only the Spanish word
+  lists you picked were used."). Picked English it isn't checked: English's model hears every
+  language as English. Her review's eight scene cuts (three "Christmas", "St. Patrick's Day",
+  "Magic" for the glowing blurchin, four gunfire-like sounds) look like false alarms from the
+  local picture and sound checks (weak spot 2); not taught (she didn't untick them).
+- Preview opens one player (1.18.91, 2026-11-14; the owner: "it can take a few second to open
+  the player, so if you think it not opening you can click preview again and it opens a 2nd
+  player. it should only open one"). While the clip is made and for `PREVIEW_OPENING_SECS` (6)
+  after it's handed to the player, the button says "Opening…" and Preview (any) does nothing
+  (`_previewing`, `_preview_done`, `_preview_text`); a preview that fails says so and can be
+  pressed again.
+- Nothing a test does shows on her screen (2026-11-14; the owner: "can you keep everything from
+  keep popping up while you are making changes? only fully pop when absolutely necessary",
+  after the play-only copy's run opened five Notepads: `test_check_failed`'s stand-in answered
+  "yes" to "Open that file now?", and CleanView's own suite took the same path).
+  `tests/support.py` draws every `tk.Tk`/`tk.Toplevel` see-through (`-alpha 0`, so sizes are
+  measured as usual), notes instead of opening files and folders (`support.OPENED`:
+  `os.startfile`, explorer, notepad), silences `winsound`, and `support.HIDE` goes first in code
+  a test runs in another Python (test_one_window's stand-in windows).
 - Lauren's Selena report (1.18.90, 2026-11-13, adults, the AI helper, made on 1.18.86; the
   movie with "some english and spanish in it", cleaned as English). Every listed word muted;
   the Spanish in its subtitles is a few friendly words ("corazón", "mi hijo", "niña") and its
@@ -1350,6 +1382,14 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_language_switch.py`: Spanish picked and English heard cleaned as English (listened to
+  again with English's model, its words muted, the note, subtitles looked for again in English
+  after the first look), French picked and Spanish heard, the note not technical, cleaned again
+  from what was heard before; the right language, too little heard and English picked change
+  nothing; German only said.
+- `test_one_preview.py`: Preview pressed twice (or another one meanwhile) opens one player, the
+  button says "Opening…" and is back after its seconds; a failed preview says so and can be
+  pressed again; the page built again meanwhile.
 - `test_selena.py`: the three Selena notes built in and given to every video, the older ones
   still there.
 - `test_auto_language.py`: each language told from a sentence of it (also as the model writes

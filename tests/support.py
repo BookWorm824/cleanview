@@ -74,6 +74,82 @@ for _kind, _answer in (("showinfo", "ok"), ("showwarning", "ok"), ("showerror", 
     setattr(_boxes, _kind, _quiet)
 
 
+
+# Nothing a test does shows up on the owner's screen or makes a sound (the owner, 2026-11-13:
+# "can you keep everything from keep popping up while you are making changes? only fully pop
+# when absolutely necessary"; the play-only copy's run had opened five Notepads with made-up
+# errors). Windows are built and measured as usual but drawn see-through, files the app would
+# open (its error file in Notepad, a folder in Explorer) are only noted, and the chime is quiet.
+import subprocess as _subprocess  # noqa: E402
+import tkinter as _tk  # noqa: E402
+
+OPENED = []               # what the app tried to open (a file, a folder) during a test
+
+
+def _see_through(win):
+    try:
+        win.attributes("-alpha", 0.0)
+    except Exception:
+        pass
+
+
+for _cls in (_tk.Tk, _tk.Toplevel):
+    def _init(self, *a, _orig=_cls.__init__, **k):
+        _orig(self, *a, **k)
+        _see_through(self)
+    _cls.__init__ = _init
+
+if hasattr(os, "startfile"):
+    os.startfile = lambda path, *a, **k: OPENED.append(str(path))
+
+_Popen = _subprocess.Popen
+OPENERS = {"explorer", "explorer.exe", "notepad", "notepad.exe", "open", "xdg-open"}
+
+
+class _Opened:
+    """What Popen gives back for an opener a test let through: nothing was started."""
+    returncode = 0
+    pid = 0
+
+    def __init__(self, args):
+        OPENED.append(" ".join(map(str, args)))
+
+    def wait(self, timeout=None):
+        return 0
+
+    def poll(self):
+        return 0
+
+    def communicate(self, *a, **k):
+        return (None, None)
+
+
+class _QuietPopen(_Popen):
+    def __new__(cls, args, *a, **k):
+        first = args[0] if isinstance(args, (list, tuple)) and args else args
+        if isinstance(first, str) and os.path.basename(first).lower() in OPENERS:
+            return _Opened(args)
+        return super().__new__(cls)
+
+
+_subprocess.Popen = _QuietPopen
+
+try:
+    import winsound as _winsound
+    _winsound.MessageBeep = lambda *a, **k: None
+    _winsound.PlaySound = lambda *a, **k: None
+except ImportError:
+    pass
+# Programs a test starts itself (a stand-in window in another Python) draw theirs
+# see-through too: they put HIDE first in the code they run.
+HIDE = ("import tkinter as _tk\n"
+        "_i = _tk.Tk.__init__\n"
+        "def _init(self, *a, **k):\n"
+        "    _i(self, *a, **k)\n"
+        "    self.attributes('-alpha', 0.0)\n"
+        "_tk.Tk.__init__ = _init\n")
+
+
 def old_learned():
     """A learned file as versions before 1.11.4 left it: anything left unticked
     was counted as "kept", so the counts snowballed (as Castle's Gore did)."""

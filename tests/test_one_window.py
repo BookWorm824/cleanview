@@ -65,8 +65,8 @@ class FindsTheWindow(unittest.TestCase):
     def test_a_window_one_process_down(self):
         lm = load_launcher()
         # a venv's python.exe starts the real Python, which owns the window
-        code = ("import tkinter as tk, time; r = tk.Tk(); r.title('CleanView test window'); "
-                "r.after(8000, r.destroy); r.mainloop()")
+        code = (support.HIDE + "import tkinter as tk, time; r = tk.Tk(); "
+                "r.title('CleanView test window'); r.after(8000, r.destroy); r.mainloop()")
         outer = subprocess.Popen([sys.executable, "-c",
                                   f"import subprocess, sys; subprocess.run([sys.executable, "
                                   f"'-c', {code!r}])"])
@@ -163,7 +163,7 @@ class TheAppPart(unittest.TestCase):
 class OpeningBox(unittest.TestCase):
     def test_closes_when_the_window_is_up(self):
         lm = load_launcher()
-        child = subprocess.Popen([sys.executable, "-c",
+        child = subprocess.Popen([sys.executable, "-c", support.HIDE +
                                   "import time, tkinter as tk; time.sleep(2); r = tk.Tk(); "
                                   "r.after(4000, r.destroy); r.mainloop()"])
         t = time.time()
