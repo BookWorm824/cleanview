@@ -29,6 +29,7 @@ BUTTON_EDGE = "#B9AFA2"
 # the step-by-step look (1.18.77): the list of steps, tints, soft panels, quieter words
 SIDE, TINT, SOFT, FAINT = "#EFEAE2", "#EAF2EF", "#FBFAF7", "#A39C93"
 HEAD = "Segoe UI Semibold" if os.name == "nt" else "DejaVu Sans"
+CHOSEN_FONT = (HEAD, 12)    # the videos chosen in step 1 (was the plain 10, 1.18.100)
 # Light and dark (1.18.78; the owner, 2026-11-13: "how hard would it be to add a dark mode",
 # "yes it should be optional", "just light dark button option. no windows choice"). Every
 # colour the window uses has a name here and a value for each look; `use_theme` sets the
@@ -1764,9 +1765,13 @@ class App(tk.Tk):
             n = len(videos)
 
             def show(length=""):
+                # two sizes bigger and a little bolder once chosen (1.18.100; the owner:
+                # "after choosing a file the name of the file chosen goes in the area, can the
+                # text be a couple sizes bigger and bolder a little")
                 if self.videos == videos and self.vid_lbl.winfo_exists():
                     self.vid_lbl.config(text=f"{n} video{'s' if n != 1 else ''}{length}   in  "
-                                        f"{folder}\n{first}{extra}", fg=INK)
+                                        f"{folder}\n{first}{extra}", fg=INK,
+                                        font=CHOSEN_FONT)
             show()
             self._lengths(videos, lambda dur: show(f" · {fmt_len(dur)}"))
             self.start_btn.config(state="normal")
