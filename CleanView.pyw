@@ -2767,9 +2767,13 @@ class App(tk.Tk):
                              ". Anything you change yourself stays the way you set it.", bg=NOTE, fg=MUTED, font=(FONT, 9),
                              wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
             for note in engine.video_notes(st):     # not which AI model or how long it took
+                if note == engine.CARTOON_SAID:
+                    continue                # said below, with its "Not a cartoon" switch
                 tk.Label(inner, text="\u2139 " + engine.plain_ai(note), bg=BG, fg=MUTED,
                          font=(FONT, 9),
                          wraplength=wrap_width(720), justify="left", anchor="w").pack(fill="x", padx=8)
+            if (st.get("cartoon") or {}).get("animated"):
+                self._cartoon_row(inner, j)
             holder = tk.Frame(inner, bg=BG)
             holder.pack(fill="x")
             self.found_frames[ji] = holder
@@ -3237,6 +3241,34 @@ class App(tk.Tk):
             return
         messagebox.showinfo("CleanView", "Couldn't make the spreadsheet. Close Excel and try "
                             "again.")
+
+    def _cartoon_row(self, parent, job):
+        """A cartoon (1.18.94): said, with a way to say it isn't one."""
+        row = tk.Frame(parent, bg=BG)
+        row.pack(fill="x", padx=8)
+        tk.Label(row, text="\u2139 " + engine.CARTOON_SAID, bg=BG, fg=MUTED, font=(FONT, 9),
+                 wraplength=wrap_width(560), justify="left", anchor="w").pack(side="left")
+        ttk.Button(row, text="Not a cartoon", style="Small.TButton",
+                   command=lambda: self._not_a_cartoon(job)).pack(side="left", padx=(8, 0))
+
+    def _not_a_cartoon(self, job):
+        """She says it isn't a cartoon: what the cartoon rules unticked is ticked again (not
+        what she unticked herself), and it's remembered for the show (or this movie)."""
+        self._sync_job(job)
+        st = job["analysis"]
+        for sc in st["scenes"]:
+            if sc.pop("cartoon", None) and not sc.get("by_you"):
+                sc["cut"] = sc["sure"] = True
+                sc["why"] = (sc["why"].replace(engine.CARTOON_SOUND, "")
+                             .replace(engine.CARTOON_NUDITY, ""))
+        st["cartoon"] = {"animated": False, "how": "you said so"}
+        st["notes"] = [n for n in st.get("notes", []) if n != engine.CARTOON_SAID]
+        try:
+            engine.learn.set_animated(engine.learned_key(job["video"], st.get("opts") or {}),
+                                      job["video"], False)
+        except Exception:
+            save_details(traceback.format_exc())
+        self.show_review(self._nb.index("current") if getattr(self, "_nb", None) else 0)
 
     def _sync_job(self, job):
         """Copy the ticks on screen (and anything added) back into the analysis,

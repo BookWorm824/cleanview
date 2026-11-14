@@ -347,6 +347,44 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Cartoons are judged as cartoons (1.18.94, 2026-11-14; the owner: "can we teach when
+  something is animated", then "build it"). From Monsters University (eight cuts, none real:
+  three "Christmas", a "St. Patrick's Day", "Magic" for the glowing blurchin, four gunfire-like
+  sounds). `tell_cartoon` (in analyze, after the picture scan, when the picture or sounds are
+  checked): what she said for the show first (`learn.animated` / `set_animated`: the show for
+  every age, or a movie by its file), else `<work>/cartoon.json`, else `cartoonscan` (its own
+  process, like the picture scan: `_cartoon_scan_here`, 24 stills from 5% to 95%, too-dark
+  ones left out, `ai.cartoon_scores`: the picture AI's `CARTOON_TEXTS` against `LIVE_TEXTS`,
+  not part of `clip_prompts`, so saved picture scans stay good; 5-8 s). A cartoon is
+  `CARTOON_SHARE` (75%) of the stills at `CARTOON_FRAME` (0.5) or more and an average of
+  `CARTOON_MEAN` (0.6), from at least `CARTOON_LEAST` (8) stills. Tried: a 1941 hand-drawn
+  Superman 95% / 0.82, Big Buck Bunny 100% / 0.92 (both downloaded with her OK, test only); 66
+  live-action episodes here at most 42% / 0.42 (a dark Person of Interest with the Machine's
+  screens). In a cartoon: sound-only violence is offered unticked unless the subtitles
+  describe it (`sdh` on the scene) or a gun is talked about within 5 s (`cartoon_sound`,
+  `CARTOON_GUN_WORDS`, `CARTOON_SOUND`); a nudity find the AI helper didn't confirm is offered
+  unticked (`cartoon_nudity`, `CARTOON_NUDITY`); the closer look gets `ai.CARTOON_NOTE`
+  (holidays need their own signs, magic a spell being cast, cartoon fights still count);
+  joined to a sure scene it's cut as that (`cartoon_joined`). `st["cartoon"]` =
+  {"animated", "how"}; the note `CARTOON_SAID` shows on the review page with a "Not a cartoon"
+  button (`_cartoon_row`, `_not_a_cartoon`: what the cartoon rules unticked is ticked again,
+  not her own unticks, and it's remembered). Not done: Claude/ChatGPT/Gemini's picture review
+  isn't told (they see the stills themselves), and the closer look's answers aren't undone by
+  "Not a cartoon".
+- Lessons from her first CleanView Play scan (1.18.94; I Love Lucy 1 - Ep. 2, young, AI helper,
+  Play 1.0.1; passed on by the play-only chat with her "yes send"): the show's heart-on-satin
+  title cards were cut four times as Valentine's Day ("teach that a heart doesn't mean
+  valentine by itself"): `LOOK["valentine"]` says a heart shape on its own (a logo, a title
+  card, a pattern) isn't, so do `PIC_RULES`, and an i-love-lucy show note. "Your life should be
+  just one gay round of nightclubs" was muted ("this is an old show so gay means happy"):
+  `cvcore.GAY_HAPPY_NEXT` (round, old, spirits, whirl, tune, song...; the old refrain/apparel/
+  abandon/laughter/nineties/paree) is `INNOCENT_NEXT["gay"]` and the samesex `LINE_WORDS`
+  lookahead; "a gay couple", "a gay bar" still count. Her untick "...keep our eye on our wives,
+  who've seen fit to go out with other men" taught as fine for i-love-lucy@young (the heard
+  piece and the whole sentence). Her chat note on "gay" in old shows built in as a general
+  note. Not taught (seen only in the dialogue): possible kisses at 16:44-17:40, 17:55, 20:04,
+  21:17-21:35 and smoking at 4:34 and 20:07 that the local checks didn't find (black and white),
+  and a "fuck" heard in laughter at 16:58 that she left muted.
 - "blasted" and "blast it" are mild oaths (1.18.93, 2026-11-14; from Poldark's "lather and
   blasted brat", the owner: "Yes, add it", for all three apps). `cvcore.MINCED` has "blasted",
   guarded as blown up, loud or drunk: not before off/through/away/open/apart, the/a/him/it...,
@@ -1407,6 +1445,15 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_cartoon.py`: telling a cartoon (most stills, the average, too few to tell, the
+  closest live action and a real cartoon's scores), what she said winning and kept per show
+  or movie, a failed check changing nothing; sound effects unticked (not with a gun said or
+  subtitles), unconfirmed nudity unticked, joined to a fight cut as that, the closer look
+  told; the review page's line and "Not a cartoon" (ticks them again, not her own untick,
+  remembered), nothing for live action.
+- `test_lucy_lessons.py`: "gay" meaning happy before round/old/spirits... left alone (words and
+  lines), still a same-sex word otherwise; the heart rule and the show note; the false alarm
+  taught; her note for everything. Also in `test_words.py` (GayRound).
 - `test_blasted.py`: the oath (blasted before a noun, blast it/you, blast and damnation, oh
   blast), only with the minced oaths, and blown up / loud / drunk / "a blast" left alone; also in
   `test_words.py` (Blasted) for the CleanListen cross-check.

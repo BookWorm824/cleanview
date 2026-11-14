@@ -1319,6 +1319,22 @@
     "she's my interior decorator but then we slept together so i don't really know what she is now": "casual",
     "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex": "sexref"
    }
+  },
+  "i-love-lucy@young": {
+   "muted": [],
+   "kept": [
+    "on our wives who've seen fit",
+    "we can get a couple of blondes just to help us keep our eye on our wives who've seen fit to go out with other men"
+   ],
+   "ok_words": []
+  },
+  "i-love-lucy": {
+   "muted": [],
+   "kept": [],
+   "ok_words": [],
+   "notes": [
+    "The heart on satin in I Love Lucy's opening and between its acts is the show's title card, not Valentine's Day."
+   ]
   }
  },
  "general": {
@@ -1378,7 +1394,8 @@
    "When same-sex relationships are filtered, a line naming a woman's wife or a man's husband (a same-sex couple) is still a problem line even when it only mentions them; 'a plain mention of someone's wife or family is fine' means a man's wife or a woman's husband.",
    "A parent and child (a dad and his daughter, a mother and her son) singing together or saying loving words such as 'we belong together' or 'for eternity' is family, not a romance. Only call it a same-sex romance when the two are clearly a romantic couple (Selena: Abraham singing with his daughter was cut as 'two women').",
    "A couple lying in bed only talking, with nothing sexual happening or said, is not an intimate scene or a sex scene.",
-   "A performer singing or dancing on stage, with nothing sexual happening or said, is not a sex scene, even when the subtitles have a moan, a breath or a similar sound there."
+   "A performer singing or dancing on stage, with nothing sexual happening or said, is not a sex scene, even when the subtitles have a moan, a breath or a similar sound there.",
+   "In old shows and movies, 'gay' meaning happy, cheerful or merry (like 'a gay round of nightclubs') is not a same-sex reference and should not be muted. Only flag it when it clearly refers to homosexuality."
   ]
  }
 }

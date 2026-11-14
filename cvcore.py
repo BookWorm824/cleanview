@@ -270,7 +270,7 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  # the dice game (Iron Man): "a craps table", "craps game"
                  "craps": {"table", "tables", "game", "games", "shooter", "shooters", "dealer"},
                  # "gay" meaning happy (Enchanted's "gay refrain", "don we now our gay apparel")
-                 "gay": {"refrain", "apparel", "abandon", "laughter", "nineties", "paree"},
+                 "gay": None,                                        # GAY_HAPPY_NEXT, below
                  # "spic and span" (clean); "a wop bop a loo bop" (Tutti Frutti)
                  "spic": {"and", "n"}, "spick": {"and", "n"}, "wop": {"bop", "bam", "doo"},
                  # "queer" meaning strange, in older stories (CleanRead, The Boxcar Children,
@@ -522,6 +522,15 @@ GAY_HAPPY = {"witty", "pretty", "merry", "bright", "happy", "light", "lightheart
              "carefree", "cheerful", "lively", "sunny", "jolly", "glad", "festive", "colorful",
              "colourful", "giddy", "laughing", "charming", "sparkling", "blithe", "joyful",
              "joyous", "gladsome", "frolicsome"}
+
+
+# ...and before these: "one gay round of nightclubs" (I Love Lucy; Lauren kept it, 2026-11-14:
+# "this is an old show so gay means happy"), "a gay old time", "in gay spirits"
+GAY_HAPPY_NEXT = {"refrain", "apparel", "abandon", "laughter", "nineties", "paree", "round",
+                  "rounds", "old", "whirl", "spirits", "mood", "moods", "tune", "tunes", "song",
+                  "songs", "melody", "music", "colors", "colours", "chatter", "holiday",
+                  "holidays", "evening", "evenings", "festivities", "revelry", "banter"}
+INNOCENT_NEXT["gay"] = GAY_HAPPY_NEXT
 
 
 def gay_happy(words, i):

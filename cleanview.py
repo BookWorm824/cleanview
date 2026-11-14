@@ -1661,7 +1661,127 @@ def nudity_scenes(vis, start_off=0.0):
 
 
 DARK_UNCHECKED = " in a dark scene, brightened (not double-checked, so only cut if you tick it)"
+# The nudity check is made for real skin: on drawn skin it isn't to be trusted, so in a cartoon
+# a nudity find the AI helper didn't confirm is offered unticked.
+CARTOON_NUDITY = " (a cartoon: the nudity check isn't reliable on drawn skin, so only cut if you tick it)"
+CARTOON_FRAMES = 24          # stills looked at to tell a cartoon from live action
+CARTOON_FRAME = 0.5          # a still that looks this animated counts as a cartoon still
+# ...and this share of the stills, with this average, makes the video a cartoon. Tried
+# (2026-11-14): a 1941 hand-drawn Superman 95% / 0.82 and Big Buck Bunny 100% / 0.92; 66
+# live-action episodes here (The Resident, Person of Interest) at most 42% / 0.42 (a dark
+# Person of Interest with the Machine's screens; 12 usable stills).
+CARTOON_SHARE = 0.75
+CARTOON_MEAN = 0.6
+CARTOON_LEAST = 8            # fewer usable stills than this: can't tell
+
+
+def cartoon_nudity(scenes, cartoon=True):
+    if not cartoon:
+        return scenes
+    for sc in scenes:
+        if sc.get("kind") == ["Nudity"] and " — " not in sc.get("why", ""):
+            sc["sure"], sc["cartoon"] = False, True
+            sc["why"] = sc["why"].replace(DARK_UNCHECKED, "") + CARTOON_NUDITY
+    return scenes
+
+
+def cartoon_joined(scenes):
+    """A cartoon's sound or nudity find joined to something sure (a fight seen) is cut as
+    that is: no cartoon mark or note left on it."""
+    for sc in scenes:
+        if sc.get("cartoon") and sc.get("sure", True):
+            sc.pop("cartoon")
+            sc["why"] = sc["why"].replace(CARTOON_SOUND, "").replace(CARTOON_NUDITY, "")
+    return scenes
+
+
+def cartoon_verdict(scores):
+    """(animated, share of stills that looked animated) from cartoon_scores; None when there
+    were too few stills to tell."""
+    if len(scores) < CARTOON_LEAST:
+        return None, 0.0
+    share = sum(1 for s in scores if s >= CARTOON_FRAME) / len(scores)
+    return (share >= CARTOON_SHARE and sum(scores) / len(scores) >= CARTOON_MEAN,
+            round(share, 2))
+
+
+def _cartoon_scan_here(path, out_json):
+    """(Its own process, like the picture scan.) The picture AI's cartoon-or-live-action
+    score for CARTOON_FRAMES stills spread over the video (5% to 95%), too-dark ones left out."""
+    import onnxruntime as ort
+    info = probe(path)
+    dur = info["duration"] or 0.0
+    frames = []
+    for k in range(CARTOON_FRAMES):
+        t = dur * (0.05 + 0.9 * k / max(1, CARTOON_FRAMES - 1))
+        r = cl.run([cl._tool("ffmpeg"), "-v", "error", "-ss", f"{t:.2f}", "-i", str(path),
+                    "-map", "0:v:0", "-frames:v", "1", "-vf", "scale=320:180,format=rgb24",
+                    "-f", "rawvideo", "-"], capture_output=True)
+        if r.returncode != 0 or len(r.stdout) < 320 * 180 * 3:
+            continue
+        rgb = np.frombuffer(r.stdout[:320 * 180 * 3], dtype=np.uint8).reshape(180, 320, 3)
+        g = rgb.mean(axis=2)
+        if not too_dark([g.mean(), g.std()]):
+            frames.append(rgb)
+    clip = ai.Clip(ort, max(1, min(4, (os.cpu_count() or 2) // 2)), spin=False)
+    Path(out_json).write_text(json.dumps({"scores": ai.cartoon_scores(clip, ort, frames)}))
+
+
+def tell_cartoon(path, work, key, use_clip, log=print):
+    """(animated, how): what she said for this show or movie first, else what the stills
+    look like (kept in <work>/cartoon.json). (None, "") when it can't be told."""
+    said = learn.animated(key, path)
+    if said is not None:
+        return bool(said), "you said so"
+    f = Path(work) / "cartoon.json"
+    try:
+        scores = json.loads(f.read_text())["scores"]
+    except (OSError, ValueError, KeyError):
+        scores = None
+        if use_clip:
+            try:
+                r = cl.run([_venv_python(), str(HERE / "cleanview.py"), "cartoonscan", str(path),
+                            str(f)], capture_output=True, text=True)
+                if r.returncode == 0:
+                    scores = json.loads(f.read_text())["scores"]
+                else:
+                    log(f"cartoon check: {r.stderr[-300:]}")
+            except Exception as ex:                    # not knowing changes nothing
+                log(f"cartoon check: {ex}")
+    if not scores:
+        return None, ""
+    animated, share = cartoon_verdict(scores)
+    return animated, (f"{share:.0%} of the stills looked animated" if animated is not None else "")
+
+
+CARTOON_SAID = ("This looks like a cartoon, so its bangs and crashes and its bright colours were "
+                "judged as a cartoon's.")
 DARK_CHECKED = " in a dark scene, brightened"
+
+
+# A cartoon's bangs, bursts and crashes are sound effects as often as not (Monsters
+# University: four "gunfire-like" cuts in a film with no guns). In a cartoon a scene found by
+# the sound alone is offered unticked unless the subtitles describe violence or a gun is
+# talked about then (CARTOON_GUN_WORDS); a fight seen in the picture is its own scene.
+CARTOON_SOUND = " (a cartoon: likely a sound effect, so only cut if you tick it)"
+CARTOON_GUN_WORDS = re.compile(r"\b(guns?|shoot\w*|shot|shots|fire|firing|fired|pistols?|"
+                               r"rifles?|bullets?|bombs?|blast(ers?)?|cannons?)\b", re.I)
+
+
+def cartoon_sound(scenes, asr, cartoon=True):
+    """Sound-only scenes in a cartoon: unticked (and marked, so "Not a cartoon" can tick
+    them again) unless subtitles described violence or a gun was talked about nearby."""
+    if not cartoon:
+        return scenes
+    for sc in scenes:
+        if sc.get("sdh") or "Violence" not in sc.get("kind", []):
+            continue
+        said = " ".join(w["t"] for w in asr or [] if sc["s"] - 5 <= w["s"] <= sc["e"] + 5)
+        if CARTOON_GUN_WORDS.search(said):
+            continue
+        sc["sure"], sc["cartoon"] = False, True
+        sc["why"] = sc["why"].replace(SOUND_ONLY, "") + CARTOON_SOUND
+    return scenes
 
 
 def violence_scenes(snd, cues):
@@ -1671,6 +1791,7 @@ def violence_scenes(snd, cues):
     vi = [(labels.index(k), w) for k, w in VIOLENCE_SOUNDS.items()]
     alike = [labels.index(k) for k in LOOK_ALIKE_SOUNDS if k in labels]   # (older scans: none)
     flagged, why, strong, hard = [], {}, set(), set()
+    sdh = set()                              # times the subtitles described violence
     edge = set()                             # windows with quieter gunfire (EDGE_GUNFIRE)
     for n, (t, row) in enumerate(zip(snd["t"], snd["p"])):
         score = sum(row[i] * w for i, w in vi)
@@ -1694,6 +1815,7 @@ def violence_scenes(snd, cues):
         if tags and SDH_VIOLENCE.search(tags):
             for t in np.arange(c["s"], max(c["s"], c["e"] - SOUND_WIN) + 0.01, SOUND_HOP):
                 flagged.append(round(float(t), 2))   # the whole time the tag is on screen
+                sdh.add(round(float(t), 2))
                 if SDH_HARD_VIOLENCE.search(tags):
                     hard.add(round(float(t), 2))
             why.setdefault(round(float(c["s"]), 2), tags.lower()[:30])
@@ -1721,7 +1843,8 @@ def violence_scenes(snd, cues):
             hi = max(hi, snd["t"][last]) if last is not None else hi
         scenes.append({"s": max(0.0, lo - 1.0), "e": hi + SOUND_WIN + 1.0,
                        "kind": ["Violence"], "sure": sure,
-                       "why": ", ".join(kinds[:4]) + ("" if sure else SOUND_ONLY)})
+                       "why": ", ".join(kinds[:4]) + ("" if sure else SOUND_ONLY),
+                       "sdh": bool(sdh.intersection(run_))})
     return scenes
 
 
@@ -1919,7 +2042,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     # "gay" beside another happy word is the old word for happy (cvcore.gay_happy): "I feel
     # pretty and witty and gay" (West Side Story, 2026-11-08)
     "samesex": re.compile(r"\b(" + "".join(f"(?<!{w} and )" for w in sorted(cl.GAY_HAPPY))
-                          + r"gay(?! (refrain|apparel|abandon|laughter|nineties|paree)\b)"
+                          + r"gay(?! (" + "|".join(sorted(cl.GAY_HAPPY_NEXT)) + r")\b)"
                           + r"(?! and (" + "|".join(sorted(cl.GAY_HAPPY)) + r")\b)|"
                           r"lesbians?|homosexual|bisexual|same[- ]sex|"
                           r"husband and husband|wife and wife)\b", re.I),
@@ -4121,6 +4244,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         notes.append("The picture AI isn't installed, so kissing, gore, smoking and the like "
                      "weren't checked by sight.")
     notes += lang_notes
+    # a cartoon or live action (1.18.94): a few stills, or what she said for this show
+    cartoon, cartoon_how = (tell_cartoon(path, work, learned_key(path, o), use_clip, log)
+                            if (vis_needed or nd["sound"]) else (None, ""))
+    if cartoon:
+        notes.append(CARTOON_SAID)
 
     # picture AI candidates, double-checked by the AI helper when it's there
     cands = []
@@ -4147,7 +4275,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 ai.second_look(todo if items is None else items,
                                lambda c: ai.grab_frames(ff, path, c["frames"], cl.run,
                                                         lift=c.get("lifted")),
-                               progress, cancel, notes=told)
+                               progress, cancel, notes=told, cartoon=bool(cartoon))
             if together:                # while Claude reads the dialogue (see closer_looks)
                 look_job = in_background(look)
             else:
@@ -4301,18 +4429,19 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                                                  lift=c.get("lifted")),
                 lambda f, n="": say(at("end", 0.65), "Taking a closer look at the nudity "
                                                      "found" + also(n)), cancel,
-                notes=told),
+                notes=told, cartoon=bool(cartoon)),
                 notes)
         elif not o["nudity"]:
             nude = []
         scenes += nude
+    nude = cartoon_nudity(nude, bool(cartoon))
     if o["violence"]:
-        scenes += violence_scenes(snd, cues)
+        scenes += cartoon_sound(violence_scenes(snd, cues), asr, bool(cartoon))
     if o["sex"]:
         scenes += sex_scenes(snd, cues, asr_n, asr, skin, nude)
     scenes += decide_picture_scenes(cands, o, have_ai)
     scenes += flirt_scenes(flirts)
-    scenes = merge_scenes(scenes)
+    scenes = cartoon_joined(merge_scenes(scenes))
     if have_ai:                         # done with the AI helper: free its memory now
         ai.free_memory()
     for n, sc in enumerate(scenes, 1):
@@ -4374,7 +4503,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
           "sub_note": sub_note, "notes": notes,
           "asr": [[w["t"], round(w["s"], 2), round(w["e"], 2)] for w in asr],
           "duration": dur, "words": len(asr), "opts": o, "used_ai": have_ai,
-          "used_clip": use_clip, "scan": scan}
+          "used_clip": use_clip, "scan": scan,
+          "cartoon": {"animated": cartoon, "how": cartoon_how}}
     n_lw = list_words_only(st)
     if n_lw:
         notes.append(f"Muted just the word in {n_lw} line(s) the word list found (sexual "
@@ -5213,9 +5343,14 @@ def _cli():
     vs.add_argument("video")
     vs.add_argument("out")
     vs.add_argument("--clip", action="store_true")
+    cs = sub.add_parser("cartoonscan")
+    cs.add_argument("video")
+    cs.add_argument("out")
     a = ap.parse_args()
     if a.cmd == "visualscan":
         _visual_scan_here(a.video, a.out, a.clip)
+    elif a.cmd == "cartoonscan":
+        _cartoon_scan_here(a.video, a.out)
     elif a.cmd == "analyze":
         st = analyze(a.video, a.workdir, [g for g in a.groups.split(",") if g], json.loads(a.opts),
                      progress=lambda f, m: print(f"[{f * 100:3.0f}%] {m}", flush=True))

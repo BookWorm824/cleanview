@@ -1104,7 +1104,7 @@ PIC_RULES = (
     "all holidays, only what is "
     "clearly about that holiday counts: snow or winter alone, a plain pumpkin, a fantasy "
     "story's own witches or monsters, an ordinary egg or rabbit, ordinary green clothes, a "
-    "clover field or a rainbow alone, or a single red heart are NOT. Thanksgiving is fine. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
+    "clover field or a rainbow alone, or a single red heart or a heart used as a show's logo or title card are NOT. Thanksgiving is fine. \"birthday\" is only candles on a cake (lit, or being blown out): a party, balloons, "
     "presents or a cake with no candles are fine. \"dark magic\" is witchcraft, wizards or "
     "witches doing magic, curses, occult rituals, summoning, seances, Ouija boards, voodoo and "
     "fortune telling; \"magic\" is any other magic being done (spells, wands, glowing magic, "

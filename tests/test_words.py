@@ -793,5 +793,18 @@ class Blasted(unittest.TestCase):
             self.assertFalse(any("blast" in w for w, _ in found(text)), text)
 
 
+
+class GayRound(unittest.TestCase):
+    """"gay" meaning happy before a word like "round" (1.18.94, I Love Lucy: "this is an old
+    show so gay means happy"); in test_lucy_lessons.py too, here for the CleanListen check."""
+    def test_left_alone(self):
+        for text in ("Your life should be just one gay round of nightclubs.",
+                     "We had a gay old time at the fair", "everyone was in gay spirits"):
+            self.assertEqual(found(text), [], text)
+
+    def test_still_muted(self):
+        self.assertEqual([w for w, _ in found("a gay couple moved in")], ["gay"])
+
+
 if __name__ == "__main__":
     unittest.main()

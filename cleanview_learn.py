@@ -207,6 +207,29 @@ def video_key(path):
     return norm(Path(str(path or "")).stem) if path else ""
 
 
+def _cartoon_place(key, path):
+    """Where "is it a cartoon?" is kept: the show (every age), or for a movie the file."""
+    base = (key or "_movies").partition("@")[0]
+    return base, (video_key(path) if base == "_movies" else "")
+
+
+def animated(key, path=None):
+    """What she said about this show or movie being a cartoon: True, False, or None."""
+    base, vid = _cartoon_place(key, path)
+    d = load(base)
+    return d.get("animated_videos", {}).get(vid) if vid else d.get("animated")
+
+
+def set_animated(key, path, value):
+    base, vid = _cartoon_place(key, path)
+    d = load(base)
+    if vid:
+        d.setdefault("animated_videos", {})[vid] = bool(value)
+    elif base != "_movies":
+        d["animated"] = bool(value)
+    save(base, d)
+
+
 def _kinds(sc):
     if sc.get("kinds"):                 # as remembered
         return set(sc["kinds"])

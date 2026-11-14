@@ -342,6 +342,44 @@ class Clip:
         return out
 
 
+# Cartoon or live action (1.18.94; the owner, 2026-11-14: "can we teach when something is
+# animated", then "build it"). Monsters University was cut for three "Christmas" scenes, a "St.
+# Patrick's Day", "magic" for a glowing creature and four gunfire-like sound effects. A few
+# stills of the whole video are asked which of these they look like; the descriptions aren't
+# part of clip_prompts, so saved picture scans stay good.
+CARTOON_TEXTS = ["an animated cartoon", "a hand-drawn cartoon", "a 3D computer-animated movie",
+                 "an anime scene", "cartoon characters"]
+LIVE_TEXTS = ["a live-action film with real actors", "real people in a real place",
+              "a live-action TV show", "a photograph of real people"]
+
+
+def cartoon_scores(clip, ort, frames):
+    """How much each frame (an RGB array) looks animated rather than live action, 0..1."""
+    texts = [f"a movie still of {t}" for t in CARTOON_TEXTS + LIVE_TEXTS]
+    emb = clip._text_embeds(ort, texts, ort.SessionOptions())
+    n_cartoon = len(CARTOON_TEXTS)
+    out = []
+    for rgb in frames:
+        crops = np.stack(clip_crops(rgb)).astype(np.float32)
+        e = clip.vis.run([clip.vout], {clip.vin: crops})[0]
+        e = e / np.linalg.norm(e, axis=1, keepdims=True)
+        lg = 100.0 * e @ emb.T
+        p = np.exp(lg - lg.max(axis=1, keepdims=True))
+        p /= p.sum(axis=1, keepdims=True)
+        out.append(round(float(p[:, :n_cartoon].sum(axis=1).mean()), 3))
+    return out
+
+
+# Told to the closer look when the video is a cartoon
+CARTOON_NOTE = (" These frames are from an animated cartoon. Bright colours, coloured lights, "
+                "glowing things and fantasy creatures are everyday sights in cartoons, so only "
+                "answer yes when what is asked about is clearly there: for a holiday, its own "
+                "signs (a Christmas tree, Santa, presents or stockings; a leprechaun, shamrocks "
+                "or a pot of gold; a jack-o'-lantern or trick-or-treaters); for magic, a spell, "
+                "a wand or magic clearly being cast, not a creature or object that simply "
+                "glows. Cartoon fighting and slapstick still count as fighting.")
+
+
 # ---------------------------------------------------------------------------
 # Turning CLIP scores into candidate scenes
 # ---------------------------------------------------------------------------
@@ -872,7 +910,9 @@ LOOK = {
     "birthday": ("Question: are there candles on a cake (lit, or someone blowing them out)? A "
                  "birthday party, balloons, presents or a cake with no candles is NOT.", _YES),
     "valentine": ("Question: is something about Valentine's Day shown: valentine cards, "
-                  "Cupid, or hearts used as Valentine decorations?", _YES),
+                  "Cupid, or hearts used as Valentine decorations? A heart shape on its own (a "
+                  "logo, a title card or opening credits, a pattern on fabric, a wall or a "
+                  "pillow) is NOT.", _YES),
     "easter": ("Question: is something about Easter shown: the Easter bunny, an Easter egg "
                "hunt, decorated Easter eggs or Easter baskets? An ordinary rabbit or egg, or a cartoon "
                "rabbit with no basket, eggs or other Easter signs (Bambi's Thumper), is NOT.",
@@ -926,11 +966,12 @@ def family_said(notes):
             " ".join(f"- {t.strip()}" for t in notes[:20]))
 
 
-def second_look(cands, frames_for, progress=None, cancel=None, notes=None):
+def second_look(cands, frames_for, progress=None, cancel=None, notes=None, cartoon=False):
     """Ask the local model about each candidate. Adds "verdict" to each:
     {"keep": bool, "who": "mf|mm|ff|?", "level": "light|passionate|?", "what": str}.
-    notes: what they told the chat to keep in mind (followed here too)."""
-    said = family_said(notes)
+    notes: what they told the chat to keep in mind (followed here too). cartoon: the video
+    is animated (CARTOON_NOTE)."""
+    said = family_said(notes) + (CARTOON_NOTE if cartoon else "")
     for n, c in enumerate(cands):
         if cancel and cancel():
             raise KeyboardInterrupt
