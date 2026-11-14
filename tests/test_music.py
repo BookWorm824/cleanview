@@ -132,11 +132,13 @@ class TurningItDown(unittest.TestCase):
         seg = self.sound[int(a * SR):int(b * SR)]
         return float(np.sqrt(np.mean(seg ** 2)))
 
-    def test_turned_down_to_a_quarter(self):
+    def test_turned_down_to_a_tenth(self):
+        # a tenth since 1.18.99 (a quarter before; the owner: "that needs to come down more")
+        self.assertEqual(engine.MUSIC_LEVEL, 0.1)
         full = self.loud(0.5, 1.5)
         self.assertGreater(full, 0.05)
-        self.assertAlmostEqual(self.loud(2.7, 3.8) / full, 0.25, delta=0.03)
-        self.assertAlmostEqual(self.loud(5.0, 5.4) / full, 0.25, delta=0.03)
+        self.assertAlmostEqual(self.loud(2.7, 3.8) / full, 0.1, delta=0.02)
+        self.assertAlmostEqual(self.loud(5.0, 5.4) / full, 0.1, delta=0.02)
 
     def test_eases_in_and_back_up(self):
         full = self.loud(0.5, 1.5)

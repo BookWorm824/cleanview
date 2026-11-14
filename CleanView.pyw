@@ -3690,7 +3690,7 @@ class App(tk.Tk):
         card = self._round_card(parent)
         tk.Label(card, text="Loud music to turn down", bg=CARD, fg=INK,
                  font=(HEAD, 11)).pack(anchor="w")
-        tk.Label(card, text="Ticked music plays at a quarter of its volume, only where nobody is "
+        tk.Label(card, text="Ticked music plays at a tenth of its volume, only where nobody is "
                  "talking. Use Preview to listen, and untick anything that's fine.", bg=CARD,
                  fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(
             anchor="w", pady=(0, 4))

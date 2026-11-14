@@ -347,6 +347,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Loud music is turned down more (1.18.99, 2026-11-14; the owner: "on the reducing loud music -
+  that needs to come down more"): `MUSIC_LEVEL` 0.1, a tenth of its volume (20 dB quieter),
+  was 0.25 (12 dB); the review page's music card says "a tenth".
+- The green bar shows real overall progress (1.18.99, 2026-11-14; the owner, through the
+  CleanView Play chat: "the green bar when you are cleaning jumps to about two thirds on the
+  early steps being finish but then it takes the whole rest of the video like 45 mins to finish
+  the rest"). The steps had set shares (listening 35, sound 8, picture 45, closer look 8, the AI
+  helper's reading 12, the cloud's look 15, the end 3), so on her laptop the bar was at 73% when
+  the picture scan ended, with the closer look, voices and the reading (most of the time) to
+  come. `lay_out` now gives each step its share of the time it's expected to take
+  (`bar_shares`, `step_secs`): this PC's remembered speed (`step_pace.json`, as the time left
+  uses; "lines+local+talk" when each conversation is read too, falling back to "lines+local"),
+  else `STEP_PACE` (seconds per second of video, from her laptop's reports: Castle S2E6 47 min,
+  Aladdin 78, Poldark 104). Work saved from before (what was heard, the sounds, the picture
+  scan, the speakers) or done alongside the listening (the sound check) gets `BAR_SAVED`; every
+  other step that runs at least `BAR_LEAST`. It's laid out once it's known what was saved, and
+  again from "Finding language" on if the AI helper didn't start. Telling voices apart has its
+  own part ("voices", before the reading); it says nothing while it works, so it runs in the
+  background and the bar moves by the time it's expected to take (up to 90% of its part), and
+  it's timed for next time. On her laptop's figures the picture scan now ends at about a
+  quarter of the bar and the reading is about half of it. The time left needed no change: its
+  fallback, the speed the bar moved at, now matches the time too.
 - Lauren's Aladdin report (1.18.98, 2026-11-14, kids, the AI helper, made on 1.18.94; a cartoon,
   told right). The four "hell"s muted were the Genie saying "Al" ("Al, you won", "Al, you
   little genius", "Al, you're not gonna find another girl", "Me, too, Al"): the subtitles say
@@ -1523,6 +1545,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_progress_bar.py`: the slow steps get most of the bar (her laptop's figures: the
+  picture done at about a quarter, the reading about half), in order and full, this PC's own
+  speeds winning, saved work a sliver, every step that runs showing, laid out again from where
+  it is, voices timed for next time; a whole scan with stand-ins: voices moving while they're
+  told apart, the bar only going forward (also without the AI helper), failed voices said.
 - `test_aladdin.py`: "Al" heard as "hell" offered unticked once the subtitles write "Al" as a
   name somewhere (also at a sentence's start), a real "hell" still muted, an ordinary other
   word only noted; the two lessons muted for Kids and Young kids with their filters, not for

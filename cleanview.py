@@ -3392,6 +3392,49 @@ def in_background(work):
 PACE_FILE = ai.APP_DATA / "step_pace.json"
 PACE_MIN_SECS = 10          # a step quicker than this was mostly saved work: not remembered
 
+# How much of the progress bar each step gets (1.18.99; the owner, through CleanView Play: "the
+# green bar when you are cleaning jumps to about two thirds on the early steps being finish but
+# then it takes the whole rest of the video like 45 mins to finish the rest"). It had set
+# shares (listening 35, picture 45, the AI helper's reading 12...), so on her laptop the bar
+# was at 73% when the picture scan ended, with the closer look, voices and the reading (most
+# of the time) still to come. Now each step's share is the time it's expected to take: how
+# long it took on this PC last time (`step_pace.json`), else these, in seconds for each second
+# of video, from her laptop's reports with the AI helper on (Castle S2E6 47 min, Aladdin 78,
+# Poldark 104: listening 0.1, picture 0.12-0.22, closer look 0.1-0.5, voices 0.08-0.13,
+# reading 0.35-0.5 and each conversation 0.25 more).
+STEP_PACE = {"asr": 0.1, "snd": 0.03, "lang": 0.01, "vis": 0.08, "vis+ai": 0.15,
+             "look": 0.15, "voices": 0.09, "lines+local": 0.35, "lines+local+talk": 0.62,
+             "lines": 0.04, "pics": 0.15, "end": 0.01, "end+cloud": 0.04}
+BAR_LEAST = 0.01            # a step that's done gets at least this share of the bar
+BAR_SAVED = 0.002           # ...and one saved from before (or done alongside another) this
+
+
+def step_secs(key, dur, pace=None):
+    """Seconds a step is expected to take on this video: this PC's remembered speed for it
+    ("lines+local+talk", else "lines+local"), else a typical laptop's (`STEP_PACE`)."""
+    parts = key.split("+")
+    names = ["+".join(parts[:n]) for n in range(len(parts), 0, -1)]
+    for table in (pace or {}, STEP_PACE):
+        for k in names:
+            if table.get(k):
+                return table[k] * (dur or 1.0)
+    return 0.05 * (dur or 1.0)
+
+
+def bar_shares(order, secs, saved=(), start=0.0):
+    """step -> (where it starts on the bar, how wide it is), each step's width its share of
+    the expected time from `start` on; steps expected to take no time get none."""
+    on = [k for k in order if secs.get(k)]
+    tot = sum(secs[k] for k in on if k not in saved) or 1.0
+    widths = {k: (BAR_SAVED if k in saved else max(BAR_LEAST, secs[k] / tot)) for k in on}
+    scale = (1.0 - start) / (sum(widths.values()) or 1.0)
+    out, acc = {}, start
+    for k in order:
+        w = widths.get(k, 0.0) * scale
+        out[k] = (acc, w)
+        acc += w
+    return out
+
 
 def load_pace():
     try:
@@ -4083,28 +4126,32 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
     base = {}
 
-    def lay_out():
+    def lay_out(saved=(), keep_before=None):
         """How much of the progress bar each step gets, in the order they happen ("Finding
-        language" has its own small part now: it showed 97% and then went back, 1.18.54)."""
-        look_step = ("look", 0.08 if local_look else 0)
-        vis_step = ("vis", (0.45 if use_clip else 0.3) if (nd["nudenet"] or use_clip) else 0)
-        lines_step = ("lines", 0.12 if (have_ai and nd["lines"]) else 0)
-        steps = [("asr", 0.35), ("snd", 0.08 if nd["sound"] else 0), ("lang", 0.01)]
-        if together:
-            steps += [vis_step, lines_step, look_step]
-        else:
-            steps += [vis_step, look_step, lines_step]
-        steps += [("pics", 0.15 if cloud_look else 0), ("end", 0.03)]
-        tot = sum(w for _, w in steps)
-        acc = 0.0
-        for k, w in steps:
-            base[k] = (acc / tot, w / tot)
-            acc += w
-        time_left.base = dict(base)
+        language" has its own small part: it showed 97% and then went back, 1.18.54): its
+        share of the time it's expected to take (1.18.99, `bar_shares`). saved: steps done
+        from before, which only get a sliver. keep_before: lay out only that step and the
+        ones after it, from where it starts now (the bar never goes back)."""
         reader = o.get("reader") if o.get("reader") in CLOUD else "local"
-        time_left.keys = {"vis": "vis+ai" if use_clip else "vis", "lines": f"lines+{reader}",
-                          "pics": f"pics+{reader}"}
-    lay_out()
+        talk = reader == "local" and have_ai and o["samesex"]
+        keys = {"vis": "vis+ai" if use_clip else "vis",
+                "lines": f"lines+{reader}" + ("+talk" if talk else ""),
+                "pics": f"pics+{reader}", "end": "end" if reader == "local" else "end+cloud"}
+        on = {"asr": True, "snd": nd["sound"], "lang": True, "vis": nd["nudenet"] or use_clip,
+              "look": local_look, "voices": (have_ai or reader != "local") and nd["lines"],
+              "lines": (have_ai or reader != "local") and nd["lines"], "pics": cloud_look,
+              "end": True}
+        order = ["asr", "snd", "lang", "vis"]
+        order += (["voices", "lines", "look"] if together else ["look", "voices", "lines"])
+        order += ["pics", "end"]
+        start = 0.0
+        if keep_before:
+            start = base[keep_before][0]
+            order = order[order.index(keep_before):]
+        secs = {k: step_secs(keys.get(k, k), dur, time_left.pace) for k in order if on[k]}
+        base.update(bar_shares(order, secs, saved, start))
+        time_left.base = dict(base)
+        time_left.keys = dict(keys)
 
     def at(step, frac):
         b, w = base[step]
@@ -4143,7 +4190,14 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             vis = None
         elif use_clip and vis["clip"].get("sig") != ai.clip_signature():
             vis = None           # saved before the picture AI's descriptions changed: again
-    en_model = model_dir            # English's own listening model (used again below)
+    # the bar, now that it's known what was saved from before (a step done alongside the
+    # listening, the sound check, only shows if the listening ends first)
+    was_saved = {k for k, done in (("asr", tfile.exists()),
+                                   ("snd", snd is not None or snd_job is not None),
+                                   ("vis", vis is not None),
+                                   ("voices", (work / "speakers.json").exists())) if done}
+    lay_out(saved=was_saved)
+    en_model = model_dir           # English's own listening model (used again below)
     if tfile.exists():
         asr = json.loads(tfile.read_text())
     else:
@@ -4220,6 +4274,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         wait_for(ai_job, None, cancel)
         have_ai = ai_up.get("ok", False)
         local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
+        if not have_ai:                 # the AI helper didn't start: its steps take no time
+            lay_out(saved=was_saved, keep_before="lang")
 
     # language and subtitles now, before the picture (they need only what was heard); their
     # notes still go after the picture's, as before
@@ -4436,9 +4492,20 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         cc.use(o["reader"])
     who = cc.name()
     if voices_wanted:
-        say(at("lines", 0), "Telling voices apart…")
+        # it says nothing while it works, so the bar moves by the time it's expected to take
+        # (up to 90%) and the time left follows; done, it's timed for next time (1.18.99)
+        expect, v_t0, heard = step_secs("voices", dur, time_left.pace), clock(), {}
+
+        def voices_bar(f=0.0, n=""):
+            f = at("voices", min(0.9, (clock() - v_t0) / max(1.0, expect)))
+            say(f, f"Telling voices apart · {eta(f)}")
+        voices_bar()
         try:
-            genders = name_voices(lines, find_voices(path, info, work, lines, cancel))
+            v_job = in_background(lambda progress: heard.update(
+                v=find_voices(path, info, work, lines, cancel)))
+            wait_for(v_job, voices_bar, cancel)
+            eta(at("voices", 0.999))
+            genders = name_voices(lines, heard["v"])
             known = sum(1 for v in genders if v["g"] != "?")
             spk = len({v["spk"] for v in genders if v["spk"]})
             notes.append(f"Voices: {spk} speakers told apart; man/woman/child guessed for "
@@ -4848,7 +4915,10 @@ def _remove(path):
         pass
 
 
-MUSIC_LEVEL = 0.25    # turned-down music plays at a quarter of its volume (12 dB quieter)
+# Turned-down music plays at a tenth of its volume (20 dB quieter). It was a quarter (12 dB)
+# until 1.18.99 (the owner, 2026-11-14: "on the reducing loud music - that needs to come down
+# more").
+MUSIC_LEVEL = 0.1
 
 
 def _quieter(rs, level=MUSIC_LEVEL, ramp=0.5):

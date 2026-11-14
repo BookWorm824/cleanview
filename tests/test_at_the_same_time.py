@@ -140,8 +140,9 @@ class Voices(unittest.TestCase):
         # 1.18.54: it slowed the closer look so much its checks timed out (test_overlap)
         src = inspect.getsource(engine.analyze)
         self.assertNotIn("ai.on_graphics_card()", src)
-        self.assertIn("genders = name_voices(lines, find_voices(path, info, work, lines, cancel))",
-                      src)
+        # 1.18.99: in a thread only so the bar can move, and waited for right there
+        self.assertIn("v=find_voices(path, info, work, lines, cancel)))\n"
+                      "            wait_for(v_job, voices_bar, cancel)", src)
 
 
 class EveryCheckDone(unittest.TestCase):
