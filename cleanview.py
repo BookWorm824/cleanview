@@ -663,6 +663,9 @@ def guess_title(path):
     m = (re.search(r"\b[Ss](\d{1,2})\s*[Ee](\d{1,3})\b", stem)
          # "Poldark S1 Ep. 1" (Lauren, 2026-11-14: "couldn't tell which episode", so no subtitles)
          or re.search(r"(?i)\bs(\d{1,2})\W{0,3}(?:episode|ep)\W{0,3}(\d{1,3})\b", stem)
+         # "Person of Interest S1 - (1)": the season, then the episode in brackets (Lauren,
+         # 2026-11-14: "couldn't tell which episode", learned under movies)
+         or re.search(r"(?i)\b(?:s|season\s*)(\d{1,2})\s*-?\s*[\(\[]\s*(\d{1,3})\s*[\)\]]", stem)
          or re.search(r"(?i)\b(?:season|series)\s*(\d{1,2})\W{0,3}(?:episode|ep)\.?\s*(\d{1,3})\b",
                       stem)
          or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem)

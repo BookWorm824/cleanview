@@ -347,6 +347,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Person of Interest S1 report (1.18.101, 2026-11-14, adults, the AI helper, made on
+  1.18.100; passed on by the CleanListen chat): "Person of Interest S1 - (1).wmv" got "No
+  subtitles: couldn't tell which episode this is from its name" and was learned under movies.
+  `guess_title` now reads the season then the episode in brackets ("S1 - (1)", "S2 (3)",
+  "S1 - [5]", "Season 2 - (6)") as season and episode; a year or a size in brackets ("(2009)",
+  "[720p]") isn't an episode. None of the 125 past video names here read differently. Her two
+  kiss cuts (0:10-0:19 through the opening narration, 19:10-19:35 over the whole "ask me to
+  stay" flashback) were confirmed by the AI helper's closer look; not seen here, put to her.
 - The videos chosen are shown bigger (1.18.100, 2026-11-14; the owner: "in the choose file
   area, after choosing a file the name of the file chosen goes in the area, can the text be a
   couple sizes bigger and bolder a little"): step 1's line under "Choose files…" (how many,
@@ -1550,6 +1558,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_poi_names.py`: "<show> S1 - (1)" names read as season and episode, learned under the
+  show; years and sizes in brackets not episodes; the names that worked still do.
 - `test_chosen_bigger.py`: the chosen videos' line in Semibold 12, "Nothing chosen yet" as before.
 - `test_progress_bar.py`: the slow steps get most of the bar (her laptop's figures: the
   picture done at about a quarter, the reading about half), in order and full, this PC's own
