@@ -661,6 +661,8 @@ def guess_title(path):
     parent, grand = p.parent.name, p.parent.parent.name
     season = episode = None
     m = (re.search(r"\b[Ss](\d{1,2})\s*[Ee](\d{1,3})\b", stem)
+         # "Poldark S1 Ep. 1" (Lauren, 2026-11-14: "couldn't tell which episode", so no subtitles)
+         or re.search(r"(?i)\bs(\d{1,2})\W{0,3}(?:episode|ep)\W{0,3}(\d{1,3})\b", stem)
          or re.search(r"(?i)\b(?:season|series)\s*(\d{1,2})\W{0,3}(?:episode|ep)\.?\s*(\d{1,3})\b",
                       stem)
          or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem)

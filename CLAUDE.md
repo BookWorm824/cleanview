@@ -347,6 +347,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Poldark S1E1 report (1.18.92, 2026-11-14, kids, the AI helper, made on 1.18.89; the
+  owner: "Yes, check it"). "Poldark S1 Ep. 1.mp4" got "No subtitles: couldn't tell which
+  episode this is from its name": `guess_title` knew S01E01, "Season 1 Ep. 3" and "1 - Ep. 1",
+  not "S1 Ep. 1", so nothing checked what was heard ("he's very full of himself" was heard as
+  "very fool of himself" and "fool" was muted) and the review was learned under movies. Now
+  "<show> S1 Ep. 1" / "S2 - Ep. 4" / "s3 episode 7" are season and episode. Every other listed
+  word was right (damn twice, "why the hell", "blasted brat", Good God, God knows, In God's
+  name); her untick of "Picking up brats" (Prudie about Demelza) is her choice, not taught;
+  "blasted" itself is on no list. The local picture and sound checks found only a "Dark magic"
+  scene at 31:34 (tarot cards; the dialogue there is the wedding's card game and cock fight)
+  and none of what the dialogue points to: the opening battle (~1:15-1:50), the cock fight at
+  the wedding ("Let the fight commence!" 29:08, ~31:30-32:00), the boys beating Demelza's dog
+  at the market (~36:56-37:11), the Carnes' fight at Nampara and the miners' brawl
+  (~49:42-52:14), Ross and Elizabeth's farewell kiss (~1:53). Not seen here (no video), so not
+  taught (weak spot 2).
 - The language picked is checked against what was heard (1.18.91, 2026-11-14; the owner
   cleaned Monsters University set to Spanish "to see what it did", then "switch and say so").
   On 1.18.89 the model for other languages heard its English word for word, the Spanish lists
@@ -1382,6 +1397,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_poldark.py`: "<show> S1 Ep. 1" names (with or without the dot, a dash, "episode",
+  underscores) read as season and episode, the names that worked still do, disc names still
+  can't be told, learned under the show.
 - `test_language_switch.py`: Spanish picked and English heard cleaned as English (listened to
   again with English's model, its words muted, the note, subtitles looked for again in English
   after the first look), French picked and Spanish heard, the note not technical, cleaned again
