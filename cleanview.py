@@ -1263,7 +1263,8 @@ def scan_step(message):
 # Notes that say something wasn't checked or went wrong are about the video and stay.
 TECHNICAL_NOTES = re.compile(
     r"Checked with: |The AI helper used |Voices: \d|The AI helper took a closer look at |"
-    r"Nudity check: |Dialogue was checked with |Took (under a minute|\d+ min)|"
+    r"Nudity check: |Dialogue was checked with |Took (under a minute|\d+ min)|Who's who"
+    r", from the whole dialogue: |"
     r"(The AI|\S+) looked through the whole picture \(")
 TECHNICAL_HEAD = "For CleanView's maker, to look into a problem (how this video was checked):"
 
@@ -2029,10 +2030,28 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"(boner|sex) pills?|aphrodisiacs?|spanish fly|"
                          # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
                          # quickie divorce" (a learned line she kept)
-                         r"thanks for the quickie)\b", re.I),
+                         r"thanks for the quickie|"
+                         # Castle S2E6 (1.18.95, the owner: "1 and 2"): "That is the sexiest
+                         # thing I ever heard you say" went through ("sexy" was muted)
+                         r"sexy|sexier|sexiest)\b", re.I),
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
-                         r"on (him|her|me|you)|booty call|friends with benefits|"
+                         r"on (him|her|me|you)"
+                         # Castle S2E6 (1.18.95): "I'm not sleeping with her", "He was one of
+                         # my lovers". "her" can start "her teddy bear": only when no other
+                         # word follows, or a small one (now, again, anymore...)
+                         r"|sleeping with (him|me|you|them|someone|somebody|anyone|anybody)"
+                         r"|sleeping with her(?![ \t]+(?!(?:now|again|anymore|too|then|and|or|"
+                         r"but|because|since|when|while|tonight|yet|either)\b)[a-z])"
+                         r"|sleeping with (?:his|her|my|your|their) (?:boss|husband|wife|ex|"
+                         r"sister|brother|best friend|friend|partner|secretary|assistant|"
+                         r"neighbou?r|co-?worker|student|teacher|therapist|patient|intern)s?\b"
+                         r"|sleeping with a married (?:man|woman)"
+                         # before a name ("sleeping with Sara", "with Jude now?"): only the
+                         # words are muted, not the name
+                         r"|sleeping with(?= (?-i:[A-Z][a-z]+)\b)"
+                         r"|(?:my|his|her|your|their|our|secret) lovers?(?! of\b)"
+                         r"|booty call|friends with benefits|"
                          # Castle S1E5 (Lauren, 2026-11-09): "How long was the affair?", "They
                          # end an affair because they're scared". One affair, not "affairs"
                          # (Internal Affairs, foreign affairs); not "none of your affair" (your
@@ -3358,6 +3377,59 @@ def save_pace(new):
         pass
 
 
+class WorkClock:
+    """time.time() without the time the scan stood still (1.18.95; the owner, 2026-11-14: "when
+    coming back from pause it said like 4.5 hours but only took 30").
+
+    Pause freezes the video's worker process from the window (`PAUSE`), so the worker can't be
+    told; its clock just jumps by the paused minutes when it's let go, and the step being done
+    looked that much slower (also in "Took N min" and the speeds remembered for next time). A
+    helper thread notes the time every `tick` seconds; a gap of more than `GAP` seconds is
+    time frozen (or the PC asleep) and is left out. Pausing in this same process
+    (`PAUSE.paused_for()`) is left out too."""
+
+    GAP = 10.0
+
+    def __init__(self, tick=1.0, wall=time.time, paused=None):
+        self.tick, self.wall = tick, wall
+        self.paused = paused if paused is not None else (lambda: PAUSE.paused_for())
+        self.lost, self.last = 0.0, wall()
+        self._lock = threading.Lock()
+        self._p0 = paused() if paused is not None else 0.0   # PAUSE starts at 0 (made later)
+        self._thread = None
+
+    def _gap(self, now):
+        gap = now - self.last
+        return gap - self.tick if gap > self.GAP else 0.0
+
+    def note(self):
+        """One tick: called by the helper thread (and by tests)."""
+        with self._lock:
+            now = self.wall()
+            self.lost += self._gap(now)
+            self.last = now
+
+    def start(self):
+        """Starts its helper thread once (one clock serves every scan in this process)."""
+        with self._lock:
+            if self._thread is None:
+                def run():
+                    while True:
+                        time.sleep(self.tick)
+                        self.note()
+                self._thread = threading.Thread(target=run, daemon=True, name="work-clock")
+                self._thread.start()
+        return self
+
+    def __call__(self):
+        with self._lock:
+            now = self.wall()       # a gap the helper hasn't noted yet counts already
+            return now - self.lost - self._gap(now) - (self.paused() - self._p0)
+
+
+WORK_CLOCK = WorkClock()
+
+
 class TimeLeft:
     """The time left on a scan (the owner, 2026-11-13: "the green progress bar works correctly
     but the timer doesnt. it said 1 minute remaining and it been working for 20").
@@ -3581,9 +3653,10 @@ def find_voices(path, info, work, lines, cancel=None):
 
 
 def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, claude_found=None,
-               examples=None, unread=()):
+               examples=None, unread=(), people=None):
     """unread: (first, end) line numbers of parts Claude couldn't read: the AI on this PC
-    reads just those (the word lists always read everything)."""
+    reads just those (the word lists always read everything). people: who's a man and who's
+    a woman ({name: "man"}), told to the AI on this PC beside the lines it reads."""
     wanted = [k for k in LINE_KINDS if o[k]]
     if not wanted or not lines:
         return [], ""
@@ -3596,7 +3669,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                 try:
                     part = ai.classify_dialogue(lines[a:b], wanted, None, cancel,
                                                 genders=genders[a:b] if genders else None,
-                                                examples=examples)
+                                                examples=examples, people=people)
                 except KeyboardInterrupt:
                     raise
                 except Exception:
@@ -3610,7 +3683,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
         try:
             found = ai.classify_dialogue(
                 lines, wanted, progress and (lambda f, n="": progress(share * f, n)), cancel,
-                genders=genders, examples=examples)
+                genders=genders, examples=examples, people=people)
             how = "the AI helper"
         except KeyboardInterrupt:
             raise
@@ -3721,7 +3794,8 @@ LIST_WORDS_ONLY = ("sexref", "casual")
 # -> "affair" (the chat muted just those)
 LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b)"
                             r"|(?:the|his|her|their|love|secret|torrid|illicit|sordid|extramarital) "
-                            r"(?=affair\b))|(?<=\baffair) with$")
+                            r"(?=affair\b)|(?:my|his|her|your|their|our|secret) (?=lovers?\b))"
+                            r"|(?<=\baffair) with$")
 
 
 def list_words_only(st):
@@ -3926,12 +4000,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                    # which picture-checker runtime did the scan (1.18.69: the laptop's first
                    # report after the switch couldn't say whether it had switched)
                    "picture_runtime": _ort_installed()}}
-    took, now_step = {}, {"step": "getting ready", "t": time.time()}
+    clock = WORK_CLOCK.start()       # paused time left out (1.18.95)
+    took, now_step = {}, {"step": "getting ready", "t": clock()}
 
     def say(f, m):
         step = scan_step(m)
         if step != now_step["step"]:
-            t = time.time()
+            t = clock()
             took[now_step["step"]] = took.get(now_step["step"], 0.0) + t - now_step["t"]
             now_step.update(step=step, t=t)
         say_out(f, m)
@@ -3956,7 +4031,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     have_ai = nd["ai"]          # until it's known (laying out the progress bar)
     notes = []
 
-    time_left = TimeLeft(dur, load_pace())     # each step timed by itself (1.18.82)
+    time_left = TimeLeft(dur, load_pace(), clock=clock)   # each step timed by itself (1.18.82)
     eta = time_left.say
 
     local_look, cloud_look, together = closer_looks(o, have_ai, use_clip)
@@ -4357,11 +4432,19 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # reading is the whole step (it stopped at 60% of it, which threw the time left off)
     talk_too = bool(have_ai and o["samesex"] and lines and claude_found is None)
     read_part = 0.6 if talk_too else 1.0
+    people = {}
+    if have_ai and o["samesex"] and lines and (claude_found is None or unread):
+        # who's a man and who's a woman, from the whole dialogue (1.18.95): the readers see
+        # 25 lines or one conversation at a time, and names don't say it
+        say(at("lines", 0), f"Working out who's who · {eta(at('lines', 0))}")
+        people = ai.who_is_who(lines, genders, cancel)
+        if people:
+            notes.append(ai.who_note(people))
     line_mutes, line_how = find_lines(
         lines, o, have_ai and (claude_found is None or bool(unread)),
         lambda f, n="": say(at("lines", read_part * f),
                             f"Reading the dialogue{also(n)} · {eta(at('lines', read_part * f))}"),
-        cancel, genders, claude_found, examples, unread)
+        cancel, genders, claude_found, examples, unread, people)
     if have_ai and (claude_found is None or unread):
         scan["pc"]["dialogue_model_on_card"] = ai.on_card_share(ai.TEXT_MODEL)
     flirts = []
@@ -4375,7 +4458,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             lambda f, n="": say(at("lines", 0.6 + 0.4 * f), f"Reading each conversation{also(n)}"
                                                            f" · {eta(at('lines', 0.6 + 0.4 * f))}"),
             cancel,
-            notes=told)
+            notes=told, people=people)
     if nd["lines"] and line_how == "word lists":
         # no AI read it (Enchanted): say plainly that most dialogue filters barely ran
         notes.append("No AI read the dialogue, so the dialogue choices (jokes, bullying, "
@@ -4525,7 +4608,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
             notes.append(f"{THE_AI}'s final review didn't work this time ({str(ex)[:80]}).")
     make_thumbs(path, st["scenes"], work)
     say(1.0, "Done.")
-    took[now_step["step"]] = took.get(now_step["step"], 0.0) + time.time() - now_step["t"]
+    took[now_step["step"]] = took.get(now_step["step"], 0.0) + clock() - now_step["t"]
     scan["minutes"] = {k: round(v / 60, 2) for k, v in took.items()}
     save_pace(time_left.paces())       # how fast each step went here, for next time's time left
     notes.append(took_note(scan["minutes"]))

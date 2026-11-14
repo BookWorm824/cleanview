@@ -1196,7 +1196,7 @@ def dialogue_lines(cues, asr, spoken):
 
 
 def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overlap=4,
-                      genders=None, examples=None):
+                      genders=None, examples=None, people=None):
     """Returns {line_index: set(types)} for the wanted LINE_TYPES.
 
     Small local models guess a lot, so a line only counts when (1) the model
@@ -1236,7 +1236,8 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
                   "who is speaking (a name, or 'Speaker 3' when the same voice speaks again) and "
                   "whether it sounds like a man, woman or child (these can be wrong); also use "
                   "names, he/she and who is talking to whom. Here are numbered lines in "
-                  "order:\n\n" + listing + "\n\nFlag a line only if it clearly fits one of "
+                  "order:\n\n" + listing + who_here(people, listing) +
+                  "\n\nFlag a line only if it clearly fits one of "
                   "these:\n" + defs + "\n\nFor each flagged line give its number, the type, and "
                   "the exact words from that line that fit (copied word for word). If you are "
                   "not sure, do not flag it. Most of the time the list is empty. Answer in JSON "
@@ -1290,6 +1291,145 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
     if progress:
         progress(1.0)
     return found
+
+
+# ---------------------------------------------------------------------------
+# Who's a man and who's a woman (1.18.95; Lauren's Castle S2E6, 2026-11-14: "Daemon fell in
+# love with Crow" and "He was Crow's boyfriend, not mine" went through with the same-sex
+# filter on; the names don't say both are men, and the "he" that does was in another part of
+# the 25 lines read at a time). Before the dialogue is read, the people named in talk about
+# love, dating or sex are looked up across the whole dialogue (one question), and the readers
+# are told.
+# ---------------------------------------------------------------------------
+RELATION = re.compile(
+    r"\b(boy ?friends?|girl ?friends?|lovers?|in love|dat(e|es|ed|ing)|married|marry|husbands?|"
+    r"wi(fe|ves)|fianc[eé]e?|partner|ex|exes|kiss(ed|es|ing)?|crush|relationship|romance|"
+    r"romantic|flirt(s|ed|ing)?|seeing (someone|him|her|each other)|sleep(ing)? with|slept "
+    r"with|hook(ed|ing)? up|affair|broke up|break up|cheat(s|ed|ing)?)\b", re.I)
+NOT_NAMES = set("""i i'm i'll i've i'd im ill ive id god lord jesus christ mr mrs ms miss dr doc
+sir madam ma'am okay ok oh yeah yes no hey hi hello well so but and or the a an you we they he
+she it this that what why who how where when then there here please thanks thank sorry wait come
+look listen right now just mom dad mommy daddy mother father sis bro honey baby sweetie darling
+dear man guys guy girl boy uh um hmm mmm whoa wow ah huh okay alright all monday tuesday
+wednesday thursday friday saturday sunday january february march april may june july august
+september october november december christmas halloween easter thanksgiving valentine new york
+america american english detective officer captain sergeant lieutenant agent professor""".split())
+WHO_CUES = {"man": set("he him his himself mr sir man guy boy boyfriend husband son brother father "
+                       "dad daddy king prince gentleman uncle nephew grandson grandfather "
+                       "fiance".split()),
+            "woman": set("she her hers herself mrs ms miss woman girl girlfriend wife "
+                         "daughter sister mother mom mommy queen princess lady aunt niece "
+                         "granddaughter grandmother fiancee".split())}
+WHO_MOST = 8          # names asked about at most
+WHO_LINES = 120       # lines shown at most
+
+
+def _names_in(text):
+    """Capitalised words that may be names ("Crow's" -> "Crow"), not the first of a sentence."""
+    out = []
+    for m in re.finditer(r"(?:^|(?<=[\s\"'(]))([A-Z][a-z]{2,})(?:'s)?\b", text):
+        before = text[:m.start()].rstrip()
+        first = not before or before[-1] in ".!?:\"-"
+        out.append((m.group(1), first))
+    return out
+
+
+def who_candidates(lines):
+    """The names worth asking about: said mid-sentence somewhere, or twice and never written
+    small (so a name, not a sentence's first word), and in or next to a line about love,
+    dating or sex. Most said first."""
+    mid, count, small = set(), {}, set()
+    for l in lines:
+        small.update(re.findall(r"\b[a-z][a-z']+\b", l["text"]))
+        for name, first in _names_in(l["text"]):
+            if name.lower() in NOT_NAMES:
+                continue
+            count[name] = count.get(name, 0) + 1
+            if not first:
+                mid.add(name)
+    mid |= {n for n, c in count.items() if c >= 2 and n.lower() not in small}
+    near = {}
+    for i, l in enumerate(lines):
+        if RELATION.search(l["text"]):
+            for j in range(max(0, i - 1), min(len(lines), i + 2)):
+                for name, _ in _names_in(lines[j]["text"]):
+                    if name in mid:
+                        near[name] = near.get(name, 0) + (3 if j == i else 1)
+    return sorted(near, key=lambda n: (-near[n], -count[n], n))[:WHO_MOST]
+
+
+def who_is_who(lines, genders=None, cancel=None):
+    """{name: "man" | "woman"} for the people named in talk about love, dating or sex, from
+    the whole dialogue (he/she, his/her, Mr./Mrs., boyfriend/girlfriend), each with the words
+    that show it, which must be in the dialogue. {} when there's nothing to ask, in another
+    language than English, or the question fails."""
+    if not lines or cvlang.LANG != "en":
+        return {}
+    names = who_candidates(lines)
+    if not names:
+        return {}
+    genders = genders or [{}] * len(lines)
+    show = []
+    for name in names:
+        pat = re.compile(rf"\b{re.escape(name)}\b")
+        hits = [i for i, l in enumerate(lines) if pat.search(l["text"])][:6]
+        for i in hits:
+            show += range(max(0, i - 2), min(len(lines), i + 3))
+    show = sorted(set(show))[:WHO_LINES]
+    if cancel and cancel():
+        raise KeyboardInterrupt
+    listing = "\n".join(_tag(lines[i], genders[i]) + lines[i]["text"] for i in show)
+    schema = {"type": "object", "properties": {"people": {"type": "array", "items": {
+        "type": "object", "properties": {"name": {"type": "string"},
+                                         "is": {"type": "string",
+                                                "enum": ["man", "woman", "unknown"]},
+                                         "words": {"type": "string"}},
+        "required": ["name", "is", "words"]}}}, "required": ["people"]}
+    prompt = ("Here are lines from a TV show or movie, in order (a gap may come between them). "
+              "Where known, a line starts with who is speaking and whether the voice sounds "
+              "like a man, woman or child (these can be wrong).\n\n" + listing + "\n\n"
+              "For each of these names, say whether that person is a man or a woman, judging "
+              "from the dialogue: he/him/his or she/her said about them, Mr./Mrs., son/"
+              "daughter, boyfriend/girlfriend. Give the exact words from the dialogue that "
+              "show it (copied word for word). If it isn't clear, or the name isn't a person, "
+              "answer unknown.\nNames: " + ", ".join(names) + "\nAnswer in JSON like "
+              '{"people": [{"name": "Sam", "is": "man", "words": "is he in some kind of '
+              'trouble"}]}.')
+    try:
+        res = chat(prompt, schema=schema, timeout=300)
+    except Exception:
+        return {}
+    text = _letters(" ".join(lines[i]["text"] for i in show))
+    out = {}
+    for p in res.get("people", []) or []:
+        name, sex = str(p.get("name", "")).strip(), p.get("is")
+        words = _letters(str(p.get("words", "")))
+        if name in names and sex in ("man", "woman") and len(words) >= 3 and words in text:
+            # the words must say it (The Resident: "Okafor belongs to me" made Dr. Okafor a
+            # man; "Ernest LeVasseur", "Ingrid, light of my life" say nothing either way)
+            said = set(words.split())
+            if said & WHO_CUES[sex] and not said & WHO_CUES["woman" if sex == "man" else "man"]:
+                out[name] = sex
+    return out
+
+
+def who_note(people):
+    """The line in the report's technical notes ({} -> "")."""
+    if not people:
+        return ""
+    return "Who's who, from the whole dialogue: " + "; ".join(
+        f"{n} is a {s}" for n, s in people.items()) + "."
+
+
+def who_here(people, text):
+    """What a reader is told beside the lines it reads: only the people named in them, as a
+    plain fact. (Worded as one of the family's rules for every name, it made the AI helper
+    answer "no" for the very conversation it was meant to help, Castle S2E6.)"""
+    named = [(n, s) for n, s in (people or {}).items() if re.search(rf"\b{re.escape(n)}\b", text)]
+    if not named:
+        return ""
+    return ("\n\nFrom the rest of the dialogue: " +
+            ", ".join(f"{n} is a {s}" for n, s in named) + ".")
 
 
 # ---------------------------------------------------------------------------
@@ -1857,7 +1997,7 @@ def sexual_talk(lines, progress=None, cancel=None):
     return found
 
 
-def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
+def romance_scenes(lines, genders, progress=None, cancel=None, notes=None, people=None):
     """Conversations where someone flirts or shows romantic or sexual interest.
     Returns [{"s", "e", "between": "mm|ff|mf|?", "what"}], each confirmed twice; "mixed"
     when it says two men or two women but a man's and a woman's voice are heard there.
@@ -1897,7 +2037,7 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
                   "starts with who is speaking (a name, or 'Speaker 3' when the same voice speaks "
                   "again) and whether it sounds like a man, woman or child (these can be wrong; "
                   "also use names, he/she, 'handsome', 'pretty' and who is talking to "
-                  "whom).\n\n" + listing + "\n\n"
+                  "whom).\n\n" + listing + who_here(people, listing) + "\n\n"
                   "Does anyone flirt or show romantic or sexual interest in someone here "
                   "(flirting, asking someone out, a romantic compliment, a pass, talk about "
                   "dating or being attracted to someone)? Friendly chat, work talk, police "
@@ -1920,14 +2060,19 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None):
         nums = [int(x) - 1 for x in a.get("lines", []) if str(x).lstrip("-").isdigit()]
         nums = [k for k in nums if 0 <= k < len(conv)]
         quote = _letters(str(a.get("quote", "")))
-        if not nums or len(quote) < 3 or not any(quote in _letters(lines[i]["text"]) for i in conv):
+        # its words may run on into the next line (1.18.95, Castle S2E6: "Daemon fell in love
+        # with Crow and his art and talked him into writing a graphic novel" is two subtitle
+        # lines, so the find was thrown away)
+        said_here = _letters(" ".join(lines[i]["text"] for i in conv))
+        if not nums or len(quote) < 3 or quote not in said_here:
             continue   # can't point to the words: a guess
         idx = [conv[k] for k in nums]
         lo, hi = max(0, min(idx) - 1), min(len(lines) - 1, max(idx) + 1)
         excerpt = "\n".join(_tag(lines[i], genders[i]) + lines[i]["text"] for i in range(lo, hi + 1))
         try:
             b = chat("Here is part of a conversation from a TV show or movie (speaker and "
-                     "voice guesses in brackets may be wrong):\n\n" + excerpt + "\n\n"
+                     "voice guesses in brackets may be wrong):\n\n" + excerpt +
+                     who_here(people, excerpt) + "\n\n"
                      "Is someone clearly flirting with, or showing romantic or sexual interest "
                      "in, someone else here? If so, is it between two men, two women, or a man "
                      "and a woman? Answer false if it's friendly, work talk, or you're unsure." +

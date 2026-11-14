@@ -347,6 +347,46 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Castle S2E6 report (1.18.95, 2026-11-14, adults, the AI helper, made on 1.18.92; the
+  owner: "yes teach", then "how can we improve to catch the first time?" and "1 and 2"). Every
+  listed word was muted; six lines that fit her filters went through, now taught for Castle
+  (each under its filter): "Daemon fell in love with Crow and his art", "He was Crow's
+  boyfriend, not mine" (two men; samesex), "He was one of my lovers" (casual), "I'm not
+  sleeping with her", "...I'm gonna show you my...", "...what happened to your pants" (sexref).
+  1. The short list (`LINE_WORDS`): casual "sleeping with him/me/you/them/someone...", "sleeping
+     with her" when no other word or only a small one follows (not "her teddy bear"), "sleeping
+     with his/her... boss/husband/intern...", "a married man/woman", "sleeping with" before a
+     capitalised name (only those words muted), "my/his/her/secret lover(s)" (just "lover(s)",
+     `LIST_WORD_TRIM`; not "lover of", "animal lovers", "Hey, lover"); sexref "sexy/sexier/
+     sexiest". In the 148 past reviews here they found 15 lines, all real ("sexy Thanksgiving",
+     "sleeping with his intern", "his lover"...). For CleanListen and CleanRead too.
+  2. Who's who (`ai.who_is_who`, before the reading when same-sex is ticked and the AI on this
+     PC reads): the names said in or next to talk about love, dating or sex (`who_candidates`:
+     capitalised, said mid-sentence or twice and never written small, not `NOT_NAMES`; at most
+     `WHO_MOST` 8) are looked up in one question with the lines around each (`WHO_LINES` 120),
+     each answer with the words that show it, which must be in the dialogue; English only. Told
+     to the line reader and each conversation as a plain fact beside the lines, only for the
+     names in them (`who_here`: "From the rest of the dialogue: Daemon is a man, Crow is a
+     man."); worded as one of the family's notes for every name it made the conversation check
+     answer "no" for that very conversation. An answer counts only when its words have a
+     matching he/his/she/her, Mr./Mrs., wife/husband... (`WHO_CUES`: "Okafor belongs to me"
+     made Dr. Okafor a man). The report's technical notes say who it found
+     (`who_note`, "Who's who, from the whole dialogue: ..."). 8-13 s here.
+  Trying it showed the conversation check had found "Daemon fell in love with Crow" (two men)
+  and thrown it away: its quote ran into the next subtitle line, and the check wanted the quote
+  inside one line. `romance_scenes` now finds the quote anywhere in the conversation. On the
+  whole episode: without who's who no same-sex find, with it the Daemon/Crow one (cut) and
+  man-and-woman flirts (not cut). The line reader (`classify_dialogue`) flagged none of the six
+  lines with or without it; the innuendo lines are where the AI on this PC is weakest (Claude
+  catches them).
+- The time left after Pause (1.18.95, 2026-11-14; the owner: "when coming back from pause it
+  said like 4.5 hours but only took 30"). Pause freezes the video's worker process, which can't
+  be told, so its clock jumped by the paused minutes on Resume: the step looked that much
+  slower in the time left, in "Took N min" (her S2E6 report's 77 minutes of reading) and in
+  the speeds remembered for next time (`step_pace.json`). `WorkClock` (`WORK_CLOCK`, one per
+  process, its helper thread notes the time every second) leaves out any gap over `GAP` (10)
+  s, frozen or the PC asleep, and pausing in its own process; analyze's `TimeLeft`, step
+  minutes and paces use it.
 - Cartoons are judged as cartoons (1.18.94, 2026-11-14; the owner: "can we teach when
   something is animated", then "build it"). From Monsters University (eight cuts, none real:
   three "Christmas", a "St. Patrick's Day", "Magic" for the glowing blurchin, four gunfire-like
@@ -1445,6 +1485,15 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_castle_s2e6.py`: its six lines taught under their filters; the short list's new
+  phrases (sleeping with..., lovers, sexy) and what they leave alone; who's who (only names in
+  love talk, only answers the dialogue shows, nothing asked when there's no one, a failed
+  question, English only), told beside the lines to both readers and in the report's notes;
+  a conversation's quote over two lines kept, made-up words still thrown away.
+- `test_pause_time_left.py`: the work clock leaves frozen time out (also before its helper
+  notices), counts a short hitch, leaves out pausing in its own process; no jump in the time
+  left after a 4-hour pause, the speed remembered without it; a real process frozen the way
+  Pause freezes a worker.
 - `test_cartoon.py`: telling a cartoon (most stills, the average, too few to tell, the
   closest live action and a real cartoon's scores), what she said winning and kept per show
   or movie, a failed check changing nothing; sound effects unticked (not with a gun said or
