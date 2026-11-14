@@ -347,6 +347,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Selena report (1.18.90, 2026-11-13, adults, the AI helper, made on 1.18.86; the
+  movie with "some english and spanish in it", cleaned as English). Every listed word muted;
+  the Spanish in its subtitles is a few friendly words ("corazón", "mi hijo", "niña") and its
+  Spanish songs aren't subtitled, so the short Spanish list (1.18.86) had nothing to catch and
+  nothing got through that can be seen. Her three chat corrections are built in as general
+  notes for everyone (her "Yes, build them in"; a "CleanView reviewed" file through
+  merge_learned.py): a parent and child singing loving words is family, not a romance (13:01,
+  Abraham singing with his daughter, cut as "Same-sex romance · two women"); a couple only
+  talking in bed isn't an intimate scene (19:19); a performer on stage isn't a sex scene, even
+  with a moan in the subtitles (1:55:08). Not fixed: two kisses labelled "Kiss · two women ·
+  passionate" (55:29, 1:14:52) look like Selena and Chris; cut anyway under her settings
+  (passionate kisses of both kinds), but the picture check's man/woman guess was wrong. It
+  took 102 min on her laptop (reading the dialogue 33, each conversation 28, closer look 12,
+  voices 10, picture 9, listening 9; 1,740 lines).
 - Auto works the language out (1.18.89, 2026-11-13; the owner: "we have a tab now to check
   different languages, but what if the person doesn't know it, would it be possible to have
   an "auto" tab", then "do auto clean"). "Auto" is the second choice in step 1's drop-down
@@ -1336,6 +1350,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_selena.py`: the three Selena notes built in and given to every video, the older ones
+  still there.
 - `test_auto_language.py`: each language told from a sentence of it (also as the model writes
   it, accents or not, Spanish from Portuguese), German, Italian and Ukrainian named as not
   cleaned yet, too little or only names not told; the sound track's labels; English first then
