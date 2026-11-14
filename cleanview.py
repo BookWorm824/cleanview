@@ -2043,9 +2043,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"|sleeping with (him|me|you|them|someone|somebody|anyone|anybody)"
                          r"|sleeping with her(?![ \t]+(?!(?:now|again|anymore|too|then|and|or|"
                          r"but|because|since|when|while|tonight|yet|either)\b)[a-z])"
-                         r"|sleeping with (?:his|her|my|your|their) (?:boss|husband|wife|ex|"
-                         r"sister|brother|best friend|friend|partner|secretary|assistant|"
-                         r"neighbou?r|co-?worker|student|teacher|therapist|patient|intern)s?\b"
+                         # with the plurals spelled out (1.18.96, from CleanListen's check:
+                         # "sleeping with their secretaries" went through)
+                         r"|sleeping with (?:his|her|my|your|their) (?:boss(?:es)?|husbands?|"
+                         r"wi(?:fe|ves)|ex(?:es)?|sisters?|brothers?|best friends?|friends?|"
+                         r"partners?|secretar(?:y|ies)|assistants?|neighbou?rs?|co-?workers?|"
+                         r"students?|teachers?|therapists?|patients?|interns?)\b"
                          r"|sleeping with a married (?:man|woman)"
                          # before a name ("sleeping with Sara", "with Jude now?"): only the
                          # words are muted, not the name
@@ -2219,6 +2222,37 @@ def flirt_scenes(flirts):
 
 VOICES_MIXED = (" (but a man's and a woman's voice are heard there, so it may be a man and a "
                 "woman; only cut if you tick it)")
+VOICES_NEAR = 2.0       # seconds before and after a picture scene whose voices are counted
+
+
+def picture_voices(scenes, lines, genders):
+    """A scene the picture checks call two women or two men (a kiss, an intimate scene, couple
+    affection) where a man's and a woman's voice are both heard is offered unticked, as the
+    dialogue's flirting finds are (1.18.96; the owner: "men with long hair. it says same sex
+    when they are with women", "if a guy with long hair says i love you it flags same sex").
+    Her own choices are left alone. Returns how many.
+
+    Only for the AI on this PC, which sees a few stills and nothing else. Claude, ChatGPT and
+    Gemini see what's said with the stills ("wife"), and in Person of Interest "Critical"
+    their right find, the wives hugging, had a man talking nearby."""
+    if not genders or not lines:
+        return 0
+    n = 0
+    for sc in scenes:
+        why = sc.get("why") or ""
+        if sc.get("by_you") or VOICES_MIXED in why:
+            continue
+        if not any(" two women" in k or " two men" in k for k in sc.get("kind", [])):
+            continue
+        near = [i for i, l in enumerate(lines)
+                if l["e"] >= sc["s"] - VOICES_NEAR and l["s"] <= sc["e"] + VOICES_NEAR]
+        if near and ai._voices_mixed(genders, min(near), max(near)):
+            sc["sure"] = False
+            if "cut" in sc:
+                sc["cut"] = False
+            sc["why"] = why + VOICES_MIXED
+            n += 1
+    return n
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
              "halloween": "Halloween", "birthday": "Birthday candles",
@@ -4522,7 +4556,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         scenes += cartoon_sound(violence_scenes(snd, cues), asr, bool(cartoon))
     if o["sex"]:
         scenes += sex_scenes(snd, cues, asr_n, asr, skin, nude)
-    scenes += decide_picture_scenes(cands, o, have_ai)
+    pictured = decide_picture_scenes(cands, o, have_ai)
+    picture_voices(pictured, lines, genders)          # long hair isn't a woman (1.18.96)
+    scenes += pictured
     scenes += flirt_scenes(flirts)
     scenes = cartoon_joined(merge_scenes(scenes))
     if have_ai:                         # done with the AI helper: free its memory now

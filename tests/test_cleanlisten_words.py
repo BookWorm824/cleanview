@@ -84,14 +84,32 @@ def phrases():
     return sorted(out)
 
 
+def in_line_list(words):
+    """The words CleanView's short line list (LINE_WORDS, sexual references and sleeping
+    around) finds in this sentence: CleanListen mutes such talk as words, CleanView in lines
+    (1.18.95: "sleeping with her", "his lover", "sexiest"; CleanListen 1.17.37 has them in
+    SEXUAL_PHRASES)."""
+    import cleanview as engine
+    text = " ".join(words)
+    starts = [m.start() for m in re.finditer(r"\S+", text)]
+    out = set()
+    for k in ("sexref", "casual"):
+        for m in engine.LINE_WORDS[k].finditer(text):
+            out |= {n for n, s in enumerate(starts) if m.start() <= s < m.end()}
+    return out
+
+
 def explained(words, cv_spans, cl_spans):
     """True if the only differences are the ones made on purpose."""
     a = {k for i, j, _ in cv_spans for k in range(i, j)}
     b = {k for i, j, _ in cl_spans for k in range(i, j)}
     extra_cl = [(i, j) for i, j, cat in cl_spans if not set(range(i, j)) <= a]
     extra_cv = [(i, j) for i, j, cat in cv_spans if not set(range(i, j)) <= b]
+    lines = in_line_list(words) if extra_cl else set()
     for i, j in extra_cl:
-        if " ".join(words[i:j]) not in CL_ONLY_SEXUAL:
+        # CleanListen may mute a little more of the same talk ("slept with her best friend",
+        # where the line list's hit is "slept with"): a hit inside its span explains it
+        if " ".join(words[i:j]) not in CL_ONLY_SEXUAL and not set(range(i, j)) & lines:
             return False
     for i, j in extra_cv:
         cl_inside = {k for k in b if i <= k < j}
@@ -102,6 +120,38 @@ def explained(words, cv_spans, cl_spans):
             continue
         return False
     return True
+
+
+class LineListExplains(unittest.TestCase):
+    """CleanListen muting words that CleanView's line list finds is on purpose."""
+
+    def spans(self, text, *found):
+        words = [w for w in (cv.norm(t) for t in text.split()) if w]
+        out = []
+        for f in found:
+            f = f.split()
+            i = next(n for n in range(len(words)) if words[n:n + len(f)] == f)
+            out.append((i, i + len(f), "sexual"))
+        return words, out
+
+    def test_explained(self):
+        for text, cl in (("Fine. But I'm not sleeping with her.", "sleeping with her"),
+                         ("He was one of my lovers.", "lovers"),
+                         ("That is the sexiest thing", "sexiest"),
+                         ("she's been sleeping with a married man", "with a married man"),
+                         ("Whispers are he's sleeping with his intern.",
+                          "sleeping with his intern"),
+                         # CleanListen's span a little longer than the line list's hit
+                         ("She slept with her best friend", "slept with her best friend"),
+                         ("sleeping with their secretaries", "sleeping with their secretaries")):
+            words, spans = self.spans(text, cl)
+            self.assertTrue(explained(words, [], spans), text)
+
+    def test_not_explained(self):
+        words, spans = self.spans("she was sleeping with her teddy bear", "sleeping with her")
+        self.assertFalse(explained(words, [], spans))
+        words, spans = self.spans("a lover of fine wine", "lover")
+        self.assertFalse(explained(words, [], spans))
 
 
 @unittest.skipUnless((CL_REPO / "cleanlisten.py").exists(), "needs the CleanListen repo")

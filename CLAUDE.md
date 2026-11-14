@@ -347,6 +347,23 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Men with long hair aren't women (1.18.96, 2026-11-14; the owner: "one thing clean view
+  struggles with is men with long hair. it says same sex when they are with women", "i mean
+  long hair in general", "if a guy with long hair says i love you it flags same sex"; Selena's
+  two kisses with Chris were "two women"). 1. Every picture check that says who is told long
+  hair alone isn't a woman, to look at the face (beard, stubble, jaw), build, chest and
+  clothes, and to answer unclear when it can't tell: `ai.WHO_HOW` on `LOOK["kiss"]` and
+  `LOOK["bed"]`, and `PIC_RULES` for Claude, ChatGPT and Gemini (which also use what's said:
+  he/she, "my boyfriend"). 2. A scene the AI on this PC calls two women or two men where a
+  man's and a woman's voice are both heard (lines within `VOICES_NEAR` 2 s) is offered
+  unticked with `VOICES_MIXED`, as the dialogue's flirting finds already were
+  (`picture_voices`, on `decide_picture_scenes`' scenes only; her own choices left alone). Not
+  for the cloud's finds: in the past reviews here it would have unticked Person of Interest
+  "Critical"'s wives hugging, found by Claude with a man talking nearby. Not tried on real
+  stills of a long-haired man (none here). Also from CleanListen's word check: the partner
+  list after "sleeping with his/her..." spells out the plurals (secretaries, wives, bosses,
+  exes...), and `test_cleanlisten_words` takes a CleanListen word mute as explained when
+  CleanView's `LINE_WORDS` finds words of it in the same sentence (`in_line_list`).
 - Lauren's Castle S2E6 report (1.18.95, 2026-11-14, adults, the AI helper, made on 1.18.92; the
   owner: "yes teach", then "how can we improve to catch the first time?" and "1 and 2"). Every
   listed word was muted; six lines that fit her filters went through, now taught for Castle
@@ -1485,6 +1502,11 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_long_hair.py`: the picture checks told long hair alone isn't a woman (the AI on this
+  PC's kiss and intimate looks, the cloud's rules); a two-women or two-men scene with a man's
+  and a woman's voice there offered unticked (also its tick), left alone otherwise (the voices
+  later, a man and a woman, her own choice, another kind, no voices, already said), only for
+  the AI on this PC's scenes.
 - `test_castle_s2e6.py`: its six lines taught under their filters; the short list's new
   phrases (sleeping with..., lovers, sexy) and what they leave alone; who's who (only names in
   love talk, only answers the dialogue shows, nothing asked when there's no one, a failed

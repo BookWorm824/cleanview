@@ -59,7 +59,12 @@ class ShortList(unittest.TestCase):
                            ("Whispers are he's sleeping with his intern.",
                             "sleeping with his intern"),
                            ("she's been sleeping with a married man", "sleeping with a married man"),
-                           ("So, you're sleeping with Jude now?", "sleeping with")):
+                           ("So, you're sleeping with Jude now?", "sleeping with"),
+                           # the plurals (1.18.96, from CleanListen's check)
+                           ("sleeping with their secretaries", "sleeping with their secretaries"),
+                           ("men sleeping with their wives", "sleeping with their wives"),
+                           ("sleeping with her bosses", "sleeping with her bosses"),
+                           ("sleeping with my exes", "sleeping with my exes")):
             self.assertEqual(finds("casual", text), [said], text)
 
     def test_sleeping_with_left_alone(self):

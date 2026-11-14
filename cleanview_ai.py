@@ -813,11 +813,17 @@ PREFACE = ("These are a few frames from one moment of a TV show or movie. First 
            "it in the frames; if you are not sure, answer no. ")
 _YES = {"type": "object", "properties": {"see": {"type": "string"}, "yes": {"type": "boolean"}},
         "required": ["see", "yes"]}
+# Long hair alone isn't a woman (1.18.96; the owner, 2026-11-14: "one thing clean view
+# struggles with is men with long hair. it says same sex when they are with women", "i mean long
+# hair in general"; Selena's two kisses with Chris were "two women")
+WHO_HOW = (" Long hair alone does not make someone a woman: many men have long hair. Look at "
+           "the face (a beard, stubble, the jaw, the brow), the build, the chest and the "
+           "clothes. If you can't tell whether one of them is a man or a woman, answer unclear.")
 LOOK = {
     "kiss": ("Question: are two people kissing on the lips? If yes, who is kissing (a man and a "
              "woman, two men, two women), and is it a light kiss (a short peck) or a passionate "
              "one (long, open-mouthed, making out)? A kiss on the cheek, a hug, or faces close "
-             "together while talking is NOT kissing.",
+             "together while talking is NOT kissing." + WHO_HOW,
              {"type": "object", "properties": {
                  "see": {"type": "string"},
                  "kissing": {"type": "boolean"},
@@ -830,7 +836,7 @@ LOOK = {
             "under the covers below someone's waist; a hand at or inside someone's crotch, "
             "pants or skirt)? Who is the couple (a man and a woman, two men, two women)? Two "
             "people only sitting or lying in bed together talking or sleeping, or someone "
-            "alone in bed, is NOT.",
+            "alone in bed, is NOT." + WHO_HOW,
             {"type": "object", "properties": {
                 "see": {"type": "string"},
                 "intimate": {"type": "boolean"},
