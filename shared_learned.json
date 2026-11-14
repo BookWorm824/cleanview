@@ -537,7 +537,9 @@
   },
   "_movies@kids": {
    "muted": [
-    "who baldy"
+    "who baldy",
+    "it's not every day you see a horse with two rear ends",
+    "you were born a street rat you'll die a street rat and only your fleas will mourn you"
    ],
    "kept": [
     "six generations of fools chasing after fool's gold",
@@ -567,7 +569,9 @@
    ],
    "ok_words": [],
    "muted_for": {
-    "who baldy": "bullying"
+    "who baldy": "bullying",
+    "it's not every day you see a horse with two rear ends": "crude",
+    "you were born a street rat you'll die a street rat and only your fleas will mourn you": "bullying"
    }
   },
   "_movies@teens": {

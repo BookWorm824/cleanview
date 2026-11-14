@@ -3965,6 +3965,10 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
     Resident) is probably misheard: noted for the review as m["sub"]. A word the subtitles
     only leave out or soften isn't (Radio)."""
     there = {a: k for k, a in enumerate(mapping) if a is not None}
+    # a name the subtitles write mid-sentence somewhere is a name wherever they write it
+    # (1.18.98, Aladdin: "Hell" heard four times where the subtitles say "Al", twice at the
+    # start of a sentence: "Al, you won", "Al, you little genius")
+    name_words = {sn[j] for j in names}
     for m in mutes:
         k = there.get(m.get("at"))
         if k is None or m.get("src") != "audio":
@@ -3975,8 +3979,10 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
             continue
         if not cl.listed_word(sw[k]) and re.search(r"[A-Za-z]{2}", sw[k]):
             m["sub"] = sw[k]
-            if m.get("cat") != "mine" and sounds_alike(asr_n[m["at"]], sn[k]):
-                m["keep"] = True    # "bitch" for Finch or Mitch, "fucking" for "bugging"
+            if m.get("cat") != "mine" and (sounds_alike(asr_n[m["at"]], sn[k])
+                                           or sn[k] in name_words):
+                m["keep"] = True    # "bitch" for Finch or Mitch, "fucking" for "bugging",
+                #                     "hell" for Al
 
 
 def sounds_alike(heard, written):
