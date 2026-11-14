@@ -347,6 +347,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- "sleeping with her" as CleanListen 1.17.37 has it (1.18.97, 2026-11-14): the small words
+  that may follow "her" are CleanListen's `SLEEP_HER_NEXT` (a new sentence: he, she, the...;
+  time and place: in, at, for, last, before...), so "sleeping with her in Paris" and "...for
+  months" count; "her teddy bear" still doesn't. CleanListen 1.17.37 has blasted, so
+  `WAITING_ON_CLEANLISTEN` is empty again.
 - Men with long hair aren't women (1.18.96, 2026-11-14; the owner: "one thing clean view
   struggles with is men with long hair. it says same sex when they are with women", "i mean
   long hair in general", "if a guy with long hair says i love you it flags same sex"; Selena's

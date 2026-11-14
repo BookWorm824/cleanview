@@ -2041,8 +2041,14 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # my lovers". "her" can start "her teddy bear": only when no other
                          # word follows, or a small one (now, again, anymore...)
                          r"|sleeping with (him|me|you|them|someone|somebody|anyone|anybody)"
+                         # (the small words as CleanListen 1.17.37's SLEEP_HER_NEXT: a new
+                         # sentence, and time and place words, "...with her in Paris")
                          r"|sleeping with her(?![ \t]+(?!(?:now|again|anymore|too|then|and|or|"
-                         r"but|because|since|when|while|tonight|yet|either)\b)[a-z])"
+                         r"but|because|since|when|while|tonight|yet|either|he|she|i|we|they|"
+                         r"it|you|the|a|an|this|that|these|those|last|yesterday|once|twice|"
+                         r"before|after|for|at|in|on|during|behind|every|all|already|ever|"
+                         r"first|more|instead|though|there|here|so|just|if|until|till|to|"
+                         r"anyway)\b)[a-z])"
                          # with the plurals spelled out (1.18.96, from CleanListen's check:
                          # "sleeping with their secretaries" went through)
                          r"|sleeping with (?:his|her|my|your|their) (?:boss(?:es)?|husbands?|"

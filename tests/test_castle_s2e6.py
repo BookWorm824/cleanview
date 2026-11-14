@@ -60,6 +60,9 @@ class ShortList(unittest.TestCase):
                             "sleeping with his intern"),
                            ("she's been sleeping with a married man", "sleeping with a married man"),
                            ("So, you're sleeping with Jude now?", "sleeping with"),
+                           # time and place words, as CleanListen 1.17.37
+                           ("she was sleeping with her in Paris", "sleeping with her"),
+                           ("he's been sleeping with her for months", "sleeping with her"),
                            # the plurals (1.18.96, from CleanListen's check)
                            ("sleeping with their secretaries", "sleeping with their secretaries"),
                            ("men sleeping with their wives", "sleeping with their wives"),

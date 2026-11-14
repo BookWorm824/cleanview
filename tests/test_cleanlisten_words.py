@@ -63,10 +63,9 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # private parts, bondage, safe word), 2026-11-09
 # (the short list of Spanish swear words on the English lists, 1.18.86, waited here until
 # CleanListen 1.17.32 had it, the same day)
-# CleanView 1.18.93's "blasted" / "blast it" (the owner, 2026-11-14): built in CleanListen,
-# to be released there as 1.17.37
-WAITING_ON_CLEANLISTEN = {"Blast and damnation", "Blast it, the horse has thrown a shoe",
-                          "Get that blasted dog out of my kitchen", "lather and blasted brat"}
+# CleanView 1.18.93's "blasted" / "blast it" (the owner, 2026-11-14) waited here until
+# CleanListen 1.17.37 had it, the same day
+WAITING_ON_CLEANLISTEN = set()
 
 
 def load_cleanlisten():
