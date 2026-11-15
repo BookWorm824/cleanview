@@ -53,7 +53,8 @@ class OtherWoman(unittest.TestCase):
 class Senoritas(unittest.TestCase):
     def test_found_with_or_without_the_accent(self):
         sexref = engine.LINE_WORDS["sexref"]
-        for text in ("and grateful señoritas.", "and grateful senoritas.", "a grateful señorita"):
+        for text in ("and grateful señoritas.", "and grateful senoritas.", "a grateful señorita",
+                     "and grateful seoritas"):        # (as norm() leaves it)
             self.assertTrue(sexref.search(text), text)
         self.assertIsNone(sexref.search("Buenos días, señorita."))
 

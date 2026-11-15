@@ -347,6 +347,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Person of Interest S1E4 report (1.18.105, 2026-11-15, adults, the AI helper, made on
+  1.18.104; the owner: "yes 1 and 2. leave for now"). "I'm going home and hitting the hay" was
+  heard as "hit in the heck" and "heck" muted, though the subtitles say "hay" at that very
+  spot: `sounds_alike` also takes two words of 4 letters or fewer that start with the same
+  letter (in the past reviews here it changed none). "Benton's conquests?" (casual: "his/her/
+  your/<name>'s conquest(s)", just "conquests" muted; not "the Norman Conquest") and "I do know
+  a place right around the corner -- full bar, comfy bed." (taught for Person of Interest,
+  casual) went through. Left for now (her choice): a victim's own account at a support group
+  ("woke up in his bed, facedown, naked"), and Reese's "The photos are some kind of sick
+  trophies of his victims" muted though it's detective case talk. Also: `grateful
+  se[nñ]?oritas?`, so CleanListen's cross-check (which joins norm()'s words, no ñ) sees it.
 - A chat cut's pictures are made in the background (1.18.104, 2026-11-14; her "CleanView
   stopped responding" note from Person of Interest S1-(2): asked to end a kiss cut 5 seconds
   sooner, the chat added the shorter cut and made its three blurred pictures on the window's
@@ -1597,6 +1608,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_poi_s1e4.py`: "heck" heard where the subtitles say "hay" offered unticked, other
+  sound-alikes as before and the unlike ones still not; "Benton's conquests" found and just
+  the word muted, the Norman Conquest not; the comfy-bed line taught for Person of Interest.
 - `test_thumbs_later.py`: a chat cut doesn't wait for its pictures (a slow stand-in), which
   are put on its card when ready, once; the chat's untick holds; given `work` the engine
   still makes them.

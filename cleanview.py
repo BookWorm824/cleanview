@@ -2036,8 +2036,9 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"thanks for the quickie|"
                          # Person of Interest S1E3 (1.18.104): "Join Manny and Danny in the land
                          # of tequila / and grateful señoritas" (split over two lines, so a
-                         # learned line can't catch it)
-                         r"grateful se[nñ]oritas?|"
+                         # learned line can't catch it; "seoritas" is the word after norm() drops
+                         # the ñ, as test_cleanlisten_words matches it)
+                         r"grateful se[nñ]?oritas?|"
                          # Castle S2E6 (1.18.95, the owner: "1 and 2"): "That is the sexiest
                          # thing I ever heard you say" went through ("sexy" was muted)
                          r"sexy|sexier|sexiest)\b", re.I),
@@ -2057,6 +2058,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # "two other men" (in the 82,372 lines of past reviews here, only these)
                          r"|(?:who'?s|who is|who was) the other wom[ae]n"
                          r"|(?:his|her|my|your|their|\w+'s) other wom[ae]n"
+                         # Person of Interest S1E4 (1.18.105): "Benton's conquests?" (the
+                         # women he slept with); a built-in note already says so. In past
+                         # reviews here only this and Castle's "another one of your conquests"
+                         r"|(?:his|her|my|your|their|\w+'s) conquests?"
                          # Castle S2E6 (1.18.95): "I'm not sleeping with her", "He was one of
                          # my lovers". "her" can start "her teddy bear": only when no other
                          # word follows, or a small one (now, again, anymore...)
@@ -3910,7 +3915,8 @@ LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |h
                             r"|(?:the|his|her|their|love|secret|torrid|illicit|sordid|extramarital) "
                             r"(?=affair\b)|(?:my|his|her|your|their|our|secret) (?=lovers?\b)"
                             r"|(?:who'?s|who is|who was) the (?=other wom[ae]n\b)"
-                            r"|(?:his|her|my|your|their|\w+'s) (?=other wom[ae]n\b))"
+                            r"|(?:his|her|my|your|their|\w+'s) (?=other wom[ae]n\b)"
+                            r"|(?:his|her|my|your|their|\w+'s) (?=conquests?\b))"
                             r"|(?<=\baffair) with$")
 
 
@@ -4067,7 +4073,13 @@ def sounds_alike(heard, written):
     Interest, National Treasure 2, G.I. Joe). Then it's offered unticked."""
     import difflib
     a, b = cl.norm(heard), cl.norm(written)
-    return bool(a and b) and difflib.SequenceMatcher(None, a, b).ratio() >= 0.5
+    if not (a and b):
+        return False
+    # short words that start the same (Person of Interest S1E4, 1.18.105: "hitting the hay"
+    # heard as "hit in the heck", 0.29 apart); in the past reviews here this changed none
+    if a[0] == b[0] and len(a) <= 4 and len(b) <= 4:
+        return True
+    return difflib.SequenceMatcher(None, a, b).ratio() >= 0.5
 
 
 def after_same_word(mutes, raw, s, e):
