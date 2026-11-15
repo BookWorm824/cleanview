@@ -696,9 +696,17 @@ CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "mild": _c(MILD),
 SEX_C = {w: _c(p) for w, p in SEX_TERMS.items()}
 
 
+CONTRACTED = ("'s", "'d", "'ll", "'re", "'ve")
+
+
 def _base(w):
-    """'fool's' -> 'fool', 'idiots'' -> 'idiots' (possessives)."""
-    return w[:-2] if w.endswith("'s") and len(w) > 3 else w
+    """'fool's' -> 'fool', 'idiots'' -> 'idiots' (possessives), and the word before a
+    joined-on 'd, 'll, 're or 've: "How the hell'd you get in here?" went through (Person of
+    Interest S1E2, 2026-11-14)."""
+    for end in CONTRACTED:
+        if w.endswith(end) and len(w) > len(end) + 1:
+            return w[:-len(end)]
+    return w
 
 
 def listed_word(word, mine=(), cats=None):

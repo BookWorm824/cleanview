@@ -347,6 +347,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- Lauren's Person of Interest S1E2 report (1.18.102, 2026-11-14, adults, the AI helper, made on
+  1.18.100; the owner: "Yes, release it"): every mute right, no scenes; two lines went through.
+  "How the hell'd you get in here?": `cl._base` now also takes a joined-on 'd, 'll, 're or 've
+  off (`CONTRACTED`; it took only 's), so "hell'd", "hell're", "damn'd" are found ("he'd",
+  "we'll" aren't listed). "If you're gonna step out on your wife": `LINE_WORDS["casual"]` has
+  "step out on" / "cheat on" + his/her/my... wife/husband/girlfriend/boyfriend/partner/fiancé,
+  and "step out on him/me/you/them/her" (her only with no word after: not "her porch"); not
+  "step out on the balcony", "cheated on his taxes". In the 79,063 lines of past reviews here
+  the only new finds were these two and "my man don't step out on me". For CleanListen,
+  CleanRead and web/words.js too. Her S1E1's 19:10 kiss: the chat's shorter cut (19:10-19:29)
+  worked, the original was unticked by it, but her refined file has the original ticked again
+  (by hand, it seems: the chat's change held in a test of the same steps).
 - Lauren's Person of Interest S1 report (1.18.101, 2026-11-14, adults, the AI helper, made on
   1.18.100; passed on by the CleanListen chat): "Person of Interest S1 - (1).wmv" got "No
   subtitles: couldn't tell which episode this is from its name" and was learned under movies.
@@ -1558,6 +1570,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_poi_s1e2.py`: listed words with 'd/'ll/'re/'ve joined on found, possessives as before,
+  everyday contractions left alone; stepping out on / cheating on a person found and just
+  those words muted, stepping out onto a place or cheating on taxes not.
 - `test_poi_names.py`: "<show> S1 - (1)" names read as season and episode, learned under the
   show; years and sizes in brackets not episodes; the names that worked still do.
 - `test_chosen_bigger.py`: the chosen videos' line in Semibold 12, "Nothing chosen yet" as before.

@@ -2040,6 +2040,13 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
                          r"on (him|her|me|you)"
+                         # Person of Interest S1E2 (2026-11-14): "If you're gonna step out on
+                         # your wife, you need to think it through" went through. A person, not
+                         # "step out on the balcony" or "her porch"
+                         r"|(?:cheat(?:s|ed|ing)?|step(?:s|ped|ping)? out) on (?:his|her|my|your|"
+                         r"their|our) (?:wi(?:fe|ves)|husbands?|girlfriends?|boyfriends?|"
+                         r"partners?|fianc[eé]e?s?)"
+                         r"|step(?:s|ped|ping)? out on (?:him|me|you|them|her(?![ \t]+[a-z]))"
                          # Castle S2E6 (1.18.95): "I'm not sleeping with her", "He was one of
                          # my lovers". "her" can start "her teddy bear": only when no other
                          # word follows, or a small one (now, again, anymore...)
