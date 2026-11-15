@@ -56,6 +56,22 @@ class LogoOnTheProgressPage(unittest.TestCase):
         png = ui.logo_png(128)
         self.assertTrue(png.startswith(b"\x89PNG"))
 
+    def test_logo_shrunk_smoothly(self):
+        big = ui._png_rgba(ui.logo_png(256))
+        self.assertEqual(big.shape, (256, 256, 4))
+        small = ui._shrink(big, 192)
+        self.assertEqual(small.shape, (192, 192, 4))
+        self.assertEqual(small[96, 0, 3] > 200, big[128, 0, 3] > 200)   # the same edge
+        try:
+            root = tk.Tk()
+        except tk.TclError as ex:
+            self.skipTest(f"no screen to draw on ({ex})")
+        try:
+            img = ui.logo_image(root, ui.WORKING_LOGO)
+            self.assertEqual((img.width(), img.height()), (192, 192))
+        finally:
+            root.destroy()
+
     def test_logo_shown_for_one_video(self):
         saved = ui.App._check_update, ui.App._check_every_ai, ui.App._lengths
         ui.App._check_update = lambda self, manual=False: None
@@ -71,7 +87,8 @@ class LogoOnTheProgressPage(unittest.TestCase):
                 app.show_working("Saving the clean copy…")
                 app.update()
                 self.assertTrue(app.logo.winfo_exists())
-                self.assertEqual(int(app.logo.winfo_reqwidth()) >= 128, True)
+                # 50% larger since 1.18.107 (the owner: "lets make it 50% larger on screen")
+                self.assertGreaterEqual(int(app.logo.winfo_reqwidth()), 192)
             finally:
                 app.destroy()
         finally:

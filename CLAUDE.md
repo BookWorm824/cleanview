@@ -164,7 +164,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
 - The title on the progress page (1.18.22, Jason): the video's name without ".m4v", big and
   bold (`self.which`), instead of small grey text. With one video, CleanView's logo sits in
   the empty space below (1.18.23, Jason: "a lot of dead space"; `logo_png` takes the PNG out
-  of `cleanview.ico`, so no PIL is needed).
+  of `cleanview.ico`, so no PIL is needed). Since 1.18.107 it's 50% larger, 192 pixels
+  (`WORKING_LOGO`; the owner, 2026-11-15: "lets make it 50% larger on screen"), shrunk
+  smoothly from the icon's 256-pixel picture (`logo_image`: `_png_rgba` reads the PNG,
+  `_shrink` averages; Tk alone only drops pixels).
+- The logo has a slight 3D look (1.18.107, 2026-11-15; the owner: "its kinda flat looking. I
+  think it needs to have a slight 3d look. make some mockups", picked "E · All of it", then
+  "fix new logo in app screen and on desktops" and "apply to each chat"). `cleanview.ico` is
+  made by `tools/icon_3d.py` from `tools/cleanview_flat.ico` (keep it; for a coloured tile
+  with a white picture): the tile lighter at the top and darker at the bottom (`TOP`,
+  `BOTTOM`), a faint white top edge (`RIM`), the picture shaded a little at its bottom with a
+  soft shadow under it, every size shrunk from 256. The app's own screens read the .ico, so
+  they follow. Windows keeps a picture of a shortcut's icon by the icon file's name, so
+  `launcher.new_icon_on_shortcuts` (run_app, in a thread), once each time the .ico changes
+  (`ICON_SHOWN`), copies it to `cleanview-<mark>.ico`, points this install's CleanView.lnk
+  shortcuts (desktop, Start menu, pinned; only those whose arguments are this folder's
+  launcher.pyw, `SHORTCUT_PLACES`) at it with PowerShell, and tells Explorer
+  (SHChangeNotify). CleanView.exe and CleanView-work.exe made before get the new icon
+  (`_new_icon_on_exes`, `icon.txt`; changed as a copy that takes the old one's place, so one
+  in use is tried next time). Passed to CleanListen, CleanRead, ReadAloud, Play and
+  CleanStream. Not seen on her desktop yet.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -1646,6 +1665,10 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   free and what to do, and isn't offered for sending; an unexpected failure still is.
 - `test_words_from_cleanlisten_1_17_44.py`: fooling someone, "play dumb" and "shut it softly"
   left alone; "Don't be a fool", "What a fool you are!", "That's dumb", "Shut it!" still muted.
+- `test_logo_3d.py`: the shipped icon is the tool's output from the flat one (same shape,
+  lighter top, the picture still white), CleanView.exe made before gets it once (one in use
+  is tried again), and only this install's shortcuts are pointed at a copy named by its
+  contents, again when it changes.
 - `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of
   taught hits is a find and a blip isn't, not twice where a description found it, dark frames
   left out, no file changes nothing, a new file redoes the scans, and taught finds count only

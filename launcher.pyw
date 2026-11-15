@@ -173,6 +173,38 @@ def _rename_exe(path, name, icon):
         raise ctypes.WinError(ctypes.get_last_error())
 
 
+def _icon_mark(icon):
+    import hashlib
+    return hashlib.sha1(Path(icon).read_bytes()).hexdigest()[:12]
+
+
+def _new_icon_on_exes(folder, icon):
+    """A new cleanview.ico (1.18.107, the slight 3D look: the owner, 2026-11-15, "fix new logo
+    in app screen and on desktops"): give the .exes made before it the new icon, once. Each is
+    changed as a copy that then takes its place, so one in use (or a failure) leaves it as it
+    was, to be tried again next time."""
+    mark = folder / "icon.txt"
+    try:
+        h = _icon_mark(icon)
+        if mark.read_text(encoding="utf8").strip() == h:
+            return
+    except OSError:
+        pass
+    try:
+        for exe in (OWN_EXE, WORK_EXE):
+            tmp = folder / (exe + ".new")
+            import shutil
+            shutil.copy2(folder / exe, tmp)
+            try:
+                _rename_exe(tmp, APP_NAME, icon)
+                os.replace(tmp, folder / exe)
+            finally:
+                tmp.unlink(missing_ok=True)
+        mark.write_text(h, encoding="utf8")
+    except Exception:
+        pass
+
+
 def make_own_exe(folder=None, base=None, icon=None):
     """CleanView.exe (and CleanView-work.exe) in `folder` (venv\\CleanView), made once and
     tried out. Returns its path, or None to keep using pythonw.exe."""
@@ -192,6 +224,8 @@ def make_own_exe(folder=None, base=None, icon=None):
     for f in (done, failed):
         try:
             if f.read_text(encoding="utf8").splitlines()[0] == stamp:
+                if f is done:
+                    _new_icon_on_exes(folder, icon)
                 return folder / OWN_EXE if f is done else None
         except (OSError, IndexError):
             pass
@@ -216,6 +250,10 @@ def make_own_exe(folder=None, base=None, icon=None):
                 raise RuntimeError(f"{exe} used {out.read_text(encoding='utf8')}")
         out.unlink(missing_ok=True)
         done.write_text(stamp, encoding="utf8")
+        try:
+            (folder / "icon.txt").write_text(_icon_mark(icon), encoding="utf8")
+        except OSError:
+            pass
         return folder / OWN_EXE
     except Exception as ex:
         try:
@@ -536,6 +574,71 @@ def update():
     return remote["version"]
 
 
+ICON_SHOWN = APP_DATA / "icon_shown.txt"     # which cleanview.ico the shortcuts were told about
+SHORTCUT_PLACES = r"""@([Environment]::GetFolderPath('Desktop'),
+  [Environment]::GetFolderPath('Programs'),
+  (Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'),
+  (Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu'))"""
+
+
+def new_icon_on_shortcuts(here=None):
+    """A new cleanview.ico (1.18.107, the slight 3D look; the owner: "fix new logo in app screen
+    and on desktops"). Windows keeps a picture of a shortcut's icon by the icon file's name, so
+    the CleanView shortcuts (desktop, Start menu, pinned to the taskbar) kept showing the old
+    one. Once each time the icon changes: a copy named by its contents (cleanview-<mark>.ico),
+    this install's shortcuts pointed at it, and Windows told to draw icons again. Only
+    shortcuts that start this folder's launcher.pyw are changed. True when it was done."""
+    import shutil
+    import subprocess
+    here = Path(here or HERE)
+    icon = here / "cleanview.ico"
+    if os.name != "nt" or not icon.exists():
+        return False
+    try:
+        mark = _icon_mark(icon)
+        if ICON_SHOWN.read_text(encoding="utf8").strip() == mark:
+            return False
+    except OSError:
+        pass
+    shown = here / f"cleanview-{mark}.ico"
+    try:
+        shutil.copy2(icon, shown)
+        q = lambda s: "'" + str(s).replace("'", "''") + "'"     # noqa: E731
+        script = (f"$ws = New-Object -ComObject WScript.Shell\n"
+                  f"foreach ($d in {SHORTCUT_PLACES}) {{\n"
+                  f"  if (-not $d) {{ continue }}\n"
+                  f"  $p = Join-Path $d 'CleanView.lnk'\n"
+                  f"  if (Test-Path -LiteralPath $p) {{\n"
+                  f"    $l = $ws.CreateShortcut($p)\n"
+                  f"    if ($l.Arguments.Contains({q(here / 'launcher.pyw')})) {{\n"
+                  f"      $l.IconLocation = {q(shown)} + ',0'; $l.Save(); Write-Output $p }}\n"
+                  f"  }}\n}}\n")
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                           capture_output=True, text=True, timeout=60, creationflags=0x08000000,
+                           stdin=subprocess.DEVNULL)
+        if r.returncode:
+            raise RuntimeError(r.stderr.strip()[:300])
+        changed = [p.strip() for p in r.stdout.splitlines() if p.strip()]
+        if changed:
+            import ctypes
+            sh = ctypes.windll.shell32
+            for p in changed:
+                sh.SHChangeNotify(0x2000, 0x0005, ctypes.c_wchar_p(p), None)   # it changed
+            sh.SHChangeNotify(0x08000000, 0, None, None)                 # icons drawn again
+        for old in here.glob("cleanview-*.ico"):
+            if old != shown or not changed:
+                old.unlink(missing_ok=True)
+        APP_DATA.mkdir(parents=True, exist_ok=True)
+        ICON_SHOWN.write_text(mark, encoding="utf8")
+        return True
+    except Exception as ex:
+        try:
+            (APP_DATA / "shortcut_icon_problem.txt").write_text(str(ex), encoding="utf8")
+        except OSError:
+            pass
+        return False
+
+
 def run_app():
     """The part that is CleanView: one at a time, look for an update, then open the window."""
     restart = _restarting()
@@ -566,6 +669,8 @@ def run_app():
         runpy.run_path(str(HERE / "launcher.pyw"), run_name="__main__")
         return
     opening(f"Opening {APP_NAME}\u2026")
+    import threading
+    threading.Thread(target=new_icon_on_shortcuts, daemon=True).start()
     sys.argv = [str(HERE / "CleanView.pyw")]
     runpy.run_path(str(HERE / "CleanView.pyw"), run_name="__main__")
 

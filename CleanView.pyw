@@ -216,6 +216,89 @@ def logo_png(px=128):
         return None
 
 
+WORKING_LOGO = 192      # the logo on the working page, pixels at normal size (was 128; the owner,
+                        # 2026-11-15: "lets make it 50% larger on screen")
+
+
+def _png_rgba(png):
+    """An h x w x 4 uint8 array of an 8-bit RGBA PNG without interlacing (the icon's), or None."""
+    import struct
+    import zlib
+    import numpy as np
+    try:
+        if png[:8] != b"\x89PNG\r\n\x1a\n":
+            return None
+        i, idat, w = 8, b"", 0
+        while i < len(png):
+            n, kind = struct.unpack(">I4s", png[i:i + 8])
+            data = png[i + 8:i + 8 + n]
+            if kind == b"IHDR":
+                w, h, depth, ctype, _, _, lace = struct.unpack(">IIBBBBB", data)
+                if (depth, ctype, lace) != (8, 6, 0):
+                    return None
+            elif kind == b"IDAT":
+                idat += data
+            i += 12 + n
+        raw, stride = zlib.decompress(idat), w * 4
+        out, prev = bytearray(), bytearray(stride)
+        for y in range(h):
+            f, row = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+            for x in range(stride):
+                a = row[x - 4] if x >= 4 else 0
+                b, c = prev[x], (prev[x - 4] if x >= 4 else 0)
+                if f == 1:
+                    row[x] = (row[x] + a) & 255
+                elif f == 2:
+                    row[x] = (row[x] + b) & 255
+                elif f == 3:
+                    row[x] = (row[x] + (a + b) // 2) & 255
+                elif f == 4:
+                    p = a + b - c
+                    pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                    row[x] = (row[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+            out += row
+            prev = row
+        return np.frombuffer(bytes(out), np.uint8).reshape(h, w, 4)
+    except Exception:
+        return None
+
+
+def _shrink(rgba, n):
+    """The picture made n x n by averaging (weighted by how see-through each pixel is)."""
+    import numpy as np
+    h, w = rgba.shape[:2]
+
+    def weights(size):
+        m = np.zeros((n, size))
+        for j in range(n):
+            a, b = j * size / n, (j + 1) * size / n
+            for k in range(int(a), min(size, int(np.ceil(b)))):
+                m[j, k] = min(b, k + 1) - max(a, k)
+        return m / m.sum(axis=1, keepdims=True)
+    ry, rx = weights(h), weights(w)
+    f = rgba.astype(float)
+    alpha = ry @ f[..., 3] @ rx.T
+    rgb = np.stack([ry @ (f[..., c] * f[..., 3]) @ rx.T for c in range(3)], -1)
+    rgb = rgb / np.maximum(alpha, 1e-6)[..., None]
+    return np.clip(np.dstack([rgb, alpha]) + 0.5, 0, 255).astype(np.uint8)
+
+
+def logo_image(master, n):
+    """CleanView's logo as an n x n Tk image, shrunk smoothly from the icon's biggest picture
+    (Tk itself only shrinks by dropping pixels); the nearest size as it is if that fails."""
+    big = _png_rgba(logo_png(256) or b"")
+    try:
+        if big is not None and big.shape[0] >= n:
+            return look.photo(master, big if big.shape[0] == n else _shrink(big, n))
+    except tk.TclError:
+        pass
+    png = logo_png(n)
+    try:
+        return tk.PhotoImage(master=master, data=base64.b64encode(png).decode()) if png else None
+    except tk.TclError:
+        return None
+
+
 def fmt_bytes(n):
     """1.4 GB, 650 MB."""
     gb = n / 1024 ** 3
@@ -1939,11 +2022,7 @@ class App(tk.Tk):
         self.overall = tk.Label(box, text="", bg=CARD, fg=ACCENT, font=(HEAD, 11))
         self.overall.pack(anchor="w", pady=(4, 0))
         if n == 1:                      # the logo in the empty space (Jason, 2026-11-07)
-            png = logo_png(128)
-            try:
-                img = tk.PhotoImage(data=base64.b64encode(png).decode()) if png else None
-            except tk.TclError:
-                img = None
+            img = logo_image(self, WORKING_LOGO)
             if img is not None:
                 self._imgs.append(img)
                 mid = tk.Frame(p, bg=BG)
