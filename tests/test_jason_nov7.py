@@ -68,7 +68,8 @@ class LogoOnTheProgressPage(unittest.TestCase):
             self.skipTest(f"no screen to draw on ({ex})")
         try:
             img = ui.logo_image(root, ui.WORKING_LOGO)
-            self.assertEqual((img.width(), img.height()), (192, 192))
+            self.assertEqual((img.width(), img.height()), (384, 384))
+            self.assertEqual(ui._logo_rgba().shape, (512, 512, 4))    # from the 512-px logo
         finally:
             root.destroy()
 
@@ -87,8 +88,15 @@ class LogoOnTheProgressPage(unittest.TestCase):
                 app.show_working("Saving the clean copy…")
                 app.update()
                 self.assertTrue(app.logo.winfo_exists())
-                # 50% larger since 1.18.107 (the owner: "lets make it 50% larger on screen")
-                self.assertGreaterEqual(int(app.logo.winfo_reqwidth()), 192)
+                # 192 in 1.18.107 ("50% larger"), 384 since 1.18.108 ("double from where it
+                # is") when there's room; smaller rather than cut off in a small window
+                self.assertEqual(app._logo_size, ui.WORKING_LOGO)
+                self.assertGreaterEqual(int(app.logo.winfo_reqwidth()), 384)
+                app.geometry("900x600")
+                app.update()
+                mid = app.logo.master
+                self.assertLess(app._logo_size, 384)
+                self.assertLessEqual(app.logo.winfo_reqheight(), mid.winfo_height())
             finally:
                 app.destroy()
         finally:

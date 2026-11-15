@@ -3,11 +3,15 @@ lightly": soft light from above, a faint light top edge, and the white picture s
 and raised a little by a soft shadow). For a logo that is a coloured rounded tile with a white
 picture on it, as CleanView's, CleanListen's and CleanRead's are.
 
-usage: python tools/icon_3d.py <flat.ico> <out.ico> [preview.png]
+Then "the logo doesn't really look difffernt", "mock the same style just more": of 1.6, 2.2
+and 2.8 times as strong she picked 2.2 ("4 is goood"), `MORE`.
+
+usage: python tools/icon_3d.py <flat.ico> <out.ico> [<logo.png>]
 
 Works from the .ico's biggest PNG (256 px); every size in the new .ico is shrunk smoothly from
-that. Keep the flat one (e.g. tools/<app>_flat.ico) so the look can be made again or changed.
-numpy only."""
+that. <logo.png> is the same look at 512 px, for showing the logo bigger than 256 in the app
+(the flat picture enlarged twice with its edges kept sharp, `enlarge`, then the look). Keep the
+flat one (e.g. tools/<app>_flat.ico) so the look can be made again or changed. numpy only."""
 import struct
 import sys
 import zlib
@@ -19,6 +23,7 @@ TOP, BOTTOM = 1.28, 0.80      # the tile's colour times this at its top and its 
 RIM, RIM_WIDTH = 0.45, 4      # the light top edge: how white at the very top, pixels wide (at 256)
 SHADOW, SHADOW_DROP, SHADOW_BLUR = 0.35, 3, 3.0
 PICTURE_SHADE = 0.15          # the picture's bottom is this much of the way to the tile's colour
+MORE = 2.2                    # all of the above this many times as strong (the owner's pick)
 
 
 def read_ico(path):
@@ -112,8 +117,14 @@ def erode(m, n):
     return m
 
 
-def three_d(rgba):
-    """The look on a flat logo (h x w x 4 uint8, a tile with a white picture)."""
+def three_d(rgba, more=MORE):
+    """The look on a flat logo (h x w x 4 uint8, a tile with a white picture); `more` makes
+    every part of it that many times as strong (1 is look E as first picked)."""
+    TOP, BOTTOM = 1 + (globals()["TOP"] - 1) * more, 1 - (1 - globals()["BOTTOM"]) * more
+    RIM, RIM_WIDTH = min(0.9, globals()["RIM"] * more), globals()["RIM_WIDTH"] * more
+    SHADOW = min(0.8, globals()["SHADOW"] * more)
+    SHADOW_DROP, SHADOW_BLUR = globals()["SHADOW_DROP"] * more, globals()["SHADOW_BLUR"] * more
+    PICTURE_SHADE = min(0.4, globals()["PICTURE_SHADE"] * more)
     h, w = rgba.shape[:2]
     s = h / 256
     f = rgba.astype(float)
@@ -149,11 +160,35 @@ def write_ico(path, big):
         fh.write(head + dirs + b"".join(pics))
 
 
+def enlarge(rgba, k=2):
+    """A flat tile-and-white-picture logo k times as big with its edges kept sharp: how much is
+    tile (alpha) and how much is picture are enlarged smoothly, then their soft edges narrowed k
+    times, so an edge is as soft as it was in pixels. The tile's colour is the median's."""
+    f = rgba.astype(float)
+    A = f[..., 3] / 255
+    lum = f[..., :3] @ [0.299, 0.587, 0.114]
+    solid = A > 0.99
+    base = np.median(f[..., :3][solid & (lum <= np.percentile(lum[solid], 50))], axis=0)
+    bl = base @ [0.299, 0.587, 0.114]
+    P = np.clip((lum - bl) / (255 - bl), 0, 1) * (A > 0)
+
+    def up(m):
+        n = m.shape[0]
+        x = (np.arange(n * k) + 0.5) / k - 0.5
+        i0 = np.clip(np.floor(x).astype(int), 0, n - 1)
+        i1, fx = np.clip(i0 + 1, 0, n - 1), np.clip(x - np.floor(x), 0, 1)
+        m = m[i0] * (1 - fx)[:, None] + m[i1] * fx[:, None]
+        m = m[:, i0] * (1 - fx)[None, :] + m[:, i1] * fx[None, :]
+        return np.clip((m - 0.5) * k + 0.5, 0, 1)
+    A2, P2 = up(A), up(P)
+    rgb = base * (1 - P2[..., None]) + 255 * P2[..., None]
+    return np.clip(np.dstack([rgb, A2 * 255]) + 0.5, 0, 255).astype(np.uint8)
+
+
 if __name__ == "__main__":
     flat = png_rgba(read_ico(sys.argv[1])[256])
-    new = three_d(flat)
-    write_ico(sys.argv[2], new)
+    write_ico(sys.argv[2], three_d(flat))
     if len(sys.argv) > 3:
         with open(sys.argv[3], "wb") as fh:
-            fh.write(png(new))
+            fh.write(png(three_d(enlarge(flat))))
     print("ok")

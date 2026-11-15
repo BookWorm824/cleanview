@@ -184,6 +184,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (`_new_icon_on_exes`, `icon.txt`; changed as a copy that takes the old one's place, so one
   in use is tried next time). Passed to CleanListen, CleanRead, ReadAloud, Play and
   CleanStream. Not seen on her desktop yet.
+- Stronger 3D and a logo twice as big while cleaning (1.18.108, 2026-11-15; the owner: "the
+  logo doesn't really look difffernt", "mock the same style just more", of 1.6/2.2/2.8 times
+  as strong "4 is goood", and "the logo on the clean screen needs to go double from where it
+  is", "all chats"). `icon_3d.MORE` = 2.2 scales every part of the look (`three_d(more=)`).
+  The working page's logo is 384 px (`WORKING_LOGO`), more than the icon's 256, so
+  `cleanview_logo.png` (shipped, in version.json's files) is the look at 512: the flat picture
+  enlarged twice with its edges kept sharp (`icon_3d.enlarge`), then the look. `logo_image`
+  shrinks from it (`_logo_rgba`, the icon's 256 if it's missing). In a window with no room
+  for 384 below the progress card it's made smaller rather than cut off (`_fit_logo` on the
+  space's `<Configure>`; 940x800, the usual size, has room). The icon's sizes and the
+  shortcuts get the stronger look the same way as 1.18.107's.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

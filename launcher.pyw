@@ -607,7 +607,7 @@ def new_icon_on_shortcuts(here=None):
         script = (f"$ws = New-Object -ComObject WScript.Shell\n"
                   f"foreach ($d in {SHORTCUT_PLACES}) {{\n"
                   f"  if (-not $d) {{ continue }}\n"
-                  f"  $p = Join-Path $d 'CleanView.lnk'\n"
+                  f"  $p = Join-Path $d {q(APP_NAME + '.lnk')}\n"
                   f"  if (Test-Path -LiteralPath $p) {{\n"
                   f"    $l = $ws.CreateShortcut($p)\n"
                   f"    if ($l.Arguments.Contains({q(here / 'launcher.pyw')})) {{\n"

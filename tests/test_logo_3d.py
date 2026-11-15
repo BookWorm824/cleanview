@@ -53,6 +53,20 @@ class TheIcon(unittest.TestCase):
         made = icon_3d.three_d(icon_3d.png_rgba(icon_3d.read_ico(FLAT)[256]))
         self.assertTrue(np.array_equal(icon_3d.png_rgba(new[256]), made))
 
+    def test_the_big_logo_too(self):
+        """cleanview_logo.png (1.18.108): the look at 512 from the flat one enlarged twice."""
+        flat = icon_3d.png_rgba(icon_3d.read_ico(FLAT)[256])
+        big = icon_3d.png_rgba((ROOT / "cleanview_logo.png").read_bytes())
+        self.assertTrue(np.array_equal(big, icon_3d.three_d(icon_3d.enlarge(flat))))
+        back = icon_3d.shrink(icon_3d.enlarge(flat), 256).astype(int)
+        self.assertLess(abs(back - flat.astype(int))[..., 3].mean(), 1)   # the same shape
+        import json
+        self.assertIn("cleanview_logo.png",
+                      json.loads((ROOT / "version.json").read_text())["files"])
+
+    def test_stronger_as_she_picked(self):
+        self.assertEqual(icon_3d.MORE, 2.2)          # "4 is goood"
+
     def test_lighter_at_the_top_and_the_picture_kept(self):
         flat = icon_3d.png_rgba(icon_3d.read_ico(FLAT)[256]).astype(int)
         new = icon_3d.png_rgba(icon_3d.read_ico(NEW)[256]).astype(int)
@@ -60,7 +74,7 @@ class TheIcon(unittest.TestCase):
         self.assertGreater(new[30, 128, :3].sum(), flat[30, 128, :3].sum())    # top lighter
         self.assertLess(new[230, 128, :3].sum(), flat[230, 128, :3].sum())     # bottom darker
         white = flat[..., :3].min(axis=2) > 240
-        self.assertGreater(new[white][:, :3].min(), 200)               # the picture still white
+        self.assertGreater(new[white][:, :3].min(), 170)   # the picture still light (shaded at its foot)
 
 
 @unittest.skipUnless(WIN and sys.prefix != sys.base_prefix

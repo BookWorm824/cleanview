@@ -216,8 +216,12 @@ def logo_png(px=128):
         return None
 
 
-WORKING_LOGO = 192      # the logo on the working page, pixels at normal size (was 128; the owner,
-                        # 2026-11-15: "lets make it 50% larger on screen")
+WORKING_LOGO = 384      # the logo on the working page, pixels at normal size (was 128; the owner,
+                        # 2026-11-15: "lets make it 50% larger on screen", 192 in 1.18.107, then
+                        # "the logo on the clean screen needs to go double from where it is");
+                        # smaller when the window has no room for it (`_fit_logo`)
+LOGO_FILE = Path(__file__).resolve().parent / "cleanview_logo.png"   # 512 px, the 3D look
+_logo_big = []          # the biggest logo picture there is, read once
 
 
 def _png_rgba(png):
@@ -283,13 +287,25 @@ def _shrink(rgba, n):
     return np.clip(np.dstack([rgb, alpha]) + 0.5, 0, 255).astype(np.uint8)
 
 
+def _logo_rgba():
+    """The biggest logo picture: cleanview_logo.png (512 px, 1.18.108), else the icon's 256."""
+    if not _logo_big:
+        try:
+            big = _png_rgba(LOGO_FILE.read_bytes())
+        except OSError:
+            big = None
+        _logo_big.append(big if big is not None else _png_rgba(logo_png(256) or b""))
+    return _logo_big[0]
+
+
 def logo_image(master, n):
-    """CleanView's logo as an n x n Tk image, shrunk smoothly from the icon's biggest picture
-    (Tk itself only shrinks by dropping pixels); the nearest size as it is if that fails."""
-    big = _png_rgba(logo_png(256) or b"")
+    """CleanView's logo as an n x n Tk image, shrunk smoothly from its biggest picture (Tk
+    itself only shrinks by dropping pixels); that picture as it is when it's smaller, and the
+    icon's nearest size as it is if that fails."""
+    big = _logo_rgba()
     try:
-        if big is not None and big.shape[0] >= n:
-            return look.photo(master, big if big.shape[0] == n else _shrink(big, n))
+        if big is not None:
+            return look.photo(master, big if big.shape[0] <= n else _shrink(big, n))
     except tk.TclError:
         pass
     png = logo_png(n)
@@ -1994,6 +2010,20 @@ class App(tk.Tk):
     JOB_LOOK = {"wait": ("○", "MUTED"), "now": ("▶", "ACCENT"), "done": ("✓", "ACCENT_DK"),
                 "failed": ("!", "WARN"), "skipped": ("–", "MUTED")}      # colours by name
 
+    def _fit_logo(self, mid):
+        """The working page's logo as big as WORKING_LOGO, or as the room below the progress
+        card allows (it would be cut off in a small window)."""
+        room = min(mid.winfo_height(), mid.winfo_width()) - self._px(16)
+        if room < 48:
+            return
+        n = max(64, min(WORKING_LOGO, room)) // 8 * 8
+        if n == getattr(self, "_logo_size", None) or not self.logo.winfo_exists():
+            return
+        img = logo_image(self, n)
+        if img is not None:
+            self._logo_img, self._logo_size = img, n
+            self.logo.configure(image=img)
+
     def show_working(self, title, videos=None, can_stop=False):
         """The progress page. videos: the files being worked on, listed with how each
         is going when there are several. can_stop: offer "Stop after this video" (finish
@@ -2024,11 +2054,12 @@ class App(tk.Tk):
         if n == 1:                      # the logo in the empty space (Jason, 2026-11-07)
             img = logo_image(self, WORKING_LOGO)
             if img is not None:
-                self._imgs.append(img)
+                self._logo_img, self._logo_size = img, WORKING_LOGO
                 mid = tk.Frame(p, bg=BG)
                 mid.pack(fill="both", expand=True)
                 self.logo = tk.Label(mid, image=img, bg=BG)
                 self.logo.place(relx=0.5, rely=0.45, anchor="center")
+                mid.bind("<Configure>", lambda e, mid=mid: self._fit_logo(mid))
         self._work_n, self._work_t0 = n, None
         self.stop_after = False
         self.job_rows, self.job_frames, self.job_notes = [], [], []
