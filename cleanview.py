@@ -3666,6 +3666,8 @@ def decide_picture_scenes(cands, o, have_ai):
         v = c.get("verdict") or {}
         if have_ai and v and not v.get("keep", True) and not v.get("error"):
             continue
+        if c.get("taught") and not (have_ai and v and not v.get("error")):
+            continue        # the taught check's finds count only once the AI helper agrees
         who = v.get("who", "?") if v else "?"
         if who == "?" and c.get("who"):
             w, pw = max(c["who"].items(), key=lambda kv: kv[1])
@@ -3741,7 +3743,8 @@ def decide_picture_scenes(cands, o, have_ai):
             why = f"{label.lower()} seen" + note
         if checked and v.get("what"):
             why = f"{why} — {v['what']}"
-        scenes.append({"s": c["s"], "e": c["e"], "kind": [label], "why": why, "sure": checked})
+        scenes.append({"s": c["s"], "e": c["e"], "kind": [label], "why": why, "sure": checked,
+                       **({"taught": True} if c.get("taught") else {})})
     return scenes
 
 

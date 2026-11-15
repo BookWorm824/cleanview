@@ -261,7 +261,14 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                  **{w: {"her", "him", "me", "them", "it", "us", "up", "away", "back", "open",
                         "out", "forward", "free", "awake", "his", "my", "your", "their", "our",
                         "the"} for w in ("jerk", "jerks")},
-                 "fool": {"around", "with", "proof"}, "fools": {"gold", "around", "rush"},
+                 # fooling someone, not calling them a fool (CleanListen 1.17.44, 2026-11-15:
+                 # "too honest to try to fool yourself", "you can't fool me", "made a
+                 # complete fool of myself")
+                 "fool": {"around", "with", "proof", "yourself", "himself", "herself", "myself",
+                          "themselves", "ourselves", "yourselves", "me", "you", "him", "her",
+                          "them", "us", "anyone", "anybody", "everyone", "everybody", "nobody",
+                          "people", "of"},
+                 "fools": {"gold", "around", "rush"},
                  "butt": {"in", "heads"}, "butts": {"in", "heads"},
                  "dumb": {"waiter", "waiters", "luck", "founded", "show"},
                  # "gee up" to a horse; the letter G ("a gee string", "gee major")
@@ -298,7 +305,8 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
                  "butts": {"cigarette", "cigar", "rifle", "gun"},
-                 "dumb": {"deaf", "struck"}, "dummy": {"test", "ventriloquist", "ventriloquist's"},
+                 "dumb": {"deaf", "struck", "play", "played", "playing", "plays"},  # play dumb
+                 "dummy": {"test", "ventriloquist", "ventriloquist's"},
                  "wop": {"doo", "do", "shoo", "be", "bop"},      # "doo wop"
                  # "it looked rather queer", "I feel queer" (never "a queer", "so queer")
                  "queer": {"rather", "very", "mighty", "awfully", "uncommonly", "most", "how", "looked", "seemed", "felt", "sounded", "look", "looks", "seem", "seems", "feel", "feels", "sound", "sounds"},
@@ -560,11 +568,26 @@ def screw_noun(words, i):
                                         and prev not in ("honest", "modest"))
 
 
+# "a fool" is calling someone a fool even before "you": "What a fool you are!" ("fool you",
+# "fool me" are fooling someone only as the verb; "a fool of myself" stays fine)
+FOOL_NOUN_PREV = {"a", "an", "the", "such", "big", "old", "little", "silly", "stupid",
+                  "complete", "total", "utter", "damn", "damned", "bloody"}
+
+
+def fool_called(wb, prev, nxt):
+    return wb == "fool" and nxt != "of" and prev in FOOL_NOUN_PREV
+
+
 # "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
 # these isn't counted when one of NOT_RUDE_NEXT comes straight after it.
 PHRASE_OBJECTS = {"it", "them", "that", "this", "him", "her", "me"}
 NOT_RUDE_NEXT = {"down", "off", "in", "into", "on", "onto", "up", "out", "together", "tight",
-                 "tightly", "shut", "back", "open", "closed", "loose", "tighter", "away"}
+                 "tightly", "shut", "back", "open", "closed", "loose", "tighter", "away",
+                 # closing a door: "tiptoed to the door, shut it softly", "he shut it behind
+                 # him" (CleanListen 1.17.44, Camp Club Girls, 2026-11-15)
+                 "softly", "quietly", "gently", "behind", "firmly", "carefully", "slowly",
+                 "noiselessly", "silently", "hard", "quickly", "fast", "again", "against",
+                 "after"}
 # rude words kids copy (a separate box, off unless ticked)
 RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?", r"idiotic",
         r"morons?", r"moronic", r"dumm(y|ies)", r"dorks?", r"dorky", r"dweebs?", r"jerks?",
@@ -847,7 +870,7 @@ def find_language(words, cats, mine=()):
                     break
                 if w in FREAK_WORDS and "out" in words[i + 1:i + 3]:
                     break        # "you're freaking me out": the verb, not the minced oath
-                if nxt in INNOCENT_NEXT.get(wb, ()) or prev in INNOCENT_PREV.get(wb, ()) or (
+                if (nxt in INNOCENT_NEXT.get(wb, ()) and not fool_called(wb, prev, nxt)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
                         wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
                         w in ("jesus", "christ") and reverent(words, i)) or (
                         w == "gay" and gay_happy(words, i)):

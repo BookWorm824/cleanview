@@ -154,7 +154,53 @@ def clip_signature():
     so a scan made before the descriptions changed is done again."""
     import hashlib
     names, texts = clip_prompts()
-    return hashlib.sha1("|".join(f"{n}:{t}" for n, t in zip(names, texts)).encode()).hexdigest()[:12]
+    sig = "|".join(f"{n}:{t}" for n, t in zip(names, texts))
+    if taught_checks():         # and when what it was taught changes (1.18.106)
+        sig += "|taught:" + hashlib.sha1(TAUGHT_FILE.read_bytes()).hexdigest()
+    return hashlib.sha1(sig.encode()).hexdigest()[:12]
+
+
+# The taught picture check (1.18.106; the owner, 2026-11-15: "picture first", then "Yes, build
+# it"). Going by what Claude judged in 151 past cleans, the descriptions alone found 2% of the
+# fights, 18% of the bloody scenes and none of the bed scenes. A small check per kind of scene,
+# taught from those judgments on the picture AI's own view of each still (the mean of its
+# crops' image embeddings) and of the stills 2 s apart around it, finds runs of stills the
+# descriptions miss. Tested on cleans it wasn't taught from: fights 64% found, blood 51%,
+# kisses 57% (54% before), bed scenes 42%. It
+# also finds more that isn't there, so its finds are only used after the AI helper's closer
+# look (decide_picture_scenes). picture_taught.json: per kind, "w" (one row of weights per still
+# it looks at: the still itself, or the stills 2 s apart around it, the middle row the still's
+# own), "b" and the smoothed score "th" a still needs.
+TAUGHT_FILE = HERE / "picture_taught.json"
+TAUGHT_STEP = 2.0      # seconds between the stills it was taught on (the contact sheets)
+_taught = None
+
+
+def taught_checks():
+    """{kind: (weights (rows x 512), bias, threshold)} from picture_taught.json; {} without
+    it."""
+    global _taught
+    if _taught is None:
+        try:
+            d = json.loads(TAUGHT_FILE.read_text(encoding="utf8"))
+            _taught = {c: (np.array(p["w"], np.float32).reshape(-1, 512), float(p["b"]),
+                           float(p["th"]))
+                       for c, p in d["probes"].items()}
+        except Exception:
+            _taught = {}
+    return _taught
+
+
+def taught_scores(e):
+    """{"taught_<kind>_<row>": weights . embedding} for one frame, from its crops' normalised
+    image embeddings (the mean, normalised); taught_candidates adds them up across stills."""
+    checks = taught_checks()
+    if not checks:
+        return {}
+    m = e.mean(axis=0)
+    m = m / max(float(np.linalg.norm(m)), 1e-9)
+    return {f"taught_{c}_{j}": float(m @ w[j]) for c, (w, b, _) in checks.items()
+            for j in range(len(w))}
 
 
 def clip_ready():
@@ -339,6 +385,7 @@ class Clip:
         pw /= pw.sum()
         for k, i in enumerate(who):
             out[self.names[i]] = float(pw[k])
+        out.update(taught_scores(e))
         return out
 
 
@@ -435,7 +482,59 @@ def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0, lum=None, fps=2.0, lifte
                         "peak_t": peak[0], "peak": round(peak[1][cat], 3), "who": who,
                         "frames": frames,
                         "lifted": any(int(round(t * fps)) in lifted for t in frames)})
+    out += taught_candidates(ts, rows, wanted, out, gap, pad, fps, lifted)
     return sorted(out, key=lambda c: c["s"])
+
+
+TAUGHT_SPAN = 2.0      # seconds a run of taught hits needs (two stills on the contact sheets)
+
+
+def taught_candidates(ts, rows, wanted, found, gap=4.0, pad=1.0, fps=2.0, lifted=()):
+    """The taught check's runs (see TAUGHT_FILE) that no candidate of the same kind already
+    covers, marked "taught". As it was taught: a still's score adds up its own and its
+    neighbours' parts (TAUGHT_STEP apart; one not there adds 0), and is smoothed with the
+    scores 2 s either side (0.25, 0.5, 0.25; none there counts 0)."""
+    checks = taught_checks()
+    lifted = set(lifted or ())
+    out = []
+    step = int(round(TAUGHT_STEP * fps))
+    at = {int(round(t * fps)): r for t, r in zip(ts, rows)}
+    for cat in wanted:
+        if cat not in checks or not any(f"taught_{cat}_0" in r for r in rows):
+            continue
+        w, b, th = checks[cat]
+        half = len(w) // 2
+        keys = [f"taught_{cat}_{j}" for j in range(len(w))]
+        prob = {}
+        for k in at:
+            z = b + sum(at.get(k + (j - half) * step, {}).get(key, 0.0) for j, key in enumerate(keys))
+            prob[k] = 1 / (1 + np.exp(-min(30.0, max(-30.0, z))))
+        hits = []
+        for t, r in zip(ts, rows):
+            k = int(round(t * fps))
+            ps = 0.5 * prob[k] + 0.25 * prob.get(k - step, 0.0) + 0.25 * prob.get(k + step, 0.0)
+            if ps >= th:
+                hits.append((t, r, ps))
+        runs = []
+        for h in hits:
+            if runs and h[0] - runs[-1][-1][0] <= gap:
+                runs[-1].append(h)
+            else:
+                runs.append([h])
+        for run in runs:
+            if run[-1][0] - run[0][0] < TAUGHT_SPAN - 1e-6:
+                continue
+            s, e = max(0.0, run[0][0] - pad), run[-1][0] + pad
+            if any(c["cat"] == cat and c["s"] < e and s < c["e"] for c in found):
+                continue
+            peak = max(run, key=lambda h: h[2])
+            who = ({x: float(np.mean([r.get(x, 0.0) for _, r, _ in run])) for x in WHO}
+                   if cat == "kiss" else {})
+            frames = [t for t, _, _ in sorted(run, key=lambda h: -h[2])[:3]]
+            out.append({"cat": cat, "s": s, "e": e, "peak_t": peak[0], "peak": round(peak[2], 3),
+                        "who": who, "frames": frames, "taught": True,
+                        "lifted": any(int(round(t * fps)) in lifted for t in frames)})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -955,6 +1054,8 @@ CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are to
              "into are fine).")
 # Only for a model that skips "clear": phrases about the frames themselves, so a "woman with
 # dark hair" or "a dark parking garage" isn't taken as the model being unable to see.
+# BARE_NO: no description at all, just a no (see second_look).
+BARE_NO = re.compile(r"^\s*(no|none|nothing|none of (these|the above))\s*\.?\s*$", re.I)
 UNCLEAR = re.compile(r"\b(too (dark|blurr?y)|blurr?y|unclear|"
                      r"(image|frame|picture|shot|scene)s? (is|are) (very |quite |too )?(dark|blurr?y)|"
                      r"(can't|cannot|can not|hard to|difficult to) (see|tell|make out)|"
@@ -1020,6 +1121,11 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None, carto
         else:
             v["keep"] = bool(a.get("yes"))
         clear = a.get("clear")
+        if v["keep"] and BARE_NO.match(see):
+            # a garbled answer (1.18.106): "none of these" where it describes what it sees, yet
+            # gore ticked (Person of Interest S3E2; asked again it said no to both): offered
+            # unticked, not cut
+            v["unclear"] = True
         if clear is False or (clear is None and UNCLEAR.search(see)):
             # the model itself says it can't see clearly: if it still saw something, offer
             # the scene unticked rather than throwing it away

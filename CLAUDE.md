@@ -347,6 +347,41 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The taught picture check (1.18.106, 2026-11-15; the owner: "picture first", then "Yes,
+  build it"). Going by what Claude judged in 151 past cleans (her own changes win), the
+  picture AI's descriptions alone found 2% of the fights, 18% of the bloody scenes, 54% of the
+  kisses and none of the bed scenes. `picture_taught.json` (shipped; in `version.json`'s
+  files) holds a small linear check per kind (fight, gore, kiss, bed) on the mean of a frame's
+  crops' CLIP image embeddings and those of the stills 2 s apart around it (fights two either
+  side, the rest one: a row of "w" per still, `TAUGHT_STEP`); `Clip.scores` adds each row's
+  part, `taught_<kind>_<row>`, to every scored second, and `clip_candidates` adds
+  `taught_candidates`: the parts added up across the stills, then smoothed with the stills 2 s
+  either side (0.25/0.5/0.25), runs of 2 s or more over the kind's "th", not where a
+  description candidate of the same kind already is; marked "taught". They count only after
+  the AI helper's closer look agrees (`decide_picture_scenes` drops them without a verdict, on
+  a refusal or an error); the scene keeps "taught": True. Tested on cleans it wasn't taught
+  from (5-fold by video): fights 64% found (31% of finds real), blood 51% (20%), kisses 57%,
+  bed scenes 42% (45%). (A second round the same day, the owner away: "you should do another
+  round of training if it will help". Looking at the neighbouring stills raised blood from
+  40% and fights from 56%, bed scenes from 37%; the settings, `CFG` in the tool, were the best
+  per kind of several tried, so these are slightly flattering.) `clip_signature` includes the file's hash, so saved picture scans with the
+  picture AI are done once more (the nudity check alone isn't). To teach it again from newer
+  reports: `tools/picture_embed.py` then `tools/picture_train.py` (usage in each), copy the
+  new picture_taught.json here. On 7 real episodes it wasn't taught from (Person of Interest,
+  The Resident; CleanView's own scan, the closer look by qwen3-vl:8b-instruct, round two's
+  checks taught without them): bed scenes 4 of Claude's 10 found and kept (none before);
+  every wrong taught kiss turned down, and "two newborn babies in a hospital bed"; ~30 s more
+  closer look per episode. Round one had two taught blood finds kept as gore from a garbled
+  answer (its description just "none of these"; asked again, no): `second_look` now marks a
+  kept answer whose description is a bare no (`BARE_NO`) unclear, so it's offered unticked
+  (round two: both offered unticked). Fights and blood on Castle/Gummi Bears weren't tried
+  on real episodes (their drive wasn't plugged in).
+- Words from CleanListen 1.17.44 (1.18.106, 2026-11-15, Lauren's Camp Club Girls report; the
+  same words in every app): "fool" before yourself/me/you/him/anyone/people/of... is fooling
+  someone (INNOCENT_NEXT), "play/played dumb" (INNOCENT_PREV), "shut it softly/behind
+  him/quietly..." closing a door (NOT_RUDE_NEXT). Kept here and passed to CleanListen: after
+  "a"/"the"/"such"/"complete"... (`FOOL_NOUN_PREV`, `fool_called`) "fool" is still calling
+  someone a fool, "What a fool you are!", unless "of" follows ("a fool of myself").
 - Lauren's Person of Interest S1E4 report (1.18.105, 2026-11-15, adults, the AI helper, made on
   1.18.104; the owner: "yes 1 and 2. leave for now"). "I'm going home and hitting the hay" was
   heard as "hit in the heck" and "heck" muted, though the subtitles say "hay" at that very
@@ -1533,6 +1568,7 @@ them in. Rules that follow from this:
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
 | `videoqueue.py` | Several videos at once: each video is watched and listened to (`analyze`) in its own worker process, "Videos at once" at a time. `Workers` (the window side) and `main()` (the worker, run as `CleanView.exe videoqueue.py <work>/queue_task.json`, one JSON line per message). Also `plain_error`, used by the window too. |
 | `ollama_care.py` | Ollama only while the apps are open: out of Windows startup, stopped after the last one closes (same file as CleanListen's, plus `videoqueue.py` in `CLEAN_APPS`). Standard library only. |
+| `picture_taught.json` | The taught picture check's weights (1.18.106), made by `tools/picture_train.py`. |
 | `shared_learned.json` | Built-in knowledge merged from users' exports; shipped with every update. Merged with `tools/merge_learned.py`. |
 | `launcher.pyw`, `update.json` | Auto-updater (above). |
 | `installer/` | `install.ps1`, `Install CleanView.bat`, `READ ME FIRST.txt`. Zipped by hand as `CleanView-Setup.zip`. |
@@ -1608,6 +1644,12 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_words_from_cleanlisten_1_17_44.py`: fooling someone, "play dumb" and "shut it softly"
+  left alone; "Don't be a fool", "What a fool you are!", "That's dumb", "Shut it!" still muted.
+- `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of
+  taught hits is a find and a blip isn't, not twice where a description found it, dark frames
+  left out, no file changes nothing, a new file redoes the scans, and taught finds count only
+  with the AI helper's agreement.
 - `test_poi_s1e4.py`: "heck" heard where the subtitles say "hay" offered unticked, other
   sound-alikes as before and the unlike ones still not; "Benton's conquests" found and just
   the word muted, the Norman Conquest not; the comfy-bed line taught for Person of Interest.
@@ -2075,7 +2117,9 @@ These are where results have been wrong in real use. Improvements here matter mo
 2. **Picture-only scenes when there is no Claude/ChatGPT.** The local CLIP + NudeNet + qwen3-vl
    path misses or over-flags a lot (e.g. implied vs actual nudity, crime scenes as gore,
    cartoon fights). The cloud picture review is much better. Better local models or smarter
-   thresholds would help users without Claude.
+   thresholds would help users without Claude. Since 1.18.106 a check taught from Claude's
+   past judgments (`picture_taught.json`) finds many more fights, bloody scenes and bed
+   scenes; teach it again as more reports with Claude's picture review come in.
 3. **Run-to-run consistency.** The cloud model isn't deterministic, so the same episode gave
    different cut lists each run. Since 1.11.6 every one-off question to Claude/ChatGPT is
    saved in `APP_DATA\answers` (keyed by provider, model, prompt, input, schema and the
