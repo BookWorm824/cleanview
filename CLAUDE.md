@@ -347,6 +347,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- The kissing choices say "Cut" (1.18.103, 2026-11-14; the owner: "under the kisses tab when
+  choosing it say "keep" "passonate" "all kisses" arent the 2 redundant", then "yes change"):
+  the buttons read "Keep", "Cut passionate", "Cut all kisses" (the values, `level_names`, are
+  as before, so saved choices are kept). They weren't redundant: passionate keeps pecks.
 - Lauren's Person of Interest S1E2 report (1.18.102, 2026-11-14, adults, the AI helper, made on
   1.18.100; the owner: "Yes, release it"): every mute right, no scenes; two lines went through.
   "How the hell'd you get in here?": `cl._base` now also takes a joined-on 'd, 'll, 're or 've
@@ -1570,6 +1574,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_kiss_buttons.py`: the kissing buttons say "Cut", set the same levels, and fit the
+  window at Normal and Largest text size.
 - `test_poi_s1e2.py`: listed words with 'd/'ll/'re/'ve joined on found, possessives as before,
   everyday contractions left alone; stepping out on / cheating on a person found and just
   those words muted, stepping out onto a place or cheating on taxes not.

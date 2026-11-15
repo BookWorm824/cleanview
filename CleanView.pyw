@@ -1167,8 +1167,10 @@ class App(tk.Tk):
                     row=row, column=0, sticky="w", padx=(0, X(14)), pady=X(3))
                 v = tk.StringVar(value=self.level_names[cur.get(key, default)])
                 self.opts[key] = v
-                look.Segmented(grid, [("Keep", "Keep"), ("Cut passionate kisses", "Passionate"),
-                                      ("Cut all kisses", "All kisses")], v, size=9).grid(
+                # "Cut" on the buttons (1.18.103; the owner: "keep" "passonate" "all kisses"
+                # "arent the 2 redundant": "Passionate" didn't say it cuts only those)
+                look.Segmented(grid, [("Keep", "Keep"), ("Cut passionate kisses", "Cut passionate"),
+                                      ("Cut all kisses", "Cut all kisses")], v, size=9).grid(
                     row=row, column=1, sticky="w", pady=X(3))
                 out.append(v)
             return out
