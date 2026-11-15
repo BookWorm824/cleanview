@@ -2711,6 +2711,7 @@ class App(tk.Tk):
                            name=short(Path(good[0]["video"]).stem, 70) +
                            (f" and {len(good) - 1} more" if len(good) > 1 else ""))
         self.scene_vars, self.line_vars, self.word_vars, self.quiet_vars = [], [], [], []
+        self._thumb_spots = {}      # id(scene) -> (row, text): where its pictures go
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
         self.found_frames = {}
         multi = len(good) > 1
@@ -3350,7 +3351,7 @@ class App(tk.Tk):
             return
         st = job["analysis"]
         self._sync_job(job)                  # ticks she changed meanwhile count as hers
-        engine.finish_review(st, engine.match_review(st, res), job["work"])
+        engine.finish_review(st, engine.match_review(st, res), job["work"], thumbs=False)
         cnt = st.get("claude_counts") or {}
         self._log("The AI's review: " + (st.get("claude_summary") or "done."))
         self.after(200, self._save_session)
@@ -3359,6 +3360,7 @@ class App(tk.Tk):
                                       if cnt.get("words") else "") +
                   ". The Found tab is updated.", "note")
         self.show_review()
+        self._thumbs_later(job)
 
     def _log(self, text, tag="claude"):
         self.chat_history.append((text, tag))
@@ -3613,7 +3615,7 @@ class App(tk.Tk):
             return
         self._sync_job(job)                       # anything clicked while it was thinking
         snapshot = copy.deepcopy(job["analysis"])
-        done = engine.apply_chat(job["analysis"], items, acts, job["work"])
+        done = engine.apply_chat(job["analysis"], items, acts)   # pictures: _thumbs_later
         if done:
             self.undo_stack.append((job, snapshot))
             self._log("\u2713 Changed on the list: " + "; ".join(done) + ".", "note")
@@ -3627,6 +3629,48 @@ class App(tk.Tk):
             pass
         self.show_review(tab=tab)
         self._save_session()
+        self._thumbs_later(job)
+
+    def _show_thumbs(self, sc):
+        """A scene card's three blurred pictures, put in before its text."""
+        mid, text = getattr(self, "_thumb_spots", {}).get(id(sc), (None, None))
+        if mid is None or not mid.winfo_exists():
+            return
+        for t in sc.get("thumbs", [])[:3]:
+            try:
+                img = tk.PhotoImage(file=t)
+            except tk.TclError:
+                continue
+            self._imgs.append(img)
+            tk.Label(mid, image=img, bg=CARD, borderwidth=0).pack(side="left", padx=(0, 6),
+                                                                  before=text)
+
+    def _thumbs_later(self, job):
+        """Pictures for scenes the chat or the AI's review just added, made in the background
+        and put on their cards when ready (1.18.104; the owner's \"stopped responding\" note,
+        2026-11-14: made on the window's thread, a chat cut's took 40 s on her .wmv)."""
+        new = [sc for sc in job["analysis"].get("scenes", []) if "thumbs" not in sc]
+        if not new or not job.get("work"):
+            return
+        for sc in new:
+            sc["thumbs"] = []                 # being made: not asked for twice
+        spans = [{"id": sc["id"], "s": sc["s"], "e": sc["e"]} for sc in new]
+        path, work = job["analysis"]["path"], job["work"]
+
+        def make():
+            try:
+                engine.make_thumbs(path, spans, work)
+            except Exception:
+                save_details(traceback.format_exc())
+                return
+            self.q.put(("call", lambda: put(spans)))
+
+        def put(made):
+            for sc, m in zip(new, made):
+                sc["thumbs"] = m.get("thumbs", [])
+                self._show_thumbs(sc)
+            self._save_session()
+        threading.Thread(target=make, daemon=True).start()
 
     def _undo_chat(self):
         if not self.undo_stack:
@@ -3766,15 +3810,10 @@ class App(tk.Tk):
         pv.pack(side="right")
         mid = tk.Frame(card, bg=CARD)
         mid.pack(fill="x", pady=(8, 0))
-        for t in sc.get("thumbs", [])[:3]:
-            try:
-                img = tk.PhotoImage(file=t)
-            except tk.TclError:
-                continue
-            self._imgs.append(img)
-            tk.Label(mid, image=img, bg=CARD, borderwidth=0).pack(side="left", padx=(0, 6))
         text = tk.Frame(mid, bg=CARD)
         text.pack(side="left", fill="both", expand=True, padx=(6, 0))
+        self._thumb_spots[id(sc)] = (mid, text)
+        self._show_thumbs(sc)
         if sc.get("why"):
             tk.Label(text, text="Found: " + sc["why"], bg=CARD, fg=INK, font=(FONT, 9),
                      wraplength=wrap_width(210), justify="left", anchor="w").pack(fill="x")

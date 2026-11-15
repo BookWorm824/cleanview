@@ -2034,6 +2034,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
                          # quickie divorce" (a learned line she kept)
                          r"thanks for the quickie|"
+                         # Person of Interest S1E3 (1.18.104): "Join Manny and Danny in the land
+                         # of tequila / and grateful señoritas" (split over two lines, so a
+                         # learned line can't catch it)
+                         r"grateful se[nñ]oritas?|"
                          # Castle S2E6 (1.18.95, the owner: "1 and 2"): "That is the sexiest
                          # thing I ever heard you say" went through ("sexy" was muted)
                          r"sexy|sexier|sexiest)\b", re.I),
@@ -2047,6 +2051,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"their|our) (?:wi(?:fe|ves)|husbands?|girlfriends?|boyfriends?|"
                          r"partners?|fianc[eé]e?s?)"
                          r"|step(?:s|ped|ping)? out on (?:him|me|you|them|her(?![ \t]+[a-z]))"
+                         # Person of Interest S1E3 (1.18.104, 2026-11-14): "Who's the other
+                         # woman?", "Looks like Joey's other woman's got a little girl" went
+                         # through. Someone's other woman, not "the other women at the bank" or
+                         # "two other men" (in the 82,372 lines of past reviews here, only these)
+                         r"|(?:who'?s|who is|who was) the other wom[ae]n"
+                         r"|(?:his|her|my|your|their|\w+'s) other wom[ae]n"
                          # Castle S2E6 (1.18.95): "I'm not sleeping with her", "He was one of
                          # my lovers". "her" can start "her teddy bear": only when no other
                          # word follows, or a small one (now, again, anymore...)
@@ -2481,7 +2491,12 @@ def word_mute(st, line, word, why, used=None):
                 continue
             joined = n                   # "sweet" "ass", "explain" "how" "that" ...
             for j in range(k + 1, min(len(heard), k + 12)):    # stops once it can't match
-                joined += cl.norm(heard[j][0])
+                nj = cl.norm(heard[j][0])
+                # the phrase's last word with 's on ("Joey's other woman's got a little girl",
+                # Person of Interest S1E3, 1.18.104)
+                if joined + nj != target and joined + cl._base(nj) == target:
+                    nj = cl._base(nj)
+                joined += nj
                 if joined == target:
                     s, e = w[1], heard[j][2]
                     break
@@ -2497,8 +2512,11 @@ def word_mute(st, line, word, why, used=None):
         # "Sexy. Sexy's not a crime." is the word twice (Castle S2E1, 2026-11-13: the second
         # was put on top of the first, two mutes at 0:45.3, and "Sexy's" played)
         own = [cl._base(t) for t in toks]
+        last = len(parts) - 1
         places = [k for k in range(len(toks)) if toks[k:k + len(parts)] == parts
-                  or (len(parts) == 1 and own[k] == parts[0])]
+                  or (len(parts) == 1 and own[k] == parts[0])
+                  or (last and k + last < len(toks) and toks[k:k + last] == parts[:-1]
+                      and own[k + last] == parts[-1])]
         said = [u for u in taken if line["s"] - 0.6 <= u["s"] <= line["e"] + 0.6 and
                 target in cl.norm((u.get("raw") or u["word"]).replace(" ", ""))]
         if not places:
@@ -2702,7 +2720,9 @@ def _language_of(st):
 
 def apply_chat(st, items, acts, work=None):
     """Make the changes asked for in the chat, straight away. Everything changed
-    counts as the person's own choice. Returns a list of plain descriptions."""
+    counts as the person's own choice. Returns a list of plain descriptions. work: make
+    the new cuts' pictures there now (the window leaves it out and makes them in the
+    background: on her .wmv they took 40 s and the window stopped answering, 1.18.104)."""
     lines = st.get("dialogue", [])
     who = st.get("reviewer") or cc.name()
     done = []
@@ -2804,9 +2824,10 @@ def match_review(st, res):
     return keep, {i: d for i, d in decisions.items() if i in keep}, missed, missed_scenes, summary
 
 
-def finish_review(st, res, work=None):
+def finish_review(st, res, work=None, thumbs=True):
     """Put a review into st: tick and untick, add what was missed, notes, and the
-    findings log. Her own choices are never changed (apply_review)."""
+    findings log. Her own choices are never changed (apply_review). thumbs=False: the
+    window makes the new scenes' pictures itself, in the background (1.18.104)."""
     st["reviewer"] = cc.name()
     n = apply_review(st, res)
     who = st.get("reviewer", "Claude")
@@ -2822,7 +2843,7 @@ def finish_review(st, res, work=None):
         pass
     if work is not None:
         new = [sc for sc in st["scenes"] if "thumbs" not in sc]
-        if new:
+        if new and thumbs:
             make_thumbs(st["path"], new, work)
         (Path(work) / "analysis.json").write_text(json.dumps(st, indent=1))
     return n
@@ -3887,7 +3908,9 @@ LIST_WORDS_ONLY = ("sexref", "casual")
 # -> "affair" (the chat muted just those)
 LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b)"
                             r"|(?:the|his|her|their|love|secret|torrid|illicit|sordid|extramarital) "
-                            r"(?=affair\b)|(?:my|his|her|your|their|our|secret) (?=lovers?\b))"
+                            r"(?=affair\b)|(?:my|his|her|your|their|our|secret) (?=lovers?\b)"
+                            r"|(?:who'?s|who is|who was) the (?=other wom[ae]n\b)"
+                            r"|(?:his|her|my|your|their|\w+'s) (?=other wom[ae]n\b))"
                             r"|(?<=\baffair) with$")
 
 

@@ -1263,7 +1263,9 @@
     "if you'll excuse me i got a date with a sock",
     "there was a stripper pole in that thing",
     "i wanna know if those lips taste like the chocolate mints",
-    "mom left because you cheated on her"
+    "mom left because you cheated on her",
+    "bank robber and a cheat",
+    "bank robber and a cheet"
    ],
    "kept": [
     "or this sad specimen will",
@@ -1317,7 +1319,9 @@
     "if you'll excuse me i got a date with a sock": "sexref",
     "there was a stripper pole in that thing": "sexref",
     "i wanna know if those lips taste like the chocolate mints": "sexref",
-    "mom left because you cheated on her": "casual"
+    "mom left because you cheated on her": "casual",
+    "bank robber and a cheat": "casual",
+    "bank robber and a cheet": "casual"
    },
    "notes": [
     "Finch (Harold Finch) is a main character: 'bitch' heard where 'Finch' fits is the name.",

@@ -398,6 +398,17 @@ MILD_SLANG = [re.compile(p) for p in (
     r"(i'm|we're|you're|he's|she's|they're|it's|we are|i am|you are|totally|completely|"
     r"royally|so|really|just|get|gets|got|getting|gotten|be|been|is|are|was|were) screwed\b(?! (in|into|on|onto|down|together|shut|tight|tightly|to|"
     r"the|it|that|this|back|off|up)\b)",
+    # "Latimer screwed us" (Person of Interest S1E3, 1.18.104), "he screwed me over",
+    # "screwing him"; not "screwed him up" (messed up) or "screws them in tight"
+    # (plain "screw you/him/..." are CRUDE_PHRASES, with the "the screw you dropped" guard)
+    r"((screws|screwed|screwing) (us|me|you|him|her|them|everybody|everyone)|screw us)( over)?\b"
+    r"(?! (up|in|into|onto|down|together|shut|tight|tightly|back)\b)",
+    # and the same in past reviews here: "You don't screw with us", "Someone is screwing with
+    # me", "screwed over", "we didn't want to screw Max over" (not "screw the lid over")
+    r"(screw|screws|screwed|screwing) with (me|us|you|him|her|them|people)\b",
+    r"(screw|screws|screwed|screwing) over\b",
+    r"(screw|screws|screwed|screwing) (?!(the|a|an|it|its|this|that|these|those|in|into|on|"
+    r"onto|up|down|off|back|around)\b)[a-z']+ over\b",
 )]
 
 

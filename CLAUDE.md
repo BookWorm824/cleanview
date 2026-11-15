@@ -347,6 +347,29 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   episodes, from scratch): 2 at once 14.7 min, one after the other 19.2 min, the same closer
   looks; each video is slower at once (13-15 min against 9-10) but both are done sooner, so
   the default of 2 stays.
+- A chat cut's pictures are made in the background (1.18.104, 2026-11-14; her "CleanView
+  stopped responding" note from Person of Interest S1-(2): asked to end a kiss cut 5 seconds
+  sooner, the chat added the shorter cut and made its three blurred pictures on the window's
+  thread, 40 s on her .wmv). `_chat_reply` calls `apply_chat` without `work`, and
+  `_reviewed` calls `finish_review(..., thumbs=False)`; `_thumbs_later(job)` marks the scenes
+  without pictures (`thumbs` []), makes them in a thread with `engine.make_thumbs` and puts
+  them on the cards when ready (`_thumb_spots`, `_show_thumbs`), then saves the session.
+  Given `work`, the engine still makes them itself (the command line, tests).
+- Lauren's Person of Interest S1E3 report (1.18.104, 2026-11-14, adults, the AI helper, made on
+  1.18.102; the owner: "Yes, do both"): the episode was told from "S1 - (3)" (1.18.101), every
+  mute right, no scenes (violence off, kisses kept). Four lines went through, now caught:
+  "Who's the other woman?" / "Looks like Joey's other woman's got a little girl"
+  (`LINE_WORDS["casual"]`: "who's/who is/who was the other woman", "his/her/Joey's... other
+  woman", just "other woman" muted, `LIST_WORD_TRIM`; not "the other women in the car", "two
+  other men"); "...the land of tequila / and grateful señoritas" (sexref "grateful
+  señorita(s)": split over two lines, a learned line can't catch it); "Latimer screwed us"
+  (`MILD_SLANG`: screwed/screwing us/me/him... (over), "screw us", and from past reviews here
+  "screw with us/me...", "screwed over", "screw Max over"; not "screwed him up", "screwed it
+  in", "the screw you dropped", "screw the lid over"); "Bank robber and a cheat" (the subtitles
+  write "cheet") taught for Person of Interest only, both spellings (casual): "cheater" is
+  mostly games in past reviews ("You big cheater!"). `word_mute` places a phrase whose last
+  word has 's on ("other woman's"). In the 82,372 lines of past reviews here the new finds
+  were these and six "screw" lines, all real. For CleanListen, CleanRead and web/words.js too.
 - The kissing choices say "Cut" (1.18.103, 2026-11-14; the owner: "under the kisses tab when
   choosing it say "keep" "passonate" "all kisses" arent the 2 redundant", then "yes change"):
   the buttons read "Keep", "Cut passionate", "Cut all kisses" (the values, `level_names`, are
@@ -1574,6 +1597,13 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   `CLEANVIEW_TEST_MULTI`.
 - `test_save_fails.py` (NoRoom): a save that fails on a full drive says where, how much is
   free and what to do, and isn't offered for sending; an unexpected failure still is.
+- `test_thumbs_later.py`: a chat cut doesn't wait for its pictures (a slow stand-in), which
+  are put on its card when ready, once; the chat's untick holds; given `work` the engine
+  still makes them.
+- `test_poi_s1e3.py`: someone's other woman found and just "other woman" muted (also said as
+  "woman's"), other women and men left alone; "grateful señoritas" with or without the accent;
+  screwed us / screw with us / screwed over with the mild words, screws and "screwed up" left
+  alone, "screw you" as before; "a cheat" taught for Person of Interest, "cheater" not listed.
 - `test_kiss_buttons.py`: the kissing buttons say "Cut", set the same levels, and fit the
   window at Normal and Largest text size.
 - `test_poi_s1e2.py`: listed words with 'd/'ll/'re/'ve joined on found, possessives as before,
