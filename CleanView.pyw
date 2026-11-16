@@ -21,6 +21,7 @@ import cleanview_claude as cc  # noqa: E402
 import cleanview_learn as learn  # noqa: E402
 import videoqueue as VQ  # noqa: E402  (several videos at once)
 import cvlook as look  # noqa: E402  (the drawn look: cards, switches, pill buttons)
+import cvsweeper as sweeper  # noqa: E402  (the little cleaner on the logo while cleaning)
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
@@ -313,6 +314,16 @@ def logo_image(master, n):
         return tk.PhotoImage(master=master, data=base64.b64encode(png).decode()) if png else None
     except tk.TclError:
         return None
+
+
+def logo_backdrop(n):
+    """The logo n pixels across (its biggest picture as it is when that's smaller) on the
+    page's background, h x w x 3 uint8, or None: what the working page's canvas shows, and
+    what the little cleaner is drawn on (cvsweeper)."""
+    big = _logo_rgba()
+    if big is None:
+        return None
+    return sweeper.backdrop(big if big.shape[0] <= n else _shrink(big, n), BG)
 
 
 def fmt_bytes(n):
@@ -2019,10 +2030,12 @@ class App(tk.Tk):
         n = max(64, min(WORKING_LOGO, room)) // 8 * 8
         if n == getattr(self, "_logo_size", None) or not self.logo.winfo_exists():
             return
-        img = logo_image(self, n)
-        if img is not None:
-            self._logo_img, self._logo_size = img, n
-            self.logo.configure(image=img)
+        back = logo_backdrop(n)
+        if back is not None:
+            self._logo_img, self._logo_size = look.photo(self, sweeper.opaque(back)), n
+            self.logo.configure(width=back.shape[1], height=back.shape[0])
+            self.logo.itemconfigure(self._logo_item, image=self._logo_img)
+            self._sweeper.set_backdrop(back)
 
     def show_working(self, title, videos=None, can_stop=False):
         """The progress page. videos: the files being worked on, listed with how each
@@ -2052,13 +2065,23 @@ class App(tk.Tk):
         self.overall = tk.Label(box, text="", bg=CARD, fg=ACCENT, font=(HEAD, 11))
         self.overall.pack(anchor="w", pady=(4, 0))
         if n == 1:                      # the logo in the empty space (Jason, 2026-11-07)
-            img = logo_image(self, WORKING_LOGO)
-            if img is not None:
-                self._logo_img, self._logo_size = img, WORKING_LOGO
+            back = logo_backdrop(WORKING_LOGO)
+            if back is not None:
                 mid = tk.Frame(p, bg=BG)
                 mid.pack(fill="both", expand=True)
-                self.logo = tk.Label(mid, image=img, bg=BG)
+                self.logo = tk.Canvas(mid, width=back.shape[1], height=back.shape[0], bg=BG,
+                                      highlightthickness=0, bd=0)
+                self._logo_img = look.photo(self, sweeper.opaque(back))
+                self._logo_size = WORKING_LOGO
+                self._logo_item = self.logo.create_image(0, 0, image=self._logo_img,
+                                                         anchor="nw")
                 self.logo.place(relx=0.5, rely=0.45, anchor="center")
+                # a little cleaner wanders over it with his broom (1.18.109; the owner:
+                # "a little cleaner man that roams around the logo", "B · bigger" "with d
+                # movement"); he stops by himself when the page changes
+                self._sweeper = sweeper.Sweeper(
+                    self.logo, back, lambda rgba, into: look.photo(self, rgba, into))
+                self._sweeper.start()
                 mid.bind("<Configure>", lambda e, mid=mid: self._fit_logo(mid))
         self._work_n, self._work_t0 = n, None
         self.stop_after = False

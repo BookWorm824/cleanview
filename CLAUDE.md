@@ -195,6 +195,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   for 384 below the progress card it's made smaller rather than cut off (`_fit_logo` on the
   space's `<Configure>`; 940x800, the usual size, has room). The icon's sizes and the
   shortcuts get the stronger look the same way as 1.18.107's.
+- A little cleaner sweeps the logo while cleaning (1.18.109, 2026-11-15; the owner: "would it
+  be possible to make a little cleaner man that roams around the logo with a broom while
+  cleaning", of four moving mockups "B · bigger" "with d movement", and a mockup of that).
+  `cvsweeper.py`: a man in a red cap and blue overalls with a broom, a tenth of the logo's
+  height (`SIZE`), drawn with numpy (distance-to-edge shapes, smooth edges, a soft dark edge
+  and a shadow at his feet). `Walker` wanders over the logo's tile (`bounds`), walks to a spot
+  at `SPEED` heights a second, sweeps 1.4-2.4 s with a puff of dust at the end of each stroke
+  (`PUFF_LIFE`), picks another; no Tk, so tests run it. `Sweeper` puts him on the working
+  page: the logo is a canvas showing `logo_backdrop(n)` (the logo on the page's background),
+  and he is a small second picture cut from it with him drawn in, moved `FPS` (20) times a
+  second through the window's `after` (the canvas's would go with it); about 2 ms a frame
+  here. Nothing is drawn while the window is minimised; he stops when the canvas goes (the
+  page changed), and any error just stops him. `_fit_logo` gives him the smaller logo too.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -1594,6 +1607,7 @@ them in. Rules that follow from this:
 | `cleanview_gemini.py` | Gemini through Google's **Gemini CLI** (`gemini -p ... -o json`, signed in with a Google account, no API key), same interface. Installed with npm (needs Node.js 20+). The CLI can't take a schema, so the shape is described in the prompt and the reply is checked (asked again once). The prompt goes in through stdin; pictures are copied into an empty work folder and named with `@picture1.jpg` on the command line. Chats are kept by CleanView (`APP_DATA\gemini\chats`), not the CLI. Provider key `"gemini"` (`cc.OTHERS`). |
 | `cleanview_accounts.py` | Each person's own Claude, ChatGPT or Gemini sign-in inside CleanView ("Use a different account" / "Sign out" on the start page). Claude Code, Codex and the Gemini CLI keep their sign-in in a folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_CLI_HOME`); CleanView's own is `APP_DATA\accounts\<ai>\<n>`, so the PC's own sign-in is never signed out or changed. A new sign-in goes in a new folder and is only used once it worked (`keep()`). With none, the PC's sign-in is used. |
 | `cvlang.py` | Other languages (1.18.80, Spanish first): the list of languages, each one's word lists and guards, the listening model for other languages and its one-time download, and the language being cleaned now (`LANG`). Must not import cvcore. |
+| `cvsweeper.py` | The little cleaner sweeping the logo on the working page (1.18.109): drawn with numpy, `Walker` (where he goes), `Sweeper` (him on the Tk canvas). |
 | `cvlook.py` | The drawn look (1.18.77): rounded cards, pill buttons, switches, the segmented choice, option cards, icon badges, chips and tick boxes, drawn with numpy as PNGs for Tk, and the ttk buttons, tabs, scroll bars, progress bar and fields in the same look. tkinter and numpy only. |
 | `cleanview_learn.py` | Learning from the user's choices per show (`learned/<show>.json`, key `show@profile`), Claude findings log (`claude_findings.csv`), exports ("Save what we refined…", "Send what CleanView learned…"). |
 | `videoqueue.py` | Several videos at once: each video is watched and listened to (`analyze`) in its own worker process, "Videos at once" at a time. `Workers` (the window side) and `main()` (the worker, run as `CleanView.exe videoqueue.py <work>/queue_task.json`, one JSON line per message). Also `plain_error`, used by the window too. |
@@ -1680,6 +1694,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   lighter top, the picture still white), CleanView.exe made before gets it once (one in use
   is tried again), and only this install's shortcuts are pointed at a copy named by its
   contents, again when it changes.
+- `test_sweeper.py`: the cleaner is a tenth of the logo, stays on it for three minutes of
+  walking, sweeps with puffs, faces both ways, draws only himself (his cap's red), is quick,
+  wanders and moves on the working page, follows a smaller logo and stops when the page goes.
 - `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of
   taught hits is a find and a blip isn't, not twice where a description found it, dark frames
   left out, no file changes nothing, a new file redoes the scans, and taught finds count only
