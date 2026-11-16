@@ -297,6 +297,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (`sure`) and marked `learned` so no AI review unticks it. The first: Forest/Forrest Gump, the
   principal's night visit, "He's on vacation." to "You don't say much, do you?" (8:57-9:27 in
   her copy), "Sex scene", for sex or sexref, every age.
+  1.18.113: 1.18.112 added it after `analyze` numbers the scenes (`sc["id"]`, `sc["cut"]`), so
+  it had no number and no tick, and `make_thumbs` at the end (`f"{sc['id']}_..."`) would have
+  failed the whole scan of that movie with sexual references or sex scenes ticked (found by the
+  CleanView Play chat while merging it). It now gets the next number, `cut`, the video's end
+  and `said` like the others; `test_forest_gump.ThroughAWholeScan` runs a whole `analyze()`
+  with stand-ins on a "Forest Gump.mp4" (it fails on 1.18.112 with KeyError 'id').
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
