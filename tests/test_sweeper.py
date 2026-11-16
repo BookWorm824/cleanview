@@ -2,6 +2,7 @@
 cleaner man that roams around the logo with a broom while cleaning", picked "B · bigger" "with
 d movement": a tenth of the logo's height, wandering over the logo and sweeping)."""
 import json
+import math
 import random
 import time
 import tkinter as tk
@@ -118,11 +119,50 @@ class LifelikeWalk(unittest.TestCase):
             w.step(1 / sw.FPS)
             self.assertLessEqual(len(w.puffs), made)        # no new dust
         self.assertEqual((w.x, w.y, w.state), where + (state,))
-        self.assertEqual(w.shown["broom"], sw.leaning(0)["broom"])
+        self.assertEqual((w.shown["head"], w.shown["grip"]),
+                         (sw.leaning(0)["head"], sw.leaning(0)["grip"]))
         w.paused = False
         for _ in range(sw.FPS * 8):
             w.step(1 / sw.FPS)
         self.assertNotEqual((w.x, w.y), where)              # carries on after Resume
+
+
+class PushBroomAndDetail(unittest.TestCase):
+    """1.18.111: "can he have a push broom style. and can you make him a little more hd?"."""
+
+    def test_pushes_it_along_in_front(self):
+        for p in [sw.walking(i / 10) for i in range(10)] + [sw.sweeping(i / 10) for i in range(10)]:
+            hx, bottom, top, grip, far = sw._broom(p, 38)
+            self.assertGreater(hx, 0.4 * 38)                     # in front of him
+            self.assertGreater(bottom[0], top[0])                # handle up and back to him
+            self.assertLess(top[1], grip[1])
+            for shoulder, hand in (((0.03, -0.71), grip), ((-0.04, -0.72), far)):
+                sx, sy = sw._from_upper(shoulder[0] * 38, shoulder[1] * 38, p, 38)
+                self.assertLess(math.hypot(hand[0] - sx, hand[1] - sy), 2 * sw.ARM * 38 * 1.1)
+
+    def test_push_strokes_and_dust_out_in_front(self):
+        heads = [sw.sweeping(t / 20)["head"] for t in range(40)]
+        self.assertGreater(max(heads) - min(heads), 0.2)         # out and back
+        w = sw.Walker(384, random.Random(9))
+        for _ in range(sw.FPS * 60):
+            w.step(1 / sw.FPS)
+            for x, y, age in w.puffs:
+                if age == 0:
+                    self.assertGreater((x - w.x) * w.face, 0.6 * w.h)    # ahead of the broom
+
+    def test_paused_the_broom_stands_up(self):
+        hx, bottom, top, grip, far = sw._broom(sw.leaning(0), 38)
+        self.assertLess(abs(top[0] - bottom[0]), abs(top[1] - bottom[1]) * 0.3)
+
+    def test_more_detail(self):
+        pic = sw.draw(np.full((60, 90, 3), 210, np.uint8), 30, 52, 38, sw.walking(0.25))
+        near = lambda colour, tol=40: (np.abs(pic.astype(int) - colour).sum(axis=2) < tol).any()
+        for colour in (sw.SHIRT, sw.OVERALLS, sw.SKIN, sw.BRASS, sw.EYE_WHITE, sw.HANDLE,
+                       sw.BRISTLES, sw.HAIR):
+            self.assertTrue(near(np.array(colour)), colour)
+        self.assertTrue((pic.sum(axis=2) < 200).any())           # a dark outline
+        sleeve = sw.draw(np.full((60, 90, 3), 210, np.uint8), 30, 52, 38, sw.walking(0.25))
+        self.assertTrue(np.array_equal(pic, sleeve))             # the same every time
 
 
 class Drawing(unittest.TestCase):

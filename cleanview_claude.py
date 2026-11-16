@@ -1040,7 +1040,7 @@ PIC_RULES = (
     "Be accurate. Police or soldiers simply carrying guns, a gun only held or handled (not "
     "aimed at someone or fired), a hug, a peck on the cheek or forehead (a family goodbye), "
     "a hospital or crime-scene photo with no visible wounds, a foot chase, or a glass of "
-    "water are NOT matches. An evening gown or a formal dress is not immodest; rule the same "
+    "water, or a soda, coffee or juice (Forest Gump's Dr Pepper), are NOT matches. An evening gown or a formal dress is not immodest; rule the same "
     "outfit the same way all through the video. Nudity in a statue or painting is nudity in "
     "art: call it that in \"why\". "
     "Violence levels (pick the highest that's shown): \"violence\" = fighting, hitting, "

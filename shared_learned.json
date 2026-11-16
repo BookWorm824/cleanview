@@ -498,7 +498,10 @@
     "be gentle this is my first time",
     "dude any excuse for you to pull that thing out",
     "but a brother like myself is ready to get his freak on",
-    "i mean hey man she might put it on a brother"
+    "i mean hey man she might put it on a brother",
+    "that was amber amber flame",
+    "direct from hollywood california our very own beatnik beauty",
+    "let's give a big round of applause to the luscious bobbi dylan"
    ],
    "kept": [
     "no one even bothered to ask me what i do on the show",
@@ -518,7 +521,10 @@
     "be gentle this is my first time": "sexref",
     "dude any excuse for you to pull that thing out": "sexref",
     "but a brother like myself is ready to get his freak on": "sexref",
-    "i mean hey man she might put it on a brother": "sexref"
+    "i mean hey man she might put it on a brother": "sexref",
+    "that was amber amber flame": "sexref",
+    "direct from hollywood california our very own beatnik beauty": "sexref",
+    "let's give a big round of applause to the luscious bobbi dylan": "sexref"
    },
    "notes": [
     {
@@ -532,6 +538,14 @@
     {
      "title": "West Side Story",
      "text": "The rumble under the highway is a knife fight in which Riff and Bernardo are stabbed to death (Violence); the Jets shoving and attacking Anita in Doc's store is Disturbing (an attempted rape); Chino shooting Tony at the end is Violence. The street scuffles between the Jets and the Sharks at the start are fighting (Violence). 'Gay' in 'I feel pretty and witty and gay' means happy."
+    },
+    {
+     "title": "Forest Gump",
+     "text": "Jenny's dorm room scene (about 27:50 to 29:15) is sexual: she opens her top and puts Forrest's hand on her breast (Intimate scene). Jenny's photo in a men's magazine that the soldiers look at (about 35:35, 'get a load of the tits on her') is nudity. The Memphis club (about 36:20 to 37:55) is a strip show: a stripper, then Jenny singing nude behind her guitar (Nudity). Forrest shows President Johnson his bare bottom (about 1:03:12, Nudity). At the New Year's Eve party (about 1:21:20 to 1:22:40) Lenore, a prostitute, is in bed on top of Forrest trying to undress him (Intimate scene, not violence). The feather floating at the start and the end is not violence. Forrest drinks Dr Pepper, a soda, at the White House: not drinking. 'Dick' in 'it's easy if you try, Dick' is Dick Cavett, the talk show host."
+    },
+    {
+     "title": "Forrest Gump",
+     "text": "Jenny's dorm room scene (about 27:50 to 29:15) is sexual: she opens her top and puts Forrest's hand on her breast (Intimate scene). Jenny's photo in a men's magazine that the soldiers look at (about 35:35, 'get a load of the tits on her') is nudity. The Memphis club (about 36:20 to 37:55) is a strip show: a stripper, then Jenny singing nude behind her guitar (Nudity). Forrest shows President Johnson his bare bottom (about 1:03:12, Nudity). At the New Year's Eve party (about 1:21:20 to 1:22:40) Lenore, a prostitute, is in bed on top of Forrest trying to undress him (Intimate scene, not violence). The feather floating at the start and the end is not violence. Forrest drinks Dr Pepper, a soda, at the White House: not drinking. 'Dick' in 'it's easy if you try, Dick' is Dick Cavett, the talk show host."
     }
    ]
   },
@@ -539,7 +553,16 @@
    "muted": [
     "who baldy",
     "it's not every day you see a horse with two rear ends",
-    "you were born a street rat you'll die a street rat and only your fleas will mourn you"
+    "you were born a street rat you'll die a street rat and only your fleas will mourn you",
+    "well your mama sure does care about your schooling son",
+    "he was always kissing and touching her and her sisters",
+    "have you ever been with a girl forrest",
+    "i bet that never happened in home ec",
+    "i think i ruined your roommate's bathrobe",
+    "hey gump get a load of the tits on her",
+    "rape our women and destroy our black communities",
+    "i'm living off the government tit",
+    "did you lose your pecker in the war or something"
    ],
    "kept": [
     "six generations of fools chasing after fool's gold",
@@ -571,7 +594,16 @@
    "muted_for": {
     "who baldy": "bullying",
     "it's not every day you see a horse with two rear ends": "crude",
-    "you were born a street rat you'll die a street rat and only your fleas will mourn you": "bullying"
+    "you were born a street rat you'll die a street rat and only your fleas will mourn you": "bullying",
+    "well your mama sure does care about your schooling son": "sexref",
+    "he was always kissing and touching her and her sisters": "sexref",
+    "have you ever been with a girl forrest": "sexref",
+    "i bet that never happened in home ec": "sexref",
+    "i think i ruined your roommate's bathrobe": "sexref",
+    "hey gump get a load of the tits on her": "sexref",
+    "rape our women and destroy our black communities": "sexref",
+    "i'm living off the government tit": "crude",
+    "did you lose your pecker in the war or something": "sexref"
    }
   },
   "_movies@teens": {
@@ -1417,7 +1449,9 @@
    "A parent and child (a dad and his daughter, a mother and her son) singing together or saying loving words such as 'we belong together' or 'for eternity' is family, not a romance. Only call it a same-sex romance when the two are clearly a romantic couple (Selena: Abraham singing with his daughter was cut as 'two women').",
    "A couple lying in bed only talking, with nothing sexual happening or said, is not an intimate scene or a sex scene.",
    "A performer singing or dancing on stage, with nothing sexual happening or said, is not a sex scene, even when the subtitles have a moan, a breath or a similar sound there.",
-   "In old shows and movies, 'gay' meaning happy, cheerful or merry (like 'a gay round of nightclubs') is not a same-sex reference and should not be muted. Only flag it when it clearly refers to homosexuality."
+   "In old shows and movies, 'gay' meaning happy, cheerful or merry (like 'a gay round of nightclubs') is not a same-sex reference and should not be muted. Only flag it when it clearly refers to homosexuality.",
+   "A feather floating or falling through the air, or a similar gentle object shot with no one being hurt, is not violence or graphic violence and should not be flagged or cut.",
+   "A strip club or strip show (a stripper, a woman undressing or dancing nearly naked for an audience, a lap dance, men cheering at a stage) is sexual content for every age: when nudity or sexual references are filtered, cut the whole club scene and mute the talk about it."
   ]
  }
 }

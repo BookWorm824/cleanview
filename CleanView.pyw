@@ -459,6 +459,24 @@ NO_INTERNET_ASK = ("There's no internet connection, so CleanView can't look for 
                    "Clean without looking online?")
 UPDATED_SHOWN_SECS = 3      # how long "CleanView was updated to version ..." stays up
 ICON_AGAIN = (0.5, 3.0)       # seconds after the window is made that its logo is set again
+TASKBAR_ID = "BookWorm824.CleanView"   # CleanView's own name to the taskbar (own_taskbar_id)
+
+
+def own_taskbar_id():
+    """Give CleanView's windows their own name to the taskbar, so it shows the logo they carry
+    (1.18.111; the owner, 2026-11-16, on another computer: "the logo on the windows bar when
+    it is open was a pic of a random file symbol thing", "not the green picture"; the desktop
+    icon was the logo, the bar blank the whole time it was open). Without one, Windows 11
+    shows the icon of the program the window runs under (CleanView.exe, or Python's
+    pythonw.exe), and there it found none; with one, it uses the window's own icon, which
+    `set_icon` makes the logo. Must come before the first window. True when it was set."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        return ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(TASKBAR_ID) == 0
+    except Exception:
+        return False
 
 
 def set_icon(win, path=None, again=ICON_AGAIN):
@@ -500,6 +518,7 @@ def set_icon(win, path=None, again=ICON_AGAIN):
 
 class App(tk.Tk):
     def __init__(self):
+        own_taskbar_id()                 # before the window: its logo in the taskbar
         super().__init__()
         self.title("CleanView")
         # bigger text if she chose it: Tk sizes text as each part of the window is built,

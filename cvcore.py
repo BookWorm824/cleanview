@@ -88,10 +88,14 @@ def probe_duration(path):
 # ---------------------------------------------------------------------------
 STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing", r"effin'?", r"f'?ing",
           r"mofos?", r"wtf", r"stfu", r"omfg",
-          # racial slurs (the unmistakable ones; "cracker", "coon", "chink" etc. have
-          # everyday meanings too, so they're left to the AI review)
+          # racial slurs (the unmistakable ones; "cracker", "chink" etc. have everyday
+          # meanings too, so they're left to the AI review)
           r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
           r"ragheads?", r"beaners?",
+          # Forest Gump (the owner, 2026-11-16, "Add the 2 words"): "Coons are trying to get
+          # into school." went through. Not a raccoon: "a coon dog", "coon hunting", "a coon's
+          # age", "a Maine Coon" (INNOCENT_NEXT / INNOCENT_PREV)
+          r"coons?",
           # West Side Story (Lauren, 2026-11-08): "You lyin' Spic!", "that Polack", "Wop!"
           r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?"]
 # Never "fine in context", whatever an AI says: slurs, and "retarded" even said as a plain
@@ -249,6 +253,12 @@ def reverent(words, i, j=None):
 # Words that are innocent next to these: "pussy cat", "Dick Grayson", "Moby Dick", "summa
 # cum laude", "General Hooker". (The word before or after, normalised.)
 INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"},
+                 # the raccoon: "a coon dog", "coon hunting", "a coonskin cap" is one word,
+                 # "in a coon's age" (the 's comes off first)
+                 "coon": {"dog", "dogs", "hound", "hounds", "hunt", "hunts", "hunting",
+                          "hunter", "hunters", "skin", "skins", "cat", "cats", "tail", "tails",
+                          "age", "ages", "trap", "traps"},
+                 "coons": {"age", "ages"},
                  "dick": {"grayson", "tracy", "van", "whittington", "cheney", "clark", "york",
                           "turpin", "dastardly", "smith", "jones", "johnson", "and",
                           "francis"},
@@ -293,6 +303,9 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                              "over", "heath", "landscape", "ruins", "crater", "craters", "rock",
                              "rocks", "oak", "holes", "hole"}}
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WWI army camp
+                 # the cat breed (in the past reviews here: "an American Bobtail and a Maine
+                 # Coon are the only kids I got")
+                 "coon": {"maine"}, "coons": {"maine"},
                  "cum": {"summa", "magna"},
                  # a small sting: "a tiny prick of black", "a jealous prick at my heart",
                  # "you can prick them" (never "you little prick", "that prick")
@@ -642,6 +655,8 @@ SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score thi
 
 SAMESEX_WORDS = [r"gays?", r"homosexuals?", r"homosexuality", r"lesbians?", r"bisexuals?",
                  r"queers?", r"fags?", r"faggots?", r"dykes?", r"homos?", r"lesbos?",
+                 # Forest Gump (2026-11-16): "Get your faggotty ass on the bus" went through
+                 r"fagg?ott?(y|ie|ies)",
                  r"lez(z?ie|z?ies|bos?)",
                  # Spanish, with the short list above (a slur, as "faggot" is here)
                  r"marico?n(es)?"]

@@ -970,7 +970,11 @@ LOOK = {
                 {"type": "object", "properties": {"see": {"type": "string"},
                                                   "yes": {"type": "boolean"}},
                  "required": ["see", "yes"]}),
-    "drinking": ("Question: is someone drinking alcohol (beer, wine, liquor), or clearly drunk?",
+    # Forest Gump (2026-11-16): Forrest drinking Dr Pepper at the White House was cut as drinking
+    "drinking": ("Question: is someone drinking alcohol (beer, wine, liquor), or clearly drunk? "
+                 "A soda (cola, Dr Pepper, a soft drink in a bottle or can), water, coffee, tea, "
+                 "juice or milk is not alcohol: answer no unless you can tell it's beer, wine or "
+                 "liquor.",
                  {"type": "object", "properties": {"see": {"type": "string"},
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),

@@ -220,6 +220,61 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   asks `paused()` every frame: `engine.PAUSE.on`): he stops where he is, the broom upright,
   breathing, no new puffs, and carries on when it's let go. Changes of pose ease in over
   `BLEND` (0.25 s).
+- A push broom and more detail (1.18.111, 2026-11-15; the owner: "i like the cleaner", "can he
+  have a push broom style. and can you make him a little more hd?"). The pose's broom is now
+  `head` (how far in front the push broom's head is on the ground) and `grip` (the near hand
+  on the handle); `_broom` gives the head, the handle's ends (0.8 of his height) and both
+  hands; both arms bend at the elbow (`_knee(down=True)`, `ARM`). Walking he pushes it along;
+  sweeping is push strokes (`STROKE`), the dust coming out in front of the head
+  (`broom_tip`); paused he stands it up with both hands on top. Detail: every part is shaded
+  by which way its edge faces (`LIGHT`, `SHADE`, from the gradient of its distance), a crisp
+  dark outline under him, a white T-shirt, overall bib, straps, brass buttons and pocket,
+  hair, ear, nose, eye white, mouth, a cap band and button, shoe soles, a shadow under the
+  broom head and grain on the bristles. Each part is painted only over its own area, and
+  the picture around him is longer on his broom's side (`BOX`), so a frame is ~5 ms here
+  (it was 14 ms painted whole); `FPS` is 15.
+- The logo in the taskbar on every PC (1.18.111, 2026-11-16; the owner, trying CleanView on
+  another computer: "the logo on the windows bar when it is open was a pic of a random file
+  symbol thing", "not the green picture"; its desktop icon was the logo, and the bar was blank
+  the whole time CleanView was open). Windows 11 shows the icon of the program a window runs
+  under (CleanView.exe or Python's pythonw.exe), not the window's own, unless the process has
+  its own taskbar name. Here the icon file, CleanView.exe's built-in icon (made the
+  fresh-install way too), the shortcuts' icon file and the window's own icon (green, big and
+  small) were all fine, so what that PC found is unknown. `App.__init__` now calls
+  `own_taskbar_id()` first (`SetCurrentProcessExplicitAppUserModelID(TASKBAR_ID)`), so the
+  taskbar uses the window's icon, which `set_icon` makes the logo. Pinning the open window
+  still pins the program without CleanView (as before); pin the Start menu's CleanView
+  instead. Not seen on that PC yet.
+- Lauren's Forest Gump report (1.18.111, 2026-11-16, kids, the AI helper, made on 1.18.110; the
+  owner: "lets train from this", then "Teach the 9 lines", "Add the 2 words", "Fix Dr Pepper and
+  Dick", "Forest Gump note", and "any of the strip club stuff needs cut for all ages if it is
+  checked"). Every listed word was right (the slur at 22:58, "Viet-fucking-nam", "Dang" for
+  Lieutenant Dan left alone); she changed nothing. Taught for `_movies@kids` (so Young kids too,
+  each under its filter): the principal's "your mama sure does care about your schooling", Jenny's
+  father "always kissing and touching her and her sisters", the dorm room's "Have you ever been
+  with a girl", "never happened in Home Ec", "ruined your roommate's bathrobe", "get a load of
+  the tits on her", "rape our women...", "I'm living off the government tit" (crude), "Did you
+  lose your pecker in the war". Strip clubs for every age when sexual references are ticked:
+  `LINE_WORDS["sexref"]` has strip club/joint/show/bar/tease, striptease, lap dance(r/s/ing),
+  exotic dancer(s), pole dance(r/s/ing) (not a comic strip, the Vegas strip, a pole vault); the
+  club MC's three distinctive lines taught under `_movies`; a general note (a strip club or show
+  is sexual content: cut the scene, mute the talk). Built-in general note from her chat: a
+  floating feather is not violence (2:07 was "graphic violence"). Title note (`"Forest Gump"` and
+  `"Forrest Gump"`, her file's spelling and the film's): the dorm room scene, the magazine
+  photo, the Memphis strip club with Jenny singing nude, Forrest's bare bottom for President
+  Johnson, Lenore in bed on New Year's, the feather, the Dr Pepper, Dick Cavett. Words:
+  `coons?` is a slur (`STRONG`; not "a coon dog", "coon hunting", "a coon's age", "a Maine Coon":
+  `INNOCENT_NEXT`/`INNOCENT_PREV`; it was left to the AI before), `fagg?ott?(y|ie|ies)` in
+  `SAMESEX_WORDS` ("Get your faggotty ass on the bus"). Fixed: Forrest's Dr Pepper at the White
+  House was cut as Drinking (`LOOK["drinking"]` and `PIC_RULES`: a soda, water, coffee, juice or
+  milk isn't alcohol); "Well, it's easy if you try, Dick." to Dick Cavett was muted: a name the
+  subtitles write mid-sentence now also lets off `NAME_WORDS` ("dick"; `can_be_name`), not
+  after "you", "a", "such", "big"... (`NAME_INSULT_BEFORE`). In the 110,535 lines of 154 past
+  reviews here no taught line matched; "Don't be shy, Dick." (Curious George) would be offered
+  unticked as a name. Not fixed, put to her: the scan took 204 min on her laptop, 103 of them the
+  closer look at 67 scenes, 27 of them "graphic violence (hard to see)" left unticked, none real
+  that can be told from the dialogue (the feather among them); the picture misses above (weak
+  spot 2). For CleanListen and CleanRead: the two words and the strip club phrases.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -1710,7 +1765,14 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   walking, sweeps with puffs, faces both ways, draws only himself (his cap's red), is quick,
   wanders and moves on the working page, follows a smaller logo and stops when the page goes;
   his feet don't slide while on the ground, his knees bend, poses ease into each other, and
-  Pause (`engine.PAUSE`) stops him leaning on his broom until Resume.
+  Pause (`engine.PAUSE`) stops him leaning on his broom until Resume; the push broom is in
+  front, pushed out and back with the dust ahead of it, stood up when paused, his hands in
+  reach, and the detail (shirt, brass, eye white, hair, outline) is drawn.
+- `test_forest_gump.py`: the slur "coons" and "faggotty" (not raccoons or the cat), the strip
+  club phrases for every age, soda isn't drinking, "Dick" as a name written so (not "such a
+  Dick"), the nine Kids lessons, the club's lines for every age, and the notes.
+- `test_taskbar_logo.py`: the window has its own taskbar name (set before the window is
+  made) and carries the green logo, big and small.
 - `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of
   taught hits is a find and a blip isn't, not twice where a description found it, dark frames
   left out, no file changes nothing, a new file redoes the scans, and taught finds count only

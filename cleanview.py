@@ -2026,6 +2026,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # S2E1: "if pole ever comes after stripper it should be muted, keep pole
                          # other instances"); only "stripper" was muted
                          r"hookers?|prostitutes?|strippers?(?: poles?)?|orgasms?|threesome|"
+                         # strip clubs, for every age when it's ticked (the owner, 2026-11-16,
+                         # after Forest Gump's Memphis club: "any of the strip club stuff needs
+                         # cut for all ages if it is checked")
+                         r"strip (?:clubs?|joints?|shows?|bars?|teases?)|strip-?teases?|"
+                         r"lap ?danc(?:e|es|er|ers|ing)|exotic dancers?|"
+                         r"pole danc(?:e|es|er|ers|ing)|"
                          r"blow ?job|porn|"
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
@@ -3995,6 +4001,17 @@ def already_muted(mutes, raw, s, e, used=None):
 # A listed mild word or minced oath written with a capital in the middle of a sentence is a
 # name or a title: "Detective Dern" (muted 12 times in Castle), "Hell Hath No Fury".
 NAME_CATS = ("mild", "minced")
+# ... and these stronger words that are also first names (Forest Gump, 2026-11-16: "Well, it's
+# easy if you try, Dick." to Dick Cavett was muted; the owner: "Fix ... Dick"), but not after
+# a word that makes it the insult ("you Dick", "such a Dick")
+NAME_WORDS = {"dick"}
+NAME_INSULT_BEFORE = {"you", "a", "such", "big", "little", "total", "complete", "real",
+                      "absolute", "being", "what", "that", "this", "some", "your", "his", "my"}
+
+
+def can_be_name(cat, word):
+    """A listed word of this category that a name written in the subtitles may be."""
+    return cat in NAME_CATS or cl.norm(word) in NAME_WORDS
 NOT_NAME_AFTER = {"oh", "ah", "aw", "ugh", "well", "aah", "ahh", "aww", "to", "the", "of", "in",
                   "from", "like", "as", "what", "who", "where", "why", "how", "a", "for",
                   "bloody", "damn", "straight", "and", "or", "so", "but", "no"}
@@ -4018,6 +4035,8 @@ def name_in_subtitles(sw, sw_cue, cues, k):
         return False
     if cl.norm(sw[k - 1]) in NOT_NAME_AFTER or not re.search(r"[a-z]", cues[sw_cue[k]]["text"]):
         return False             # "Oh, Hell!", "Go to Hell", "what the Hell"; all capitals
+    if cl.norm(w) in NAME_WORDS and cl.norm(sw[k - 1]) in NAME_INSULT_BEFORE:
+        return False             # "you Dick!", "such a Dick"
     return True
 
 
@@ -4059,7 +4078,7 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
         if k is None or m.get("src") != "audio":
             continue
         if sn[k] == asr_n[m["at"]]:
-            if k in names and m.get("cat") in NAME_CATS:
+            if k in names and can_be_name(m.get("cat"), sw[k]):
                 m["sub"], m["keep"] = sw[k], True    # "Dern" heard and written as a name
             continue
         if not cl.listed_word(sw[k]) and re.search(r"[A-Za-z]{2}", sw[k]):
@@ -4396,7 +4415,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         subtitle_word_there(mutes, mapping, sw, sn, asr_n, names)
         added, used = 0, set()
         found = [(i, j, cat) for i, j, cat in cl.find_language(sn, cats, mine)
-                 if not (j - i == 1 and cat in NAME_CATS and i in names)]  # "Dern" (Castle)
+                 if not (j - i == 1 and can_be_name(cat, sn[i]) and i in names)]  # "Dern"
         if "deity" in cats:
             found += [(k, k + 1, "deity") for k in range(len(sw))
                       if bare_god(sw, sw_cue, cues, k) and not any(a <= k < b for a, b, _ in found)]
