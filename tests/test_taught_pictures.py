@@ -173,10 +173,20 @@ class GarbledAnswer(unittest.TestCase):
             ai.chat = saved
         return c
 
-    def test_offered_unticked_not_cut(self):
+    def test_dropped_not_cut(self):
+        """Offered unticked in 1.18.106; dropped since 1.18.112 (the owner, after Forest Gump's
+        27 "graphic violence (hard to see)": "Drop the taught ones")."""
         c = self.look({"see": "none of these", "visible": ["organs or entrails"],
                        "medical": False, "clear": True})
         self.assertTrue(c["verdict"]["unclear"])
+        self.assertEqual(engine.decide_picture_scenes([c], ON, True), [])
+
+    def test_hard_to_see_taught_dropped_found_by_descriptions_offered(self):
+        c = {"cat": "gore", "s": 10.0, "e": 20.0, "peak": 0.9, "who": {}, "frames": [12],
+             "taught": True, "verdict": {"keep": True, "unclear": True, "level": "blood",
+                                         "what": "hard to tell"}}
+        self.assertEqual(engine.decide_picture_scenes([c], ON, True), [])
+        del c["taught"]                       # the picture AI's own descriptions found it
         self.assertEqual([s["sure"] for s in engine.decide_picture_scenes([c], ON, True)], [False])
 
     def test_a_real_description_as_before(self):

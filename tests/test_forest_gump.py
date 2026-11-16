@@ -122,5 +122,41 @@ class Lessons(unittest.TestCase):
                              for n in learn.notes("_movies@adults", title="Cars")))
 
 
+class ThePrincipalsVisit(unittest.TestCase):
+    """1.18.112, the owner: "there is a scene where a teacher visits his house and you hear
+    sounds, then he walks past forest and says 'your mama sure loves you' that needs cut if
+    sexual is ticked", "its only gets cut it its ticked"."""
+    LINES = [(520.0, "We're talking about five little points here."),
+             (535.0, "He's on vacation."),
+             (554.5, "Well, your mama sure does care about your schooling, son."),
+             (564.0, "You don't say much, do you?"),
+             (578.0, "\"Finally, he had to try.")]
+
+    def dialogue(self, shift=0.0):
+        return [{"s": s + shift, "e": s + shift + 2.0, "text": t} for s, t in self.LINES]
+
+    def test_cut_from_his_mama_on_vacation_to_you_dont_say_much(self):
+        for ticked in ({"sexref"}, {"sex"}, {"sex", "sexref", "crude"}):
+            got = learn.title_scenes("_movies@kids", "Forest Gump", self.dialogue(), ticked)
+            self.assertEqual([(s["s"], s["e"], s["kind"]) for s in got],
+                             [(537.0, 566.5, ["Sex scene"])], ticked)
+            self.assertTrue(got[0]["sure"] and got[0]["learned"])     # ticked; no AI undoes it
+            self.assertIn("principal", got[0]["why"])                 # shown on the card and
+            self.assertIn("CleanView learned this scene", got[0]["why"])   # in the report
+
+    def test_any_copy_any_age_either_spelling(self):
+        for key in ("_movies", "_movies@teens", "_movies@young"):
+            got = learn.title_scenes(key, "Forrest Gump", self.dialogue(shift=12.0), {"sex"})
+            self.assertEqual([(s["s"], s["e"]) for s in got], [(549.0, 578.5)], key)
+
+    def test_only_when_ticked_and_only_this_movie(self):
+        self.assertEqual(learn.title_scenes("_movies@kids", "Forest Gump", self.dialogue(),
+                                            {"crude", "bullying"}), [])
+        self.assertEqual(learn.title_scenes("_movies@kids", "Cars", self.dialogue(),
+                                            {"sex", "sexref"}), [])
+        self.assertEqual(learn.title_scenes("_movies@kids", "Forest Gump", self.dialogue()[:2],
+                                            {"sexref"}), [])           # its lines not there
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -547,6 +547,22 @@
      "title": "Forrest Gump",
      "text": "Jenny's dorm room scene (about 27:50 to 29:15) is sexual: she opens her top and puts Forrest's hand on her breast (Intimate scene). Jenny's photo in a men's magazine that the soldiers look at (about 35:35, 'get a load of the tits on her') is nudity. The Memphis club (about 36:20 to 37:55) is a strip show: a stripper, then Jenny singing nude behind her guitar (Nudity). Forrest shows President Johnson his bare bottom (about 1:03:12, Nudity). At the New Year's Eve party (about 1:21:20 to 1:22:40) Lenore, a prostitute, is in bed on top of Forrest trying to undress him (Intimate scene, not violence). The feather floating at the start and the end is not violence. Forrest drinks Dr Pepper, a soda, at the White House: not drinking. 'Dick' in 'it's easy if you try, Dick' is Dick Cavett, the talk show host."
     }
+   ],
+   "scenes": [
+    {
+     "title": [
+      "Forest Gump",
+      "Forrest Gump"
+     ],
+     "after": "he's on vacation",
+     "until": "you don't say much do you",
+     "kind": "Sex scene",
+     "for": [
+      "sex",
+      "sexref"
+     ],
+     "why": "the principal's night visit to Mrs. Gump: sounds through the house, then “your mama sure does care about your schooling”"
+    }
    ]
   },
   "_movies@kids": {

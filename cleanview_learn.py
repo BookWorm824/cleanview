@@ -594,6 +594,50 @@ def add_note(key, text, title="", everywhere=False):
     return True
 
 
+def _line_at(dialogue, want, start=0):
+    """The first line from start on that is the taught line (or has it inside, or is most of
+    it when it was heard split in two)."""
+    want = norm(want)
+    for i in range(start, len(dialogue)):
+        n = norm(dialogue[i]["text"])
+        if n and (n == want or want in n or (len(n.split()) >= 3 and n in want)):
+            return i
+    return None
+
+
+def title_scenes(key, title, dialogue, ticked=None):
+    """Scenes taught for one movie (shared_learned.json "scenes", 1.18.112; the owner, of Forest
+    Gump's principal visiting Mrs. Gump: "you hear sounds, then he walks past forest and says
+    'your mama sure loves you' that needs cut if sexual is ticked"). Each is {"title": name or
+    names, "after": a line, "until": a line, "kind", "for": the filters any of which cuts it,
+    "why"}: from the end of the "after" line to the end of the "until" line, so it fits any
+    copy of the movie whatever its timing. ticked: the filters on now (None: all)."""
+    t, out, items = norm(title or ""), [], []
+    s = shared()
+    for k in dict.fromkeys((key, key.split("@")[0])):
+        items += s["shows"].get(k, {}).get("scenes", [])
+    for sc in items:
+        names = sc["title"] if isinstance(sc["title"], list) else [sc["title"]]
+        if t not in {norm(x) for x in names}:
+            continue
+        if ticked is not None and not set(sc.get("for", [])) & set(ticked):
+            continue
+        a = _line_at(dialogue, sc["after"])
+        b = None if a is None else _line_at(dialogue, sc["until"], a + 1)
+        if b is None:
+            continue
+        start, end = float(dialogue[a]["e"]), float(dialogue[b]["e"]) + 0.5
+        if not 0 < end - start <= 600:          # not this film's lines after all
+            continue
+        # said in the reason too, so the review page's card and the report both show it was
+        # cut on purpose ("also show the scene as cut in after report", "in case people look
+        # for it to be cut")
+        out.append({"s": round(start, 2), "e": round(end, 2), "kind": [sc["kind"]],
+                    "why": f"{sc['why']} (CleanView learned this scene)", "sure": True,
+                    "learned": "CleanView learned this scene"})
+    return out
+
+
 def notes(key, title=""):
     """The notes that apply to this video: the built-in ones (checked lessons from the
     reports sent in, shipped in shared_learned.json), then theirs for everything, then for

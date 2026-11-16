@@ -3672,8 +3672,13 @@ def decide_picture_scenes(cands, o, have_ai):
         v = c.get("verdict") or {}
         if have_ai and v and not v.get("keep", True) and not v.get("error"):
             continue
-        if c.get("taught") and not (have_ai and v and not v.get("error")):
-            continue        # the taught check's finds count only once the AI helper agrees
+        if c.get("taught") and not (have_ai and v and not v.get("error")
+                                    and not v.get("unclear")):
+            # the taught check's finds count only once the AI helper agrees; "can't tell"
+            # isn't agreeing (1.18.112, Forest Gump: 27 "graphic violence (hard to see)"
+            # scenes, none real; the owner: "i noticed a lot of ticks sai graphoc violance but
+            # werent", then "Drop the taught ones")
+            continue
         who = v.get("who", "?") if v else "?"
         if who == "?" and c.get("who"):
             w, pw = max(c["who"].items(), key=lambda kv: kv[1])
@@ -4741,6 +4746,13 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                 snap_to_shots(path, sc, dur=dur)
     learned_lines, learned_notes = learn.apply(key, lines, line_mutes, scenes, mutes,
                                                  on=on_kinds(o), video=path)
+    # scenes taught for this very movie, placed by its own lines (1.18.112, Forest Gump)
+    for sc in learn.title_scenes(key, title_name(path), lines,
+                                 {k for k, v in o.items() if v is True}):
+        if not any(x.get("learned") == sc["learned"] and x["s"] < sc["e"] and sc["s"] < x["e"]
+                   for x in scenes):
+            scenes.append(sc)
+    scenes.sort(key=lambda x: x["s"])
     for l in learned_lines:
         yours = l.get("learned_from") == "you"
         line_mutes.append({"id": len(line_mutes) + 1, "s": round(l["s"], 2),

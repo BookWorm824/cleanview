@@ -275,6 +275,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   closer look at 67 scenes, 27 of them "graphic violence (hard to see)" left unticked, none real
   that can be told from the dialogue (the feather among them); the picture misses above (weak
   spot 2). For CleanListen and CleanRead: the two words and the strip club phrases.
+- The taught check's finds the AI helper can't make out are dropped (1.18.112, 2026-11-16; the
+  owner: "i noticed a lot of ticks sai graphoc violance but werent. why is it doing that", then
+  "Drop the taught ones"). Forest Gump had 27 "graphic violence (hard to see, so only cut if you
+  tick it)" scenes, none real that the dialogue shows (the feather among them). The taught
+  check's finds were meant to count only when the AI helper agrees (1.18.106), but
+  `decide_picture_scenes` let an "unclear" verdict through (offered unticked); now it's
+  dropped like a no. Finds of the picture AI's own descriptions that it can't make out are
+  still offered unticked. The closer look itself still looks at every find (the time it took,
+  103 of 204 minutes on her laptop, is unchanged).
+- A scene can be taught for one movie (1.18.112, 2026-11-16; the owner, of Forest Gump: "there
+  is a scene where a teacher visits his house and you hear sounds, then he walks past forest and
+  says 'your mama sure loves you' that needs cut if sexual is ticked. his mom did something for
+  the teacher to get forest accepted", "its only gets cut it its ticked"). A notes can only make
+  the AIs look harder; this cuts. `shared_learned.json` shows[...]["scenes"] (carried by
+  `merge_learned.py`): {"title": name(s), "after": a line, "until": a line, "kind", "for": the
+  filters any one of which cuts it, "why"}. `learn.title_scenes(key, title, dialogue, ticked)`
+  places it from the end of the "after" line to the end of the "until" line (`_line_at`: the
+  same line, one with it inside, or most of it), so it fits any copy whatever its timing, and
+  only when one of its filters is ticked; `analyze` adds it after `learn.apply`, ticked
+  (`sure`) and marked `learned` so no AI review unticks it. The first: Forest/Forrest Gump, the
+  principal's night visit, "He's on vacation." to "You don't say much, do you?" (8:57-9:27 in
+  her copy), "Sex scene", for sex or sexref, every age.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -1770,7 +1792,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   reach, and the detail (shirt, brass, eye white, hair, outline) is drawn.
 - `test_forest_gump.py`: the slur "coons" and "faggotty" (not raccoons or the cat), the strip
   club phrases for every age, soda isn't drinking, "Dick" as a name written so (not "such a
-  Dick"), the nine Kids lessons, the club's lines for every age, and the notes.
+  Dick"), the nine Kids lessons, the club's lines for every age, the notes, and the
+  principal's visit cut by its lines in any copy, only with sex or sexref ticked.
 - `test_taskbar_logo.py`: the window has its own taskbar name (set before the window is
   made) and carries the green logo, big and small.
 - `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of

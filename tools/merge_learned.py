@@ -54,6 +54,8 @@ def merge(shared, export):
         # checked lessons (a "CleanView reviewed" file): rules every copy's AI follows
         if d.get("notes"):
             add(sh.setdefault("notes", []), d["notes"])
+        if d.get("scenes"):            # scenes taught for one movie (1.18.112)
+            add(sh.setdefault("scenes", []), d["scenes"])
         n += len(muted) + len(kept)
     if export.get("general", {}).get("notes"):
         add(gen.setdefault("notes", []), export["general"]["notes"])
