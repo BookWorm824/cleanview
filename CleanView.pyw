@@ -2078,9 +2078,11 @@ class App(tk.Tk):
                 self.logo.place(relx=0.5, rely=0.45, anchor="center")
                 # a little cleaner wanders over it with his broom (1.18.109; the owner:
                 # "a little cleaner man that roams around the logo", "B · bigger" "with d
-                # movement"); he stops by himself when the page changes
+                # movement"); he stops by himself when the page changes, and leans on his
+                # broom while cleaning is paused (1.18.110: "When I press Pause")
                 self._sweeper = sweeper.Sweeper(
-                    self.logo, back, lambda rgba, into: look.photo(self, rgba, into))
+                    self.logo, back, lambda rgba, into: look.photo(self, rgba, into),
+                    paused=lambda: engine.PAUSE.on)
                 self._sweeper.start()
                 mid.bind("<Configure>", lambda e, mid=mid: self._fit_logo(mid))
         self._work_n, self._work_t0 = n, None

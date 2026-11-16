@@ -208,6 +208,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   second through the window's `after` (the canvas's would go with it); about 2 ms a frame
   here. Nothing is drawn while the window is minimised; he stops when the canvas goes (the
   page changed), and any error just stops him. `_fit_logo` gives him the smaller logo too.
+- His walk is more lifelike, and he pauses with Pause (1.18.110, 2026-11-15; the owner: "can
+  we make the cleaner walk a little more realistic. and make him pause with the cleaninig",
+  "When I press Pause"). A pose (`STANDING`, `walking(p)`, `sweeping(t)`, `leaning(t)`): each
+  foot, the body lowered and leaned, the broom's angle; `draw` bends each knee forward between
+  hip and foot (`_knee`, legs `LEG` from the hip at `HIP`), the far leg darker, and draws the
+  upper body lowered and leaned (`_upper`). Walking: each foot is on the ground `ON_GROUND`
+  of a step and goes back `STRIDE` under him while the body goes over it at the same speed,
+  so the feet don't slide, then lifts (`LIFT`) and swings forward; the body bobs (`BOB`).
+  Sweeping: feet apart, knees bent, leaning into each stroke. `Walker.paused` (the Sweeper
+  asks `paused()` every frame: `engine.PAUSE.on`): he stops where he is, the broom upright,
+  breathing, no new puffs, and carries on when it's let go. Changes of pose ease in over
+  `BLEND` (0.25 s).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -1696,7 +1708,9 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   contents, again when it changes.
 - `test_sweeper.py`: the cleaner is a tenth of the logo, stays on it for three minutes of
   walking, sweeps with puffs, faces both ways, draws only himself (his cap's red), is quick,
-  wanders and moves on the working page, follows a smaller logo and stops when the page goes.
+  wanders and moves on the working page, follows a smaller logo and stops when the page goes;
+  his feet don't slide while on the ground, his knees bend, poses ease into each other, and
+  Pause (`engine.PAUSE`) stops him leaning on his broom until Resume.
 - `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of
   taught hits is a find and a blip isn't, not twice where a description found it, dark frames
   left out, no file changes nothing, a new file redoes the scans, and taught finds count only
