@@ -303,6 +303,61 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   CleanView Play chat while merging it). It now gets the next number, `cut`, the video's end
   and `said` like the others; `test_forest_gump.ThroughAWholeScan` runs a whole `analyze()`
   with stand-ins on a "Forest Gump.mp4" (it fails on 1.18.112 with KeyError 'id').
+- Words from her Black Beauty report (1.18.114, 2026-11-16; CleanRead, in the CleanListen chat,
+  passed on for every app: "leave all words except pussy. take that word out", "i guess if jerk
+  is used directed towards a person it should come out", "but if its a motion should stay. like
+  he jerked the rope", "and dumb if its aninsult"). The same as CleanListen's (its branch
+  lessons-bb, a77c7fc): "pussy" is always muted (its "pussy cat"/"pussy willow" guard is gone);
+  "jerk" only at a person: `jerk_motion()` (`JERK_MOTION_NEXT`, `JERK_PERSON_NEXT`, `JERK_GIVE`,
+  `JERK_CALLED_BEFORE`) and motion words in `INNOCENT_PREV` ("a jerk of his head", "with a sudden
+  jerk", "gave the rein a jerk" left alone; "you jerk", "a jerk of a husband", "don't be a jerk
+  at the party" muted); "dumb" only as an insult: unable-to-speak nouns in `INNOCENT_NEXT`
+  (beasts, creature, amazement, patience...) and `INNOCENT_PREV` (struck, stood, fell, became...),
+  `dumb_called()` ("you dumb animal" still muted). None of the 39 lines with these words in the
+  past reviews here reads differently. `test_cleanlisten_words.WAITING_ON_CLEANLISTEN` has the
+  three pussy-cat lines until CleanListen releases it.
+- A second Forest Gump report (1.18.114, 2026-11-16; another PC, 16 threads, 64 GB, the models
+  23-36% on its card; Young kids, made on 1.18.113, 107 min). 1.18.111-1.18.113 worked there: the
+  principal's visit cut, the 11 taught lines muted, "Dick" (Cavett) and "Dang" left alone,
+  "coons" and "faggotty" found. Its reviewer unticked nearly every rude word, "dear God", the
+  slurs and two "immodest clothing" scenes: that family's choices, not taught. The picture checks
+  missed what they missed on her laptop, so four more scenes taught for the film (her picks
+  "Strip club", "Dorm room", "Bare bottom", "New Year's bed"): the Memphis strip club (from
+  "I took the bus up to Memphis..." to "Forrest, let me down!", Nudity, for nudity/implied/sex/
+  sexref, every age as she asked of strip clubs), Jenny's dorm room ("...just one-to-one." to
+  "I don't care. I don't like her, anyway.", Sex scene, sex/sexref/nudity/implied), Forrest's bare
+  bottom ("I'd kind of like to see that." to "God damn, son.", Nudity, nudity/implied) and
+  New Year's bed ("Happy New Year, Lieutenant Dan!" to "You retard. Loser. You freak.", Sex
+  scene, sex/sexref). `_line_at` now takes the whole line, or one with it inside, before a piece
+  of it ("Happy New Year!" 23 s before "Happy New Year, Lieutenant Dan!").
+- Updates install by themselves when it's safe (1.18.114, 2026-11-16; the owner: "should we have
+  it auto update instead of relying on some to hit check for updates and then hit update. they
+  might miss it", then "lets try that. we can alway go back"). Opening CleanView already updated
+  it before the window (launcher `run_app`); a window left open only showed the bar. Now an
+  update found by the 30-minute check (`update_ready`) also calls `_auto_update`: it runs
+  `update_now` (which saves the settings and a review, downloads and restarts, as the button
+  does) when `_safe_to_update`: the start page with no videos chosen, or the done page, no box
+  open, and the window untouched for `AUTO_UPDATE_IDLE` (60 s; `_touched` on any key, click,
+  wheel or mouse move). Otherwise it tries again every `AUTO_UPDATE_RETRY` (60 s), so after a
+  clean is reviewed and saved it updates on the done page. Never while cleaning, saving or
+  reviewing. The bar says "It updates by itself when CleanView isn't busy."; "Update now" stays.
+  A failed download clears `_auto_updating`, so the next check tries again. To go back: drop
+  the `_auto_update` call in `_handle`'s `update_ready`.
+- Every text size one step bigger (1.18.114, 2026-11-16; the owner: "where you select the text
+  size", "lets make each starting size one size bigger"): `TEXT_SIZES` Normal 1.15, Larger 1.3,
+  Largest 1.45 (was 1.0, 1.15, 1.3). Saved choices keep their name, so everyone's text grows one
+  step; the window grows with it (`_fit_window` goes by `tk scaling`), never past the screen.
+  Tk keeps one `tk scaling` for every window of a process, so the PC's own scale is read once,
+  as the first window opens (module `_base_scaling`): a second window took the first one's text
+  size as its own and grew it again (1.33 -> 1.53 -> 1.76...), which made the full test run's
+  later windows huge (buttons 3,414 px wide) until it crashed; with "Normal" at 1.0 nothing had
+  shown it.
+- The ages choice is easier to see (1.18.114, 2026-11-16; the owner: "on the menu that says
+  'yound kids' kids' adults'. can those be mad not as gray as they are? easier to see. maybe a
+  shade whiter and one size bigger"): step 2's `look.Segmented` for `PROFILES` is 11 pt (was 10),
+  its tray `AGE_TRAY` (a shade whiter than `SIDE`) and the ages not chosen `AGE_TEXT` (darker
+  than `MUTED`) with a thin `LINE` edge so it still shows on the page; `Segmented(dim=, edge=)`
+  are new in cvlook.py (CleanListen's copy may follow).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -1796,10 +1851,17 @@ Run from the repo folder with the app's own Python (it has the packages the app 
   Pause (`engine.PAUSE`) stops him leaning on his broom until Resume; the push broom is in
   front, pushed out and back with the dust ahead of it, stood up when paused, his hands in
   reach, and the detail (shirt, brass, eye white, hair, outline) is drawn.
+- `test_auto_update.py`: an update found installs by itself on an idle start page or the done
+  page, not with videos chosen, while cleaning or reviewing, with a box open or the window just
+  used; it waits and goes ahead once it's safe; only one wait at a time.
+- `test_black_beauty_words.py`: "pussy" always, "jerk" at a person but not a movement, "dumb"
+  as an insult but not unable to speak.
 - `test_forest_gump.py`: the slur "coons" and "faggotty" (not raccoons or the cat), the strip
   club phrases for every age, soda isn't drinking, "Dick" as a name written so (not "such a
   Dick"), the nine Kids lessons, the club's lines for every age, the notes, and the
   principal's visit cut by its lines in any copy, only with sex or sexref ticked.
+- `test_text_scale.py`: every text size one step bigger, and each window of a process starts
+  from the PC's own scale (not the last window's).
 - `test_taskbar_logo.py`: the window has its own taskbar name (set before the window is
   made) and carries the green logo, big and small.
 - `test_taught_pictures.py`: the shipped checks load (and are in version.json), a run of

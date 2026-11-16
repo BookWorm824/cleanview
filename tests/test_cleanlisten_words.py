@@ -65,6 +65,8 @@ CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes
 # CleanListen 1.17.32 had it, the same day)
 # CleanView 1.18.93's "blasted" / "blast it" (the owner, 2026-11-14) waited here until
 # CleanListen 1.17.37 had it, the same day
+# "pussy" always muted (the owner, 2026-11-16: "leave all words except pussy. take that word
+# out") waited here until CleanListen 1.17.52 had it, the same day
 WAITING_ON_CLEANLISTEN = set()
 
 

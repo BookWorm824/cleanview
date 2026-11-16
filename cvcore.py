@@ -250,9 +250,11 @@ def reverent(words, i, j=None):
     if nxt in ("is", "was"):                                  # "Christ is risen", not
         return (words[j + 1] if j + 1 < len(words) else "") in REVERENT_IS  # "Jesus, is that you?"
     return prev in REVERENT_BEFORE or nxt in REVERENT_NEXT or (two, prev) == ("thank", "you")
-# Words that are innocent next to these: "pussy cat", "Dick Grayson", "Moby Dick", "summa
-# cum laude", "General Hooker". (The word before or after, normalised.)
-INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"},
+# Words that are innocent next to these: "Dick Grayson", "Moby Dick", "summa cum laude",
+# "General Hooker". (The word before or after, normalised.) No "pussy cat" / "pussy willow"
+# any more: always muted (the owner, 2026-11-16, in the CleanListen chat, of Black Beauty's
+# old-fashioned words: "leave all words except pussy. take that word out"; every app).
+INNOCENT_NEXT = {
                  # the raccoon: "a coon dog", "coon hunting", "a coonskin cap" is one word,
                  # "in a coon's age" (the 's comes off first)
                  "coon": {"dog", "dogs", "hound", "hounds", "hunt", "hunts", "hunting",
@@ -280,7 +282,17 @@ INNOCENT_NEXT = {"pussy": {"cat", "cats", "willow", "willows", "footing", "foot"
                           "people", "of"},
                  "fools": {"gold", "around", "rush"},
                  "butt": {"in", "heads"}, "butts": {"in", "heads"},
-                 "dumb": {"waiter", "waiters", "luck", "founded", "show"},
+                 "dumb": {"waiter", "waiters", "luck", "founded", "show",
+                          # unable to speak (the owner, 2026-11-16, of Black Beauty: "and dumb if
+                          # its aninsult"; as CleanListen): "our dumb beasts", "a poor dumb
+                          # creature" (but "you dumb animal" still counts: dumb_called())
+                          "beast", "beasts", "animal", "animals", "creature", "creatures", "brute",
+                          "brutes",
+                          # speechless with a feeling: "in dumb amazement", "dumb patience"
+                          "amazement", "astonishment", "wonder", "surprise", "stupor", "patience",
+                          "terror", "fright", "horror", "grief", "despair", "misery", "sorrow",
+                          "agony", "anguish", "silence", "endurance", "suffering", "appeal",
+                          "entreaty", "crambo", "servitor", "servitors"},
                  # "gee up" to a horse; the letter G ("a gee string", "gee major")
                  "gee": {"up", "string", "strings", "major", "minor", "sharp", "flat", "clef"},
                  "dumdum": {"bullet", "bullets"}, "dumdums": {"bullet", "bullets"},
@@ -318,7 +330,21 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
                  "butts": {"cigarette", "cigar", "rifle", "gun"},
-                 "dumb": {"deaf", "struck", "play", "played", "playing", "plays"},  # play dumb
+                 # a movement (jerk_motion() below; the owner, 2026-11-16: "if jerk is used
+                 # directed towards a person it should come out", "but if its a motion should
+                 # stay"): "a sudden jerk", "with a decided jerk" (not "little": "you little jerk")
+                 **{w: {"sudden", "quick", "sharp", "slight", "violent", "decided", "impatient",
+                        "short", "convulsive", "spasmodic", "nervous", "hasty", "abrupt", "rough",
+                        "hard", "strong", "powerful", "vigorous", "smart", "gentle", "light",
+                        "feeble", "involuntary", "backward", "upward", "forward", "downward",
+                        "single", "final", "savage", "fierce"}
+                    for w in ("jerk", "jerks")},
+                 # "play dumb"; unable to speak ("dumb if its aninsult"): "struck dumb", "she
+                 # stood dumb"
+                 "dumb": {"deaf", "struck", "stricken", "play", "played", "playing", "plays",
+                          "stood", "stand", "stands", "standing", "sat", "sit", "sits", "sitting",
+                          "remained", "remain", "remains", "remaining", "fell", "fall", "falls",
+                          "falling", "grew", "became", "become", "becomes", "gone", "went"},
                  "dummy": {"test", "ventriloquist", "ventriloquist's"},
                  "wop": {"doo", "do", "shoo", "be", "bop"},      # "doo wop"
                  # "it looked rather queer", "I feel queer" (never "a queer", "so queer")
@@ -589,6 +615,50 @@ FOOL_NOUN_PREV = {"a", "an", "the", "such", "big", "old", "little", "silly", "st
 
 def fool_called(wb, prev, nxt):
     return wb == "fool" and nxt != "of" and prev in FOOL_NOUN_PREV
+
+
+# ... and "you dumb animal!", "you dumb brute" call someone dumb, though "dumb beasts" can't
+# speak (the owner, 2026-11-16, as CleanListen)
+DUMB_CALLED_PREV = {"you", "ya", "yer"}
+
+
+def dumb_called(wb, prev):
+    """Is "dumb" here an insult, though a word of "unable to speak" follows ("you dumb animal")?"""
+    return wb == "dumb" and prev in DUMB_CALLED_PREV
+
+
+# "jerk" aimed at a person is a rude word; a movement isn't (the owner, 2026-11-16, of Black
+# Beauty, in the CleanListen chat: "i guess if jerk is used directed towards a person it should
+# come out", "but if its a motion should stay. like he jerked the rope"; the same as
+# CleanListen's). "jerked" was never listed and "jerk the rope" is in INNOCENT_NEXT; the noun of
+# motion is here: "a jerk of his head", "a jerk at the reins", "with a jerk", "gave the rein a
+# jerk". Not "a jerk of a husband", "a jerk at times", "out with a jerk like him".
+JERK_MOTION_NEXT = {"of", "at", "on", "upon"}
+JERK_PERSON_NEXT = {"like", "who", "whom", "that", "named", "called"}
+JERK_GIVE = {"give", "gives", "gave", "giving", "given"}
+# "don't be a jerk at the party", "he's such a jerk on the phone": a person whatever follows
+JERK_CALLED_BEFORE = {"be", "being", "you're", "youre", "he's", "she's", "i'm", "they're", "such",
+                      "what", "total", "real", "complete", "big"}
+
+
+def jerk_motion(words, i):
+    """Is "jerk"/"jerks" at words[i] a movement ("a jerk of his head", "with a jerk")?"""
+    if words[i] not in ("jerk", "jerks"):
+        return False
+    if i >= 2 and words[i - 1] in ("a", "an") and words[i - 2] in JERK_CALLED_BEFORE:
+        return False
+    nxt = words[i + 1] if i + 1 < len(words) else ""
+    nxt2 = words[i + 2] if i + 2 < len(words) else ""
+    if nxt in JERK_MOTION_NEXT:
+        return not (nxt == "of" and nxt2 in ("a", "an") or nxt == "at" and nxt2 == "times")
+    if nxt in JERK_PERSON_NEXT:
+        return False
+    # "with a jerk", "with one jerk", "with a little jerk", "gave it a jerk", "gave a quick jerk"
+    a = i - 1 if i >= 1 and words[i - 1] in ("a", "one") else \
+        i - 2 if i >= 2 and words[i - 2] in ("a", "one") else -1
+    if a < 0:
+        return False
+    return a >= 1 and words[a - 1] == "with" or any(w in JERK_GIVE for w in words[max(0, a - 3):a])
 
 
 # "shut it down", "screw it in": the same words, not rude. A phrase ending in one of
@@ -885,11 +955,13 @@ def find_language(words, cats, mine=()):
                     break
                 if w in FREAK_WORDS and "out" in words[i + 1:i + 3]:
                     break        # "you're freaking me out": the verb, not the minced oath
-                if (nxt in INNOCENT_NEXT.get(wb, ()) and not fool_called(wb, prev, nxt)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
+                if (nxt in INNOCENT_NEXT.get(wb, ()) and not fool_called(wb, prev, nxt)
+                        and not dumb_called(wb, prev)) or (
+                        wb in ("jerk", "jerks") and jerk_motion(words, i)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
                         wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
                         w in ("jesus", "christ") and reverent(words, i)) or (
                         w == "gay" and gay_happy(words, i)):
-                    break        # "pussy cat", "Moby Dick", "summa cum laude", "deaf and dumb"
+                    break        # "Moby Dick", "summa cum laude", "deaf and dumb", "a jerk of"
                 hits.append((i, i + 1, cat))
                 break
         i += 1

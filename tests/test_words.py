@@ -532,7 +532,7 @@ class MoreCrudeSlang(unittest.TestCase):
                 self.assertEqual(found(f"you {word}", ["strong"]), [(word, "strong")])
 
     def test_everyday_uses_left_alone(self):
-        for text in ("a pussy cat", "Pussy willow", "Dick Grayson", "Moby Dick",
+        for text in ("Dick Grayson", "Moby Dick",
                      "summa cum laude", "General Hooker", "the dickens", "Charles Dickens",
                      "a hole in the wall", "fire retardant", "retard the spread",
                      "keep your pecker up", "the boob tube", "a horny toad",

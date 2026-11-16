@@ -629,7 +629,9 @@ class Window(unittest.TestCase):
             app.opts["swearing"].set(not swearing)
 
     def test_wrap_widths_grow_with_the_text(self):
-        self.assertEqual(ui.wrap_width(640), 640)
+        # "Normal" is 1.15 since 1.18.114 ("lets make each starting size one size bigger")
+        self.assertEqual(ui.TEXT_SIZES, {"Normal": 1.15, "Larger": 1.3, "Largest": 1.45})
+        self.assertEqual(ui.wrap_width(640), round(640 * ui._text_scale))
         saved, ui._text_scale = ui._text_scale, 1.3
         try:
             self.assertEqual(ui.wrap_width(640), 832)

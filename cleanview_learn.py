@@ -598,10 +598,13 @@ def _line_at(dialogue, want, start=0):
     """The first line from start on that is the taught line (or has it inside, or is most of
     it when it was heard split in two)."""
     want = norm(want)
-    for i in range(start, len(dialogue)):
-        n = norm(dialogue[i]["text"])
-        if n and (n == want or want in n or (len(n.split()) >= 3 and n in want)):
-            return i
+    texts = [norm(dialogue[i]["text"]) for i in range(start, len(dialogue))]
+    for k, n in enumerate(texts):          # the line itself, or one with it inside, first
+        if n and (n == want or want in n):
+            return start + k
+    for k, n in enumerate(texts):          # then a piece of it ("Happy New Year!" isn't
+        if n and len(n.split()) >= 3 and n in want:   # "Happy New Year, Lieutenant Dan!")
+            return start + k
     return None
 
 

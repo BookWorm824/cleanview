@@ -161,6 +161,40 @@ class ThePrincipalsVisit(unittest.TestCase):
                                             {"sexref"}), [])           # its lines not there
 
 
+class TheOtherScenes(unittest.TestCase):
+    """The scenes the picture checks missed on two PCs (her laptop and another, 1.18.113); her
+    picks "Strip club", "Dorm room", "Bare bottom", "New Year's bed"."""
+    LINES = [(2160.0, "I took the bus up to Memphis to see her perform in that show."),
+             (2162.0, "That was Amber, Amber Flame."),
+             (2276.0, "Forrest, let me down!"),
+             (1662.0, "I want to be able to say things, just one-to-one."),
+             (1673.0, "Have you ever been with a girl, Forrest?"),
+             (1754.0, "I don't care. I don't like her, anyway."),
+             (3791.0, "I'd kind of like to see that."),
+             (3808.0, "God damn, son."),
+             (4859.0, "Happy New Year!"),
+             (4882.0, "Happy New Year, Lieutenant Dan!"),
+             (4950.0, "You retard. Loser. You freak.")]
+
+    def got(self, ticked, key="_movies@kids"):
+        dl = [{"s": s, "e": s + 2.0, "text": t} for s, t in sorted(self.LINES)]
+        return {(s["kind"][0], s["s"], s["e"])
+                for s in learn.title_scenes(key, "Forest Gump", dl, ticked)}
+
+    def test_each_where_its_lines_are(self):
+        self.assertTrue({("Nudity", 2162.0, 2278.5), ("Sex scene", 1664.0, 1756.5),
+                         ("Nudity", 3793.0, 3810.5), ("Sex scene", 4884.0, 4952.5)}
+                        <= self.got({"nudity", "implied", "sex", "sexref"}))
+
+    def test_each_by_its_own_filters(self):
+        self.assertEqual({k for k, s, e in self.got({"nudity"})}, {"Nudity", "Sex scene"})
+        self.assertNotIn(("Sex scene", 4884.0, 4952.5), self.got({"nudity"}))   # not New Year's
+        self.assertNotIn(("Nudity", 3793.0, 3810.5), self.got({"sexref"}))      # not the bottom
+        self.assertIn(("Nudity", 2162.0, 2278.5), self.got({"sexref"}, "_movies"))  # the club,
+        self.assertIn(("Nudity", 2162.0, 2278.5), self.got({"nudity"}, "_movies@teens"))  # any age
+        self.assertEqual(self.got({"crude", "bullying"}), set())
+
+
 @T.needs_ffmpeg
 class ThroughAWholeScan(unittest.TestCase):
     """1.18.112 added the taught scene after the scenes were numbered: no "id", no "cut", and

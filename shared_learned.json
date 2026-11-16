@@ -562,6 +562,66 @@
       "sexref"
      ],
      "why": "the principal's night visit to Mrs. Gump: sounds through the house, then “your mama sure does care about your schooling”"
+    },
+    {
+     "title": [
+      "Forest Gump",
+      "Forrest Gump"
+     ],
+     "after": "i took the bus up to memphis to see her perform in that show",
+     "until": "forrest let me down",
+     "kind": "Nudity",
+     "for": [
+      "nudity",
+      "implied",
+      "sex",
+      "sexref"
+     ],
+     "why": "the Memphis strip club: a stripper, then Jenny singing nude behind her guitar"
+    },
+    {
+     "title": [
+      "Forest Gump",
+      "Forrest Gump"
+     ],
+     "after": "i want to be able to say things just one to one",
+     "until": "i don't care i don't like her anyway",
+     "kind": "Sex scene",
+     "for": [
+      "sex",
+      "sexref",
+      "nudity",
+      "implied"
+     ],
+     "why": "Jenny's dorm room: she opens her top and puts Forrest's hand on her breast"
+    },
+    {
+     "title": [
+      "Forest Gump",
+      "Forrest Gump"
+     ],
+     "after": "i'd kind of like to see that",
+     "until": "god damn son",
+     "kind": "Nudity",
+     "for": [
+      "nudity",
+      "implied"
+     ],
+     "why": "Forrest shows President Johnson his bare bottom"
+    },
+    {
+     "title": [
+      "Forest Gump",
+      "Forrest Gump"
+     ],
+     "after": "happy new year lieutenant dan",
+     "until": "you retard loser you freak",
+     "kind": "Sex scene",
+     "for": [
+      "sex",
+      "sexref"
+     ],
+     "why": "New Year's Eve: Lenore in bed on top of Forrest, trying to undress him"
     }
    ]
   },
