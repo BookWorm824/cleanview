@@ -494,6 +494,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   the Midwife - Christmas Special S1.avi") left Discard 1 pixel wide, and at Largest text Pick up
   too (likely since 1.18.114 made every text size bigger). The words are now their own line,
   wrapped to the box (`_fit_text`), and the buttons a row under them. `test_resume_box.py`.
+- Old meanings from CleanListen 1.17.57 (1.18.121, 2026-11-17; its "lessons from ten classics",
+  passed on by the CleanView Play chat: `test_cleanlisten_words` showed 43 differences). The same
+  guards in `cvcore`: the donkey (`ass_animal`, `ASS_ANIMAL_NEAR`, "a cow and an ass", "Camels and
+  asses", not "you ass", "such an ass"), a bundle of sticks (`FAGGOT_WOOD`), seabirds
+  (`BOOBY_BIRDS`), dazed (`stupid_dazed`: "a silent and stupid perplexity"), all through
+  `old_word_innocent`; sewing (`darn(ed|edest|it|ation|nit)?` instead of `darn.*`, so "darning",
+  "darns" and Darnell aren't words; "darned his socks"); "shut up" meaning closed
+  (`shut_up_closed`, `SHUT_UP_CLOSED_PREV`: "the garden which was shut up", "them's shut up");
+  sucking food (`suck_food`, `SUCK_FOOD`: "began to suck it" of a sugarcane, "sucked this part
+  dry"; "even a suck"); "pricks of conscience", "twit me about", "butt its head", "a butt with
+  the boys", "under the gray sod", "a second jerk", "you ain't dumb", "spick an' span",
+  "Christ Blessing Little Children" (`REVERENT_NEXT`). Kept apart here: "kick" isn't a sign of the
+  animal and "your/his/their/some/someone's ass" never is (`ASS_BODY_BEFORE`): with CleanListen's
+  version nine lines in the past reviews here ("kick your ass", "kicked his ass sideways", "their
+  asses kicked", "Go kick some Red Rock ass") stopped being muted. With that, none of the 110,535
+  past lines here reads differently. "erection", "aroused", "intercourse" and "sleep with
+  you/me/them/someone" stay CleanListen's words (`CL_ONLY_SEXUAL`): here the AI reads such lines
+  ("aroused" can be woke, "intercourse" conversation in an old film, "Can I sleep with you
+  tonight?" a child at bedtime). CleanListen's bullying, crude-humor, flirting and "toot" checks
+  have no word lists here. `test_classics_words.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

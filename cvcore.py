@@ -174,7 +174,9 @@ MILD = [r"damn", r"verdammt", r"damn(s|ed|edest|it)", r"dammit", r"goddamn.*", r
         r"crap(pier|piest|ped|ping|pers|holes|loads?|tastic|ola)", r"day+um+n?",   # "dayum"
         r"floozy", r"floozies", r"trollops?", r"strumpets?"]
 MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
-          r"geeze?", r"gosh", r"gosh(darn|dang).*", r"darn.*", r"heck", r"dang", r"dang(it|ed)",
+          r"geeze?", r"gosh", r"gosh(darn|dang).*",
+          # not sewing: "darning", "darns", "a darning-needle" (CleanListen 1.17.57, Little Women)
+          r"darn(ed|edest|it|ation|nit)?", r"heck", r"dang", r"dang(it|ed)",
           r"dagnabb?it", r"frak(s|ked|king|kin)?", r"shee+sh",
           # stand-ins for God, Jesus, Christ, damn and shit
           r"golly", r"jeepers", r"jee+sh", r"crikey", r"blimey", r"gorblimey", r"cripes",
@@ -228,7 +230,8 @@ REVERENT_BEFORE = {"about", "accept", "accepted", "accepts", "and", "as", "befor
     "serving", "share", "shared", "sharing", "taught", "teach", "tell", "than", "the",
     "their", "through", "to", "told", "toward", "towards", "trust", "trusted", "trusts",
     "unto", "upon", "with", "worship", "worshiped", "worshipped"}
-REVERENT_NEXT = {"alone", "answered", "answers", "called", "calls", "came", "comes", "died",
+REVERENT_NEXT = {"blessing", "blesses", "blessed",  # "Christ Blessing Little Children" (a picture)
+    "alone", "answered", "answers", "called", "calls", "came", "comes", "died",
     "dies", "forgave", "forgives", "healed", "heals", "heard", "hears", "himself", "lived",
     "lives", "loved", "loves", "promised", "promises", "rose", "said", "saved", "saves",
     "says", "sends", "sent", "taught", "teaches", "tells", "told", "wept"}
@@ -275,6 +278,14 @@ INNOCENT_NEXT = {
                  # (Call the Midwife, 2026-11-17)
                  "titty": {"bird", "birds"},
                  "peckers": {"up"}, "pecker": {"up"}, "horny": {"toad", "toads"},
+                 # CleanListen 1.17.57 (ten classics, 2026-11-17): "all pricks of conscience",
+                 # "if people wouldn't twit me about my looks", sewing ("darned his own socks")
+                 "pricks": {"of"}, "prick": {"of"},
+                 "twit": {"me", "him", "her", "us", "them", "you", "about"},
+                 "darned": {"his", "her", "my", "their", "your", "our", "the", "socks",
+                            "stockings", "hose"},
+                 "darn": {"his", "her", "my", "their", "your", "our", "the", "socks",
+                          "stockings", "hose"},
                  "retard": {"the", "its", "their", "growth"},
                  # rude words box (as CleanListen): "jerks her up", "fool around", "butt in"
                  **{w: {"her", "him", "me", "them", "it", "us", "up", "away", "back", "open",
@@ -288,7 +299,11 @@ INNOCENT_NEXT = {
                           "them", "us", "anyone", "anybody", "everyone", "everybody", "nobody",
                           "people", "of"},
                  "fools": {"gold", "around", "rush"},
-                 "butt": {"in", "heads"}, "butts": {"in", "heads"},
+                 # "nuzzle into its folds and butt its tight-curled head" (a lamb), "something
+                 # of a butt with the country boys", "the butt of his pistol" (CleanListen 1.17.57)
+                 "butt": {"in", "heads", "its", "his", "their", "against", "of", "with", "end",
+                          "ends"},
+                 "butts": {"in", "heads", "its", "against", "of", "with"},
                  "dumb": {"waiter", "waiters", "luck", "founded", "show",
                           # unable to speak (the owner, 2026-11-16, of Black Beauty: "and dumb if
                           # its aninsult"; as CleanListen): "our dumb beasts", "a poor dumb
@@ -308,7 +323,7 @@ INNOCENT_NEXT = {
                  # "gay" meaning happy (Enchanted's "gay refrain", "don we now our gay apparel")
                  "gay": None,                                        # GAY_HAPPY_NEXT, below
                  # "spic and span" (clean); "a wop bop a loo bop" (Tutti Frutti)
-                 "spic": {"and", "n"}, "spick": {"and", "n"}, "wop": {"bop", "bam", "doo"},
+                 "spic": {"and", "n", "an"}, "spick": {"and", "n", "an"}, "wop": {"bop", "bam", "doo"},
                  # "queer" meaning strange, in older stories (CleanRead, The Boxcar Children,
                  # 2026-11-07): "a queer noise in the night", "looked at Henry in a queer way"
                  "queer": {"noise", "noises", "sound", "sounds", "way", "look", "looks", "looking", "feeling", "feelings", "smell", "sort", "kind", "thing", "things", "sensation", "notion", "idea", "business", "light", "taste", "dream", "dreams", "turn", "start", "fish", "old", "little"},
@@ -322,6 +337,10 @@ INNOCENT_NEXT = {
                              "over", "heath", "landscape", "ruins", "crater", "craters", "rock",
                              "rocks", "oak", "holes", "hole"}}
 INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WWI army camp
+                 # "don't offer even a suck" (a pickled lime), "his queer darns" (CleanListen
+                 # 1.17.57, Little Women)
+                 "suck": {"a", "one", "another"},
+                 "darns": {"his", "her", "my", "their", "queer", "neat", "the", "those", "these"},
                  # the cat breed (in the past reviews here: "an American Bobtail and a Maine
                  # Coon are the only kids I got")
                  "coon": {"maine"}, "coons": {"maine"},
@@ -332,7 +351,9 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                            "needle", "to", "can", "could", "will", "would", "may", "might"},
                  # turf: "an unending strip of sod" (never "sod it", "you lucky sod")
                  "sod": {"of", "with", "some", "fresh", "green", "new", "lay", "laid",
-                         "laying", "cut", "grass"},
+                         "laying", "cut", "grass",
+                         # "a stir of hidden pulses under the gray sod" (CleanListen 1.17.57)
+                         "gray", "grey", "wet", "damp", "under", "beneath", "the"},
                  "hooker": {"general", "john", "joe"}, "hookers": {"general"},
                  "knockers": {"door"}, "fools": {"april"}, "fool": {"april"},
                  "butt": {"cigarette", "cigar", "rifle", "gun"},
@@ -344,14 +365,21 @@ INNOCENT_PREV = {"dick": {"moby", "uncle", "big", "camp"},     # Camp Dick, a WW
                         "short", "convulsive", "spasmodic", "nervous", "hasty", "abrupt", "rough",
                         "hard", "strong", "powerful", "vigorous", "smart", "gentle", "light",
                         "feeble", "involuntary", "backward", "upward", "forward", "downward",
-                        "single", "final", "savage", "fierce"}
+                        "single", "final", "savage", "fierce",
+                        # "and then a second jerk, accompanied by a rapid motion of the boat"
+                        # (CleanListen 1.17.57, The Swiss Family Robinson)
+                        "second", "first", "third", "another", "great", "last", "slight", "few"}
                     for w in ("jerk", "jerks")},
                  # "play dumb"; unable to speak ("dumb if its aninsult"): "struck dumb", "she
                  # stood dumb"
                  "dumb": {"deaf", "struck", "stricken", "play", "played", "playing", "plays",
                           "stood", "stand", "stands", "standing", "sat", "sit", "sits", "sitting",
                           "remained", "remain", "remains", "remaining", "fell", "fall", "falls",
-                          "falling", "grew", "became", "become", "becomes", "gone", "went"},
+                          "falling", "grew", "became", "become", "becomes", "gone", "went",
+                          # not calling anyone dumb: "you ain't dumb, I reckon" (able to speak:
+                          # CleanListen 1.17.57, Treasure Island), "he's not dumb"
+                          "ain't", "aint", "not", "isn't", "isnt", "wasn't", "wasnt", "aren't",
+                          "arent", "never", "weren't", "werent"},
                  "dummy": {"test", "ventriloquist", "ventriloquist's"},
                  "wop": {"doo", "do", "shoo", "be", "bop"},      # "doo wop"
                  # "it looked rather queer", "I feel queer" (never "a queer", "so queer")
@@ -503,6 +531,19 @@ MINCED_SLANG = [re.compile(p) for p in (
 SHUT_UP_SAFE_NEXT = {"in", "inside", "shop", "house", "the", "his", "her", "my", "their", "our",
                      "with", "within", "together", "tight", "tightly", "alone", "for", "here",
                      "there", "like"}
+# "shut up" meaning closed (CleanListen 1.17.57, The Secret Garden: "the garden which was shut
+# up", "since it was shut up ten year'", "that poor lad lyin' shut up", "most of them's shut up
+# and locked"): rude only said to someone, not after these
+SHUT_UP_CLOSED_PREV = {"was", "were", "been", "be", "is", "are", "am", "being", "all", "seem",
+                       "seems", "seemed", "lyin", "lying", "lie", "lies", "lay", "kept", "keep",
+                       "keeps", "keeping", "remain", "remains", "remained", "stay", "stays",
+                       "stayed", "left", "get", "got", "gets", "getting", "locked", "close",
+                       "closely", "tight", "long", "quite", "still"}
+
+
+def shut_up_closed(prev):
+    """Does the word before "shut up" make it closed ("was shut up", "them's shut up")?"""
+    return prev in SHUT_UP_CLOSED_PREV or prev.endswith(("'s", "’s"))
 # "That's bull", "what a load of bull", "cut the bull": short for bullshit, muted with the
 # mild group. Only the word "bull", only after these words (or just before "crap"/"shit", as
 # speech recognition splits "bullshit"), and not "that's bull riding" or "a bull market".
@@ -540,15 +581,29 @@ SUCK_NOT_NEXT = {"up", "in", "on", "out", "into", "through", "from", "down", "of
                  "poison", "venom", "thumb", "thumbs", "milk", "dry", "every", "some", "those",
                  "these", "straws", "straw", "candy", "lollipops", "lollipop", "face", "faces",
                  "teeth", "breath", "cock", "cocks", "dick"}
-SUCK_NOT_BEFORE = {"vacuum", "vacuums", "straw", "straws", "pump", "pumps", "hose", "fan",
+SUCK_NOT_BEFORE = {"a", "one", "another",   # "don't offer even a suck" (CleanListen 1.17.57)
+                   "vacuum", "vacuums", "straw", "straws", "pump", "pumps", "hose", "fan",
                    "drain", "leech", "leeches", "mosquito", "mosquitoes", "vampire", "vampires",
                    "octopus", "baby", "babies", "calf", "calves", "piglet", "piglets", "whirlpool",
                    "quicksand", "mud", "plant", "roots", "sponge", "lamprey", "lampreys"}
 
 
+# sucking food or milk (CleanListen 1.17.57, The Swiss Family Robinson): "each of the boys
+# seized one [sugarcane] and began to suck it", "when I have sucked this part dry"
+SUCK_FOOD = {"sugar", "sugarcane", "sugarcanes", "cane", "canes", "juice", "milk", "honey", "teat",
+             "udder", "goat", "goats", "monkey", "lamb", "calf", "kid", "marrow", "sap", "nectar",
+             "dry", "orange", "oranges", "lemon", "lemons", "egg", "eggs", "bottle", "thumb",
+             "breast", "mother", "pith"}
+
+
+def suck_food(words, i):
+    return bool(SUCK_FOOD & set(words[max(0, i - 12):i + 13]))
+
+
 def suck_swear(words, i):
     """True if words[i] is "suck(s)" said for "is bad" ("that really sucks")."""
-    if words[i] not in SUCK_WORDS or (i and words[i - 1] in SUCK_NOT_BEFORE):
+    if words[i] not in SUCK_WORDS or (i and words[i - 1] in SUCK_NOT_BEFORE) or \
+            suck_food(words, i):
         return False
     return (words[i + 1] if i + 1 < len(words) else "") not in SUCK_NOT_NEXT
 
@@ -668,6 +723,70 @@ PUSSY_INSULT_BEFORE = {"a", "an", "such", "big", "total", "complete", "real", "w
 PUSSY_CAT_REACH = 30          # words either side (about two sentences)
 
 
+# CleanListen 1.17.57 (The Swiss Family Robinson, 2026-11-17): the family's donkey ("a cow and
+# an ass, two goats", "Camels and asses are very fond of thistles"), unless said to someone
+# ("you ass", "such an ass"); "a faggot of dried bamboo" (a bundle of sticks); "gulls, man of
+# war birds, boobies, albatrosses" (seabirds); "a sort of silent and stupid perplexity" (dazed)
+ASS_ANIMAL_NEAR = {"cow", "cows", "goat", "goats", "sheep", "sow", "pig", "pigs", "cart", "carts",
+                   "load", "loads", "loaded", "wild",
+                   "harness", "harnessed", "saddle", "saddled", "bray", "brayed", "braying",
+                   "donkey", "donkeys", "mule", "mules", "buffalo", "onager", "onagers", "cattle",
+                   "camel", "camels", "beast", "beasts", "animal", "animals", "stable", "stables",
+                   "hay", "thistles", "rode", "ride", "riding", "mounted", "drove", "herd",
+                   "bridle", "halter", "panniers", "foal", "grazing", "manger", "ox", "oxen",
+                   "horse", "horses"}
+ASS_INSULT_BEFORE = {"you", "such", "silly", "great", "pompous", "conceited", "utter", "perfect",
+                     "regular", "stupid", "young", "what", "complete", "absolute", "an", "big",
+                     "fat", "dumb", "lazy"}
+# Here not "kick" as a sign of the animal, and never after these (CleanListen 1.17.57 has both):
+# in the past reviews here "kick your ass", "kicked his ass sideways", "their asses kicked",
+# "kick cancer's ass", "Go kick some Red Rock ass" all stopped being muted
+ASS_BODY_BEFORE = {"your", "his", "her", "my", "their", "our", "yo", "some", "whose", "own"}
+FAGGOT_WOOD = {"bundle", "bundles", "bound", "wood", "sticks", "stick", "fire", "fires", "bamboo",
+               "dried", "dry", "lighting", "light", "lit", "burn", "burning", "kindling",
+               "carrying", "carry", "firewood", "brushwood", "twigs", "branches", "fuel",
+               "hearth", "bind", "tied"}
+BOOBY_BIRDS = {"gulls", "gull", "birds", "bird", "albatross", "albatrosses", "pelican",
+               "pelicans", "penguins", "frigate", "aquatic", "terns", "tern", "cormorants",
+               "gannets", "petrels", "sea", "seabirds"}
+STUPID_DAZED_NEXT = {"perplexity", "amazement", "astonishment", "surprise", "wonder", "terror",
+                     "fright", "stare", "stupor", "sleep", "fatigue", "with"}
+STUPID_DAZED_PREV = {"stood", "stand", "stands", "sat", "sit", "looked", "gazed", "stared", "lay",
+                     "remained"}
+
+
+def ass_animal(words, i):
+    """Is "ass"/"asses" at words[i] the animal (a cart, a cow, a load close by), not said to
+    someone?"""
+    prev = words[i - 1] if i else ""
+    if prev in ASS_BODY_BEFORE or prev.endswith(("'s", "\u2019s")):
+        return False
+    if prev in ASS_INSULT_BEFORE and not (prev == "an" and
+                                          ASS_ANIMAL_NEAR & set(words[max(0, i - 12):i])):
+        return False
+    return bool(ASS_ANIMAL_NEAR & set(words[max(0, i - 15):i + 16]))
+
+
+def stupid_dazed(words, i):
+    """"stood stupid with amazement", "a silent and stupid perplexity": dazed, not an insult."""
+    nxt = words[i + 1] if i + 1 < len(words) else ""
+    nxt2 = words[i + 2] if i + 2 < len(words) else ""
+    if nxt == "with":
+        return nxt2 in STUPID_DAZED_NEXT - {"with"} or nxt2 in {
+            "astonishment", "amazement", "grief", "fear", "sleep", "cold", "terror", "wonder",
+            "drink", "fatigue"}
+    return nxt in STUPID_DAZED_NEXT or (words[i - 1] if i else "") in STUPID_DAZED_PREV
+
+
+def old_word_innocent(words, i, wb):
+    """The animal, the bundle of sticks, the seabird, the dazed look (CleanListen 1.17.57)."""
+    near = set(words[max(0, i - 10):i + 11])
+    return (wb in ("ass", "asses") and ass_animal(words, i) or
+            wb in ("faggot", "faggots") and bool(FAGGOT_WOOD & near) or
+            wb in ("boobies", "booby") and bool(BOOBY_BIRDS & near) or
+            wb == "stupid" and stupid_dazed(words, i))
+
+
 def pussy_cat(words, i):
     """Is "pussy"/"pussies" at words[i] a cat: "pussy cat", or a cat word close by (not after
     "a", "such", "big"... that make it the insult)?"""
@@ -710,7 +829,10 @@ NOT_RUDE_NEXT = {"down", "off", "in", "into", "on", "onto", "up", "out", "togeth
                  # him" (CleanListen 1.17.44, Camp Club Girls, 2026-11-15)
                  "softly", "quietly", "gently", "behind", "firmly", "carefully", "slowly",
                  "noiselessly", "silently", "hard", "quickly", "fast", "again", "against",
-                 "after"}
+                 "after",
+                 # a lamb at its bottle: "the lamb began to suck it with ravenous ecstasy"
+                 # (CleanListen 1.17.57, The Secret Garden)
+                 "with", "greedily", "eagerly", "hungrily", "dry", "clean", "from", "through"}
 # rude words kids copy (a separate box, off unless ticked)
 RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?", r"idiotic",
         r"morons?", r"moronic", r"dumm(y|ies)", r"dorks?", r"dorky", r"dweebs?", r"jerks?",
@@ -917,9 +1039,12 @@ def find_language(words, cats, mine=()):
 
     def rude_use(p):        # "shut it" yes, "shut it down" no, "shut up in the attic" no
         nxt = words[i + len(p)] if i + len(p) < n else ""
-        if p == ("shut", "up") and nxt in SHUT_UP_SAFE_NEXT:
-            return False
+        if p == ("shut", "up") and (nxt in SHUT_UP_SAFE_NEXT or
+                                    shut_up_closed(words[i - 1] if i else "")):
+            return False                                    # "the garden which was shut up"
         if p[-1] in SUCK_WORDS and nxt in SUCK_NOT_NEXT:      # "it sucks the juice out"
+            return False
+        if p[0] in SUCK_WORDS and suck_food(words, i):       # "began to suck it" (sugarcane)
             return False
         if p[0] == "screw" and nxt in SCREW_FACE_WORDS:     # "screw her face up"
             return False
@@ -1000,7 +1125,8 @@ def find_language(words, cats, mine=()):
                 if (nxt in INNOCENT_NEXT.get(wb, ()) and not fool_called(wb, prev, nxt)
                         and not dumb_called(wb, prev)) or (
                         wb in ("jerk", "jerks") and jerk_motion(words, i)) or (
-                        wb in PUSSY_WORDS and pussy_cat(words, i)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
+                        wb in PUSSY_WORDS and pussy_cat(words, i)) or (
+                        old_word_innocent(words, i, wb)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
                         wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
                         w in ("jesus", "christ") and reverent(words, i)) or (
                         w == "gay" and gay_happy(words, i)):

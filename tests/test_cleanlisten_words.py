@@ -50,7 +50,13 @@ CL_ONLY_SEXUAL = {     # CleanListen mutes these words; CleanView removes such t
     "skinny dip", "skinny dips", "skinny dipped", "skinny dipping", "skinny-dip",
     "skinny-dips", "skinny-dipped", "skinny-dipping", "skinnydip", "skinnydipping",
     "chastity belt", "chastity belts", "naked photo", "naked photos", "naked picture",
-    "naked pictures", "naked pic", "naked pics", "naked selfie", "naked selfies"}
+    "naked pictures", "naked pic", "naked pics", "naked selfie", "naked selfies",
+    # CleanListen 1.17.57's tests quote these (ten classics, 2026-11-17). Here the AI reads such
+    # lines: "aroused" and "intercourse" have older meanings (woke; conversation), and "sleep
+    # with you" is a child at bedtime in a kids' show ("Can I sleep with you tonight?"), so the
+    # short line list only has "sleeping with ..." (LINE_WORDS["casual"])
+    "erection", "aroused", "intercourse", "sleep with you", "sleep with me", "sleep with them",
+    "sleep with someone"}
 CV_ONLY = {"thank god", "thank the lord", "praise the lord"}   # CleanView mutes these as God's name (an AI can
 #                         rule them sincere); CleanListen leaves them to its strict religion filter
 

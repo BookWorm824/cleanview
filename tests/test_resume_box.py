@@ -88,9 +88,6 @@ class BothButtons(unittest.TestCase):
             raise unittest.SkipTest(f"no screen to draw on ({ex})")
         saved_secs = ui.UPDATED_SHOWN_SECS
         try:
-            ui.UPDATED_SHOWN_SECS = 0.5         # the start page built with the note, as after
-            os.environ["CLEANVIEW_UPDATED"] = "CleanView was updated to version 9.9.9."
-            app.show_setup()                    # an update (test_updated_note does the same)
             def labels(w):
                 out = [str(w.cget("text"))] if isinstance(w, tk.Label) else []
                 for c in w.winfo_children():
@@ -99,9 +96,15 @@ class BothButtons(unittest.TestCase):
 
             def texts(w):
                 return " | ".join(labels(w))
-            app.update()
+            ui.UPDATED_SHOWN_SECS = 2.0         # the start page built with the note, as after
+            os.environ["CLEANVIEW_UPDATED"] = "CleanView was updated to version 9.9.9."
+            began = time.time()
+            app.show_setup()                    # an update (test_updated_note does the same)
+            # looked at before the window runs its timers (a busy PC took the half second
+            # this first allowed just to build the page)
             self.assertIn("updated to version 9.9.9", texts(app))
-            end = time.time() + 1.5
+            self.assertIn("Your last review isn't finished", texts(app))
+            end = began + 4.0
             while time.time() < end:
                 app.update()
                 time.sleep(0.02)
