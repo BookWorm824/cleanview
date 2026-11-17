@@ -639,6 +639,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "rimming" is gone (salt round a glass), "purple-headed" is only warrior/yoghurt/womb
   ferret (the hymn's "purple-headed mountain"), and "got into his pants" is dressing (her/their
   pants, any knickers/panties still count). "molest" stays case talk (`forensic`).
+- A scan used again gets today's lists and the show's lessons (1.18.129, 2026-11-17; her
+  Criminal Minds S1E1 used again on 1.18.127: "This video was scanned before ... CleanView
+  hasn't learned anything new for it since", though 1.18.125 had taught a line for the show and
+  added rape case talk to the lists; the owner: "yes fix"). The scan had been kept under
+  `_movies` (made before "1-1" was read as S1E1), and `add_new_lessons` only added learned
+  lines. Now it reads the show as `learned_key` reads it now (and the old key too) and keeps
+  that as `st["show"]`, and runs `LINE_WORDS` as they are now, for the dialogue filters ticked,
+  on lines the scan has nothing for (by `idx` or time and text, so a line she unticked stays as
+  she left it; sexual references and sleeping around as just the words, `list_words_only`).
+  On her report it adds the four rape case-talk lines and the taught "fumbled your way into some
+  girl's pants" line. Changes to `cvcore`'s word lists still only come with a new scan. Her
+  chat on that report: "...autopsy protocol says what?" kept ("this seems ok"; her choice, not
+  taught: coroner talk) and only "you can't get it up" muted (1.18.127's list already mutes
+  just those words). `test_reuse_scan.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

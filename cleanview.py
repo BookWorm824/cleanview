@@ -3283,18 +3283,35 @@ def add_new_lessons(st, reused=False):
     that's ticked, as a new scan would. Only adds: everything already there, and her ticks on
     it, stay as they are. New scenes have no stills yet ("thumbs" missing). reused: the scan
     is being used instead of a new one, which the note says. Returns (lines added, scenes
-    added)."""
+    added).
+
+    Also (1.18.129; the owner's Criminal Minds S1E1 used again: "Criminal Minds - 1-1 --
+    Extreme Aggressor" had been kept under movies, so the line taught for the show didn't
+    come, nor the rape case talk added to the word lists since): the show as its name is
+    read now, and the short phrase lists (`LINE_WORDS`) as they are now, for the filters
+    ticked, on lines the scan has nothing for (a line she unticked stays as she left it)."""
     o = st.get("opts") or {}
-    key = st.get("show") or "_movies"
+    old_key = st.get("show") or "_movies"
+    key = old_key
+    if st.get("path"):
+        try:
+            key = learned_key(st["path"], o)
+        except Exception:
+            key = old_key
+    st["show"] = key                    # what she chooses now is learned under it too
     lines = st.get("dialogue") or []
     line_mutes = st.setdefault("lines", [])
     scenes = st.setdefault("scenes", [])
     have = {(round(l["s"], 2), l.get("plain") or l.get("text")) for l in line_mutes}
-    learned, _ = learn.apply(key, [dict(l) for l in lines], [], [], [], on=on_kinds(o))
+    learned = []
+    for k in dict.fromkeys([key, old_key]):
+        got, _ = learn.apply(k, [dict(l) for l in lines], [], [], [], on=on_kinds(o))
+        learned += got
     n_lines = 0
     for l in learned:
         if (round(l["s"], 2), l["text"]) in have:
             continue
+        have.add((round(l["s"], 2), l["text"]))
         yours = l.get("learned_from") == "you"
         line_mutes.append({"id": max((x.get("id", 0) for x in line_mutes), default=0) + 1,
                            "s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
@@ -3305,6 +3322,33 @@ def add_new_lessons(st, reused=False):
         if yours:
             line_mutes[-1]["learned"] = "you muted this before"
         n_lines += 1
+    # the phrase lists as they are now, on lines the scan has nothing for
+    taken = {l.get("idx") for l in line_mutes} | {(round(l["s"], 2), l.get("plain") or
+                                                    l.get("text")) for l in line_mutes}
+    fo = full_opts(o)
+    added = []
+    for i, l in enumerate(lines):
+        if i in taken or (round(l["s"], 2), l["text"]) in taken:
+            continue
+        hits = {k: [m.group(0) for m in LINE_WORDS[k].finditer(l["text"])]
+                for k in LINE_KINDS if fo.get(k) and k in LINE_WORDS}
+        hits = {k: v for k, v in hits.items() if v}
+        if not hits:
+            continue
+        toks = l["text"].split()
+        for a_, b_, _ in cl.find_language([cl.norm(t) for t in toks], list(cl.CATS), my_words(o)):
+            for q in range(a_, b_):
+                toks[q] = cl.mask(toks[q])
+        new = {"id": max((x.get("id", 0) for x in line_mutes), default=0) + 1,
+               "s": round(l["s"], 2), "e": round(l["e"], 2), "text": " ".join(toks),
+               "plain": l["text"], "types": sorted(hits), "mute": True, "idx": i}
+        if set(hits) <= set(LIST_WORDS_ONLY):
+            new["words"] = [LIST_WORD_TRIM.sub("", w) for k in sorted(hits) for w in hits[k]]
+        line_mutes.append(new)
+        added.append(new)
+    if added:                           # just the words, as a new scan does
+        list_words_only(dict(st, lines=added))
+        n_lines += len(added)
     line_mutes.sort(key=lambda l: l["s"])
     asr = st.get("asr") or []
     dur = st.get("duration") or max((l["e"] for l in lines), default=0)

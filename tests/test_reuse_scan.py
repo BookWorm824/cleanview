@@ -86,6 +86,34 @@ class Engine(unittest.TestCase):
         self.assertTrue(any(n.startswith(engine.SCAN_REUSED) and "2 lines to mute and 1 scene"
                             in n for n in st["notes"]), st["notes"])
 
+    def test_the_show_as_read_now_and_the_lists_as_they_are(self):
+        # 1.18.129 (the owner's Criminal Minds S1E1 used again: kept under movies, so the line
+        # taught for the show didn't come, nor the rape case talk added to the lists since)
+        video = self.work / "Criminal Minds - 1-1 -- Extreme Aggressor.m4v"
+        st = old_scan(video, opts=dict(OPTS, profile="adults", forensic=True))
+        st["show"] = "_movies"
+        st["dialogue"] += [
+            {"s": 842.0, "e": 844.0, "text": "Murders have all involved rapes.", "who": ""},
+            {"s": 850.0, "e": 853.0, "text": "What'd they come up with when you fumbled your way "
+             "into some girl's pants and she started laughing when she got a good look at just",
+             "who": ""},
+            {"s": 860.0, "e": 862.0, "text": "She gave him a handjob.", "who": ""},
+            {"s": 870.0, "e": 872.0, "text": "Stab wounds, strangulation.", "who": ""}]
+        st["lines"].append({"id": 2, "s": 870.0, "e": 872.0, "text": "Stab wounds, strangulation.",
+                            "plain": "Stab wounds, strangulation.", "types": ["forensic"],
+                            "mute": False})                       # hers: unticked
+        engine.add_new_lessons(st, reused=True)
+        self.assertEqual(st["show"], "criminal-minds")
+        got = {l["plain"]: l for l in st["lines"]}
+        self.assertTrue(got["Murders have all involved rapes."]["mute"])
+        self.assertEqual(got["Murders have all involved rapes."]["types"], ["forensic"])
+        self.assertTrue(any(t.startswith("What'd they come up with") and l["mute"]
+                            for t, l in got.items()))            # taught for criminal-minds
+        hand = got["She gave him a handjob."]
+        self.assertEqual(hand["types"], ["sexref"])
+        self.assertFalse(got["Stab wounds, strangulation."]["mute"])   # still as she left it
+        self.assertEqual(sum(1 for l in st["lines"] if l["plain"] == LINES[4][1]), 1)
+
     def test_twice_adds_nothing_more(self):
         st = self.saved()
         engine.add_new_lessons(st, reused=True)
