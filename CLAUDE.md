@@ -583,6 +583,29 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   filter", "masturbate and masterbating"): `LINE_WORDS["sexref"]` has mast[ue]rbate, -es, -ed,
   -ing, -ion(s), -or(s), -ory (just the word muted); no past line here has it.
   `test_masturbate.py`.
+- Sexual words, researched (1.18.127, 2026-11-17; the owner: "do research on words that world
+  uses as innuendo/sexual terms - do nitty gritty research - make sure all are on our list").
+  Three research passes (about 3,500 terms with their everyday meanings: Wiktionary's thesaurus
+  and category pages, Wikipedia's sexual slang, rhyming slang and South African slang lists,
+  the LDNOOBW and bad-words filter lists, regional guides for British, Irish, Scottish,
+  Australian/NZ, Jamaican, African American and Gen-Z slang, euphemism guides) were checked
+  against the lists (CleanView caught about 430). Added, before `LINE_WORDS`:
+  `SEXUAL_TERMS` (joined onto `LINE_WORDS["sexref"]`, just the words muted): sex said other
+  ways (get laid, knock boots, shag but not a shag carpet, netflix and chill...), acts
+  (handjob, went down on her, not "eat her out of house and home"...), arousal and
+  masturbation (hard-on but not "hard on yourself", beat/whack/wank off but not "beat off the
+  attackers"...), genital and breast slang, testicles/vagina/genitals, sex work, porn, toys,
+  BDSM, fetish; `CASUAL_TERMS` (`casual`): womanizer, ladies' man, adultery, side chick, open
+  marriage...; `FORENSIC_TERMS` (`forensic`): pedophile, molester, incest, bestiality,
+  necrophilia, indecent exposure; `samesex`: bi-curious, twink, shemale. Left to the AI (their
+  everyday meaning is more common): bang, screw, nail, ride, package, melons, junk, beaver,
+  come, wood, "that's what she said", "get lucky", "turned on"; kissing slang (snog, French
+  kiss, tonsil hockey), flirting (make a pass at, put the moves on) and medical words (STD,
+  syphilis) aren't on it. In the 110,535 past lines here 26 more lines are caught, all real
+  (The Resident's gigolo, pornography, coitus and testicle lines, Castle's "cop a feel" and
+  "sloppy seconds", Person of Interest's "escort service"). For CleanListen and CleanRead too.
+  `test_sexual_words.py`. Also "gang bang" (the owner in the CleanStream chat): gang bang,
+  gangbang, gang-bang(s/ed); not gangbanger or gangbanging (a street gang member, police talk).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
