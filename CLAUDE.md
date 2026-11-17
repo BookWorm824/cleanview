@@ -453,6 +453,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   whiskers, tabby...) within `PUSSY_CAT_REACH` (30) words, not after "a", "such", "big", "total"...
   (`PUSSY_INSULT_BEFORE`). "pussy willow", "Here, pussy, pussy", "Don't be a pussy" still muted.
   No line in the past reviews here has the word.
+- Drag and drop takes File Explorer's drags (1.18.119, 2026-11-16; the owner: "the drag and drop
+  doesnt work"). Her running 1.18.118 window had WS_EX_ACCEPTFILES on its frame and inside, at
+  the same integrity as Explorer, and still took nothing: Explorer drags with OLE, the drop is
+  over one of Tk's child windows, and only a drop target registered with RegisterDragDrop is
+  looked for up the parents. `cvdrop.DropTarget` is an IDropTarget made with ctypes (the copy
+  cursor when files are dragged in, `CF_HDROP` read with IDataObject::GetData on Drop, the
+  paths to `on_files`, which only queues them); `ole_drops` calls OleInitialize on Tk's thread
+  and registers it on the frame and the inside (`OLE_REGISTERED`); WM_DROPFILES stays as well.
+  `test_drop` hands it the shell's own IDataObject for a file and a folder
+  (SHCreateItemFromParsingName, BindToHandler BHID_DataObject) through its vtable as Windows
+  does; a real mouse drag wasn't tried here (nothing pops up).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

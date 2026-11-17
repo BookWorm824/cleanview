@@ -143,6 +143,61 @@ class OnTheWindow(unittest.TestCase):
         self.assertEqual(self.app.page_name, "setup")
         self.assertEqual(self.app.videos, [movie])
 
+    def shell_data(self, path):
+        """File Explorer's own IDataObject for a file, the way a drag hands it over."""
+        import ctypes
+        from ctypes import wintypes
+        _, _, ole32, GUID, *_ = cvdrop._ole()
+        shell32 = ctypes.WinDLL("shell32")
+        item, data = ctypes.c_void_p(), ctypes.c_void_p()
+        iid_item = cvdrop._guid(GUID, "43826d1e-e718-42ee-bc55-a1e261c37bfe")
+        self.assertEqual(shell32.SHCreateItemFromParsingName(
+            ctypes.c_wchar_p(path), None, ctypes.byref(iid_item), ctypes.byref(item)), 0)
+        vtbl = ctypes.cast(item, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))[0]
+        bind = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p,
+                                  ctypes.POINTER(GUID), ctypes.POINTER(GUID),
+                                  ctypes.POINTER(ctypes.c_void_p))(vtbl[3])
+        bhid = cvdrop._guid(GUID, "B8C0BD9F-ED24-455c-83E6-D5390C4FE8C4")
+        iid_data = cvdrop._guid(GUID, "0000010e-0000-0000-C000-000000000046")
+        self.assertEqual(bind(item, None, ctypes.byref(bhid), ctypes.byref(iid_data),
+                              ctypes.byref(data)), 0)
+        return data.value
+
+    def call_target(self, index, *args):
+        """Call the registered IDropTarget's method number index, as Windows does."""
+        import ctypes
+        from ctypes import wintypes
+        target = cvdrop._kept[-1] if isinstance(cvdrop._kept[-1], cvdrop.DropTarget) else             next(t for t in reversed(cvdrop._kept) if isinstance(t, cvdrop.DropTarget))
+        vtbl = ctypes.cast(ctypes.c_void_p(target.pointer),
+                           ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))[0]
+        effect = wintypes.DWORD(99)
+        if index in (3, 6):          # DragEnter, Drop: (data, keys, point, effect)
+            fn = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p,
+                                    wintypes.DWORD, ctypes.c_uint64,
+                                    ctypes.POINTER(wintypes.DWORD))(vtbl[index])
+            self.assertEqual(fn(target.pointer, args[0], 0, 0, ctypes.byref(effect)), 0)
+        return effect.value
+
+    def test_a_drag_from_file_explorer(self):
+        # registered on the window's inside, which holds every widget: Windows looks for it up
+        # from the widget under the mouse (WM_DROPFILES alone didn't reach it: "the drag and
+        # drop doesnt work")
+        self.assertIn(self.app.winfo_id(), cvdrop.OLE_REGISTERED)
+        movie, = make(self.tmp.name, "Explorer/Black Beauty.mkv")
+        data = self.shell_data(movie)
+        self.assertEqual(self.call_target(3, data), cvdrop.DROPEFFECT_COPY)   # the copy cursor
+        self.assertEqual(self.call_target(6, data), cvdrop.DROPEFFECT_COPY)   # dropped
+        self.pump(0.5)
+        self.assertEqual([os.path.normcase(v) for v in self.app.videos],
+                         [os.path.normcase(movie)])
+
+    def test_a_folder_dragged_from_file_explorer(self):
+        eps = make(self.tmp.name, "Season/Ep 2.mkv", "Season/Ep 1.mkv")
+        self.call_target(6, self.shell_data(os.path.join(self.tmp.name, "Season")))
+        self.pump(0.5)
+        self.assertEqual([os.path.normcase(v) for v in self.app.videos],
+                         sorted(os.path.normcase(e) for e in eps))
+
     def test_other_messages_still_reach_the_window(self):
         self.app.title("CleanView drop test")
         self.pump(0.1)

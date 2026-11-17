@@ -69,6 +69,178 @@ def window_handles(win):
     return [h for i, h in enumerate(handles) if h and h not in handles[:i]]
 
 
+# File Explorer drags with OLE (DoDragDrop). WM_DROPFILES alone wasn't enough (1.18.119; the
+# owner: "the drag and drop doesnt work", though the window had WS_EX_ACCEPTFILES): a drop is
+# over one of Tk's many child windows (a frame, a label), and only a drop target registered with
+# RegisterDragDrop is looked for up the chain of parents, so one on the window's inside covers
+# every widget. This is that drop target, a small COM object made with ctypes.
+CF_HDROP, DVASPECT_CONTENT, TYMED_HGLOBAL = 15, 1, 1
+DROPEFFECT_NONE, DROPEFFECT_COPY = 0, 1
+S_OK, E_NOINTERFACE = 0, 0x80004002
+OLE_REGISTERED = []          # the windows a drop target was registered on (for the tests)
+
+
+def _ole():
+    import ctypes
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                    ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+    class FORMATETC(ctypes.Structure):
+        _fields_ = [("cfFormat", wintypes.WORD), ("ptd", ctypes.c_void_p),
+                    ("dwAspect", wintypes.DWORD), ("lindex", wintypes.LONG),
+                    ("tymed", wintypes.DWORD)]
+
+    class STGMEDIUM(ctypes.Structure):
+        _fields_ = [("tymed", wintypes.DWORD), ("hGlobal", ctypes.c_void_p),
+                    ("pUnkForRelease", ctypes.c_void_p)]
+
+    ole32 = ctypes.WinDLL("ole32")
+    ole32.OleInitialize.argtypes = [ctypes.c_void_p]
+    ole32.OleInitialize.restype = ctypes.c_long
+    ole32.RegisterDragDrop.argtypes = [wintypes.HWND, ctypes.c_void_p]
+    ole32.RegisterDragDrop.restype = ctypes.c_long
+    ole32.ReleaseStgMedium.argtypes = [ctypes.POINTER(STGMEDIUM)]
+    return ctypes, wintypes, ole32, GUID, FORMATETC, STGMEDIUM
+
+
+def _guid(GUID, text):
+    import uuid
+    u = uuid.UUID(text)
+    g = GUID(u.time_low, u.time_mid, u.time_hi_version)
+    for k, b in enumerate(u.bytes[8:]):
+        g.Data4[k] = b
+    return g
+
+
+class DropTarget:
+    """An IDropTarget for File Explorer's drags: shows the copy cursor over the window when
+    files are dragged in, and hands their paths to on_files when dropped (inside Windows'
+    message, so on_files must not touch Tk)."""
+
+    def __init__(self, on_files):
+        ctypes, wintypes, ole32, GUID, FORMATETC, STGMEDIUM = _ole()
+        self._c, self._ole32 = ctypes, ole32
+        self._FORMATETC, self._STGMEDIUM = FORMATETC, STGMEDIUM
+        self.on_files = on_files
+        self._effect = DROPEFFECT_NONE
+        HRESULT, ULONG = ctypes.c_long, wintypes.ULONG
+        PDWORD = ctypes.POINTER(wintypes.DWORD)
+        # a POINTL is passed by value: 8 bytes, the same as one 64-bit number
+        T = ctypes.WINFUNCTYPE
+        self._unknown = (_guid(GUID, "00000000-0000-0000-C000-000000000046"),
+                         _guid(GUID, "00000122-0000-0000-C000-000000000046"))
+        self._fns = [
+            T(HRESULT, ctypes.c_void_p, ctypes.POINTER(GUID),
+              ctypes.POINTER(ctypes.c_void_p))(self._query),
+            T(ULONG, ctypes.c_void_p)(lambda this: 1),                       # AddRef
+            T(ULONG, ctypes.c_void_p)(lambda this: 1),                       # Release
+            T(HRESULT, ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.c_uint64,
+              PDWORD)(self._enter),
+            T(HRESULT, ctypes.c_void_p, wintypes.DWORD, ctypes.c_uint64, PDWORD)(self._over),
+            T(HRESULT, ctypes.c_void_p)(self._leave),
+            T(HRESULT, ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.c_uint64,
+              PDWORD)(self._drop)]
+        self._vtbl = (ctypes.c_void_p * len(self._fns))(
+            *[ctypes.cast(f, ctypes.c_void_p) for f in self._fns])
+        self._obj = (ctypes.c_void_p * 1)(ctypes.addressof(self._vtbl))
+        self.pointer = ctypes.addressof(self._obj)        # the IDropTarget* handed to Windows
+
+    def _same(self, a, b):
+        c = self._c
+        return c.string_at(c.addressof(a), 16) == c.string_at(c.addressof(b), 16)
+
+    def _query(self, this, riid, ppv):
+        if any(self._same(riid.contents, g) for g in self._unknown):
+            ppv[0] = this
+            return S_OK
+        ppv[0] = None
+        return E_NOINTERFACE
+
+    def _format(self):
+        return self._FORMATETC(CF_HDROP, None, DVASPECT_CONTENT, -1, TYMED_HGLOBAL)
+
+    def _call(self, obj, index, restype, *args):
+        """Method number index of the COM object obj (an IDataObject)."""
+        c = self._c
+        vtbl = c.cast(c.c_void_p(obj), c.POINTER(c.POINTER(c.c_void_p)))[0]
+        fn = c.WINFUNCTYPE(restype, c.c_void_p, *[type(a) for a in args])(vtbl[index])
+        return fn(obj, *args)
+
+    def has_files(self, data):
+        c = self._c
+        try:   # IDataObject::QueryGetData is method 5
+            return self._call(data, 5, c.c_long, c.pointer(self._format())) == S_OK
+        except Exception:
+            return False
+
+    def paths(self, data):
+        """The file paths in an IDataObject (CF_HDROP)."""
+        c = self._c
+        medium = self._STGMEDIUM()
+        # IDataObject::GetData is method 3
+        if self._call(data, 3, c.c_long, c.pointer(self._format()), c.pointer(medium)) != S_OK:
+            return []
+        try:
+            return dropped_paths(medium.hGlobal)
+        finally:
+            self._ole32.ReleaseStgMedium(c.byref(medium))
+
+    def _enter(self, this, data, keys, pt, effect):
+        try:
+            self._effect = DROPEFFECT_COPY if data and self.has_files(data) else DROPEFFECT_NONE
+        except Exception:
+            self._effect = DROPEFFECT_NONE
+        if effect:
+            effect[0] = self._effect
+        return S_OK
+
+    def _over(self, this, keys, pt, effect):
+        if effect:
+            effect[0] = self._effect
+        return S_OK
+
+    def _leave(self, this):
+        self._effect = DROPEFFECT_NONE
+        return S_OK
+
+    def _drop(self, this, data, keys, pt, effect):
+        got = []
+        try:
+            got = self.paths(data) if data else []
+        except Exception:
+            got = []
+        if effect:
+            effect[0] = DROPEFFECT_COPY if got else DROPEFFECT_NONE
+        self._effect = DROPEFFECT_NONE
+        if got:
+            try:
+                self.on_files(got)
+            except Exception:
+                pass
+        return S_OK
+
+
+def ole_drops(handles, on_files):
+    """Register one DropTarget on each window. The thread must be the window's (Tk's)."""
+    try:
+        ctypes, wintypes, ole32, *_ = _ole()
+        ole32.OleInitialize(None)          # S_OK, or S_FALSE when it was already
+        target = DropTarget(on_files)
+        ok = False
+        for hwnd in handles:
+            if ole32.RegisterDragDrop(hwnd, target.pointer) == S_OK:
+                OLE_REGISTERED.append(hwnd)
+                ok = True
+        if ok:
+            _kept.append(target)
+        return target if ok else None
+    except Exception:
+        return None
+
+
 def accept_drops(win, on_files):
     """Let `win` (a Tk or Toplevel, already made) take files dropped on it. True when it can."""
     if os.name != "nt":
@@ -76,7 +248,7 @@ def accept_drops(win, on_files):
     try:
         win.update_idletasks()
         ctypes, user32, shell32, proc_type = _api()
-        done = False
+        done = ole_drops(window_handles(win), on_files) is not None
         for hwnd in window_handles(win):
             old = {}
 
