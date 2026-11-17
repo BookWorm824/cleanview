@@ -646,6 +646,34 @@ JERK_CALLED_BEFORE = {"be", "being", "you're", "youre", "he's", "she's", "i'm", 
                       "what", "total", "real", "complete", "big"}
 
 
+# "pussy" meaning a cat stays (CleanListen 1.17.54; the owner, 2026-11-16, after "take that word
+# out" of Black Beauty: "if pussy is used as a cat only", "it can stay", "but keep it limited"):
+# "pussy cat", or a cat word close by. Still out: "pussy willow", "such a pussy", "don't be a
+# pussy", and any other use. The same words as CleanListen's pussy_cat.
+PUSSY_WORDS = {"pussy", "pussies"}
+PUSSY_CAT_NEXT = {"cat", "cats", "kitten", "kittens"}
+CAT_WORDS = {"cat", "cats", "cat's", "kitten", "kittens", "kitten's", "kitty", "kitties", "kittie",
+             "purr", "purrs", "purred", "purring", "mew", "mews", "mewed", "mewing", "meow", "meows",
+             "meowed", "meowing", "miaow", "miaowed", "miaowing", "catnip", "whiskers", "tabby",
+             "tomcat", "tom-cat", "tomcats", "mouser", "mousers", "litter", "kittenish"}
+PUSSY_INSULT_BEFORE = {"a", "an", "such", "big", "total", "complete", "real", "what", "being",
+                       "some", "your", "fucking", "damn", "bloody"}
+PUSSY_CAT_REACH = 30          # words either side (about two sentences)
+
+
+def pussy_cat(words, i):
+    """Is "pussy"/"pussies" at words[i] a cat: "pussy cat", or a cat word close by (not after
+    "a", "such", "big"... that make it the insult)?"""
+    if words[i] not in PUSSY_WORDS:
+        return False
+    if (words[i + 1] if i + 1 < len(words) else "") in PUSSY_CAT_NEXT:
+        return True
+    if (words[i - 1] if i else "") in PUSSY_INSULT_BEFORE:
+        return False
+    near = words[max(0, i - PUSSY_CAT_REACH):i] + words[i + 1:i + 1 + PUSSY_CAT_REACH]
+    return any(w in CAT_WORDS for w in near)
+
+
 def jerk_motion(words, i):
     """Is "jerk"/"jerks" at words[i] a movement ("a jerk of his head", "with a jerk")?"""
     if words[i] not in ("jerk", "jerks"):
@@ -964,7 +992,8 @@ def find_language(words, cats, mine=()):
                     break        # "you're freaking me out": the verb, not the minced oath
                 if (nxt in INNOCENT_NEXT.get(wb, ()) and not fool_called(wb, prev, nxt)
                         and not dumb_called(wb, prev)) or (
-                        wb in ("jerk", "jerks") and jerk_motion(words, i)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
+                        wb in ("jerk", "jerks") and jerk_motion(words, i)) or (
+                        wb in PUSSY_WORDS and pussy_cat(words, i)) or                         prev in INNOCENT_PREV.get(wb, ()) or (
                         wb == "dumb" and words[max(0, i - 2):i] == ["deaf", "and"]) or (
                         w in ("jesus", "christ") and reverent(words, i)) or (
                         w == "gay" and gay_happy(words, i)):

@@ -17,10 +17,17 @@ def found(text):
 
 
 class Pussy(unittest.TestCase):
-    def test_always(self):
-        for t in ("a pussy cat", "Pussy willow", "The pussy cat purred.", "Here, pussy, pussy",
-                  "Don't be a pussy"):
+    # out every time at first ("take that word out"), then, later that day, left when it's a cat
+    # ("if pussy is used as a cat only", "it can stay", "but keep it limited"; CleanListen 1.17.54)
+    def test_out(self):
+        for t in ("Pussy willow", "Here, pussy, pussy", "Don't be a pussy",
+                  "He's such a pussy, my cat is braver"):
             self.assertIn("pussy", found(t), t)
+
+    def test_a_cat(self):
+        for t in ("The pussy cat purred.", "She held the little pussy kitten.",
+                  "The kitten mewed, and the old pussy licked its ears."):
+            self.assertEqual(found(t), [], t)
 
 
 class Jerk(unittest.TestCase):

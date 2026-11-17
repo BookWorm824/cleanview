@@ -446,6 +446,13 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   stills made afterwards (`_thumbs_later(lessons=True)`). The owner: "teaching should apply to
   new or alread cleaned files": taught lines match with blanked words too (`learn.apply`:
   "Hey, Gump, get a load of the — on her!").
+- "pussy" meaning a cat stays (1.18.118, 2026-11-16; CleanListen 1.17.54, the owner in that chat
+  after "take that word out" of Black Beauty: "if pussy is used as a cat only", "it can stay",
+  "but keep it limited"; passed on by the CleanView Play chat). `cvcore.pussy_cat`, the same as
+  CleanListen's: "pussy cat/kitten", or a cat word (`CAT_WORDS`: cat, kitten, purr, mew, meow,
+  whiskers, tabby...) within `PUSSY_CAT_REACH` (30) words, not after "a", "such", "big", "total"...
+  (`PUSSY_INSULT_BEFORE`). "pussy willow", "Here, pussy, pussy", "Don't be a pussy" still muted.
+  No line in the past reviews here has the word.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
