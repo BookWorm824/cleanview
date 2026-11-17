@@ -573,6 +573,16 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "rape without penetration" is an explicit finding (`EXPLICIT_FINDING`). Taught for
   criminal-minds (sexref): "What'd they come up with when you fumbled your way into some girl's
   pants..." (the two lines after it were muted). `test_criminal_minds.py`.
+- The chosen age lights up green (1.18.126, 2026-11-17; the owner: "in the young kid kid teen
+  area, when you make a selection of the 4, it makes a darker oval around one, can we have that
+  oval light up the logo green to shows it on"). `look.Segmented(on=, on_ink=)`: the chosen one
+  is filled with `on` and written in `on_ink` instead of the white oval with an edge; step 2's
+  ages use `ACCENT` and white, in Light and Dark. Light/Dark and the kissing choices keep the
+  white oval. cvlook.py changed: CleanListen's copy may follow. `test_ages_green.py`.
+  Also (the owner in the CleanStream chat, for every app: "we need to add some words to sex
+  filter", "masturbate and masterbating"): `LINE_WORDS["sexref"]` has mast[ue]rbate, -es, -ed,
+  -ing, -ion(s), -or(s), -ory (just the word muted); no past line here has it.
+  `test_masturbate.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

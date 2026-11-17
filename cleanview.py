@@ -2130,6 +2130,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # S2E1: "if pole ever comes after stripper it should be muted, keep pole
                          # other instances"); only "stripper" was muted
                          r"hookers?|prostitutes?|strippers?(?: poles?)?|orgasms?|threesome|"
+                         # the owner, 2026-11-17, in the CleanStream chat, for every app: "we
+                         # need to add some words to sex filter", "masturbate and masterbating"
+                         # (subtitles spell it both ways)
+                         r"mast[ue]rbat(?:e|es|ed|ing|ion|ions|or|ors|ory)|"
                          # strip clubs, for every age when it's ticked (the owner, 2026-11-16,
                          # after Forest Gump's Memphis club: "any of the strip club stuff needs
                          # cut for all ages if it is checked")

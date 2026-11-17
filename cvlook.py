@@ -306,16 +306,18 @@ class Switch(tk.Canvas):
 
 class Segmented(tk.Canvas):
     """One of a few choices, side by side in a rounded tray (the chosen one raised in
-    white). Follows a StringVar both ways; command is called after a click."""
+    white, or lit in `on` with `on_ink` writing). Follows a StringVar both ways; command is
+    called after a click."""
 
     def __init__(self, parent, options, variable, command=None, bg=None, size=10, tray=None,
-                 dim=None, edge=None):
+                 dim=None, edge=None, on=None, on_ink=None):
         self._bg = bg or parent.cget("bg")
         super().__init__(parent, bg=self._bg, highlightthickness=0, bd=0, cursor="hand2")
         self.options, self.var, self._command, self._size = options, variable, command, size
         self._tray = tray               # the tray's colour (else the side panel's)
         self._dim = dim                 # the choices not chosen (else the quiet grey)
         self._edge = edge               # a thin line round the tray (none if not given)
+        self._on, self._on_ink = on, on_ink     # the chosen one lit in this colour
         self._spots, self._img = [], None
         on_click(self, self._click)
         variable.trace_add("write", lambda *_: self.winfo_exists() and self._draw())
@@ -335,7 +337,10 @@ class Segmented(tk.Canvas):
             rgb = _paint(rgb, _cover(w, h, h / 2, inset=1), self._tray or C["side"])
         x, self._spots = pad, []
         for (value, label), bw in zip(self.options, widths):
-            if value == self.var.get():
+            if value == self.var.get() and self._on:
+                rgb = _paint(rgb, _cover(w, h, (h - 2 * pad) / 2, x0=x, y0=pad, bw=bw,
+                                         bh=h - 2 * pad), self._on)
+            elif value == self.var.get():
                 rgb = _paint(rgb, _cover(w, h, (h - 2 * pad) / 2, x0=x, y0=pad, bw=bw,
                                          bh=h - 2 * pad), C["line"])
                 rgb = _paint(rgb, _cover(w, h, (h - 2 * pad) / 2, inset=1, x0=x, y0=pad,
@@ -350,7 +355,8 @@ class Segmented(tk.Canvas):
         for x0, x1, value, label in self._spots:
             on = value == self.var.get()
             self.create_text((x0 + x1) / 2, h / 2, text=label, font=font,
-                             fill=C["ink"] if on else self._dim or C["muted"])
+                             fill=(self._on_ink or C["ink"]) if on and self._on else
+                             C["ink"] if on else self._dim or C["muted"])
 
     def _click(self, e):
         for x0, x1, value, _ in self._spots:

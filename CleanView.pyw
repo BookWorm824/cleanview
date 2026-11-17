@@ -1366,7 +1366,10 @@ class App(tk.Tk):
         prow.pack(fill="x", padx=(0, X(4)))
         self.profile_var = tk.StringVar(value=self.profile)
         look.Segmented(prow, PROFILES, self.profile_var, command=self._profile_changed,
-                       size=11, tray=AGE_TRAY, dim=AGE_TEXT, edge=LINE).pack(side="left")
+                       size=11, tray=AGE_TRAY, dim=AGE_TEXT, edge=LINE,
+                       # the chosen age lit in the logo's green (the owner, 2026-11-17: "can we
+                       # have that oval light up the logo green to shows it on")
+                       on=ACCENT, on_ink="#FFFFFF").pack(side="left")
         look.link(prow, "Reset to standard", self._profile_reset, size=9).pack(side="right")
         tk.Label(p2, text="Each age remembers its own choices, and what CleanView learns from "
                  "them is kept separately for each.", bg=BG, fg=MUTED, font=(FONT, 9),
