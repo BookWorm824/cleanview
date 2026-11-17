@@ -674,14 +674,27 @@ def guess_title(path):
          # "I Love Lucy 1 - Ep. 1" (Lauren, 2026-11-08: looked up as a movie of that name)
          or re.search(r"(?i)(?<=[A-Za-z] )(\d{1,2})\s*-\s*(?:ep|episode)\W{0,3}(\d{1,3})\b", stem))
     show = ""
+    # a season's special (the owner, 2026-11-17, of "Call the Midwife - Christmas Special
+    # S2": "if a video just says a season number and say a special that it still gets searched
+    # for subitles", "search the seaon ad look uner christtmas and see which agrees"): the
+    # subtitle site files a season's Christmas special as its episode 0 ("Christmas Special
+    # 2013" is season 3, episode 0); the neighbouring seasons' specials are tried after it
+    # and the first that lines up with what was heard is used (`other_subtitles`)
+    sp = None if m else re.search(SPECIAL, stem)
+    sm = sp and re.search(r"(?i)\b(?:s|season|series)\s*(\d{1,2})\b", stem)
     if m:
         season, episode = int(m.group(1)), int(m.group(2))
         show = stem[:m.start()].strip(" -#")
+    elif sm:
+        season, episode = int(sm.group(1)), 0
+        show = stem[:min(sp.start(), sm.start())].strip(" -#")
     else:
         fs = re.match(r"(?i)\s*(season|series|s)\s*(\d{1,2})\s*$", parent)
         em = re.match(r"\s*#?\s*(?:e|ep|episode)?\s*(\d{1,3})\b(?!\s*[xX:])", stem, re.I)
         if fs and em:
             season, episode = int(fs.group(2)), int(em.group(1))
+        elif fs and re.search(SPECIAL, stem):           # Season 2\Christmas Special.mkv
+            season, episode = int(fs.group(2)), 0
         elif fs or re.search(r"(?i)\b(s\d{1,2}|d\d|t\d{1,2}|disc|title|track)\b", stem):
             return None   # a disc/track name: can't tell which episode
     if season is not None:
@@ -692,6 +705,10 @@ def guess_title(path):
         return (show, season, episode) if show else None
     title = stem.strip()
     return (title, None, None) if re.search(r"[^\W\d_]{2}", title) else None
+
+
+SPECIAL = (r"(?i)\b(?:(?:christmas|xmas|holiday|new\s+year'?s?|easter|halloween|thanksgiving)"
+           r"\s+)?specials?\b")
 
 
 def learned_key(path, o):
@@ -879,8 +896,18 @@ OWN_TRIES_FOR_EPISODES = 3      # its own other subtitles first, then the neighb
 NEIGHBOUR_LOOKUP = "looked at neighbouring episodes and seasons too (1.18.59)"
 
 
+SPECIAL_NEIGHBOURS = [1, -1, 2, -2]      # a special: the next season's special first ("S2"
+                                         # for the second Christmas special is season 3's)
+
+
 def neighbour_episodes(season, episode):
-    """(season, episode) of the neighbours to try, nearest first."""
+    """(season, episode) of the neighbours to try, nearest first. A special (episode 0): the
+    other seasons' specials."""
+    if episode == 0:
+        for ds in SPECIAL_NEIGHBOURS:
+            if season + ds >= 1:
+                yield season + ds, 0
+        return
     for ds, de in NEIGHBOURS:
         s, e = season + ds, episode + de
         if s >= 1 and e >= 1:
@@ -888,9 +915,76 @@ def neighbour_episodes(season, episode):
 
 
 def neighbour_note(season, episode, s, e):
+    if episode == 0:
+        return f" (they're for season {s}'s special, so this file's season number may be off)"
     if s == season:
         return f" (they're for episode {e}, so this file's episode number may be off)"
     return f" (they're for season {s}, so this file's season number may be off)"
+
+
+SPECIAL_TRIES = 10       # a special's subtitles: the most other specials tried
+
+
+def _special_key(sub):
+    """Which special (or episode) a subtitle is for: its name, season, episode and year. The
+    sites name them differently: '"Call the Midwife" Christmas Special 2013' (season 3, episode
+    0), 'Call the Midwife - S02E00  Christmas Special - 2012' (season 2, no episode given)."""
+    name = str(getattr(sub, "movie_full_name", "") or getattr(sub, "movie_name", "") or
+               getattr(sub, "movie_title", "") or getattr(sub, "title", "") or "")
+    season, episode = None, None
+    for a in ("series_season", "season"):
+        if getattr(sub, a, None) is not None:
+            season = getattr(sub, a)
+            break
+    for a in ("series_episode", "episode"):
+        if getattr(sub, a, None) is not None:
+            episode = getattr(sub, a)
+            break
+    m = re.search(r"\b[Ss](\d{1,2})[Ee](\d{1,3})\b", name)
+    if m and episode is None:
+        season, episode = int(m.group(1)), int(m.group(2))
+    return (name, season, episode, getattr(sub, "movie_year", None) or getattr(sub, "year", None))
+
+
+def _is_special(sub):
+    name, _, episode, _ = _special_key(sub)
+    return episode == 0 or bool(re.search(r"(?i)\bspecial\b", name))
+
+
+def _other_specials(t, subs, tried, log=print):
+    """The other specials listed for the show (the subtitle site lists a show's whole run under
+    any one of its episodes): the best subtitles of each, the guessed season's first, then the
+    nearest seasons', up to `SPECIAL_TRIES` (the owner, 2026-11-17: "look uner christtmas and
+    see which agrees"; pick_subtitles keeps the first that lines up with what was heard)."""
+    import subliminal
+    ext = Path(t[0]).suffix or ".mkv"
+    found = list(subs)
+    for s, _ in neighbour_episodes(t[1], 0):        # more of the list, from other seasons
+        try:
+            v = sub_video((t[0], s, 0), ext)
+            found += subliminal.list_subtitles({v}, {_sub_language()}).get(v) or []
+        except Exception as ex:
+            log(f"subtitles for season {s}'s special: {ex}")
+    best = {}
+    for sub in found:
+        key = _special_key(sub)
+        if not _is_special(sub) or key in tried:
+            continue
+        if key not in best or (getattr(sub, "hearing_impaired", False) and
+                               not getattr(best[key], "hearing_impaired", False)):
+            best[key] = sub
+    order = sorted(best.values(), key=lambda sub: (
+        abs((_special_key(sub)[1] or 99) - t[1]), _special_key(sub)[3] or 0))
+    for sub in order[:SPECIAL_TRIES]:
+        try:
+            subliminal.download_subtitles([sub])
+        except Exception:
+            continue
+        text = getattr(sub, "text", None)
+        if text and "-->" in text:
+            season = _special_key(sub)[1]
+            yield text, _sub_where(sub) + (neighbour_note(t[1], 0, season, 0)
+                                           if season and season != t[1] else "")
 
 
 def other_subtitles(path, log=print, tries=SUB_TRIES):
@@ -920,7 +1014,9 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
         return
     episode = t[1] is not None and t[2] is not None
     own = min(tries, OWN_TRIES_FOR_EPISODES) if episode else tries
+    tried = set()
     for sub in subtitle_order(subs, lambda s: subliminal.compute_score(s, video))[:own]:
+        tried.add(_special_key(sub))
         try:
             subliminal.download_subtitles([sub])
         except Exception:
@@ -929,6 +1025,9 @@ def other_subtitles(path, log=print, tries=SUB_TRIES):
         if text and "-->" in text:
             yield text, _sub_where(sub)
     if not episode:
+        return
+    if t[2] == 0:                 # a special: every special listed for the show, nearest first
+        yield from _other_specials(t, subs, tried, log)
         return
     ext = Path(path).suffix or ".mkv"
     for s, e in neighbour_episodes(t[1], t[2]):
@@ -2140,8 +2239,17 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     # Anita is a city")
     "christmas": re.compile(r"\b(christmas(?! island)|x-?mas|santa(?! " + SANTA_PLACES + r"\b)"
                             r"( claus)?|saint nick|north pole|"
-                            r"reindeer|rudolph the|rudolph's( red)? nose|mistletoe|yuletide|"
-                            r"jingle bells|"
+                            r"reindeers?|rudolph the|rudolph's( red)? nose|mistletoe|yuletide|"
+                            r"jingle bells|tinsel|"
+                            # carols (the second special: "the right carols to be sung", "carol
+                            # singing", "my carol singer's lantern"; Carol alone is a name)
+                            r"carols|carol sing(ing|ers?)|carol services?|carolling|caroling|"
+                            r"carolers?|carollers?|"
+                            # the nativity story told ("like Mary when Herod decreed ... flee to
+                            # Egypt with the infant Jesus"), not "Sweet baby Jesus!"
+                            r"king herod|herod (decreed|ordered|sent)|"
+                            r"fle(e|d|eing|es) (in)?to egypt|(the )?infant jesus|"
+                            r"(?<!sweet )baby jesus|the christ child|"
                             # the nativity (Call the Midwife's Christmas special, 2026-11-17:
                             # its nativity play went through): not "(the) advent (of)" but "the
                             # Advent calendar", not "a dog in

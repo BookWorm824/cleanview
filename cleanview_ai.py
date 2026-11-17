@@ -1051,7 +1051,8 @@ LOOK = {
                  "peace sign, counting on fingers, dancing or ordinary exercise is NOT.", _YES),
     "condom": ("Question: is a condom shown? That means the condom itself, a condom in its "
                "small square foil wrapper, or a box or packet of condoms (in a hand, on a "
-               "table, in a drawer, a wallet or a shop). A balloon, a rubber glove, a sweet, "
+               "table, in a drawer, a wallet or a shop). A balloon, a rubber glove, a shower "
+               "cap, hair cap, hair net or hair tie, a sweet, "
                "gum or tea-bag wrapper, a sauce packet, a pill packet or another small packet "
                "is NOT.", _YES),
 }

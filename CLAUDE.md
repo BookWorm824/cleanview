@@ -530,6 +530,35 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "ass" is still the animal when a farm animal, a cart or harness is within 15 words
   (`ASS_ANIMAL_STRONG`): "both my cow and my ass", "our ass ... its favourite oats". Still none
   of the past lines reads differently.
+- Lauren's second Call the Midwife Christmas special (1.18.124, 2026-11-17, adults, the AI helper,
+  made on 1.18.120; the owner: "it seems to have caught more", then "Yes, fix them"). 42
+  Christmas lines muted (1.18.120's "Away in a Manger" among them) and 19 Christmas scenes cut.
+  Went through: carols ("the right carols to be sung", "carol singing", "my carol singer's
+  lantern"), tinsel, "Reindeers", and the nativity story told ("like Mary when Herod decreed ...
+  flee to Egypt with the infant Jesus"): `LINE_WORDS["christmas"]` has reindeers, tinsel,
+  carols / carol singing / singer(s) / service(s) / carolling / carolers (not Carol alone, Carolina,
+  Caroline), King Herod / Herod decreed/ordered/sent, flee(d) (in)to Egypt, the infant Jesus,
+  baby Jesus (not "Sweet baby Jesus!"), the Christ child. "the infant Jesus" had "Jesus" muted:
+  `reverent` takes "infant" as "baby", and "the Christ child" (not "Christ, child, get down!").
+  Her chat note on a hair cap taken for a condom: `LOOK["condom"]` and `PIC_RULES` say a shower
+  or hair cap, hair net or hair tie isn't one, for everyone. None of the 110,535 past lines here
+  reads differently. Not changed: "The perils of living in Dicks" (digs, heard wrong; no
+  subtitles).
+  A season's special gets subtitles (the owner: "is it possobe if a video just says a season
+  number and say a special that it still gets searched for subitles", "search the seaon ad look
+  uner christtmas and see which agrees"). `guess_title` reads "<show> - Christmas Special S2",
+  "Season 3 Christmas Special", "S5 Special" and "Season 2\Christmas Special.mkv" (`SPECIAL`) as
+  that season's episode 0, which is how the subtitle site files a season's Christmas special
+  ('"Call the Midwife" Christmas Special 2013' is season 3, episode 0). Its own best three are
+  tried as for any episode, then `_other_specials`: the site lists a show's whole run under any
+  of its episodes, so every special listed for the guessed season and its neighbours'
+  (`SPECIAL_NEIGHBOURS`, the next season first: "S2" for the second special is season 3's) is
+  tried, the best of each (`_special_key`, `_is_special`: episode 0 or "special" in its name;
+  the sites name them differently), nearest season first, up to `SPECIAL_TRIES` (10), until one
+  lines up (`pick_subtitles`); the note says which season's it was. On her report's dialogue
+  "Christmas Special S2" got the 2013 special's, 92% lined up, at the first try. Her first
+  ("S1", Jenny's first Christmas, the 2012 special) is listed only by opensubtitles.com, which
+  won't download without an account, so it still has none. `test_specials.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

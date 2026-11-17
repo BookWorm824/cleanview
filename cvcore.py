@@ -250,8 +250,11 @@ def reverent(words, i, j=None):
         return True                                           # "Please, please, dear Jesus."
     if prev == "by" and two in ("swear", "swears", "swore", "sworn", "swearing"):
         return False                                          # "I swear by Jesus"
-    if prev == "baby":                                        # "the baby Jesus", not
-        return two != "sweet"                                 # "Sweet baby Jesus!"
+    if prev in ("baby", "infant"):                            # "the baby Jesus", "the
+        return two != "sweet"                                 # infant Jesus", not "Sweet baby
+                                                              # Jesus!"
+    if nxt == "child":                                        # "the Christ child", not
+        return prev == "the"                                  # "Christ, child, get down!"
     if {"name", "named"} & set(words[max(0, i - 4):i]):       # "his name will be Jesus"
         return True                                           # (a nativity play, 2026-11-17)
     if nxt in ("is", "was"):                                  # "Christ is risen", not

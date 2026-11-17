@@ -42,6 +42,36 @@ class TheNativity(unittest.TestCase):
             self.assertFalse(XMAS.search(line), line)
 
 
+class TheSecondSpecial(unittest.TestCase):
+    """Her second special (1.18.124): carols, tinsel, reindeers and the nativity story went
+    through; "the infant Jesus" had "Jesus" muted."""
+
+    def test_christmas(self):
+        for line in ("We like the right faces round the table, the right carols to be sung.",
+                     "They're getting themselves in the mood for carol singing.",
+                     "No, I've hung up my Carol Singer's lantern.",
+                     "She'll be sprucing them up with tinsel and some glitter.",
+                     "Reindeers don't have cubs, they have calves.",
+                     "I feel rather like Mary when Herod decreed the colour of the firstborn and "
+                     "she had to flee to Egypt with the",
+                     "infant Jesus.",
+                     "We went carolling round the flats.",
+                     "Wrap the Christ child in swaddling clothes."):
+            self.assertTrue(XMAS.search(line), line)
+
+    def test_not_christmas(self):
+        for line in ("Thank you, Carol.", "You need any help, Carol?",
+                     "They live in South Carolina.", "Caroline Turing.",
+                     "Hey Egypt, you throw about as good as a cross-eyed troll.",
+                     "Sweet baby Jesus, look at that!", "Tinseltown is all lies."):
+            self.assertFalse(XMAS.search(line), line)
+
+    def test_the_infant_jesus_left_alone(self):
+        self.assertEqual(muted("flee to Egypt with the infant Jesus."), [])
+        self.assertEqual(muted("The Christ child is born."), [])
+        self.assertEqual(muted("Christ, child, get down from there!"), ["christ"])
+
+
 class WordsLeftAlone(unittest.TestCase):
     def test_the_nativity_names_jesus(self):
         self.assertEqual(muted("You will have a baby and his name will be Jesus."), [])

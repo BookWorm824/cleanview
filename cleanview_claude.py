@@ -1122,7 +1122,7 @@ PIC_RULES = (
     "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "
     "Waving, pointing, a thumbs up, a peace sign or dancing are NOT. "
     "\"condom\" is a condom shown, however briefly: the condom itself, its small square foil "
-    "wrapper, or a box or packet of condoms; a balloon, a glove or another small packet is NOT. "
+    "wrapper, or a box or packet of condoms; a balloon, a glove, a shower or hair cap, a hair tie or another small packet is NOT. "
     "\"couple affection\" is two people being affectionate AS A COUPLE: holding hands, "
     "cuddling, an arm around each other, a caress, a romantic embrace (kissing is "
     "\"kissing\"). Judge it by the context, not the touch alone (Lauren, 2026-11-08): the "
