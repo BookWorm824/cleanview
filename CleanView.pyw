@@ -2159,15 +2159,26 @@ class App(tk.Tk):
                                 "It may have been moved, or its drive unplugged. Choose the "
                                 "files again.", parent=self)
             return
-        # no internet: subtitles can't be looked for online, so say so and ask (the owner,
-        # 2026-11-13: "could it pop up a small window saying no internet, cant look up
-        # subtitles. want to clean without them?", "with a yes no button")
         self.scan_opts.pop("offline", None)
-        if not engine.online():
-            chime()
-            if not messagebox.askyesno("CleanView", NO_INTERNET_ASK, parent=self):
+        # the window waits while what's below is looked at (the owner, 2026-11-17: the
+        # scanned-before box "was slow to come up"), so it shows it's busy
+        self.config(cursor="watch")
+        self.update_idletasks()
+        try:
+            if not self._start_jobs():
                 return
-            self.scan_opts["offline"] = True
+        finally:
+            self.config(cursor="")
+        self.cancel_flag = self.stop_after = False
+        self.at_once = self._at_once()
+        self._check_every_ai()
+        self.show_working("Watching and listening…", can_stop=True)
+        self._start_work(self._analyze_thread)
+
+    def _start_jobs(self):
+        """The jobs for Start cleaning: each video's work folder, a scan kept from before
+        (if she says so) and, only for videos to be scanned anew, the internet check for
+        subtitles. False if she backed out."""
         self._save_settings()
         if not self.outdir:
             self.outdir = str(engine.clean_folder(self.videos[0]))  # (a clean copy: its own)
@@ -2189,15 +2200,23 @@ class App(tk.Tk):
                 saved[k] = st
         if saved:
             chime()
+            self.config(cursor="")
             if messagebox.askyesno("CleanView", reuse_ask(len(saved), len(self.jobs)),
                                    parent=self):
                 for k, st in saved.items():
                     self.jobs[k]["reuse"] = st
-        self.cancel_flag = self.stop_after = False
-        self.at_once = self._at_once()
-        self._check_every_ai()
-        self.show_working("Watching and listening…", can_stop=True)
-        self._start_work(self._analyze_thread)
+            self.config(cursor="watch")
+        # no internet: subtitles can't be looked for online, so say so and ask (the owner,
+        # 2026-11-13: "could it pop up a small window saying no internet, cant look up
+        # subtitles. want to clean without them?", "with a yes no button"); a scan used
+        # again looks nothing up, so then it isn't asked (1.18.128)
+        if any("reuse" not in j for j in self.jobs) and not engine.online():
+            chime()
+            self.config(cursor="")
+            if not messagebox.askyesno("CleanView", NO_INTERNET_ASK, parent=self):
+                return False
+            self.scan_opts["offline"] = True
+        return True
 
     JOB_LOOK = {"wait": ("○", "MUTED"), "now": ("▶", "ACCENT"), "done": ("✓", "ACCENT_DK"),
                 "failed": ("!", "WARN"), "skipped": ("–", "MUTED")}      # colours by name

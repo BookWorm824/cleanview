@@ -62,7 +62,16 @@ class LeftAlone(unittest.TestCase):
                      "Hand me the testing kit.", "She wore a shaggy coat.",
                      "I'll whack off the dead branches.", "They live in South Carolina.",
                      "Hello, Carol.", "The cumin is in the cupboard.",
-                     "He was a gangbanger in LA.", "He quit gangbanging at 16."):
+                     "He was a gangbanger in LA.", "He quit gangbanging at 16.",
+                     # CleanListen 516fff6's guards, from its classics (1.18.128)
+                     "She went down on her knees.", "going down on her hands and knees",
+                     "the sun went down on them", "She tidies the room.",
+                     "face to face, sitting in the heather", "a topless automobile",
+                     "an orgy of eating", "male members of the family",
+                     "a key party to the deal", "the girl on top of the wall",
+                     "a bit on the side of the road", "a good lay of the land",
+                     "the car jerked off the road", "rimming the glass with salt",
+                     "the purple-headed mountain", "He got into his pants and shirt."):
             hit = found(line) & {"sexref", "casual", "forensic", "samesex"}
             self.assertFalse(hit, f"{line} -> {hit}")
 

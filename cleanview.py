@@ -557,18 +557,32 @@ NO_INTERNET = "there was no internet connection to look for them"
 
 def online(timeout=1.5):
     """True if one of ONLINE_HOSTS answers. A connection is opened and closed; nothing is
-    sent. CLEANVIEW_ONLINE "1" or "0" answers without trying (the tests use no internet)."""
+    sent. CLEANVIEW_ONLINE "1" or "0" answers without trying (the tests use no internet).
+    All the hosts are tried at once and the first to answer settles it (1.18.128: one after
+    the other, a slow connection waited up to 1.5 s for each before Start cleaning's box)."""
     forced = os.environ.get("CLEANVIEW_ONLINE")
     if forced in ("0", "1"):
         return forced == "1"
     import socket
-    for host in ONLINE_HOSTS:
+    import threading
+    answered, lock = threading.Event(), threading.Lock()
+    left = [len(ONLINE_HOSTS)]
+    got = []
+
+    def try_host(host):
         try:
             socket.create_connection(host, timeout=timeout).close()
-            return True
+            got.append(True)
+            answered.set()
         except OSError:
-            continue
-    return False
+            with lock:
+                left[0] -= 1
+                if left[0] == 0:
+                    answered.set()
+    for host in ONLINE_HOSTS:
+        threading.Thread(target=try_host, args=(host,), daemon=True).start()
+    answered.wait(timeout + 1.0)
+    return bool(got)
 
 
 def fetch_subtitles(path, info, work, o, log=print):
@@ -2132,8 +2146,10 @@ SEXUAL_TERMS = [
     r"(?:i'?d|i would|would|wanna|want to|gonna|going to|totally) tap that",
     r"(?:get|gets|getting|got|gotten) laid", r"(?:get|gets|getting|got) " + _P + r" freak on",
     r"(?:get|gets|getting|got) " + _P + r" (?:end away|end in|leg over|rocks off|oats)",
+    # not "got into his pants" (dressing)
+    r"(?:get|gets|getting|got) (?:in|into) (?:her|someone's|somebody's|their) pants",
     r"(?:get|gets|getting|got) (?:in|into) (?:her|his|your|my|someone's|somebody's|their) "
-    r"(?:pants|knickers|panties)",
+    r"(?:knickers|panties)",
     r"knock(?:s|ed|ing|in'?)? boots", r"bump(?:s|ed|ing|in'?)? (?:uglies|nasties)",
     r"(?:play )?hide the (?:salami|sausage)", r"(?:the )?beast with two backs",
     r"(?:make|makes|made|making) whoopee",
@@ -2168,24 +2184,27 @@ SEXUAL_TERMS = [
     r"cop(?:s|ped|ping)? a feel", r"grab[- ]ass",
     r"virginity", r"deflower(?:s|ed|ing)?", r"pop(?:s|ped|ping)? (?:her|his|your|my) cherry",
     r"cuckold(?:s|ed|ing|ry)?", r"cuckquean", r"hot ?wifes?|hot ?wiving", r"unicorn hunting",
-    r"key part(?:y|ies)", r"m[eé]nage [aà] trois", r"moresomes?", r"foursomes?", r"fivesomes?",
-    r"3somes?", r"org(?:y|ies)", r"gang[- ]?bangs?", r"gang[- ]?banged", r"double penetration",
+    r"key part(?:y|ies)(?![ \t]+(?:to|of|in)\b)", r"m[eé]nage [aà] trois", r"moresomes?", r"foursomes?", r"fivesomes?",
+    r"3somes?", r"org(?:y|ies)(?![ \t]+of\b)", r"gang[- ]?bangs?", r"gang[- ]?banged", r"double penetration",
     r"lucky pierre",
     # what's done
-    r"cum ?shots?", r"pop shots?", r"felch(?:ing)?", r"rimm?ing", r"rim ?jobs?", r"anil[i]?ngus",
+    r"cum ?shots?", r"pop shots?", r"felch(?:ing)?", r"rim ?jobs?", r"anil[i]?ngus",
     r"analingus", r"rusty trombone", r"fisting", r"finger ?(?:bang|blast)(?:s|ed|ing)?",
     r"(?:hand|tug|foot|tit|titty|boob|hum|bro)[ -]?jobs?", r"mammary intercourse", r"beej",
     r"blowies?", r"bj'?s?",
     r"(?:give|gives|giving|gave|get|gets|getting|got) head(?![ \t]+(?:start|of|to|count|coach|"
     r"up|down|first|over|around|out|back|on|in|injur\w*|lice|cold|shots?|butts?)\b)",
-    r"road head", r"sloppy toppy", r"(?:go|goes|going|went|gone) down on " + _O,
+    r"road head", r"sloppy toppy",
+    # not "went down on her knees", "the sun went down on them" (CleanListen's classics)
+    r"(?<!sun )(?<!night )(?<!darkness )(?:go|goes|going|went|gone) down on " + _O
+    + r"(?![ \t]+(?:knees?|hands|face|back|side|stomach|all)\b)",
     r"(?:eat|eats|eating|ate) (?:her|him) out(?![ \t]+of)", r"suck(?:s|ed|ing)? " + _O + r" off",
     r"cocksuck\w*", r"knob[- ]?(?:gobblers?|polishers?)", r"(?:play|plays|playing) the skin flute",
     r"skin flutes?", r"(?:mouth|gob) jobs?", r"fellat(?:e|es|ed|ing|io)",
     r"deep[- ]?throat(?:s|ed|ing)?", r"cunnilingus", r"cunning linguists?",
     r"muff[- ]?div(?:e|es|ed|ing|er|ers)", r"carpet munch(?:er|ers|ing)", r"rug munch(?:er|ers)",
     r"din(?:e|ing) at the y", r"drink(?:s|ing)? from the furry cup", r"mustache rides?",
-    r"face[- ]?sit(?:s|ting)?", r"sit on my face", r"irrumatio", r"cornhol(?:e|es|ed|ing)",
+    r"face-?sit(?:s|ting)?", r"sit on my face", r"irrumatio", r"cornhol(?:e|es|ed|ing)",
     r"fudge pack(?:er|ers|ing)", r"hershey highway", r"painal", r"power bottoms?", r"tribbing",
     r"tribadism", r"missionary position", r"dogg(?:y|ie)[- ]?style", r"style doggy",
     r"reverse cowgirl", r"prone bone", r"mating press", r"back ?shots", r"kama ?sutra",
@@ -2214,8 +2233,9 @@ SEXUAL_TERMS = [
     r"love (?:juice|custard|muscle|stick|wand|sausage|truncheon|tunnel|button|pillows|glove|"
     r"gloves|eggs?)",
     # by themselves
-    r"spank ?bank", r"jerk(?:s|ed|ing)? the gherkin", r"jerk(?:s|ed|ing)? off",
-    r"jack(?:s|ed|ing)? off", r"jork(?:s|ed|ing)? it",
+    r"spank ?bank", r"jerk(?:s|ed|ing)? the gherkin",
+    r"(?:jerk|jerks|jerked|jerking|jack|jacks|jacked|jacking) off(?![ \t]+(?:the|a|an|his|her|their|its|my|your|our|them|him|those|these|all|any|every)\b)",
+    r"jork(?:s|ed|ing)? it",
     r"beat(?:s|ing)? " + _P + r" meat", r"beat the meat",
     r"(?:beat|beats|beating|whack|whacks|whacked|whacking|wank|wanks|wanked|wanking) off"
     r"(?![ \t]+(?:the|a|an|his|her|their|its|my|your|our|them|him|those|these|all|any|every)\b)",
@@ -2228,14 +2248,14 @@ SEXUAL_TERMS = [
     r"five[- ]knuckle shuffle", r"hand solo", r"rub(?:s|bed|bing)? one (?:out|off)",
     r"(?:crank|cranks|cranked|cranking|bash|bashed|bashing) one out", r"fap(?:s|ped|ping|per|pers)?",
     r"play(?:s|ed|ing)? with " + _SELF, r"pleasur(?:e|es|ed|ing) " + _SELF,
-    r"self[- ]pleasur\w*", r"onanism", r"pocket (?:pool|billiards)", r"jill(?:s|ed|ing)? off",
+    r"self[- ]pleasur\w*", r"onanism", r"pocket (?:pool|billiards)", r"jill(?:s|ed|ing)? off(?![ \t]+(?:the|a|an|his|her|their|its|my|your|our|them|him|those|these|all|any|every)\b)",
     r"flick(?:s|ed|ing)? the bean", r"schlick(?:ing)?", r"buff(?:s|ed|ing)? the muffin",
     r"polish(?:es|ed|ing)? the pearl", r"ring(?:s|ing)? the devil'?s doorbell",
     r"no nut november", r"coomers?", r"rosy palm", r"rosie palm", r"draadtrek",
     # his
-    r"sc?hlongs?", r"t[ao]dgers?", r"male members?", r"man[- ]?meat", r"meat ?sticks?",
+    r"sc?hlongs?", r"t[ao]dgers?", r"male members?(?![ \t]+of\b)", r"man[- ]?meat", r"meat ?sticks?",
     r"meat puppets?", r"pork swords?", r"one[- ]eyed (?:monster|trouser snake|wonder weasel)",
-    r"trouser (?:snakes?|monkeys?)", r"pink oboe", r"purple[- ]headed \w+", r"wing[- ]?wangs?",
+    r"trouser (?:snakes?|monkeys?)", r"pink oboe", r"purple[- ]headed (?:warriors?|yog(?:h)?urt|womb ferrets?)", r"wing[- ]?wangs?",
     r"tallywhackers?", r"purple helmets?", r"phall(?:us|ic|i)", r"cho(?:ad|de)s?", r"micropenis",
     r"(?:monster|horse) cocks?", r"big dick energy", r"well[- ]hung", r"hung like a "
     r"(?:horse|bull|donkey)", r"size queens?", r"foreskins?", r"cock ?(?:rings?|heads?|teases?|"
@@ -2256,17 +2276,19 @@ SEXUAL_TERMS = [
     r"mound of venus", r"venus mound", r"pubes", r"pubic hairs?", r"pum[- ]?pum(?: shorts)?",
     r"glamity", r"chebs", r"top bollocks",
     # breasts and behinds
-    r"b00bs", r"bewbs", r"boob ?jobs?", r"tidd?ies", r"ta[- ]?tas", r"fun ?bags",
+    r"b00bs", r"bewbs", r"boob ?jobs?", r"tiddies", r"ta[- ]?tas", r"fun ?bags",
     r"sweater puppies", r"ba?zongas", r"gazoo?m?bas", r"gazongas", r"bazooms", r"norks",
     r"chesticles", r"mammaries", r"nip ?slips?", r"nip nops", r"areolas?", r"boobgasms?",
     r"badonkadonks?", r"gya+tt*", r"cushion for the push(?:in'?|ing)", r"lady lumps",
     r"dirty pillows", r"mommy milkers", r"busty", r"juggs", r"butt ?holes?",
     r"chocolate (?:starfish|rosebuds?)", r"balloon knots?", r"bussy",
-    r"two in the pink", r"thirst traps?", r"topless",
+    r"two in the pink", r"thirst traps?",
+    r"topless(?![ \t]+(?:cars?|automobiles?|convertibles?|bus(?:es)?|jeeps?|carriages?|"
+    r"towers?|box(?:es)?)\b)",
     # for sale
     r"prostitut\w*", r"whor(?:ing|ish|ehouses?|emongers?)", r"h(?:o|oe) ?bags?",
-    r"harlots?", r"flooz(?:y|ie|ies)", r"thots?", r"thotty", r"loose wom[ae]n", r"easy lays?",
-    r"good lays?", r"(?:town|village|office) (?:bike|bicycle)", r"cum ?sluts?", r"cam ?whores?",
+    r"harlots?", r"flooz(?:y|ie|ies)", r"thots?", r"thotty", r"loose wom[ae]n", r"easy lays?(?![ \t]+of\b)",
+    r"good lays?(?![ \t]+of\b)", r"(?:town|village|office) (?:bike|bicycle)", r"cum ?sluts?", r"cam ?whores?",
     r"cam ?sluts?", r"call ?girls?", r"street ?walkers?", r"lad(?:y|ies) of the (?:night|evening)",
     r"wom[ae]n of the night", r"wom[ae]n of (?:ill repute|easy virtue)", r"easy virtue",
     r"fallen wom[ae]n", r"proz(?:z?ies|z?ie|zy)", r"pross(?:ie|ies)", r"courtesans?",
@@ -2319,7 +2341,7 @@ SEXUAL_TERMS = [
     r"cream(?:s|ed|ing)? (?:his|her|my|your|their) (?:pants|jeans|panties|knickers)",
     r"soft-?ons?", r"reach-?arounds?", r"s ?& ?m", r"cock and ball torture", r"cucks?",
     r"pillow princess(?:es)?", r"bit of crumpet", r"totty", r"your place or mine",
-    r"good in bed", r"rogering", r"girl on top", r"mattress dancing",
+    r"good in bed", r"rogering", r"girl on top(?![ \t]+of\b)", r"mattress dancing",
     r"bedroom (?:athletics|gymnastics|antics)", r"girls gone wild", r"baby[- ]making",
     r"shaved beaver", r"beaver shots?", r"escort (?:services?|agenc(?:y|ies))",
     r"lead in (?:his|your|my) pencil", r"intimate (?:areas?|parts)",
@@ -2332,7 +2354,7 @@ CASUAL_TERMS = [
     r"sow(?:s|ed|ing|n)? (?:his|my|your|their|her) wild oats", r"wild oats",
     r"adulter(?:y|er|ers|ess|esses|ous)", r"bed[- ]hopp(?:ing|er|ers)",
     r"open (?:relationship|marriage)s?", r"wife[- ]swapp(?:ing|ers?)", r"partner swapping",
-    r"side (?:chicks?|pieces?)", r"bit on the side", r"booty calls",
+    r"side (?:chicks?|pieces?)", r"bit on the side(?![ \t]+of\b)", r"booty calls",
     r"friend with benefits", r"fwb",
     r"notch(?:es)? on (?:the|my|his|her|your) bedpost", r"gyall?is", r"loose characters?", r"ladies'? man",
 ]

@@ -606,6 +606,39 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "sloppy seconds", Person of Interest's "escort service"). For CleanListen and CleanRead too.
   `test_sexual_words.py`. Also "gang bang" (the owner in the CleanStream chat): gang bang,
   gangbang, gang-bang(s/ed); not gangbanger or gangbanging (a street gang member, police talk).
+- Start cleaning comes to its question sooner (1.18.128, 2026-11-17; the owner, rescanning
+  Criminal Minds: the scanned-before box "thats good. the box was slow to come up thought anyway
+  we can make it faster"). Here every step before it is quick (the saved scan loads in ~0.01 s,
+  the internet check 0.04 s), so what was slow on her laptop isn't known; likely the internet
+  check (each of `ONLINE_HOSTS` waited up to 1.5 s, one after the other) or a sleeping USB drive
+  waking. `engine.online` tries every host at once and the first answer settles it; the
+  scanned-before question comes first (`App._start_jobs`) and the internet is only checked when
+  a video is to be scanned anew (a scan used again looks nothing up); the window shows the busy
+  cursor from the press until a question or the working page. `test_no_internet.py`.
+  The opening box during an update (the owner: after an update "the little box comes up with
+  the moving green dot ... but it just sits on the box. so when i exit it and try to reopen the
+  cursor has a blue spinner, then i tried to open it again it did", "if its just giving it more
+  time it needs to update lets fix the initial little box to let people know to wait"). This
+  PC's install had `update_error.txt` "The handshake operation timed out": the update fetched
+  its ~21 files one after the other, each waiting up to 20 s on a slow connection to GitHub, the
+  box said only "Getting CleanView ..." and closed itself after `SPLASH_MOST` (3 min) with the
+  update still going; a click meanwhile only brought forward a window that wasn't there yet.
+  launcher.pyw: `update` fetches `UPDATE_AT_ONCE` (6) at a time, each tried twice, all within
+  `UPDATE_MOST` (120 s, else TimeoutError: CleanView opens as it is and updates next time;
+  nothing is swapped in until every file is in), writing "Updating CleanView to 1.18.128...
+  (5 of 21)" (`UPDATING`); `splash` then says "Updating CleanView..." with "Please wait:
+  CleanView opens by itself when it's done." and stays up to `UPDATING_MOST` (600 s); a click
+  while it has no window yet shows the box again for that one (`still_opening`, `Running`,
+  from `PID_FILE`). Installed copies fetch this release the old way; the next one is fetched
+  the new way. CleanListen and CleanRead have the same launcher. `test_one_window.py`.
+  Also from CleanListen 516fff6 (1.18.127's words over its classics, passed on by the Play
+  chat): "went down on her knees/hands", "the sun went down on them", "tidies", "face to
+  face, sitting", "a topless automobile", "an orgy of eating", "male members of the
+  family", "a key party to the deal", "the girl on top of the wall", "a bit on the side of
+  the road", "a good lay of the land", "the car jerked off the road" aren't sexual; here too
+  "rimming" is gone (salt round a glass), "purple-headed" is only warrior/yoghurt/womb
+  ferret (the hymn's "purple-headed mountain"), and "got into his pants" is dressing (her/their
+  pants, any knickers/panties still count). "molest" stays case talk (`forensic`).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

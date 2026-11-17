@@ -37,9 +37,24 @@ class TheCheck(unittest.TestCase):
     def test_one_answer_is_enough(self):
         ok, tried = self.really(return_value=mock.Mock())
         self.assertTrue(ok)
-        self.assertEqual(tried.call_count, 1)
-        self.assertEqual(tried.call_args[0][0], engine.ONLINE_HOSTS[0])
+        # every place is tried at once (1.18.128), each only briefly
+        self.assertEqual({c[0][0] for c in tried.call_args_list}, set(engine.ONLINE_HOSTS))
         self.assertLessEqual(tried.call_args[1]["timeout"], 2)      # the window isn't held long
+
+    def test_a_slow_place_doesnt_hold_it_up(self):
+        # 1.18.128 (the owner, 2026-11-17: the scanned-before box "was slow to come up"): the
+        # places were tried one after the other, each waited for up to 1.5 s
+        import time
+
+        def connect(host, timeout):
+            if host == engine.ONLINE_HOSTS[0]:
+                time.sleep(1.2)
+                raise OSError("timed out")
+            return mock.Mock()
+        t = time.perf_counter()
+        ok, _ = self.really(side_effect=connect)
+        self.assertTrue(ok)
+        self.assertLess(time.perf_counter() - t, 0.6)
 
     def test_the_first_place_down_the_next_tried(self):
         ok, tried = self.really(side_effect=[OSError("down"), mock.Mock()])
@@ -165,6 +180,25 @@ class StartCleaning(unittest.TestCase):
         self.assertEqual(started, ["page", "work"])
         self.assertIs(self.app.scan_opts["offline"], True)
         self.assertEqual(len(self.app.jobs), 1)
+
+    def test_a_scan_used_again_needs_no_internet(self):
+        # 1.18.128 (the owner, 2026-11-17: the scanned-before box "was slow to come up"): the
+        # internet is only checked for videos that are scanned anew
+        with mock.patch.object(ui.engine, "saved_scan", lambda *a: {"dialogue": [], "lines": []}):
+            asked, started = self.press_start(internet=False, answer=True)
+        self.assertEqual(len(asked), 1)
+        self.assertIn("scanned before", asked[0].lower())
+        self.assertEqual(started, ["page", "work"])
+        self.assertNotIn("offline", self.app.scan_opts)
+        self.assertEqual(str(self.app.cget("cursor")), "")
+
+    def test_scanned_anew_it_still_asks(self):
+        with mock.patch.object(ui.engine, "saved_scan", lambda *a: {"dialogue": [], "lines": []}):
+            asked, started = self.press_start(internet=False, answer=False)
+        self.assertEqual(len(asked), 2)                  # use it again? no; no internet: no
+        self.assertIn("There's no internet connection", asked[1])
+        self.assertEqual(started, [])
+        self.assertEqual(str(self.app.cget("cursor")), "")
 
     def test_back_online_the_next_clean_looks_again(self):
         self.press_start(internet=False, answer=True)
