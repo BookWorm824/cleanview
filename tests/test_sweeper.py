@@ -1,6 +1,7 @@
 """The little cleaner on the cleaning screen's logo (1.18.109; the owner, 2026-11-15: "a little
 cleaner man that roams around the logo with a broom while cleaning", picked "B · bigger" "with
 d movement": a tenth of the logo's height, wandering over the logo and sweeping)."""
+import datetime
 import json
 import math
 import random
@@ -176,7 +177,8 @@ class Drawing(unittest.TestCase):
         self.assertFalse(changed[0].any() or changed[:, 0].any() or changed[:, -1].any())
         rows = np.nonzero(changed.any(axis=1))[0]
         self.assertLess(abs((rows[-1] - rows[0]) - w.h), w.h * 0.3)     # about his height
-        self.assertTrue((np.abs(pic.astype(int) - RED).sum(axis=2) < 30).any())   # his cap
+        cap = np.array(w.wear["cap"][1])                                 # this week's cap
+        self.assertTrue((np.abs(pic.astype(int) - cap).sum(axis=2) < 30).any())
 
     def test_faces_both_ways(self):
         a = sw.draw(np.full((60, 60, 3), 200, np.uint8), 30, 50, 38, face=1)
@@ -192,6 +194,58 @@ class Drawing(unittest.TestCase):
             w.step(1 / sw.FPS)
             w.picture(back)
         self.assertLess((time.perf_counter() - t) / 40, 0.02)    # ~2 ms here
+
+
+class AnOutfitEachWeek(unittest.TestCase):
+    """1.18.123 (the owner, 2026-11-17: "one a week i want his clothes colors to be changed",
+    "all" of the choices, "they can be random choices from there", "so the outfits look
+    different")."""
+    MONDAY = datetime.date(2026, 11, 16)
+
+    def weeks(self, n=300):
+        return [sw.outfit(self.MONDAY + datetime.timedelta(weeks=i)) for i in range(n)]
+
+    def test_the_same_all_week_and_new_on_monday(self):
+        days = [sw.outfit(self.MONDAY + datetime.timedelta(days=i)) for i in range(7)]
+        self.assertTrue(all(d == days[0] for d in days))
+        self.assertNotEqual(sw.outfit(self.MONDAY + datetime.timedelta(days=7)), days[0])
+        self.assertEqual(sw.outfit(datetime.date(2027, 3, 3)), sw.outfit(datetime.date(2027, 3, 3)))
+
+    def test_every_part_changes_each_week(self):
+        ws = self.weeks()
+        for a, b in zip(ws, ws[1:]):
+            for part in ("shirt", "pants", "shoes", "cap"):
+                self.assertNotEqual(a[part], b[part], part)
+
+    def test_all_her_choices_come_round(self):
+        ws = self.weeks()
+        for part, choices in (("shirt", sw.SHIRTS), ("pants", sw.PANTS),
+                              ("shoes", sw.SHOES_ALL), ("cap", sw.CAPS)):
+            self.assertEqual({w[part] for w in ws}, set(choices), part)
+        self.assertEqual((len(sw.SHIRTS), len(sw.PANTS), len(sw.SHOES_ALL), len(sw.CAPS)),
+                         (10, 10, 5, 7))
+
+    def test_the_shirt_stands_out_from_the_pants(self):
+        for w in self.weeks():
+            self.assertGreaterEqual(math.dist(w["shirt"][1], w["pants"][1]), sw.SHIRT_APART)
+
+    def test_quick_years_from_now(self):
+        t = time.perf_counter()
+        sw.outfit(datetime.date(2036, 11, 17))
+        self.assertLess(time.perf_counter() - t, 0.2)
+
+    def test_drawn_in_it(self):
+        wear = {"shirt": sw.SHIRTS[1], "pants": sw.PANTS[2], "shoes": sw.SHOES_ALL[2],
+                "cap": sw.CAPS[5]}
+        pic = sw.draw(np.full((60, 90, 3), 30, np.uint8), 30, 52, 38, sw.walking(0.25), wear=wear)
+        near = lambda colour, tol=40: (np.abs(pic.astype(int) - colour).sum(axis=2) < tol).any()
+        for part in ("shirt", "pants", "shoes", "cap"):
+            self.assertTrue(near(np.array(wear[part][1])), part)
+        self.assertFalse(near(np.array(sw.CAP)))                 # not his red cap
+        self.assertFalse(near(np.array(sw.OVERALLS)))            # nor his blue overalls
+
+    def test_the_walker_wears_this_weeks(self):
+        self.assertEqual(sw.Walker(384).wear, sw.outfit())
 
 
 class OnTheWorkingPage(unittest.TestCase):

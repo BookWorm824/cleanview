@@ -233,6 +233,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   broom head and grain on the bristles. Each part is painted only over its own area, and
   the picture around him is longer on his broom's side (`BOX`), so a frame is ~5 ms here
   (it was 14 ms painted whole); `FPS` is 15.
+- A new outfit every week (1.18.123, 2026-11-17; the owner: "i like the little cleaner man",
+  "one a week iw ant his clothes colors to be changed", "lets pick 7-8 colors for a shirt", "a
+  couple xcolors of shoes", "and same with pants", "and a few cap colors", "they can be random
+  choices from there", "so the outfits look different", and of the mockup's 10 shirts, 10
+  pants, 5 shoes and 7 caps: "all"). `cvsweeper.SHIRTS`, `PANTS`, `SHOES_ALL`, `CAPS` (the
+  first of each is how he was); `outfit(day)` goes week by week from `WEEK_ONE` (Monday
+  2026-11-16), each part picked at random (seeded by the week, so the same on every PC) from
+  the ones he didn't wear the week before, the shirt at least `SHIRT_APART` from the pants
+  (no navy on navy); ~12 ms ten years on. `colours(wear)` makes the shadowed and darker
+  parts (far sleeve 0.82, pocket 0.76, trousers 0.92, far leg 0.68, far shoe 0.72, cap band
+  0.8, as his first ones were); `draw(wear=)`, none his first outfit. `Walker` takes this
+  week's when the working page opens (`wear`).
 - The logo in the taskbar on every PC (1.18.111, 2026-11-16; the owner, trying CleanView on
   another computer: "the logo on the windows bar when it is open was a pic of a random file
   symbol thing", "not the green picture"; its desktop icon was the logo, and the bar was blank
