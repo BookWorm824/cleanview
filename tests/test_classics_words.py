@@ -20,6 +20,9 @@ class OldMeanings(unittest.TestCase):
                      "We brought the cow and the ass ashore.",
                      "I have found on board the ship, a cow and an ass, two goats, six sheep",
                      "Camels and asses are very fond of thistles",
+                     # CleanListen 13669bf: a farm animal close by, after "my"/"our"
+                     "both my cow and my ass", "even our ass came to the cart",
+                     "our ass instantly ran up to take its favourite oats",
                      "He darned his own socks.", "darning hose by the fire",
                      "I like his neat darns.", "She sat with her darning-needle.",
                      "the garden which was shut up", "since it was shut up ten year'",

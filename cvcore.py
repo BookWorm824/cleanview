@@ -742,6 +742,15 @@ ASS_INSULT_BEFORE = {"you", "such", "silly", "great", "pompous", "conceited", "u
 # in the past reviews here "kick your ass", "kicked his ass sideways", "their asses kicked",
 # "kick cancer's ass", "Go kick some Red Rock ass" all stopped being muted
 ASS_BODY_BEFORE = {"your", "his", "her", "my", "their", "our", "yo", "some", "whose", "own"}
+# ... unless a farm animal, a cart or harness is close by (CleanListen 13669bf, the same):
+# The Swiss Family Robinson's "both my cow and my ass", "our ass instantly ran up to take its
+# favourite oats"
+ASS_ANIMAL_STRONG = {"cow", "cows", "goat", "goats", "sheep", "pig", "pigs", "cart", "carts",
+                     "harness", "harnessed", "saddle", "saddled", "bray", "brayed", "braying",
+                     "donkey", "donkeys", "mule", "mules", "buffalo", "onager", "onagers", "cattle",
+                     "camel", "camels", "stable", "stables", "hay", "thistles", "herd", "bridle",
+                     "halter", "panniers", "foal", "grazing", "manger", "ox", "oxen", "horse",
+                     "horses", "oats"}
 FAGGOT_WOOD = {"bundle", "bundles", "bound", "wood", "sticks", "stick", "fire", "fires", "bamboo",
                "dried", "dry", "lighting", "light", "lit", "burn", "burning", "kindling",
                "carrying", "carry", "firewood", "brushwood", "twigs", "branches", "fuel",
@@ -760,7 +769,7 @@ def ass_animal(words, i):
     someone?"""
     prev = words[i - 1] if i else ""
     if prev in ASS_BODY_BEFORE or prev.endswith(("'s", "\u2019s")):
-        return False
+        return bool(ASS_ANIMAL_STRONG & set(words[max(0, i - 15):i + 16]))
     if prev in ASS_INSULT_BEFORE and not (prev == "an" and
                                           ASS_ANIMAL_NEAR & set(words[max(0, i - 12):i])):
         return False

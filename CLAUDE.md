@@ -514,6 +514,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   ("aroused" can be woke, "intercourse" conversation in an old film, "Can I sleep with you
   tonight?" a child at bedtime). CleanListen's bullying, crude-humor, flirting and "toot" checks
   have no word lists here. `test_classics_words.py`.
+  1.18.122: as CleanListen 13669bf (its take on that fix), after `ASS_BODY_BEFORE` or a name's 's
+  "ass" is still the animal when a farm animal, a cart or harness is within 15 words
+  (`ASS_ANIMAL_STRONG`): "both my cow and my ass", "our ass ... its favourite oats". Still none
+  of the past lines reads differently.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
