@@ -118,7 +118,7 @@ class LessonsBuiltIn(unittest.TestCase):
     def test_lines_taught(self):
         import json
         d = json.loads((support.ROOT / "shared_learned.json").read_text(encoding="utf8"))
-        movies = d["shows"]["_movies@teens"]
+        movies = d["shows"]["_movies@adults"]     # every age since 2026-11-16 (was teens)
         for line in ("cause your ma's hot for me", "go walk the streets like your sister",
                      "on your mother's side of the street"):
             with self.subTest(line):

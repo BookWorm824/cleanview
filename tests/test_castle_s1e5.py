@@ -89,7 +89,7 @@ class BuiltIn(unittest.TestCase):
             from pathlib import Path
             shows = json.loads((Path(engine.__file__).parent / "shared_learned.json")
                                .read_text("utf8"))["shows"]
-        c, t = shows["castle"], shows["castle@teens"]
+        c = t = shows["castle"]               # every age since 2026-11-16 (was castle@teens)
         self.assertEqual(c["muted_for"]["you're not webcamming again i hope"], "sexref")
         # a coroner's finding: the coroner/doctor box since 1.18.72 ("leave coroners talk")
         self.assertEqual(c["muted_for"]["i mean it could have been a rape but my best guess is"],

@@ -121,7 +121,7 @@ class WordsWithoutAnAI(unittest.TestCase):
 
     def test_lines_taught(self):
         d = json.loads((support.ROOT / "shared_learned.json").read_text(encoding="utf8"))
-        movies = d["shows"]["_movies@teens"]
+        movies = d["shows"]["_movies@adults"]     # every age since 2026-11-16 (was teens)
         for line in ("lack of recent physical intimacy", "willingness to experiment",
                      "male parts can get pretty gigantic", "with their big winkies",
                      "unlimited boob access"):

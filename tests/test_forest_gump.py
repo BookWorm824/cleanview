@@ -100,12 +100,14 @@ class Lessons(unittest.TestCase):
         added, _ = learn.apply(key, dl, [], [], [], on=on)
         return {a["text"] for a in added}
 
-    def test_the_nine_for_kids_and_young_kids(self):
-        for key in ("_movies@kids", "_movies@young"):
+    def test_the_nine_for_every_age(self):
+        # taught for kids at first; every age since 2026-11-16 (the owner: "whenever a report is
+        # sent to learn from, apply it to every age. under the proper category")
+        for key in ("_movies@kids", "_movies@young", "_movies@teens", "_movies@adults"):
             got = self.muted(key, {"sexref", "crude"})
             self.assertTrue(set(self.LINES) <= got, key)
             self.assertFalse(got & set(self.EVERYDAY), key)
-        self.assertFalse(self.muted("_movies@teens", {"sexref", "crude"}) & set(self.LINES))
+        self.assertFalse(self.muted("_movies@adults", set()) & set(self.LINES))
         self.assertEqual(self.muted("_movies@kids", {"crude"}) & set(self.LINES),
                          {"I'm living off the government tit."})          # each its own filter
 

@@ -60,17 +60,19 @@ class Taught(unittest.TestCase):
              "You were born a street rat, you'll die a street rat, and only your fleas will "
              "mourn you.": "bullying"}
 
-    def test_kids_only(self):
+    def test_every_age_under_its_filter(self):
+        # taught for kids only at first (her "teach but leave only for kid setting not teen");
+        # since 2026-11-16 every lesson is for every age, under its filter ("if its unticked
+        # then that is a choice of the viewer"), so Teens and Adults get them only with crude or
+        # bullying ticked
         import cleanview_learn as learn
         for text, kind in self.LINES.items():
             line = learn.norm(text)
-            for key in ("_movies@kids", "_movies@young"):
+            for key in ("_movies@kids", "_movies@young", "_movies@teens", "_movies@adults"):
                 muted = learn._sh(key, "muted")
                 self.assertIn(line, muted, key)
                 self.assertIn(line, learn._for_filters(key, muted, {kind}), key)
                 self.assertNotIn(line, learn._for_filters(key, muted, {"sexref"}), key)
-            for key in ("_movies@teens", "_movies@adults", "_movies"):
-                self.assertNotIn(line, learn._sh(key, "muted"), key)
 
 
 if __name__ == "__main__":

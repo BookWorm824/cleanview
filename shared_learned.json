@@ -218,7 +218,9 @@
     "he was one of my lovers",
     "fine but i'm not sleeping with her",
     "just because i've seen your tat doesn't mean i'm gonna show you my",
-    "also you might wonder what happened to your pants"
+    "also you might wonder what happened to your pants",
+    "she's my interior decorator but then we slept together so i don't really know what she is now",
+    "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex"
    ],
    "kept": [
     "well it wasn't unusual for him to crash on his couch",
@@ -473,7 +475,9 @@
     "he was one of my lovers": "casual",
     "fine but i'm not sleeping with her": "sexref",
     "just because i've seen your tat doesn't mean i'm gonna show you my": "sexref",
-    "also you might wonder what happened to your pants": "sexref"
+    "also you might wonder what happened to your pants": "sexref",
+    "she's my interior decorator but then we slept together so i don't really know what she is now": "casual",
+    "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex": "sexref"
    },
    "notes": [
     "Dern (Cynthia Dern) is a character's surname: never the minced oath 'dern'. 'Hell' in the book title 'Hell Hath No Fury' is still muted (she ticks it).",
@@ -626,20 +630,7 @@
    ]
   },
   "_movies@kids": {
-   "muted": [
-    "who baldy",
-    "it's not every day you see a horse with two rear ends",
-    "you were born a street rat you'll die a street rat and only your fleas will mourn you",
-    "well your mama sure does care about your schooling son",
-    "he was always kissing and touching her and her sisters",
-    "have you ever been with a girl forrest",
-    "i bet that never happened in home ec",
-    "i think i ruined your roommate's bathrobe",
-    "hey gump get a load of the tits on her",
-    "rape our women and destroy our black communities",
-    "i'm living off the government tit",
-    "did you lose your pecker in the war or something"
-   ],
+   "muted": [],
    "kept": [
     "six generations of fools chasing after fool's gold",
     "she really can't shut her mouth can she",
@@ -666,58 +657,10 @@
     "to that gay refrain of a happy working song",
     "you're wrong dead wrong"
    ],
-   "ok_words": [],
-   "muted_for": {
-    "who baldy": "bullying",
-    "it's not every day you see a horse with two rear ends": "crude",
-    "you were born a street rat you'll die a street rat and only your fleas will mourn you": "bullying",
-    "well your mama sure does care about your schooling son": "sexref",
-    "he was always kissing and touching her and her sisters": "sexref",
-    "have you ever been with a girl forrest": "sexref",
-    "i bet that never happened in home ec": "sexref",
-    "i think i ruined your roommate's bathrobe": "sexref",
-    "hey gump get a load of the tits on her": "sexref",
-    "rape our women and destroy our black communities": "sexref",
-    "i'm living off the government tit": "crude",
-    "did you lose your pecker in the war or something": "sexref"
-   }
+   "ok_words": []
   },
   "_movies@teens": {
-   "muted": [
-    "l wined her and dined her and then l reclined her",
-    "he looks like a weirdy",
-    "so have fun playing with your baby keys little baby monkey",
-    "maybe tomorrow night i'll bring you a little baby diapy so you can go poo poo with it",
-    "well you cry all night long about how uncle larry fooled you huh",
-    "i ain't working with togo boy",
-    "covered in sweat everybody clothes wet so you know what everyone is craving",
-    "no your name dum dum",
-    "oh you in trouble dum dum",
-    "morning dum dum",
-    "you dum dum",
-    "hey how's that come treating you dumb dumb",
-    "well my girlfriend kicked me out i'm living with my dad",
-    "the sisters have taken quite a liking to you",
-    "i don't suppose it would help any if i explained to them i'm not homosexual",
-    "bull queers take by force it's all they want or understand",
-    "especially that big white m mushy butt of yours",
-    "now i'm gonna open my fly",
-    "and you're gonna swallow what i give you to swallow",
-    "then you're gonna swallow rooster's",
-    "anything you put in my mouth you're gonna lose",
-    "bogs didn't put anything in andy's mouth",
-    "playing cards with naked ladies on them you name it",
-    "and cast you down with the sodomites",
-    "we went there for a picnic and made love under that oak",
-    "'cause your ma's hot for me",
-    "go walk the streets like your sister",
-    "how's the action on your mother's side of the street action",
-    "i am grouchy due to lack of recent physical intimacy",
-    "i may not be as limber as i once was but yeah i make up for it with enthusiasm and willingness to experiment",
-    "also their male parts can get pretty gigantic",
-    "well maybe they're just down there intimidating the other sea creatures with their big winkies",
-    "hawaiian law clearly states after the 12th date i'm entitled to unlimited boob access"
-   ],
+   "muted": [],
    "kept": [
     "l thought he came down here for a quickie divorce",
     "nothing quick about that",
@@ -799,42 +742,7 @@
     "l'll slam the door and let the hellcat freeze",
     "l'll take it"
    ],
-   "ok_words": [],
-   "muted_for": {
-    "l wined her and dined her and then l reclined her": "sexref",
-    "he looks like a weirdy": "bullying",
-    "so have fun playing with your baby keys little baby monkey": "bullying",
-    "maybe tomorrow night i'll bring you a little baby diapy so you can go poo poo with it": "bullying",
-    "well you cry all night long about how uncle larry fooled you huh": "bullying",
-    "i ain't working with togo boy": "bullying",
-    "covered in sweat everybody clothes wet so you know what everyone is craving": "sexref",
-    "no your name dum dum": "bullying",
-    "oh you in trouble dum dum": "bullying",
-    "morning dum dum": "bullying",
-    "you dum dum": "bullying",
-    "hey how's that come treating you dumb dumb": "bullying",
-    "well my girlfriend kicked me out i'm living with my dad": "oppsex",
-    "the sisters have taken quite a liking to you": "sexref",
-    "i don't suppose it would help any if i explained to them i'm not homosexual": "samesex",
-    "bull queers take by force it's all they want or understand": "sexref",
-    "especially that big white m mushy butt of yours": "sexref",
-    "now i'm gonna open my fly": "sexref",
-    "and you're gonna swallow what i give you to swallow": "sexref",
-    "then you're gonna swallow rooster's": "sexref",
-    "anything you put in my mouth you're gonna lose": "sexref",
-    "bogs didn't put anything in andy's mouth": "sexref",
-    "playing cards with naked ladies on them you name it": "sexref",
-    "and cast you down with the sodomites": "sexref",
-    "we went there for a picnic and made love under that oak": "sexref",
-    "'cause your ma's hot for me": "sexref",
-    "go walk the streets like your sister": "sexref",
-    "how's the action on your mother's side of the street action": "sexref",
-    "i am grouchy due to lack of recent physical intimacy": "sexref",
-    "i may not be as limber as i once was but yeah i make up for it with enthusiasm and willingness to experiment": "sexref",
-    "also their male parts can get pretty gigantic": "sexref",
-    "well maybe they're just down there intimidating the other sea creatures with their big winkies": "sexref",
-    "hawaiian law clearly states after the 12th date i'm entitled to unlimited boob access": "sexref"
-   }
+   "ok_words": []
   },
   "the-resident": {
    "muted": [
@@ -1320,7 +1228,55 @@
    "muted": [
     "not the first time i sent two girls screaming from a room",
     "that's on the rise like your panties",
-    "oh yeah i brought back the interns"
+    "oh yeah i brought back the interns",
+    "now i'm gonna open my fly",
+    "and you're gonna swallow what i give you to swallow",
+    "then you're gonna swallow rooster's",
+    "anything you put in my mouth you're gonna lose",
+    "bogs didn't put anything in andy's mouth",
+    "playing cards with naked ladies on them you name it",
+    "the sisters have taken quite a liking to you",
+    "and when it comes back clean as a virgin's honey pot huh",
+    "in early 1947 for murdering his wife and the fella she was banging",
+    "he caught his wife in bed with some golf pro",
+    "who baldy",
+    "it's not every day you see a horse with two rear ends",
+    "you were born a street rat you'll die a street rat and only your fleas will mourn you",
+    "well your mama sure does care about your schooling son",
+    "he was always kissing and touching her and her sisters",
+    "have you ever been with a girl forrest",
+    "i bet that never happened in home ec",
+    "i think i ruined your roommate's bathrobe",
+    "hey gump get a load of the tits on her",
+    "rape our women and destroy our black communities",
+    "i'm living off the government tit",
+    "did you lose your pecker in the war or something",
+    "l wined her and dined her and then l reclined her",
+    "he looks like a weirdy",
+    "so have fun playing with your baby keys little baby monkey",
+    "maybe tomorrow night i'll bring you a little baby diapy so you can go poo poo with it",
+    "well you cry all night long about how uncle larry fooled you huh",
+    "i ain't working with togo boy",
+    "covered in sweat everybody clothes wet so you know what everyone is craving",
+    "no your name dum dum",
+    "oh you in trouble dum dum",
+    "morning dum dum",
+    "you dum dum",
+    "hey how's that come treating you dumb dumb",
+    "well my girlfriend kicked me out i'm living with my dad",
+    "i don't suppose it would help any if i explained to them i'm not homosexual",
+    "bull queers take by force it's all they want or understand",
+    "especially that big white m mushy butt of yours",
+    "and cast you down with the sodomites",
+    "we went there for a picnic and made love under that oak",
+    "'cause your ma's hot for me",
+    "go walk the streets like your sister",
+    "how's the action on your mother's side of the street action",
+    "i am grouchy due to lack of recent physical intimacy",
+    "i may not be as limber as i once was but yeah i make up for it with enthusiasm and willingness to experiment",
+    "also their male parts can get pretty gigantic",
+    "well maybe they're just down there intimidating the other sea creatures with their big winkies",
+    "hawaiian law clearly states after the 12th date i'm entitled to unlimited boob access"
    ],
    "kept": [
     "with a little maintenance she might not look too bad",
@@ -1337,7 +1293,55 @@
    "muted_for": {
     "not the first time i sent two girls screaming from a room": "sexref",
     "that's on the rise like your panties": "sexref",
-    "oh yeah i brought back the interns": "sexref"
+    "oh yeah i brought back the interns": "sexref",
+    "now i'm gonna open my fly": "sexref",
+    "and you're gonna swallow what i give you to swallow": "sexref",
+    "then you're gonna swallow rooster's": "sexref",
+    "anything you put in my mouth you're gonna lose": "sexref",
+    "bogs didn't put anything in andy's mouth": "sexref",
+    "playing cards with naked ladies on them you name it": "sexref",
+    "the sisters have taken quite a liking to you": "sexref",
+    "and when it comes back clean as a virgin's honey pot huh": "sexref",
+    "in early 1947 for murdering his wife and the fella she was banging": "sexref",
+    "he caught his wife in bed with some golf pro": "casual",
+    "who baldy": "bullying",
+    "it's not every day you see a horse with two rear ends": "crude",
+    "you were born a street rat you'll die a street rat and only your fleas will mourn you": "bullying",
+    "well your mama sure does care about your schooling son": "sexref",
+    "he was always kissing and touching her and her sisters": "sexref",
+    "have you ever been with a girl forrest": "sexref",
+    "i bet that never happened in home ec": "sexref",
+    "i think i ruined your roommate's bathrobe": "sexref",
+    "hey gump get a load of the tits on her": "sexref",
+    "rape our women and destroy our black communities": "sexref",
+    "i'm living off the government tit": "crude",
+    "did you lose your pecker in the war or something": "sexref",
+    "l wined her and dined her and then l reclined her": "sexref",
+    "he looks like a weirdy": "bullying",
+    "so have fun playing with your baby keys little baby monkey": "bullying",
+    "maybe tomorrow night i'll bring you a little baby diapy so you can go poo poo with it": "bullying",
+    "well you cry all night long about how uncle larry fooled you huh": "bullying",
+    "i ain't working with togo boy": "bullying",
+    "covered in sweat everybody clothes wet so you know what everyone is craving": "sexref",
+    "no your name dum dum": "bullying",
+    "oh you in trouble dum dum": "bullying",
+    "morning dum dum": "bullying",
+    "you dum dum": "bullying",
+    "hey how's that come treating you dumb dumb": "bullying",
+    "well my girlfriend kicked me out i'm living with my dad": "oppsex",
+    "i don't suppose it would help any if i explained to them i'm not homosexual": "samesex",
+    "bull queers take by force it's all they want or understand": "sexref",
+    "especially that big white m mushy butt of yours": "sexref",
+    "and cast you down with the sodomites": "sexref",
+    "we went there for a picnic and made love under that oak": "sexref",
+    "'cause your ma's hot for me": "sexref",
+    "go walk the streets like your sister": "sexref",
+    "how's the action on your mother's side of the street action": "sexref",
+    "i am grouchy due to lack of recent physical intimacy": "sexref",
+    "i may not be as limber as i once was but yeah i make up for it with enthusiasm and willingness to experiment": "sexref",
+    "also their male parts can get pretty gigantic": "sexref",
+    "well maybe they're just down there intimidating the other sea creatures with their big winkies": "sexref",
+    "hawaiian law clearly states after the 12th date i'm entitled to unlimited boob access": "sexref"
    }
   },
   "person-of-interest": {
@@ -1439,16 +1443,9 @@
    ]
   },
   "castle@teens": {
-   "muted": [
-    "she's my interior decorator but then we slept together so i don't really know what she is now",
-    "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex"
-   ],
+   "muted": [],
    "kept": [],
-   "ok_words": [],
-   "muted_for": {
-    "she's my interior decorator but then we slept together so i don't really know what she is now": "casual",
-    "you assume that just because she's a woman that she was after a relationship do you ever think maybe she was in it for the sex": "sexref"
-   }
+   "ok_words": []
   },
   "i-love-lucy@young": {
    "muted": [],
@@ -1464,7 +1461,8 @@
    "ok_words": [],
    "notes": [
     "The heart on satin in I Love Lucy's opening and between its acts is the show's title card, not Valentine's Day."
-   ]
+   ],
+   "muted_for": {}
   }
  },
  "general": {

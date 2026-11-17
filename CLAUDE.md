@@ -380,6 +380,29 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   written out (`raw`) and sets each row's link to "Hide"; each row's Show/Hide still works on
   its own. Kept while the window is open (`show_all_words`: the page is built again after a
   chat change), off each time CleanView starts.
+- A Shawshank Redemption report (1.18.116, 2026-11-16; the other PC of the second Forest Gump
+  report, Adults, the AI helper, made on 1.18.113, 83 min, 54 of them reading the dialogue; the
+  owner: "Lines, not the scene"). Every listed word muted (186), seven sexual lines muted. Jason's
+  lessons for the film (1.18.27) were under `_movies@teens`, which Adults doesn't use, so these
+  went through; now taught under `_movies@adults` (every age), each under its filter: Bogs' threat
+  ("Now... I'm gonna open my fly...", "...swallow what I give you to swallow", "Then you're gonna
+  swallow Rooster's", "Anything you put in my mouth, you're gonna lose", "Bogs didn't put anything
+  in Andy's mouth"), "Playing cards with naked ladies on them", "The Sisters have taken quite a
+  liking to you", "Clean as a virgin's honey pot", "...the fella she was banging" (sexref) and "He
+  caught his wife in bed with some golf pro" (casual). None matches a line in the 154 past reviews
+  here. Not taught: the reviewer's unticks (the delousing nudity at 14:43, "Lawd" in a Hank
+  Williams song: that family's choices); the laundry-room attack (~31:26-32:00) as a taught scene
+  (she chose lines only); "I wanna go home!" (17:25, muted wrongly, under 5 words); "I don't have
+  her stuffed down the front of my pants" (borderline).
+- Lessons are for every age (1.18.116, 2026-11-16; the owner: "whenever a report is sent to
+  learn from, apply it to every age. under the proper category. if its unticked then that is a
+  choice of the viewer. but we dont want people to have to rescan to catch scenes"). Teach what
+  a report shows under `<show>` / `_movies@adults` (which every younger age also uses), each line
+  with its `muted_for`; never for one age only. The 47 lines that were under `_movies@kids`,
+  `_movies@teens` and `castle@teens` (all with a filter) moved there, Aladdin's kids-only crude
+  and bullying lines among them (now muted for Teens and Adults too when those boxes are
+  ticked). What's kept (taught as fine) stays per age. Still never taught: another family's
+  unticks, slurs as fine, coroner talk.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
