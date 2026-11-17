@@ -672,7 +672,10 @@ def guess_title(path):
                       stem)
          or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem)
          # "I Love Lucy 1 - Ep. 1" (Lauren, 2026-11-08: looked up as a movie of that name)
-         or re.search(r"(?i)(?<=[A-Za-z] )(\d{1,2})\s*-\s*(?:ep|episode)\W{0,3}(\d{1,3})\b", stem))
+         or re.search(r"(?i)(?<=[A-Za-z] )(\d{1,2})\s*-\s*(?:ep|episode)\W{0,3}(\d{1,3})\b", stem)
+         # "Criminal Minds - 1-1 -- Extreme Aggressor" (Lauren, 2026-11-17: the wrong
+         # subtitles, 3% lined up, and learned under movies): season-episode after " - "
+         or re.search(r"(?<=[^\W\d_]\s-\s)(\d{1,2})-(\d{1,3})(?=\s*(?:-|$))", stem))
     show = ""
     # a season's special (the owner, 2026-11-17, of "Call the Midwife - Christmas Special
     # S2": "if a video just says a season number and say a special that it still gets searched
@@ -2213,7 +2216,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     # coroner and doctor talk (1.18.72; the owner: "categorize coroner, medical examiner and dr
     # talk into its own ticked box"): only what's hard to mistake
     "forensic": re.compile(r"\b(sexual(ly)? assault(ed)?|(sex|sexual) offenders?|rape kit|"
-                           r"(was|been|were|being) raped|cause of death|time of death|"
+                           r"raped|rapes?|rapists?|raping|cause of death|time of death|"
                            r"autopsy|post[- ]?mortem|stab wounds?|gunshot wounds?|GSW|"
                            r"blunt[- ]force trauma|ligature marks?|exit wound|entry wound|"
                            r"defensive wounds?|lividity|rigor mortis|"
@@ -4140,7 +4143,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
 # sexual assault?") still follows the coroner box. The same words as CleanListen 1.17.25.
 EXPLICIT_FINDING = re.compile(
     r"\b(vaginal(?:ly)?|anal(?:ly)?|penile|hymen|labia|vulva|sodomy|sodomi[sz]e[ds]?|"
-    r"(?:forced|signs of|evidence of) penetration)\b", re.I)
+    r"(?:forced|signs of|evidence of|without) penetration)\b", re.I)
 # "tearing" only as a finding: not tearing something up, down the road, the paper...
 TEARING = re.compile(r"\btearing\b(?!\W+(?:up|down|off|apart|at|into|through|away|out|open|it|"
                      r"him|her|them|the|a|an|his|their|my|your|our|its|this|that)\b)", re.I)

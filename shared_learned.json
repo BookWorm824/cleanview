@@ -1442,11 +1442,6 @@
     "Grown men ribbing each other at a bar, or a villain's one-off insult, isn't bullying."
    ]
   },
-  "castle@teens": {
-   "muted": [],
-   "kept": [],
-   "ok_words": []
-  },
   "i-love-lucy@young": {
    "muted": [],
    "kept": [
@@ -1463,6 +1458,16 @@
     "The heart on satin in I Love Lucy's opening and between its acts is the show's title card, not Valentine's Day."
    ],
    "muted_for": {}
+  },
+  "criminal-minds": {
+   "muted": [
+    "what'd they come up with when you fumbled your way into some girl's pants and she started laughing when she got a good look at just"
+   ],
+   "kept": [],
+   "ok_words": [],
+   "muted_for": {
+    "what'd they come up with when you fumbled your way into some girl's pants and she started laughing when she got a good look at just": "sexref"
+   }
   }
  },
  "general": {

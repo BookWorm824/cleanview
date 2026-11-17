@@ -559,6 +559,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "Christmas Special S2" got the 2013 special's, 92% lined up, at the first try. Her first
   ("S1", Jenny's first Christmas, the 2012 special) is listed only by opensubtitles.com, which
   won't download without an account, so it still has none. `test_specials.py`.
+- Lauren's Criminal Minds S1E1 report (1.18.125, 2026-11-17, adults, the AI helper, made on
+  1.18.122, 73 min of which the closer look 40.5 at 29 finds; Medical, Gore, Disturbing and
+  coroner talk ticked, Violence and Graphic not; she asked whether it was slower: no, ~84 s a
+  find as before; the owner: "yes fi them", "and the subtitle look up also").
+  "Criminal Minds - 1-1 -- Extreme Aggressor.m4v" was looked up as a movie (the wrong
+  subtitles, 3% lined up) and learned under movies: `guess_title` reads "<show> - 1-1" (season
+  -episode after " - ", then " -"/"--" or the end) as S1E1; "Apollo 13 - 1-1 Draft", "Ocean 11 -
+  2-3" stay movies; no past name here reads differently. Rape case talk went through with
+  coroner talk ticked ("Murders have all involved rapes", "an anger excitation rapist", "a van
+  to rape and murder girls"): `LINE_WORDS["forensic"]` has rape(s), raped, raping, rapist(s)
+  (not therapist, grape, rapeseed, rapier; 8 past lines here newly caught, all case talk), and
+  "rape without penetration" is an explicit finding (`EXPLICIT_FINDING`). Taught for
+  criminal-minds (sexref): "What'd they come up with when you fumbled your way into some girl's
+  pants..." (the two lines after it were muted). `test_criminal_minds.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

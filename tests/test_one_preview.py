@@ -72,6 +72,12 @@ class OnePreview(unittest.TestCase):
         app.show_review()
         self.settle()
 
+    def tearDown(self):
+        # let this test's "Opening…" timer go off here, not in the next test (where it let
+        # a second preview start: test_pressed_twice_one_player failed after
+        # test_a_preview_that_fails..., but not on its own)
+        self.settle(ui.PREVIEW_OPENING_SECS + 0.5)
+
     def settle(self, secs=0.25):
         end = time.time() + secs
         while time.time() < end:
