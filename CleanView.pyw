@@ -218,6 +218,16 @@ BUSY_DROPPED = ("CleanView is still working on the videos it has. Once they're s
 SKIP_FOLDERS = ("clean", "reports")      # inside a dropped folder: CleanView's own copies
 
 
+def reuse_ask(n, of):
+    """The question when videos were scanned before with the same choices (1.18.117)."""
+    which = ("This video was" if of == 1 else
+             f"All {of} of these videos were" if n == of else f"{n} of these {of} videos were")
+    return (f"{which} scanned before with the same choices.\n\nUse "
+            f"{'that scan' if n == 1 else 'those scans'} and add what CleanView has learned "
+            f"since? It takes seconds instead of a whole scan, and your ticks from last time "
+            f"are kept.\n\nPress No to scan again from the start.")
+
+
 def dropped_videos(paths):
     """The videos among what was dropped: video files, and the videos in dropped folders and
     their folders (not the "Clean" folder's copies, nor a "(Clean)" copy beside them; one
@@ -758,7 +768,14 @@ class App(tk.Tk):
         self.show_fine = sess.get("show_fine", False)
         self.chat_history = [tuple(x) for x in sess.get("chat", [])]
         self.chat_sessions = {}
+        for j in jobs:                  # what CleanView has learned since (1.18.117)
+            try:
+                engine.add_new_lessons(j["analysis"])
+            except Exception:
+                save_details(traceback.format_exc())
         self.show_review()
+        for j in jobs:
+            self._thumbs_later(j, lessons=True)
         return True
 
     def _forget_session(self):
@@ -2004,7 +2021,7 @@ class App(tk.Tk):
             self._lengths(videos, lambda dur: show(f" · {fmt_len(dur)}"))
             self.start_btn.config(state="normal")
             if not self.outdir:
-                self.out_lbl.config(text=os.path.normpath(str(Path(self.videos[0]).parent / "Clean")),
+                self.out_lbl.config(text=os.path.normpath(str(engine.clean_folder(self.videos[0]))),
                                     fg=INK)
         if self.outdir:
             self.out_lbl.config(text=os.path.normpath(self.outdir), fg=INK)
@@ -2142,7 +2159,7 @@ class App(tk.Tk):
             self.scan_opts["offline"] = True
         self._save_settings()
         if not self.outdir:
-            self.outdir = str(Path(self.videos[0]).parent / "Clean")
+            self.outdir = str(engine.clean_folder(self.videos[0]))  # (a clean copy: its own)
         self.jobs = []
         # A new batch starts a new chat, so what was said about the last video isn't sent
         # in with this one's report (Emma's report had Pride and Prejudice's chat).
@@ -2151,6 +2168,20 @@ class App(tk.Tk):
             key = hashlib.sha1(f"{v}:{os.path.getsize(v)}".encode()).hexdigest()[:16]
             self.jobs.append({"video": v, "work": APP_DATA / "views" / key, "analysis": None,
                               "error": None})
+        # scanned before with the same choices: that scan, with what's been learned since
+        # (1.18.117; the owner: "we are having to have people scan things multiple times to
+        # get the results"), if she says so
+        saved = {}
+        for k, j in enumerate(self.jobs):
+            st = engine.saved_scan(j["work"], j["video"], self.scan_opts, self.groups)
+            if st is not None:
+                saved[k] = st
+        if saved:
+            chime()
+            if messagebox.askyesno("CleanView", reuse_ask(len(saved), len(self.jobs)),
+                                   parent=self):
+                for k, st in saved.items():
+                    self.jobs[k]["reuse"] = st
         self.cancel_flag = self.stop_after = False
         self.at_once = self._at_once()
         self._check_every_ai()
@@ -2455,6 +2486,21 @@ class App(tk.Tk):
                 while todo and len(running) < at_once and not engine.PAUSE.on:
                     k = todo.pop(0)
                     j = jobs[k]
+                    if j.get("reuse") is not None:     # its earlier scan, with the new lessons
+                        try:
+                            st = j.pop("reuse")
+                            engine.cl.use_language((st.get("opts") or {}).get("language"))
+                            engine.add_new_lessons(st, reused=True)
+                            (Path(j["work"]) / "analysis.json").write_text(
+                                json.dumps(st, indent=1))
+                            j["analysis"] = st
+                            put(("job", k, "done"))
+                        except Exception as ex:
+                            failed(k, f"{Path(j['video']).name}: {plain_error(ex)}",
+                                   f"{j['video']}\n\n{traceback.format_exc()}")
+                        finished.add(k)
+                        frac[k] = 1.0
+                        continue
                     try:
                         procs[k] = workers.start(
                             k, {"video": j["video"], "work": str(j["work"]),
@@ -2923,6 +2969,8 @@ class App(tk.Tk):
         engine.cl.use_language((good[0]["analysis"].get("opts") or {}).get("language"))
         self.show_review()   # always: so every mute and cut can be seen and unticked
         self._save_session()   # so closing or updating never loses it
+        for j in good:         # a taught scene added to an earlier scan has no stills yet
+            self._thumbs_later(j, lessons=True)
 
     # ---------- page 3: review ----------
     def _pick_review_ai(self, good):
@@ -3119,7 +3167,7 @@ class App(tk.Tk):
 
     def _save_folder(self):
         good = [j for j in self.jobs if j.get("analysis")]
-        return self.outdir or (str(Path(good[0]["video"]).parent / "Clean") if good else "")
+        return self.outdir or (str(engine.clean_folder(good[0]["video"])) if good else "")
 
     def _clean_bytes(self):
         """About how big the clean copies will be, with the scenes ticked now."""
@@ -3921,11 +3969,13 @@ class App(tk.Tk):
             tk.Label(mid, image=img, bg=CARD, borderwidth=0).pack(side="left", padx=(0, 6),
                                                                   before=text)
 
-    def _thumbs_later(self, job):
+    def _thumbs_later(self, job, lessons=False):
         """Pictures for scenes the chat or the AI's review just added, made in the background
         and put on their cards when ready (1.18.104; the owner's \"stopped responding\" note,
-        2026-11-14: made on the window's thread, a chat cut's took 40 s on her .wmv)."""
-        new = [sc for sc in job["analysis"].get("scenes", []) if "thumbs" not in sc]
+        2026-11-14: made on the window's thread, a chat cut's took 40 s on her .wmv).
+        lessons: only the scenes just added from what CleanView learned (1.18.117)."""
+        new = [sc for sc in job["analysis"].get("scenes", []) if "thumbs" not in sc
+               and (not lessons or sc.get("new_lesson"))]
         if not new or not job.get("work"):
             return
         for sc in new:

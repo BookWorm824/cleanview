@@ -437,6 +437,11 @@ BODY_SLANG = [re.compile(p) for p in (
 
 # Crude sayings muted with the mild group (like "screw you"): "yanking your chain".
 # "Yanked the chain" (a toilet, a bike) has no "my/your/his..." so isn't counted.
+# a face screwed up isn't rude: "screwing her eyelids more tightly together" (CleanListen's The
+# Railway Children, the owner, 2026-11-16), "screwed his eyes shut", "screw her face up"
+SCREW_FACE = (r"eyes|eye|eyelids|eyelid|face|faces|mouth|lips|forehead|brow|brows|nose|features|"
+              r"cheeks|eyebrows|lids")
+SCREW_FACE_WORDS = set(SCREW_FACE.split("|"))
 MILD_SLANG = [re.compile(p) for p in (
     r"(yank|yanks|yanked|yanking|yankin|jerk|jerks|jerked|jerking|jerkin|pull|pulls|pulled|"
     r"pulling|pullin) (my|your|ya|yer|his|her|our|their|someone's|somebody's) chains?\b",
@@ -449,7 +454,7 @@ MILD_SLANG = [re.compile(p) for p in (
     # "screwing him"; not "screwed him up" (messed up) or "screws them in tight"
     # (plain "screw you/him/..." are CRUDE_PHRASES, with the "the screw you dropped" guard)
     r"((screws|screwed|screwing) (us|me|you|him|her|them|everybody|everyone)|screw us)( over)?\b"
-    r"(?! (up|in|into|onto|down|together|shut|tight|tightly|back)\b)",
+    r"(?! (up|in|into|onto|down|together|shut|tight|tightly|back|" + SCREW_FACE + r")\b)",
     # and the same in past reviews here: "You don't screw with us", "Someone is screwing with
     # me", "screwed over", "we didn't want to screw Max over" (not "screw the lid over")
     r"(screw|screws|screwed|screwing) with (me|us|you|him|her|them|people)\b",
@@ -880,6 +885,8 @@ def find_language(words, cats, mine=()):
         if p == ("shut", "up") and nxt in SHUT_UP_SAFE_NEXT:
             return False
         if p[-1] in SUCK_WORDS and nxt in SUCK_NOT_NEXT:      # "it sucks the juice out"
+            return False
+        if p[0] == "screw" and nxt in SCREW_FACE_WORDS:     # "screw her face up"
             return False
         return p[-1] not in PHRASE_OBJECTS or nxt not in NOT_RUDE_NEXT
     while i < n:

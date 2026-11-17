@@ -403,6 +403,49 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   and bullying lines among them (now muted for Teens and Adults too when those boxes are
   ticked). What's kept (taught as fine) stays per age. Still never taught: another family's
   unticks, slurs as fine, coroner talk.
+- A video scanned before gets what's been learned since, without a new scan (1.18.117,
+  2026-11-16; the owner: "we are having to have people scan things multiple times to get the
+  results", "Yes, build that", and "id also hope with teaching clean view can catch all these
+  the first"). `engine.saved_scan(work, video, opts, groups)`: the work folder's analysis.json
+  when it's this file and made with the same choices (every key of `DEFAULTS` and `profile`, the
+  word groups, her own words; not `SCAN_SAME_SKIP`: autosubs, offline; the language as picked,
+  `_picked_language`). Start cleaning asks (`reuse_ask`) when any video has one; Yes puts it in
+  the job (`reuse`) and `_run_workers` uses it instead of a worker: `engine.add_new_lessons(st,
+  reused=True)` adds only (shared and her own learned lines via `learn.apply` with no flags
+  passed, so nothing found before is touched; the title's taught scenes via
+  `learn.title_scenes`), each for a ticked filter, numbered after the others, with a note
+  (`SCAN_REUSED` / `LESSONS_ADDED`, one at a time). The analysis.json kept after a review has
+  her ticks, so those stay. "Pick up where I left off" (`_resume`) adds them too, without the
+  question. New scenes' stills are made in the background (`_thumbs_later`). No: a new scan as
+  before. Code changes since (word lists, guards, the picture checks) only come with a new scan.
+- A clean copy cleaned again replaces itself (1.18.117, 2026-11-16; the owner: "if a cleaned
+  folder is reopened, saving it again creates a clean clean file. if it already marked clean
+  can overwrite it", "but don't overwright the original"). `engine.clean_stem` takes the
+  "(Clean)" marks off (`CLEAN_MARK`), so `render` names it "<name> (Clean)" and its report
+  "<name> - CleanView report.txt" again; `clean_folder(video)` is its own folder for a
+  "(Clean)" copy (else "Clean" beside it), used for the default save folder (start page, Start
+  cleaning, the review page). It's written as .partial and replaces the old copy only when
+  done; the original never has "(Clean)" in its name, so it's never the one replaced. A copy
+  open in a player can't be replaced (`save_trouble` says so). `test_clean_again.py`.
+- A face screwed up isn't rude (1.18.117; CleanListen 272729c, its The Railway Children
+  lessons, passed on by the CleanView Play chat): `cvcore.SCREW_FACE` (eyes, eyelids, face,
+  mouth, lips, brow, nose...) after "screwed/screwing her..." (`MILD_SLANG`'s lookahead) and
+  after the "screw her" phrase (`rude_use`, `SCREW_FACE_WORDS`): "screwing her eyelids more
+  tightly together", "screwed his eyes shut", "screw her face up"; "screwed her over" and
+  "Screw her" still count. `test_screwed_face.py`.
+- A clean copy scanned again is the same film (1.18.117, 2026-11-16; the owner: "forest gump was
+  scanned again. i dont think it caught those 4 scene"). The other PC scanned "Forest Gump
+  (Clean).mp4" (made on 1.18.113) on 1.18.114, Adults: no scene found. `guess_title` (so
+  `title_name`, the taught scenes, the title notes and the subtitle lookup) now takes the
+  "(Clean)" off (`clean_stem`); and a clean copy's subtitles blank its muted words ("— —, son."
+  for "God damn, son.", "You —. —. You freak."), so `learn._line_at` also takes a line with
+  blanked words when the rest fits, each blank one word (`_masked_fits`, `MASKED`). On that
+  report's dialogue the strip club, the dorm room, the bare bottom and New Year's are now
+  placed; the principal's visit was already cut out of that copy (its end line is gone), so
+  it isn't. The scenes added to an earlier scan are marked `new_lesson`, and only those get
+  stills made afterwards (`_thumbs_later(lessons=True)`). The owner: "teaching should apply to
+  new or alread cleaned files": taught lines match with blanked words too (`learn.apply`:
+  "Hey, Gump, get a load of the — on her!").
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

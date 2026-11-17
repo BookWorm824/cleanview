@@ -94,7 +94,7 @@ class StuckSave(unittest.TestCase):
         self.assertLess(time.time() - t, 30)                  # not the fake's 60 s
         self.assertTrue(Path(res["out"]).exists())
         rep = Path(res["folder"]) / "Reports" / \
-            "Castle Season 1 - Ep.  2 (Clean) - CleanView report.txt"
+            "Castle Season 1 - Ep.  2 - CleanView report.txt"   # (1.18.117: one "(Clean)")
         self.assertIn("careful way", rep.read_text("utf8"))
         self.assertEqual(self.leftovers(), [])
 

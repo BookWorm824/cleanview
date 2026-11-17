@@ -657,7 +657,9 @@ def guess_title(path):
     movie, or None when the name doesn't say which episode it is. Uses the
     folder names too: E:\\Movies\\Castle\\Season 1\\S01E07_Title.mp4."""
     p = Path(path)
-    stem = p.stem.replace("_", " ").replace(".", " ")
+    # a clean copy cleaned again is the same movie: "Forest Gump (Clean)" (1.18.117; the other
+    # PC's scan of its clean copy found none of the film's taught scenes or notes)
+    stem = clean_stem(p.stem).replace("_", " ").replace(".", " ")
     parent, grand = p.parent.name, p.parent.parent.name
     season = episode = None
     m = (re.search(r"\b[Ss](\d{1,2})\s*[Ee](\d{1,3})\b", stem)
@@ -2833,6 +2835,144 @@ def match_review(st, res):
                 it.get("plain") or it.get("text") or it.get("raw") or it.get("word"))
     keep = {i: live[i] for i in items if i in live and what(live[i]) == what(items[i])}
     return keep, {i: d for i, d in decisions.items() if i in keep}, missed, missed_scenes, summary
+
+
+# A video scanned before, opened again with the same choices, uses that scan with what
+# CleanView has learned since added (1.18.117; the owner, 2026-11-16: "we are having to have
+# people scan things multiple times to get the results", then "Yes, build that"). What can
+# differ without a new scan: subtitles are always looked for, and "offline" only changed that.
+SCAN_SAME_SKIP = {"autosubs", "offline", "language"}
+SCAN_REUSED = "This video was scanned before with the same choices, so that scan was used"
+LESSONS_ADDED = "Added what CleanView has learned since this video was scanned"
+
+
+def _picked_language(o):
+    """The language that was chosen for a scan (Auto, or the one picked even when the video
+    turned out to be in another)."""
+    if o.get("language_auto"):
+        return "auto"
+    return o.get("language_switched") or o.get("language") or "en"
+
+
+def saved_scan(work, video, opts, groups):
+    """The scan kept for this video (work/analysis.json) when it was made with the same
+    choices (every filter, the age, the AI, the language, the word groups and her own words),
+    else None."""
+    try:
+        st = json.loads((Path(work) / "analysis.json").read_text())
+    except Exception:
+        return None
+    old = st.get("opts")
+    if not isinstance(old, dict) or not st.get("dialogue") or "lines" not in st:
+        return None
+    try:
+        if os.path.normcase(os.path.abspath(st.get("path", ""))) != \
+                os.path.normcase(os.path.abspath(video)):
+            return None
+    except Exception:
+        return None
+    if sorted(st.get("groups") or []) != sorted(groups or []):
+        return None
+    new, old = full_opts(opts), full_opts(old)
+    for k in set(DEFAULTS) | {"profile"}:
+        if k in SCAN_SAME_SKIP:
+            continue
+        a, b = new.get(k), old.get(k)
+        if k == "mywords":
+            a, b = sorted(a or []), sorted(b or [])
+        if a != b:
+            return None
+    if _picked_language(new) != _picked_language(old):
+        return None
+    return st
+
+
+def add_new_lessons(st, reused=False):
+    """Add to a scan the lines and scenes CleanView has learned since it was made (shared
+    lessons from reports, her own, scenes taught for this title), each only for a filter
+    that's ticked, as a new scan would. Only adds: everything already there, and her ticks on
+    it, stay as they are. New scenes have no stills yet ("thumbs" missing). reused: the scan
+    is being used instead of a new one, which the note says. Returns (lines added, scenes
+    added)."""
+    o = st.get("opts") or {}
+    key = st.get("show") or "_movies"
+    lines = st.get("dialogue") or []
+    line_mutes = st.setdefault("lines", [])
+    scenes = st.setdefault("scenes", [])
+    have = {(round(l["s"], 2), l.get("plain") or l.get("text")) for l in line_mutes}
+    learned, _ = learn.apply(key, [dict(l) for l in lines], [], [], [], on=on_kinds(o))
+    n_lines = 0
+    for l in learned:
+        if (round(l["s"], 2), l["text"]) in have:
+            continue
+        yours = l.get("learned_from") == "you"
+        line_mutes.append({"id": max((x.get("id", 0) for x in line_mutes), default=0) + 1,
+                           "s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
+                           "plain": l["text"], "types": ["learned" if yours else "shared"],
+                           "mute": True,
+                           "idx": next(k for k, x in enumerate(lines)
+                                       if x["s"] == l["s"] and x["text"] == l["text"])})
+        if yours:
+            line_mutes[-1]["learned"] = "you muted this before"
+        n_lines += 1
+    line_mutes.sort(key=lambda l: l["s"])
+    asr = st.get("asr") or []
+    dur = st.get("duration") or max((l["e"] for l in lines), default=0)
+    n_scenes = 0
+    for sc in learn.title_scenes(key, title_name(st.get("path")), lines,
+                                 {k for k, v in full_opts(o).items() if v is True}):
+        if any(x.get("learned") == sc["learned"] and x["s"] < sc["e"] and sc["s"] < x["e"]
+               for x in scenes):
+            continue
+        sc["e"] = round(min(sc["e"], dur), 2)
+        if sc["e"] <= sc["s"]:
+            continue
+        sc["id"] = max((x.get("id", 0) for x in scenes), default=0) + 1
+        sc["cut"] = True
+        sc["new_lesson"] = True         # its stills are made in the background
+        said = [w[0] for w in asr if sc["s"] <= w[1] <= sc["e"]]
+        sc["said"] = " ".join(said[:80]) + (" …" if len(said) > 80 else "")
+        scenes.append(sc)
+        n_scenes += 1
+    scenes.sort(key=lambda x: x["s"])
+    what = []
+    if n_lines:
+        what.append(f"{n_lines} line{'s' if n_lines != 1 else ''} to mute")
+    if n_scenes:
+        what.append(f"{n_scenes} scene{'s' if n_scenes != 1 else ''} to cut")
+    notes = [n for n in st.get("notes") or []
+             if not n.startswith((SCAN_REUSED, LESSONS_ADDED))]
+    if reused:
+        notes.append(SCAN_REUSED + (", with what CleanView has learned since added: " +
+                                    " and ".join(what) + "." if what else
+                                    ". CleanView hasn't learned anything new for it since."))
+    elif what:
+        notes.append(LESSONS_ADDED + ": " + " and ".join(what) + ".")
+    st["notes"] = notes
+    return n_lines, n_scenes
+
+
+# A clean copy chosen to clean again (1.18.117; the owner, 2026-11-16: "if a cleaned folder is
+# reopened, saving it again creates a clean clean file. if it already marked clean can
+# overwrite it", "but don't overwright the original"): saved under its own name in its own
+# folder, replacing itself, not as "(Clean) (Clean)" in a "Clean" folder inside it.
+CLEAN_MARK = re.compile(r"(?:\s*\(clean\))+\s*$", re.I)
+
+
+def clean_stem(stem):
+    """A video's name without its "(Clean)" marks: what its clean copy is named after."""
+    return CLEAN_MARK.sub("", stem).strip() or stem
+
+
+def is_clean_copy(video):
+    return bool(CLEAN_MARK.search(Path(video).stem))
+
+
+def clean_folder(video):
+    """Where a video's clean copy goes unless another folder is chosen: a "Clean" folder
+    beside it, or for a clean copy cleaned again, its own folder (so it replaces itself)."""
+    p = Path(video)
+    return p.parent if is_clean_copy(p) else p.parent / "Clean"
 
 
 def finish_review(st, res, work=None, thumbs=True):
@@ -5349,7 +5489,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         cut_rs = _merge(list(cut_rs) + long_rs)
     reencode = bool(cut_rs)
     mp4 = reencode or src.suffix.lower() in (".mp4", ".m4v", ".mov")
-    dst = out / f"{src.stem} (Clean){'.mp4' if mp4 else '.mkv'}"
+    # a clean copy cleaned again keeps its name, and replaces itself (only once the new one is
+    # done: it's written as .partial first); the original is never written to
+    dst = out / f"{clean_stem(src.stem)} (Clean){'.mp4' if mp4 else '.mkv'}"
 
     cats = [c for g in st["groups"] for c in cl.GROUPS[g]]
     subs = clean_cues(st["cues"], cats, mute_rs, cut_rs, line_rs,
@@ -5604,8 +5746,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     rep += technical_notes(st)                # how the scan went, last
     reports = out / "Reports"                 # kept apart from the episodes
     reports.mkdir(parents=True, exist_ok=True)
-    (reports / f"{src.stem} - CleanView report.txt").write_text("\n".join(rep) + "\n", encoding="utf8")
-    old = out / f"{src.stem} - CleanView report.txt"   # from before there was a Reports folder
+    (reports / f"{clean_stem(src.stem)} - CleanView report.txt").write_text("\n".join(rep) + "\n", encoding="utf8")
+    old = out / f"{clean_stem(src.stem)} - CleanView report.txt"   # from before there was a Reports folder
     try:
         if old.exists():
             old.unlink()
