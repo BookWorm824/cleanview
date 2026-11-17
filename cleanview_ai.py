@@ -1010,7 +1010,9 @@ LOOK = {
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),
     "christmas": ("Question: is something about Christmas shown: Santa Claus, a decorated "
-                  "Christmas tree, Christmas presents, stockings or Christmas decorations? Snow "
+                  "Christmas tree, Christmas presents, stockings, Christmas decorations, or a "
+                  "nativity scene or nativity play (the manger, Mary and Joseph, children "
+                  "dressed as shepherds, angels or wise men)? Snow "
                   "or an ordinary winter scene is NOT, and nor is something that is only red "
                   "and green (a toy, clothes).", _YES),
     "halloween": ("Question: is something about Halloween shown: children trick-or-treating, "
@@ -1197,7 +1199,9 @@ LINE_TYPES = {
                  "'thank heavens', a passing 'God bless you' or 'Merry Christmas', a "
                  "character's name. Any religion counts, including voodoo or Vodun rituals"),
     "christmas": ("talks about Christmas: Santa, Christmas trees, presents, carols, Christmas "
-                  "Eve or Day, 'Merry Christmas'. NOT: a place named Santa something (Santa "
+                  "Eve or Day, 'Merry Christmas', Advent, the nativity story or a nativity "
+                  "play (Bethlehem, the manger, Mary and Joseph, baby Jesus, shepherds, angels, "
+                  "wise men and their gifts). NOT: a place named Santa something (Santa "
                   "Anita, Santa Monica) or Christmas Island, winter or snow alone, the word "
                   "'present' meaning now or here"),
     "halloween": ("talks about Halloween: trick-or-treating, Halloween costumes or parties, "

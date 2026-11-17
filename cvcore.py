@@ -247,6 +247,10 @@ def reverent(words, i, j=None):
         return True                                           # "Please, please, dear Jesus."
     if prev == "by" and two in ("swear", "swears", "swore", "sworn", "swearing"):
         return False                                          # "I swear by Jesus"
+    if prev == "baby":                                        # "the baby Jesus", not
+        return two != "sweet"                                 # "Sweet baby Jesus!"
+    if {"name", "named"} & set(words[max(0, i - 4):i]):       # "his name will be Jesus"
+        return True                                           # (a nativity play, 2026-11-17)
     if nxt in ("is", "was"):                                  # "Christ is risen", not
         return (words[j + 1] if j + 1 < len(words) else "") in REVERENT_IS  # "Jesus, is that you?"
     return prev in REVERENT_BEFORE or nxt in REVERENT_NEXT or (two, prev) == ("thank", "you")
@@ -267,6 +271,9 @@ INNOCENT_NEXT = {
                  # turf: "sod houses", "a sod roof"
                  "sod": {"house", "houses", "roof", "roofs", "hut", "huts", "buster", "busters"},
                  "cum": {"laude"},
+                 # "Two little dicky birds sitting on a wall" heard as "titty birds"
+                 # (Call the Midwife, 2026-11-17)
+                 "titty": {"bird", "birds"},
                  "peckers": {"up"}, "pecker": {"up"}, "horny": {"toad", "toads"},
                  "retard": {"the", "its", "their", "growth"},
                  # rude words box (as CleanListen): "jerks her up", "fool around", "butt in"

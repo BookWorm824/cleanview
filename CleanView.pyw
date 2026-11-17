@@ -1241,9 +1241,17 @@ class App(tk.Tk):
             box = look.Card(main, fill=NOTE, edge=NOTE_EDGE, radius=12, pad=(16, 10))
             box.pack(fill="x", pady=(0, X(14)))
             what = short(names[0], 40) + (f" and {len(names) - 1} more" if len(names) > 1 else "")
-            tk.Label(box.body, text=f"Your last review isn't finished: {what}\n(saved "
-                     f"{sess['saved']})", bg=NOTE, fg=INK, font=(FONT, 10),
-                     justify="left", anchor="w").pack(side="left")
+            # the words on their own line, wrapped, and the buttons on a row under them: side
+            # by side, a long name left Discard no room at all (the owner, 2026-11-17: "the
+            # disregard button is missing"; "Call the Midwife - Christmas Special S1.avi")
+            # (not "said": the update note's timer above looks that name up when it fires)
+            unfinished = tk.Label(box.body, text=f"Your last review isn't finished: {what}\n"
+                                  f"(saved {sess['saved']})", bg=NOTE, fg=INK, font=(FONT, 10),
+                                  justify="left", anchor="w")
+            unfinished.pack(side="top", fill="x")
+            self._fit_text(unfinished, box.body)
+            row = tk.Frame(box.body, bg=NOTE)
+            row.pack(side="top", fill="x", pady=(X(8), 0))
 
             def pick_up(sess=sess):
                 if not self._resume(sess):
@@ -1252,9 +1260,9 @@ class App(tk.Tk):
                     self._forget_session()
                     self.show_setup()
 
-            look.Pill(box.body, "Pick up where I left off", pick_up, size=10,
+            look.Pill(row, "Pick up where I left off", pick_up, size=10,
                       pad=(16, 8)).pack(side="right")
-            look.Pill(box.body, "Discard", lambda: (self._forget_session(), box.destroy()),
+            look.Pill(row, "Discard", lambda: (self._forget_session(), box.destroy()),
                       kind="quiet", size=10, pad=(12, 8)).pack(side="right", padx=(0, X(6)))
         self._step_tag = tk.Label(main, text="", bg=BG, fg=ACCENT, font=(HEAD, 8), anchor="w")
         self._step_tag.pack(anchor="w")

@@ -454,8 +454,9 @@ TYPE_TEXT = {
                 "Christmas' (Christmas has its own box), a character's name. Any religion "
                 "counts: a whole conversation about Vodun or voodoo rituals, Buddhism or Wicca "
                 "is religious talk too",
-    "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents or "
-                 "carols; the whole conversation. Not: winter or snow alone, or a place named "
+    "christmas": "Christmas: any talk about Christmas, Santa, Christmas trees, presents, "
+                 "carols, Advent, the nativity story or a nativity play (Bethlehem, the "
+                 "manger, shepherds, angels, wise men); the whole conversation. Not: winter or snow alone, or a place named "
                  "Santa something (Santa Anita, Santa Monica) or Christmas Island",
     "halloween": "Halloween: any talk about Halloween, trick-or-treating, Halloween costumes "
                  "or jack-o'-lanterns; the whole conversation. Not: a story's own witches, "

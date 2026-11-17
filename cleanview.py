@@ -2141,7 +2141,19 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     "christmas": re.compile(r"\b(christmas(?! island)|x-?mas|santa(?! " + SANTA_PLACES + r"\b)"
                             r"( claus)?|saint nick|north pole|"
                             r"reindeer|rudolph the|rudolph's( red)? nose|mistletoe|yuletide|"
-                            r"jingle bells)\b", re.I),
+                            r"jingle bells|"
+                            # the nativity (Call the Midwife's Christmas special, 2026-11-17:
+                            # its nativity play went through): not "(the) advent (of)" but "the
+                            # Advent calendar", not "a dog in
+                            # the manger", Bethlehem Steel; shepherds and angels alone are left
+                            # to the AI, who sees the conversation
+                            r"nativity|advent(?= (calendars?|wreaths?|candles?|season|"
+                            r"sundays?)\b)|(?<!the )(?<!an )advent(?! of\b)|"
+                            r"(?<!dog in the )manger|"
+                            r"bethlehem(?! steel)|(three )?wise men|three kings|frankincense|"
+                            r"myrrh|silent night|o holy night|hark the herald|"
+                            r"o come,? all ye faithful|we three kings|the first noel|"
+                            r"deck the halls|mince pies?)\b", re.I),
     "halloween": re.compile(r"\b(hallowe'?en|trick[- ]or[- ]treat\w*|jack[- ]?o[-' ]*lanterns?|"
                             r"all hallows)\b", re.I),
     # only the candles: "happy birthday" and birthday parties are fine
@@ -2343,7 +2355,9 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                         "Bible, heaven, or any religion's beliefs and practices, including "
                         "sincere prayer (God's name said as a swear is a separate choice)",
             "christmas": "Christmas, in talk or on screen: Santa, Christmas trees, decorations, "
-                         "presents, carols, the holiday itself",
+                         "presents, carols, the holiday itself, Advent, and the nativity story "
+                         "or a nativity play (Bethlehem, the manger, Mary and Joseph, baby "
+                         "Jesus, shepherds, angels, wise men)",
             "halloween": "Halloween, in talk or on screen: trick-or-treating, Halloween "
                          "costumes, jack-o'-lanterns, Halloween parties and decorations",
             "birthday": "candles on a birthday cake, in talk or on screen: lit candles on a "
@@ -3023,7 +3037,9 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "smoking": "smoking (cigarettes, cigars, pipes, vaping)",
             "drinking": "drinking alcohol",
             "drugs": "illegal drug use (not a medical shot, blood draw or IV)",
-            "christmas": "christmas (Santa, a Christmas tree, Christmas decorations or presents)",
+            "christmas": "christmas (Santa, a Christmas tree, Christmas decorations or presents, "
+                         "a nativity scene or nativity play: the manger, Mary and Joseph, "
+                         "shepherds, angels, wise men)",
             "halloween": "halloween (trick-or-treating, Halloween costumes, jack-o'-lanterns, "
                          "Halloween decorations)",
             "birthday": "birthday (only candles on a cake, lit or being blown out; a party, "

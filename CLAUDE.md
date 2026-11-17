@@ -464,6 +464,36 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `test_drop` hands it the shell's own IDataObject for a file and a folder
   (SHCreateItemFromParsingName, BindToHandler BHID_DataObject) through its vtable as Windows
   does; a real mouse drag wasn't tried here (nothing pops up).
+- Lauren's Call the Midwife Christmas special (1.18.120, 2026-11-17, adults, the AI helper, made
+  on 1.18.118; the owner: "running a scan now to purposely push the scanner ... i turned on
+  christmas filter then chose a christmas holiday special"). 116 min on her laptop, 70 of them
+  the closer look at 53 picture finds (~80 s each, the picture model half on its card). Ten
+  Christmas scenes cut (trees, the nativity scene, the scouts' rehearsal, the play) and 10
+  Christmas lines muted, but the nativity went through: the play, Advent, the manger, the wise
+  men's gifts, "In Bethlehem, 2,000 years ago...", the play's own narration. The Christmas
+  filter now names the nativity: `LINE_WORDS["christmas"]` has nativity, Advent (not "(the)
+  advent (of)", but "the Advent calendar/wreath/season"), manger (not "a dog in the manger"),
+  Bethlehem (not Bethlehem Steel), (three) wise men, three kings, frankincense, myrrh, carols by
+  name (silent night, o holy night, hark the herald, o come all ye faithful, we three kings, the
+  first noel, deck the halls) and mince pie(s); shepherds and angels alone are left to the AI.
+  The descriptions (`OPT_TEXT`, `PIC_TEXT`, `ai.LOOK`, `ai.LINE_TYPES`, `cc.TYPE_TEXT`) say the
+  nativity story or play and Advent are Christmas. On her report's dialogue the list alone now
+  takes 27 lines (12 before, by the AI); no line in the past reviews here. "You will have a baby
+  and his name will be Jesus" (the play) was muted: `reverent` takes "name"/"named" in the four
+  words before and "the baby Jesus" (not "Sweet baby Jesus!"). "Two little titty birds sitting
+  on the wall" ("dicky birds", heard wrong; no subtitles) muted "titty": `INNOCENT_NEXT["titty"]`
+  bird(s). None of the 42 past lines with jesus/christ/titt reads differently.
+  `test_christmas_special.py`. Not changed: "ass" in "My dad said we're ass fullmen" (heard wrong,
+  no subtitles to check), "Easter." and "Easter week" as dates (Holidays ticks Easter), "Oh God"
+  in the closing song; "No subtitles": the file name has no episode number.
+  For CleanListen and CleanRead too: the nativity words and the two guards.
+- Discard is back beside "Pick up where I left off" (1.18.120, 2026-11-17; the owner: "when going
+  back after scannin a movie", "wher it says pick up where i lefft off", "the disregard button",
+  "is missing"). The start page's "Your last review isn't finished: <name>" box had the words,
+  Pick up and Discard side by side; Tk gives the last packed the leftovers, so a long name ("Call
+  the Midwife - Christmas Special S1.avi") left Discard 1 pixel wide, and at Largest text Pick up
+  too (likely since 1.18.114 made every text size bigger). The words are now their own line,
+  wrapped to the box (`_fit_text`), and the buttons a row under them. `test_resume_box.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
