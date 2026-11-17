@@ -358,6 +358,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   its tray `AGE_TRAY` (a shade whiter than `SIDE`) and the ages not chosen `AGE_TEXT` (darker
   than `MUTED`) with a thin `LINE` edge so it still shows on the page; `Segmented(dim=, edge=)`
   are new in cvlook.py (CleanListen's copy may follow).
+- Videos can be dragged onto the window (1.18.115, 2026-11-16; the owner: "can you add drag and
+  drop option", "drag and drop a movie file in"). `cvdrop.py` (new, in version.json's files):
+  Windows' own drop (DragAcceptFiles, WM_DROPFILES), no tkdnd (its compiled part could be
+  blocked by Smart App Control). `accept_drops(win, on_files)` wraps the message handler of the
+  window's frame and its inside (`window_handles`; a drop over any widget goes up to the
+  inside), passes every other message on, and calls `on_files` inside Windows' message, so it
+  only puts `("call", ...)` on `self.q` (a Tk call there could upset _tkinter's state).
+  `App._dropped`: on the start page or the done page (which starts afresh) the videos are the
+  ones chosen, as Choose files does, and step 1 shows them; while cleaning, reviewing or saving
+  it says `BUSY_DROPPED`; nothing to clean says `NOT_VIDEO_DROPPED`. `dropped_videos`: video
+  files, and the videos in dropped folders and their folders (not "Clean"/"Reports", nor a
+  "(Clean)" copy inside a folder; one dropped on its own is taken), folder by folder in episode
+  order. Step 1's tip says "Or drag a movie, some episodes or a whole season's folder onto this
+  window." (the Ctrl+A tip it replaces). `test_drop.py` sends drops the way Explorer does
+  (`cvdrop.send_drop`); a real drag from Explorer wasn't tried here (nothing pops up).
+- "Show all words" on the review page (1.18.115, 2026-11-16; the owner: "if you have several
+  words its a lot of back and forth. can you put a show all tick above the main section of works
+  to cut that will show all the word in the box. but also leaving the individual ones too"): a
+  tick at the right of "Words to mute" (`_words_card`, only with 2+ words) shows every word
+  written out (`raw`) and sets each row's link to "Hide"; each row's Show/Hide still works on
+  its own. Kept while the window is open (`show_all_words`: the page is built again after a
+  chat change), off each time CleanView starts.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

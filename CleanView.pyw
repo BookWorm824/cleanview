@@ -22,6 +22,7 @@ import cleanview_learn as learn  # noqa: E402
 import videoqueue as VQ  # noqa: E402  (several videos at once)
 import cvlook as look  # noqa: E402  (the drawn look: cards, switches, pill buttons)
 import cvsweeper as sweeper  # noqa: E402  (the little cleaner on the logo while cleaning)
+import cvdrop  # noqa: E402  (videos dragged onto the window from File Explorer)
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 BG, CARD, INK, MUTED, ACCENT, ACCENT_DK, LINE = (
@@ -205,6 +206,42 @@ FONT = "Segoe UI" if os.name == "nt" else "DejaVu Sans"
 
 def natural_key(p):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", Path(p).name)]
+
+
+# Dragging videos onto the window (1.18.115; the owner, 2026-11-16: "can you add drag and drop
+# option", "drag and drop a movie file in"): files, or folders of them, on the start page or
+# the done page; while it's busy it says so.
+NOT_VIDEO_DROPPED = ("That isn't a video CleanView can clean. Drag in a movie or episode "
+                     "(like .mp4 or .mkv), or a folder of them.")
+BUSY_DROPPED = ("CleanView is still working on the videos it has. Once they're saved, or "
+                "you've gone back to the start page, drag the new ones in again.")
+SKIP_FOLDERS = ("clean", "reports")      # inside a dropped folder: CleanView's own copies
+
+
+def dropped_videos(paths):
+    """The videos among what was dropped: video files, and the videos in dropped folders and
+    their folders (not the "Clean" folder's copies, nor a "(Clean)" copy beside them; one
+    dropped on its own is taken), in order: folder by folder, episode 2 before episode 10."""
+    exts = {e.lower() for e in engine.VIDEO_EXTS}
+
+    def video(p, alone=False):
+        p = Path(p)
+        return p.suffix.lower() in exts and (alone or "(clean)" not in p.stem.lower())
+    found = []
+    for p in paths:
+        if os.path.isdir(p):
+            for root, dirs, files in os.walk(p):
+                dirs[:] = [d for d in dirs if d.lower() not in SKIP_FOLDERS]
+                found += [os.path.join(root, f) for f in files if video(f)]
+        elif os.path.isfile(p) and video(p, alone=True):
+            found.append(p)
+    seen, out = set(), []
+    for p in found:
+        k = os.path.normcase(os.path.abspath(p))
+        if k not in seen:
+            seen.add(k)
+            out.append(p)
+    return sorted(out, key=lambda p: [natural_key(x) for x in Path(p).parts])
 
 
 def fmt_len(sec):
@@ -564,6 +601,10 @@ class App(tk.Tk):
         if not (os.environ.pop("CLEANVIEW_RESUME", None) and self._resume()):
             self.show_setup()
         self._poll_id = self.after(100, self._poll)
+        # videos dragged onto the window come in through self.q (see cvdrop: not a Tk call
+        # inside Windows' message), once the window is on the screen
+        self.after(300, lambda: self.winfo_exists() and cvdrop.accept_drops(
+            self, lambda paths: self.q.put(("call", lambda: self._dropped(paths)))))
         self._watch_for_freezes()
         self._offer_id = self.after(2500, self._offer_problem_note)
         self.after(4000, self._check_update)
@@ -1226,8 +1267,8 @@ class App(tk.Tk):
         words.pack(side="left", fill="x", expand=True, padx=(X(16), X(12)))
         tk.Label(words, text="Choose a movie or episodes", bg=SOFT, fg=INK, font=(HEAD, 13),
                  anchor="w").pack(anchor="w")
-        tk.Label(words, text="For a whole season, open its folder and press Ctrl+A to choose "
-                 "every episode.", bg=SOFT, fg=MUTED, font=(FONT, 9), anchor="w",
+        tk.Label(words, text="Or drag a movie, some episodes or a whole season's folder "
+                 "onto this window.", bg=SOFT, fg=MUTED, font=(FONT, 9), anchor="w",
                  wraplength=wrap_width(260), justify="left").pack(anchor="w", pady=(X(2), 0))
         self.choose_btn = look.Pill(drop.body, "Choose files…", self.pick_files, size=12,
                                     pad=(22, 11))
@@ -2013,6 +2054,29 @@ class App(tk.Tk):
             self.videos = sorted(files, key=natural_key)
             self.outdir = self._remembered_folder()
             self._refresh_labels()
+
+    def _dropped(self, paths):
+        """Files or folders dragged onto the window: their videos are the ones chosen, as
+        Choose files does. On the done page it starts afresh with them; while cleaning,
+        reviewing or saving it only says it's busy."""
+        page = getattr(self, "page_name", None)
+        if page in ("working", "review"):
+            chime()
+            messagebox.showinfo("CleanView", BUSY_DROPPED, parent=self)
+            return
+        if page not in ("setup", "done"):
+            return
+        videos = dropped_videos(paths)
+        if not videos:
+            chime()
+            messagebox.showinfo("CleanView", NOT_VIDEO_DROPPED, parent=self)
+            return
+        if page == "done":
+            self.reset()
+        self.videos = videos
+        self.outdir = self._remembered_folder()
+        self._go_step(1)
+        self._refresh_labels()
 
     def pick_out(self):
         d = filedialog.askdirectory(title="Where should the clean copies go?",
@@ -3895,8 +3959,28 @@ class App(tk.Tk):
 
     def _words_card(self, parent, job, mutes):
         card = self._round_card(parent)
-        tk.Label(card, text="Words to mute", bg=CARD, fg=INK, font=(HEAD, 11)).pack(
-            anchor="w", pady=(0, 4))
+        head = tk.Frame(card, bg=CARD)
+        head.pack(fill="x", pady=(0, 4))
+        tk.Label(head, text="Words to mute", bg=CARD, fg=INK, font=(HEAD, 11)).pack(side="left")
+        # "Show all words" (1.18.115; the owner, 2026-11-16: "if you have several words its a lot
+        # of back and forth. can you put a show all tick above the main section of works to cut
+        # that will show all the word in the box. but also leaving the individual ones too"):
+        # ticked, every word is shown; each row's Show/Hide still works on its own. Kept while
+        # the window is open (the page is built again after a chat change), off each start.
+        reveal_all = tk.BooleanVar(value=getattr(self, "show_all_words", False))
+        rows = []                              # (fill, label, state) of each word
+        if len(mutes) > 1:
+            def show_all(*_):
+                on = bool(reveal_all.get())
+                self.show_all_words = on
+                for fill_, lbl_, state_ in rows:
+                    state_["on"] = on
+                    if lbl_.winfo_exists():
+                        fill_(revealed=on)
+                        lbl_.configure(text="Hide" if on else "Show")
+            ttk.Checkbutton(head, text="Show all words", variable=reveal_all,
+                            command=show_all).pack(side="right")
+            self._show_all_box = reveal_all
         heard = job["analysis"].get("asr") or []
         for n, m in enumerate(mutes):
             v = tk.BooleanVar(value=not m.get("keep"))
@@ -3939,12 +4023,16 @@ class App(tk.Tk):
                     t.insert("end", " " + after + "\u2026")
                 t.configure(state="disabled", height=1 if len(before) + len(after) < 70 else 2)
 
-            def toggle(_e=None, t=line, lbl=show, fill=fill, state={"on": False}):
+            state = {"on": len(mutes) > 1 and bool(reveal_all.get())}
+
+            def toggle(_e=None, t=line, lbl=show, fill=fill, state=state):
                 state["on"] = not state["on"]
                 fill(t, revealed=state["on"])
                 lbl.configure(text="Hide" if state["on"] else "Show")
             show.bind("<Button-1>", toggle)
-            fill()
+            show.configure(text="Hide" if state["on"] else "Show")
+            rows.append((fill, show, state))
+            fill(revealed=state["on"])
             line.pack(side="left", fill="x", expand=True, padx=(6, 0))
             self._answer_box(wrap, m)
 
