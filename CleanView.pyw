@@ -99,6 +99,11 @@ CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = CHIP["AI"] =
 
 # ---------- who you're filtering for: each has its own ticks, remembered separately ----------
 PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adults", "Adults")]
+# step 1's card while files are held over the window (1.18.134)
+DROP_TIP = "Or drag a movie, some episodes or a whole season's folder onto this window."
+DROP_READY = "Let go to choose these."
+DROP_EDGE = 3.0
+DRAG_OFF_MS = 150
 FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "forensic",
                "bullying", "disrespect", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
@@ -614,7 +619,8 @@ class App(tk.Tk):
         # videos dragged onto the window come in through self.q (see cvdrop: not a Tk call
         # inside Windows' message), once the window is on the screen
         self.after(300, lambda: self.winfo_exists() and cvdrop.accept_drops(
-            self, lambda paths: self.q.put(("call", lambda: self._dropped(paths)))))
+            self, lambda paths: self.q.put(("call", lambda: self._dropped(paths))),
+            lambda on: self.q.put(("call", lambda: self._drag_over(on)))))
         self._watch_for_freezes()
         self._offer_id = self.after(2500, self._offer_problem_note)
         self.after(4000, self._check_update)
@@ -1289,14 +1295,15 @@ class App(tk.Tk):
         p1 = pane(1)
         drop = look.Card(p1, fill=SOFT, edge=SOFT_EDGE, radius=16, pad=(20, 18))
         drop.pack(fill="x", padx=(0, X(4)))
+        self.drop_card = drop           # lit up while files are held over the window
         look.Badge(drop.body, "folder", size=54, icon_size=20).pack(side="left")
         words = tk.Frame(drop.body, bg=SOFT)
         words.pack(side="left", fill="x", expand=True, padx=(X(16), X(12)))
         tk.Label(words, text="Choose a movie or episodes", bg=SOFT, fg=INK, font=(HEAD, 13),
                  anchor="w").pack(anchor="w")
-        tk.Label(words, text="Or drag a movie, some episodes or a whole season's folder "
-                 "onto this window.", bg=SOFT, fg=MUTED, font=(FONT, 9), anchor="w",
-                 wraplength=wrap_width(260), justify="left").pack(anchor="w", pady=(X(2), 0))
+        self.drop_tip = tk.Label(words, text=DROP_TIP, bg=SOFT, fg=MUTED, font=(FONT, 9),
+                                 anchor="w", wraplength=wrap_width(260), justify="left")
+        self.drop_tip.pack(anchor="w", pady=(X(2), 0))
         self.choose_btn = look.Pill(drop.body, "Choose files…", self.pick_files, size=12,
                                     pad=(22, 11))
         self.choose_btn.pack(side="right")
@@ -1767,6 +1774,22 @@ class App(tk.Tk):
         self.profiles[self.profile] = dict(PRESETS[self.profile])
         self._set_filters(self.profiles[self.profile])
 
+    # Young kids and Kids go back to their standard ticks after every scan; Teens and Adults
+    # keep theirs (1.18.134; the owner, 2026-11-18: "if someone scan an adult movie and had it
+    # on kids and unchecked something it stays unticked for kids movie next time", "can we
+    # make it so teen and adult remember their ticks, but after every scan kids and young kids
+    # go back to defaault")
+    FRESH_AGES = ("young", "kids")
+
+    def _fresh_young_ages(self):
+        """After Start cleaning (the scan has its own copy of the ticks): Young kids and Kids
+        back to standard, on screen too when one of them is chosen, and saved."""
+        for p in self.FRESH_AGES:
+            self.profiles[p] = dict(PRESETS[p])
+        if getattr(self, "profile", None) in self.FRESH_AGES:
+            self._set_filters(self.profiles[self.profile])
+        self._save_settings()
+
     # ---------- Claude / ChatGPT ----------
     def _cloud(self):
         """The online AI picked under "Who reads the dialogue", or None."""
@@ -2110,6 +2133,37 @@ class App(tk.Tk):
             self.outdir = self._remembered_folder()
             self._refresh_labels()
 
+    def _drag_over(self, on):
+        """Files held over the window (1.18.134; the owner, 2026-11-18: "when someone drags a
+        file over clean view it drops fine, but their should be a visual that it is ready to
+        drop. maybe highlight a border around the big oval that has the file picker"): on the
+        start page, step 1 is shown and its "Choose a movie or episodes" card gets a thick
+        green edge and says to let go. Windows says "left" and "entered" as the mouse moves
+        between the window's parts, so letting go of the light waits a moment."""
+        if getattr(self, "_drag_off_id", None):
+            self.after_cancel(self._drag_off_id)
+            self._drag_off_id = None
+        if not on:
+            self._drag_off_id = self.after(DRAG_OFF_MS, lambda: self._light_drop(False))
+            return
+        if getattr(self, "page_name", None) == "setup":
+            if getattr(self, "_setup_step", 1) != 1:
+                self._go_step(1)
+            self._light_drop(True)
+
+    def _light_drop(self, on):
+        self._drag_off_id = None
+        card, tip = getattr(self, "drop_card", None), getattr(self, "drop_tip", None)
+        if card is None or not card.winfo_exists():
+            return
+        if on:
+            card.recolour(edge=ACCENT, edge_w=DROP_EDGE)
+        else:
+            card.recolour(edge=SOFT_EDGE, edge_w=1.0)
+        if tip is not None and tip.winfo_exists():
+            tip.config(text=DROP_READY if on else DROP_TIP, fg=ACCENT if on else MUTED,
+                       font=(HEAD, 10) if on else (FONT, 9))
+
     def _dropped(self, paths):
         """Files or folders dragged onto the window: their videos are the ones chosen, as
         Choose files does. On the done page it starts afresh with them; while cleaning,
@@ -2196,6 +2250,7 @@ class App(tk.Tk):
                 return
         finally:
             self.config(cursor="")
+        self._fresh_young_ages()        # this scan has its ticks; the next starts at standard
         self.cancel_flag = self.stop_after = False
         self.at_once = self._at_once()
         self._check_every_ai()

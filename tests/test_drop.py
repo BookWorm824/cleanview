@@ -198,6 +198,55 @@ class OnTheWindow(unittest.TestCase):
         self.assertEqual([os.path.normcase(v) for v in self.app.videos],
                          sorted(os.path.normcase(e) for e in eps))
 
+    def leave_target(self):
+        """IDropTarget::DragLeave (method 5), as Windows calls it."""
+        import ctypes
+        target = next(t for t in reversed(cvdrop._kept) if isinstance(t, cvdrop.DropTarget))
+        vtbl = ctypes.cast(ctypes.c_void_p(target.pointer),
+                           ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))[0]
+        fn = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)(vtbl[5])
+        self.assertEqual(fn(target.pointer), 0)
+
+    def test_lit_up_while_held_over(self):
+        # 1.18.134 (the owner: "their should be a visual that it is ready to drop. maybe
+        # highlight a border around the big oval that has the file picker")
+        app = self.app
+        app._go_step(3)                                  # elsewhere on the start page
+        movie, = make(self.tmp.name, "Held/Over.mkv")
+        data = self.shell_data(movie)
+        self.assertEqual(self.call_target(3, data), cvdrop.DROPEFFECT_COPY)   # held over
+        self.pump(0.4)
+        self.assertEqual(app._setup_step, 1)             # the card can be seen
+        self.assertEqual(app.drop_card.edge, ui.ACCENT)
+        self.assertEqual(app.drop_card.edge_w, ui.DROP_EDGE)
+        self.assertEqual(app.drop_tip.cget("text"), ui.DROP_READY)
+        self.leave_target()                               # dragged away again
+        self.pump(0.5)
+        self.assertEqual(app.drop_card.edge, ui.SOFT_EDGE)
+        self.assertEqual(app.drop_tip.cget("text"), ui.DROP_TIP)
+        self.assertEqual(app.videos, [])
+
+    def test_light_goes_off_when_dropped(self):
+        app = self.app
+        movie, = make(self.tmp.name, "Held/Dropped.mkv")
+        data = self.shell_data(movie)
+        self.call_target(3, data)
+        self.call_target(6, data)
+        self.pump(0.6)
+        self.assertEqual(app.drop_card.edge, ui.SOFT_EDGE)
+        self.assertEqual([os.path.normcase(v) for v in app.videos], [os.path.normcase(movie)])
+
+    def test_a_quick_leave_and_enter_doesnt_flicker(self):
+        app = self.app
+        app._drag_over(True)
+        app._drag_over(False)                             # moving between the window's parts
+        app._drag_over(True)
+        self.pump(0.4)
+        self.assertEqual(app.drop_card.edge, ui.ACCENT)
+        app._drag_over(False)
+        self.pump(0.4)
+        self.assertEqual(app.drop_card.edge, ui.SOFT_EDGE)
+
     def test_other_messages_still_reach_the_window(self):
         self.app.title("CleanView drop test")
         self.pump(0.1)

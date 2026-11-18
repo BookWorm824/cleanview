@@ -804,6 +804,28 @@ COON_INSULT_BEFORE = {"you", "ya", "dirty", "damn", "damned", "lazy", "filthy", 
 COON_REACH = 30
 
 
+# A dam heard as the swear (1.18.134; When Calls the Heart, no subtitles: "...doing everything
+# in my power to hold the dam back" before a goodbye): "hold/keep the ... back", "the ...
+# burst/broke/gave way", "a beaver ...".
+DAM_HOLD = {"hold", "holds", "held", "holding", "keep", "keeps", "kept", "keeping"}
+DAM_NEXT = {"burst", "bursts", "bursting", "broke", "breaks", "breaking", "collapsed",
+            "overflowed", "overflowing", "gave"}
+DAM_BEFORE = {"beaver", "beavers", "hoover", "hydroelectric", "concrete", "earthen"}
+
+
+def dam_water(words, i):
+    """Is "damn" at words[i] a dam: "hold the ... back", "the ... burst", "a beaver ..."?"""
+    prev = words[i - 1] if i else ""
+    nxt = words[i + 1] if i + 1 < len(words) else ""
+    if prev in DAM_BEFORE:
+        return True
+    if prev not in ("the", "a", "that", "this"):
+        return False
+    if nxt == "back" and i >= 2 and words[i - 2] in DAM_HOLD:
+        return True
+    return nxt in DAM_NEXT
+
+
 def coon_animal(words, i):
     """Is "coon"/"coons" at words[i] the animal: raccoon words close by, not said at someone?"""
     if (words[i - 1] if i else "") in COON_INSULT_BEFORE:
@@ -818,6 +840,7 @@ def old_word_innocent(words, i, wb):
     near = set(words[max(0, i - 10):i + 11])
     return (wb in ("ass", "asses") and ass_animal(words, i) or
             wb in ("coon", "coons") and coon_animal(words, i) or
+            wb == "damn" and dam_water(words, i) or
             wb in ("faggot", "faggots") and bool(FAGGOT_WOOD & near) or
             wb in ("boobies", "booby") and bool(BOOBY_BIRDS & near) or
             wb == "stupid" and stupid_dazed(words, i))
@@ -1189,6 +1212,10 @@ MY_GOD_AFTER = {"are", "art", "be"}
 CALL_YOU = {("call", "you"), ("call", "thee"), ("called", "you"), ("calls", "you")}
 
 
+# "Dear Lord, please help us." said to God (When Calls the Heart, 1.18.134); "Dear God, when
+# I came here..." (Christy) can't be told from an oath and stays
+DEAR_PRAYER_NEXT = {"please", "thank", "forgive", "bless", "grant", "hear", "watch", "protect",
+                    "guide"}
 THANK_GOD_AND = {"seek", "pray", "praise", "trust", "ask", "keep", "give", "worship"}
 
 
@@ -1204,6 +1231,8 @@ def prayer(words, i, ph):
         return True                       # "Oh God. Help me know what to do."
     if ph in (("dear", "god"), ("dear", "lord")) and prev == "please":
         return True                       # "Please, dear God, let him live"
+    if ph in (("dear", "god"), ("dear", "lord")) and after[:1] and after[0] in DEAR_PRAYER_NEXT:
+        return True                       # "Dear Lord, please help us." (1.18.134)
     if ph in (("thank", "god"), ("thank", "the", "lord")) and after[:1] == ["and"] and \
             len(after) > 1 and after[1] in THANK_GOD_AND:
         return True                       # "Thank God and seek faith." (Christy, 1.18.133)

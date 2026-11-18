@@ -66,7 +66,7 @@ class ThePickedLanguageChecked(unittest.TestCase):
                 progress(1.0)
             return words(heard_other if rec == "other" else heard_english)
 
-        def subtitles(path, info, work, o, log=print):
+        def subtitles(path, info, work, o, log=print, **k):
             subs_for.append((o.get("language"), cvlang.LANG))
             return [], "", None, "none online"
         self.multi = support.SANDBOX / "multi-model"

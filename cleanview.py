@@ -585,11 +585,13 @@ def online(timeout=1.5):
     return bool(got)
 
 
-def fetch_subtitles(path, info, work, o, log=print):
+def fetch_subtitles(path, info, work, o, log=print, remember_miss=True, again=False):
     """The subtitles: a matching .srt or a text track (find_subtitles), else (if "find
     subtitles online" is on) ones downloaded before, or a download now unless none were online
     last time. Needs only the file, so analyze() runs it while it listens (1.18.46).
-    Returns (cues, note, downloaded_text, why)."""
+    Returns (cues, note, downloaded_text, why). remember_miss: keep a "none online" for a
+    few days (a scan's first try doesn't: it asks again during the picture, 1.18.134);
+    again: ask even if none were online lately."""
     work = Path(work)
     cues, sub_note = find_subtitles(path, info, work, cvlang.known(o.get("language")))
     text, why = None, ""
@@ -602,7 +604,7 @@ def fetch_subtitles(path, info, work, o, log=print):
                      (work / _lang_file("downloaded.txt")).read_text("utf8"))
     elif o.get("offline"):            # she chose to clean without (no internet just now)
         why = NO_INTERNET
-    elif not remembered_miss(miss):
+    elif again or not remembered_miss(miss):
         try:
             text, why = download_subtitles(path, work, log)
         except Exception as ex:
@@ -610,7 +612,7 @@ def fetch_subtitles(path, info, work, o, log=print):
         if text:
             dl.write_text(text, encoding="utf8")
             (work / _lang_file("downloaded.txt")).write_text(why, encoding="utf8")
-        elif why.startswith(MISS_REMEMBER):   # only remember "none online", never an error
+        elif why.startswith(MISS_REMEMBER) and remember_miss:   # "none online", never an error
             miss.write_text(why + "\n" + SUB_LOOKUP, encoding="utf8")
         elif miss.exists():
             miss.unlink()
@@ -749,9 +751,16 @@ def title_name(path):
 
 
 MISS_REMEMBER = "no matching subtitles were found online"
+# the subtitle site lists some but sent none (When Calls the Heart, 1.18.134: nothing came
+# during her scan, and the 2013 movie's came straight away afterwards); never remembered
+SITE_DIDNT_SEND = "the subtitle site has some but didn't send them this time"
+# nothing this time: asked once more this long after, while the picture is watched
+SUB_RETRY_WAIT = 60
+SUB_RETRY_WHEN = (MISS_REMEMBER, SITE_DIDNT_SEND, "the subtitle sites couldn't be reached",
+                  "the subtitle finder ran into a problem")
 # A remembered miss counts only for the same way of looking: older ones are looked up again
 # (1.18.34 looks movies up as movies: "50 First Dates" had been episode 50 of "First Dates").
-SUB_LOOKUP = "looked up as: movie or episode (1.18.34)"
+SUB_LOOKUP = "looked up as: movie or episode (1.18.34), asked twice (1.18.134)"
 
 
 def remembered_miss(miss):
@@ -847,6 +856,12 @@ def download_subtitles(path, workdir, log=print):
     if isinstance(video, subliminal.Movie) and re.search(r"\d", video.title or ""):
         for text, why in other_subtitles(path, log, tries=1):    # "Fifty First Dates"
             return text, why
+    try:                    # the site lists some but sent none: a hiccup, not "none online"
+        listed = subliminal.list_subtitles({video}, {_sub_language()}).get(video) or []
+    except Exception:
+        listed = []
+    if listed:
+        return None, SITE_DIDNT_SEND
     return None, "no matching subtitles were found online"
 
 
@@ -2375,7 +2390,7 @@ FORENSIC_TERMS = [
 
 # "hooked up with" an agency or a group is teaming up, not sleeping around (1.18.133;
 # Criminal Minds S1E3: "MORGAN HOOKED UP WITH ATF." had "hooked up with" muted)
-HOOKUP_NOT = (r"atf|fbi|cia|dea|nsa|dhs|ice|irs|nypd|lapd|interpol|homeland|the (?:atf|fbi|cia|dea|nsa|dhs|police|cops|team|rest|others|group|band|unit|squad|bureau|agency|department|feds|crew|lab|locals|local p\.?d\.?|press)|local (?:p\.?d\.?|police|cops)|cops|police|us later|a lawyer|an agent|an attorney")
+HOOKUP_NOT = (r"atf|fbi|cia|dea|nsa|dhs|ice|irs|nypd|lapd|interpol|homeland|the (?:atf|fbi|cia|dea|nsa|dhs|police|cops|team|rest|others|group|band|unit|squad|bureau|agency|department|feds|crew|lab|locals|local p\.?d\.?|local police|local cops|press)|local (?:p\.?d\.?|police|cops)|cops|police|us later|a lawyer|an agent|an attorney")
 
 LINE_WORDS = {   # only phrases that are hard to mistake
     # not "sex" meaning men or women: "your sex", "the fair sex" (Pride and Prejudice)
@@ -4867,7 +4882,9 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     subs = {}
 
     def get_subs(progress):
-        subs["found"] = fetch_subtitles(path, info, work, o, log)
+        # a "none online" from before isn't asked again; one now is, during the picture
+        subs["remembered"] = remembered_miss(work / _lang_file("no_subtitles_online.txt"))
+        subs["found"] = fetch_subtitles(path, info, work, o, log, remember_miss=False)
     subs_job = in_background(get_subs)
 
     tfile = work / _lang_file("transcript.json")
@@ -5004,6 +5021,43 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         say(at("lang", 0.5), "Looking for subtitles online…")
     wait_for(subs_job, None, cancel)
     cues, sub_note, text, why = subs["found"]
+
+    def watch_picture():
+        what = "Watching the picture" + (" with the picture AI" if use_clip else " for nudity")
+        say(at("vis", 0), what + "…")
+
+        def p_vis(sec):
+            f = at("vis", sec / dur)
+            say(f, f"{what} · {eta(f)}")
+        got = visual_scan(path, vfile, use_clip, p_vis, cancel)
+        notes.extend(got.get("notes", []))
+        return got
+
+    # nothing online this time: asked once more, a minute on, while the picture is watched
+    # (1.18.134; the owner: "is it able to ask again while doing the same movie, while its
+    # doing a picture check?", of When Calls the Heart, whose subtitles came straight away
+    # after her scan had found none). A "none online" is only remembered after both tries.
+    if (not cues and not text and o.get("autosubs") and not o.get("offline") and asr
+            and not subs.get("remembered") and why.startswith(SUB_RETRY_WHEN)):
+        def ask_again(progress):
+            end = time.time() + SUB_RETRY_WAIT
+            while time.time() < end:
+                if cancel and cancel():
+                    return
+                time.sleep(0.5)
+            subs["again"] = fetch_subtitles(path, info, work, o, log, again=True)
+        again_job = in_background(ask_again)
+        if vis_needed and vis is None:
+            vis = watch_picture()
+        if again_job["thread"].is_alive():
+            say(at("vis", 1.0), "Looking for subtitles online once more…")
+        wait_for(again_job, None, cancel)
+        got = subs.get("again")
+        if got and (got[0] or got[2]):
+            cues, sub_note, text, why = got
+            log(f"Subtitles found on the second try: {why}")
+        elif got:
+            why = got[3] or why
     dl = work / _lang_file("downloaded.srt")
     if not cues and o.get("autosubs") and asr:
         if text:
@@ -5118,14 +5172,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     examples = learn.examples(key, on_kinds(o), title_name(path))
 
     if vis_needed and vis is None:
-        what = "Watching the picture" + (" with the picture AI" if use_clip else " for nudity")
-        say(at("vis", 0), what + "…")
-
-        def p_vis(sec):
-            f = at("vis", sec / dur)
-            say(f, f"{what} · {eta(f)}")
-        vis = visual_scan(path, vfile, use_clip, p_vis, cancel)
-        notes += vis.get("notes", [])
+        vis = watch_picture()
     if nd["clip"] and not use_clip:
         notes.append("The picture AI isn't installed, so kissing, gore, smoking and the like "
                      "weren't checked by sight.")

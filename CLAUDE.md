@@ -743,6 +743,51 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   "What? Wow. What?". The rest of that report was right (the "hell" heard for "Elle" was already
   offered unticked; the passionate kiss in the car at 0:50 cut). Her S1E4 report sent again
   that day was the same 1.18.129 scan. `test_criminal_minds.py`.
+- Her When Calls the Heart (Movie) report (1.18.134, 2026-11-18, adults, the AI helper, made on
+  1.18.132, 85 min; from the Drive inbox; the owner: "yes to all"). She unticked all six words
+  and both lines; four words and both lines fit her filters (her choice, not taught: "God help
+  us", "goodness gracious", "Good lord", "Oh my lord", "a Lothario", "womanizing swine"). Two
+  were wrong: "...doing everything in my power to hold the dam back" (46:17, a goodbye, holding
+  back tears) heard as the swear with no subtitles to check it: `cvcore.dam_water` (through
+  `old_word_innocent`) leaves "damn" alone in "hold/keep the ... back" (`DAM_HOLD`), before
+  burst/broke/gave... (`DAM_NEXT`) after the/a/that/this, and after beaver/hydroelectric...
+  (`DAM_BEFORE`); "Close the damn back door!" still counts. "Dear Lord, please help us."
+  (67:17): `prayer` takes "Dear God/Lord" before please/thank/forgive/bless/grant/hear/watch/
+  protect/guide (`DEAR_PRAYER_NEXT`). No past line here reads differently. Also
+  `HOOKUP_NOT` has "the local police/cops" (CleanListen's note on 1.18.133).
+  Why no subtitles (the owner: "why didnt it haev subtitles", then "is it able to ask again
+  while doing the same movie, while its doing a picture check?"): the lookup was right (a
+  movie, "When Calls the Heart"), and right afterwards it found and downloaded the 2013 movie's
+  hearing-impaired ones from opensubtitles; during her scan the site sent none, and the "none
+  online" was remembered for 3 days, so a rescan wouldn't have asked again. Now:
+  `download_subtitles` says `SITE_DIDNT_SEND` (never remembered) when the site lists some but
+  sent none; a scan's first try (`get_subs`) doesn't remember a "none online"
+  (`fetch_subtitles(remember_miss=False)`); when it got nothing for one of `SUB_RETRY_WHEN`'s
+  reasons (and not a "none online" remembered from before), `analyze` asks once more
+  `SUB_RETRY_WAIT` (60 s) later in the background while the picture is watched
+  (`watch_picture`, moved ahead of the subtitle step then), and uses what comes before anything
+  depends on the subtitles; only that second try remembers a "none online" (`again=True` also
+  asks past a remembered one). `SUB_LOOKUP` changed, so misses remembered before (hers) are
+  asked again. `test_when_calls_the_heart.py`. For CleanListen and CleanRead too: the dam and
+  "Dear Lord, please".
+  Also in 1.18.134, Young kids and Kids go back to standard after every scan (the owner: "if
+  someone scan an adult movie and had it on kids and unchecked something it stays unticked for
+  kids movie next time", "can we make it so teen and adult remember their ticks, but after
+  every scan kids and young kids go back to defaault"). `App._fresh_young_ages` (`FRESH_AGES`),
+  called by Start cleaning once the jobs are set (the scan already has its ticks in
+  `scan_opts`): their `profiles` become `PRESETS` again, on screen too when one is chosen, and
+  are saved. Teens and Adults keep what was changed, as before. `test_fresh_ages.py`.
+  Also in 1.18.134, files held over the window light up step 1's card (the owner: "when
+  someone drags a file over clean view it drops fine, but their should be a visual that it is
+  ready to drop. maybe highlight a border around the big oval that has the file picker").
+  `cvdrop.DropTarget(on_hover=)` says True on DragEnter with files and False on DragLeave and
+  Drop (inside Windows' message, so the window only queues `_drag_over`); on the start page it
+  shows step 1 and `_light_drop` gives the "Choose a movie or episodes" card (`drop_card`) a
+  `DROP_EDGE` (3) green edge and its tip (`drop_tip`) says `DROP_READY` ("Let go to choose
+  these.") in green; going off waits `DRAG_OFF_MS` (150), since Windows says left/entered as
+  the mouse crosses the window's parts. Other pages show nothing (a drop there says it's busy,
+  or the done page starts afresh, as before). `test_drop.py`; a real drag from Explorer wasn't
+  tried here (nothing pops up).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

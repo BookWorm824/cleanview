@@ -120,11 +120,14 @@ class DropTarget:
     files are dragged in, and hands their paths to on_files when dropped (inside Windows'
     message, so on_files must not touch Tk)."""
 
-    def __init__(self, on_files):
+    def __init__(self, on_files, on_hover=None):
         ctypes, wintypes, ole32, GUID, FORMATETC, STGMEDIUM = _ole()
         self._c, self._ole32 = ctypes, ole32
         self._FORMATETC, self._STGMEDIUM = FORMATETC, STGMEDIUM
         self.on_files = on_files
+        # files held over the window (True) or not any more (False), to show it's ready to
+        # take them (1.18.134); called inside Windows' message, so it must not touch Tk
+        self.on_hover = on_hover
         self._effect = DROPEFFECT_NONE
         HRESULT, ULONG = ctypes.c_long, wintypes.ULONG
         PDWORD = ctypes.POINTER(wintypes.DWORD)
@@ -195,7 +198,16 @@ class DropTarget:
             self._effect = DROPEFFECT_NONE
         if effect:
             effect[0] = self._effect
+        if self._effect == DROPEFFECT_COPY:
+            self._hover(True)
         return S_OK
+
+    def _hover(self, on):
+        if self.on_hover:
+            try:
+                self.on_hover(on)
+            except Exception:
+                pass
 
     def _over(self, this, keys, pt, effect):
         if effect:
@@ -204,6 +216,7 @@ class DropTarget:
 
     def _leave(self, this):
         self._effect = DROPEFFECT_NONE
+        self._hover(False)
         return S_OK
 
     def _drop(self, this, data, keys, pt, effect):
@@ -215,6 +228,7 @@ class DropTarget:
         if effect:
             effect[0] = DROPEFFECT_COPY if got else DROPEFFECT_NONE
         self._effect = DROPEFFECT_NONE
+        self._hover(False)
         if got:
             try:
                 self.on_files(got)
@@ -223,12 +237,12 @@ class DropTarget:
         return S_OK
 
 
-def ole_drops(handles, on_files):
+def ole_drops(handles, on_files, on_hover=None):
     """Register one DropTarget on each window. The thread must be the window's (Tk's)."""
     try:
         ctypes, wintypes, ole32, *_ = _ole()
         ole32.OleInitialize(None)          # S_OK, or S_FALSE when it was already
-        target = DropTarget(on_files)
+        target = DropTarget(on_files, on_hover)
         ok = False
         for hwnd in handles:
             if ole32.RegisterDragDrop(hwnd, target.pointer) == S_OK:
@@ -241,14 +255,15 @@ def ole_drops(handles, on_files):
         return None
 
 
-def accept_drops(win, on_files):
-    """Let `win` (a Tk or Toplevel, already made) take files dropped on it. True when it can."""
+def accept_drops(win, on_files, on_hover=None):
+    """Let `win` (a Tk or Toplevel, already made) take files dropped on it. True when it can.
+    on_hover(True/False): files are held over it, or not any more (File Explorer's drags)."""
     if os.name != "nt":
         return False
     try:
         win.update_idletasks()
         ctypes, user32, shell32, proc_type = _api()
-        done = ole_drops(window_handles(win), on_files) is not None
+        done = ole_drops(window_handles(win), on_files, on_hover) is not None
         for hwnd in window_handles(win):
             old = {}
 
