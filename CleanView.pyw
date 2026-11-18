@@ -1061,11 +1061,18 @@ class App(tk.Tk):
             self.back_btn.pack(side="left")
         else:
             self.back_btn.pack_forget()
+        # step 1 has no Start cleaning: Next (green there) leads on to the ticks (1.18.134;
+        # the owner, 2026-11-18: "get rid of the green start cleaning button on page 1, by
+        # doing that it leads to page 2 the the tick menus are", "keep the button on 2 and
+        # others")
+        self.start_btn.pack_forget()
+        self.next_btn.pack_forget()
+        if n > 1:
+            self.start_btn.pack(side="right")
         if n < len(self.STEPS):
-            self.next_btn.config(text=f"Next: {self.STEPS[n][0]}")
-            self.next_btn.pack(side="right", padx=(0, self._px(10)))
-        else:
-            self.next_btn.pack_forget()
+            self.next_btn.config(text=f"Next: {self.STEPS[n][0]}",
+                                 kind="primary" if n == 1 else "secondary")
+            self.next_btn.pack(side="right", padx=(0, self._px(10)) if n > 1 else 0)
         self._show_steps()
 
     def _step_summary(self, n):

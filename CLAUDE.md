@@ -788,6 +788,14 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   the mouse crosses the window's parts. Other pages show nothing (a drop there says it's busy,
   or the done page starts afresh, as before). `test_drop.py`; a real drag from Explorer wasn't
   tried here (nothing pops up).
+- Step 1 has no Start cleaning (1.18.135, 2026-11-18; the owner: "i think we should get rid of
+  the green start cleaning button on page 1, by doing that it leads to page 2 the the tick
+  menus are", "keep the button on 2 and others"). `_go_step`: on step 1 `start_btn` isn't shown
+  and "Next: What to remove" is the green (primary) pill; steps 2-4 show Start cleaning as
+  before, with Next white. The steps list on the left can still be clicked. Her Criminal Minds
+  S1E6 report (made on 1.18.132) was right: its four words matched the subtitles, no line went
+  through; the officer executed in the trunk (~21:28-22:02, Disturbing ticked) wasn't cut, not
+  seen here and not taught. `test_sections.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

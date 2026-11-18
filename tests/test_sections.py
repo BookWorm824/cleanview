@@ -163,6 +163,21 @@ class Steps(unittest.TestCase):
         self.assertFalse(self.app.back_btn.winfo_manager(), "nothing to go back to")
         self.assertEqual(self.app.next_btn.cget("text"), "Next: What to remove")
 
+    def test_step_one_leads_on_to_the_ticks(self):
+        # 1.18.134 (the owner: "get rid of the green start cleaning button on page 1, by doing
+        # that it leads to page 2 the the tick menus are", "keep the button on 2 and others")
+        app = self.app
+        self.assertFalse(app.start_btn.winfo_manager(), "no Start cleaning on step 1")
+        self.assertEqual(app.next_btn.cget("kind"), "primary")          # Next is the green one
+        app.next_btn.invoke()
+        for step in (2, 3, 4):
+            self.assertTrue(app.start_btn.winfo_manager(), f"Start cleaning on step {step}")
+            if step < 4:
+                self.assertEqual(app.next_btn.cget("kind"), "secondary")
+                app.next_btn.invoke()
+        app._go_step(1)                                   # back on step 1 from the list
+        self.assertFalse(app.start_btn.winfo_manager())
+
     def test_next_and_back(self):
         self.app.next_btn.invoke()
         self.assertEqual(self.shown(), [2])
