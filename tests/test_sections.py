@@ -217,7 +217,7 @@ class Steps(unittest.TestCase):
         app._profile_changed()
         self.assertEqual(said(2), "Teens")
         app.opts["reader"].set("claude")
-        self.assertEqual(said(3), "Claude")
+        self.assertEqual(said(3), "Claude (Sonnet)")      # the model too (1.18.130)
         app.opts["reader"].set("local")
         self.assertEqual(said(3), "This PC")
         app.opts["ai"].set(False)

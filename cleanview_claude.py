@@ -20,7 +20,30 @@ from pathlib import Path
 
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
-MODEL = os.environ.get("CLEANVIEW_CLAUDE_MODEL", "sonnet")
+# The Claude models she can pick on the start page (1.18.130; the owner, 2026-11-18: "I
+# need to be able to select what model I use (fable should NEVER be a default)"). Anything
+# else, an old setting or a model not on this list, is Sonnet.
+MODELS = [("sonnet", "Sonnet"), ("opus", "Opus"), ("haiku", "Haiku")]
+DEFAULT_MODEL = "sonnet"
+
+
+def pick_model(model):
+    model = str(model or "").strip().lower()
+    return model if model in dict(MODELS) else DEFAULT_MODEL
+
+
+def set_model(model):
+    """Use this Claude model from now on (one of MODELS; anything else is Sonnet)."""
+    global MODEL
+    MODEL = pick_model(model)
+    return MODEL
+
+
+def model_name(model=None):
+    return dict(MODELS)[pick_model(model or MODEL)]
+
+
+MODEL = pick_model(os.environ.get("CLEANVIEW_CLAUDE_MODEL", DEFAULT_MODEL))
 # Windows refuses a command line over 32,767 characters; a longer prompt goes through stdin
 LONG_ARGS = 24_000
 

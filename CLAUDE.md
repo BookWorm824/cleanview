@@ -653,6 +653,19 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   chat on that report: "...autopsy protocol says what?" kept ("this seems ok"; her choice, not
   taught: coroner talk) and only "you can't get it up" muted (1.18.127's list already mutes
   just those words). `test_reuse_scan.py`.
+- She picks the Claude model (1.18.130, 2026-11-18; the owner: "claude is using fable in the
+  app...this should not be...I need to be able to select what model I use (fable should NEVER be
+  a default)", then "Add a CleanView picker"). CleanView already always ran `claude --model
+  sonnet`; the Fable she saw was likely the Claude desktop app itself. Step 3 shows "Claude model"
+  (Sonnet / Opus / Haiku, `cc.MODELS`, a `look.Segmented` with the white oval) under the cards
+  when Claude is picked, with a line on each; saved as `claude_model` in the settings, Sonnet
+  unless she picks another (`cc.DEFAULT_MODEL`). `cc.pick_model` turns anything not on the list
+  (an old setting, Fable, a full model id) into Sonnet; `cc.set_model` sets `cc.MODEL` (which
+  goes to `--model` and the saved answers' key) when the choice changes and when the page is
+  built, and `analyze` sets it from the options where it picks Claude (`o["claude_model"]`, in
+  a worker process too). Step 3's summary says "Claude (Opus)". Not in `DEFAULTS`, so a saved
+  scan is still used after changing it. ChatGPT and Gemini keep their own plan's default.
+  `test_claude_model.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

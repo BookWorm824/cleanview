@@ -1073,6 +1073,8 @@ class App(tk.Tk):
         if n == 3:
             o = getattr(self, "opts", {})
             r = o["reader"].get() if "reader" in o else "local"
+            if r == "claude" and "claude_model" in o:
+                return f"Claude ({cc.model_name(o['claude_model'].get())})"
             if r in cc.NAMES:
                 return cc.name(r)
             return "This PC" if o.get("ai") is None or o["ai"].get() else "Off"
@@ -1618,8 +1620,26 @@ class App(tk.Tk):
             card.grid(row=n // 2, column=n % 2, sticky="nsew", padx=(0, X(10)), pady=(0, X(10)))
         status = tk.Frame(p3, bg=BG)
         status.pack(fill="x", pady=(X(4), 0))
+        # which Claude model (1.18.130; the owner, 2026-11-18: "I need to be able to select
+        # what model I use (fable should NEVER be a default)"): Sonnet unless she picks another
+        mv = tk.StringVar(value=cc.pick_model(saved.get("claude_model")))
+        self.opts["claude_model"] = mv
+        cc.set_model(mv.get())
+        self.model_row = tk.Frame(status, bg=BG)
+        mtop = tk.Frame(self.model_row, bg=BG)
+        mtop.pack(fill="x")
+        tk.Label(mtop, text="Claude model", bg=BG, fg=INK, font=(HEAD, 10)).pack(
+            side="left", padx=(0, X(12)))
+        look.Segmented(mtop, cc.MODELS, mv, size=10, tray=AGE_TRAY, dim=AGE_TEXT,
+                       edge=LINE).pack(side="left")
+        tk.Label(self.model_row, text="Sonnet is the usual choice. Opus is the most careful but "
+                 "uses more of your plan and is slower. Haiku is the quickest but misses more.",
+                 bg=BG, fg=MUTED, font=(FONT, 9), wraplength=wrap_width(560),
+                 justify="left").pack(anchor="w", pady=(X(4), X(8)))
+        mv.trace_add("write", lambda *_: cc.set_model(mv.get()))
         crow = tk.Frame(status, bg=BG)
         crow.pack(fill="x")
+        self._claude_crow = crow
         self.claude_lbl = tk.Label(crow, text="", bg=BG, fg=MUTED, font=(FONT, 9),
                                    wraplength=wrap_width(380), justify="left")
         self.claude_lbl.pack(side="left")
@@ -1758,6 +1778,13 @@ class App(tk.Tk):
         lbl = getattr(self, "claude_lbl", None)
         if lbl is None or not lbl.winfo_exists():
             return
+        row = getattr(self, "model_row", None)
+        if row is not None and row.winfo_exists():
+            if p == "claude":
+                if not row.winfo_manager():
+                    row.pack(fill="x", before=self._claude_crow)
+            else:
+                row.pack_forget()
         if not p:
             lbl.config(text="")
             self.claude_btn.pack_forget()

@@ -5042,6 +5042,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     pics, pics_job = {}, None
     if o.get("reader") in CLOUD and o.get("look", True) and dur > 5 and pictures_wanted(path, o):
         cc.use(o["reader"])
+        cc.set_model(o.get("claude_model"))     # the Claude model she picked (1.18.130)
         heard_now, cues_now = json.loads(json.dumps(asr)), json.loads(json.dumps(cues))
 
         def look_through(progress):
@@ -5138,6 +5139,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     genders = None
     if o.get("reader") in CLOUD:
         cc.use(o["reader"])
+        cc.set_model(o.get("claude_model"))
     who = cc.name()
     if voices_wanted:
         # it says nothing while it works, so the bar moves by the time it's expected to take
