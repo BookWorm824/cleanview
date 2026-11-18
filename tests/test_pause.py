@@ -181,7 +181,7 @@ class TheWindow(unittest.TestCase):
         from test_ui import ui
         import inspect
         src = inspect.getsource(ui.App.show_working)
-        self.assertIn('text="Pause"', src)
+        self.assertIn('"Resume" if engine.PAUSE.on else "Pause"', src)   # as it was (1.18.132)
         self.assertIn("toggle_pause", src)
         for name in ("cancel", "_on_close", "_run_workers"):
             self.assertIn("engine.PAUSE.resume()", inspect.getsource(getattr(ui.App, name)),

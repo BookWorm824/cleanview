@@ -676,6 +676,31 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   THINKING OF YOU." (26:00), two rape case-talk lines the AI helper muted with coroner talk off
   (21:29, 28:12), Graney's attack on the mother (~33:50-34:05, not seen here) as a taught scene,
   "Redskins" (the team, 39:43-40:09). `test_reports_nov.py`.
+- The videos done can be reviewed while the rest are checked (1.18.132, 2026-11-18; the owner,
+  with a screenshot of The Resident S01E09-E14, two done and two being watched: "2 show they
+  are done going through...can you make it where you can go ahead and review them so there is
+  less down time"). The progress page has "Review the 2 done now" (`early_btn`, Go style, left
+  of the footer) once a video is done and the scan is still going (`_still_scanning`: the
+  analyze thread's run, `_scan_run`, is the current one and alive). It opens the usual review
+  page with the videos done (show_review takes every job with an analysis), and the scan goes
+  on (its messages update nothing there). A note at the top (`_early_text`, NOTE colours) says
+  how many are still being checked and, as each finishes, "1 more is ready to review: <name>"
+  with "Add it"/"Add them" (`_add_finished`: her ticks synced, the page built again with it,
+  `_on_page`); "See progress" goes back to the progress page as it was (`_back_to_progress`,
+  `show_working(again=True)`: each video's state, note, the bar, Pause and "Stop after"
+  replayed from `_job_seen`, `_job_said`, `_last_frac`). Not added by itself, so the page
+  never jumps while she's reviewing (another rebuild, like a chat change, includes them too).
+  Save waits until every video is checked (says so); finished ones not yet on the page are
+  added first ("Have a look at them, then save"). When the scan ends while she's reviewing,
+  the page stays (`after_analyze` only updates the note). "◀ Back to start" asks first and
+  stops the rest (her review of the done ones is kept). Saving is still one run for all, as
+  before (a save while checking would stop the check: `_start_work`).
+  "Jump to:" on the Found tab (the owner: "CleanListen has a list at the top where you can
+  jump to different sections that it removed...can you add that to CleanView as well"): one
+  video, "Scenes (2)  Lines (5)  Words (25)  Loud music (1)"; several, each video
+  ("S01E09 (14)", `_episode_label`), as CleanListen's `_jump_to` (aims again as cards settle).
+  Not shown with only one part. `test_early_review.py`; not seen on her screen (tests draw
+  nothing she can see).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

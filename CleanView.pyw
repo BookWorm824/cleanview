@@ -2264,11 +2264,16 @@ class App(tk.Tk):
             self.logo.itemconfigure(self._logo_item, image=self._logo_img)
             self._sweeper.set_backdrop(back)
 
-    def show_working(self, title, videos=None, can_stop=False):
+    def show_working(self, title, videos=None, can_stop=False, again=False):
         """The progress page. videos: the files being worked on, listed with how each
         is going when there are several. can_stop: offer "Stop after this video" (finish
-        the one being worked on, skip the rest, and go on to the review)."""
+        the one being worked on, skip the rest, and go on to the review). again: shown
+        again after reviewing the videos already done, as it was (1.18.132)."""
         self.page_name = "working"
+        if can_stop:
+            self._work_title = title
+        if not again:
+            self._job_seen, self._job_said, self._last_frac = {}, {}, 0.0
         videos = videos or [j["video"] for j in self.jobs]
         n = len(videos)
         what = f"These {n} videos" if n > 1 else "This video"
@@ -2312,8 +2317,10 @@ class App(tk.Tk):
                     paused=lambda: engine.PAUSE.on)
                 self._sweeper.start()
                 mid.bind("<Configure>", lambda e, mid=mid: self._fit_logo(mid))
-        self._work_n, self._work_t0 = n, None
-        self.stop_after = False
+        self._work_n = n
+        if not again:
+            self._work_t0 = None
+            self.stop_after = False
         self.job_rows, self.job_frames, self.job_notes = [], [], []
         if n > 1 and can_stop:           # how many are worked on at the same time
             top = tk.Frame(p, bg=BG)
@@ -2350,15 +2357,116 @@ class App(tk.Tk):
         self.cancel_btn = ttk.Button(self.footer, text="Cancel", style="Plain.TButton",
                                      command=self.cancel)
         self.cancel_btn.pack(side="right")
-        engine.PAUSE.resume()            # new work never starts paused
-        self.pause_btn = ttk.Button(self.footer, text="Pause", style="Plain.TButton",
-                                    command=self.toggle_pause)
+        if not again:
+            engine.PAUSE.resume()        # new work never starts paused
+        self.pause_btn = ttk.Button(self.footer, text="Resume" if engine.PAUSE.on else "Pause",
+                                    style="Plain.TButton", command=self.toggle_pause)
         self.pause_btn.pack(side="right", padx=(0, 8))
         self.stop_btn = None
         if n > 1 and can_stop:
-            self.stop_btn = ttk.Button(self.footer, text=self._stop_label(),
+            self.stop_btn = ttk.Button(self.footer, text="Keep going with all of them"
+                                       if self.stop_after else self._stop_label(),
                                        style="Plain.TButton", command=self.toggle_stop_after)
             self.stop_btn.pack(side="right", padx=(0, 8))
+        # the videos done so far can be reviewed while the rest are checked (1.18.132; the
+        # owner, 2026-11-18, of a season 2 at once: "2 show they are done going
+        # through...can you make it where you can go ahead and review them so there is less
+        # down time")
+        self.early_btn = None
+        if n > 1 and can_stop:
+            self.early_btn = ttk.Button(self.footer, text="", style="Go.TButton",
+                                        command=self.show_review)
+        if again:
+            for k, seen in sorted(getattr(self, "_job_seen", {}).items()):
+                self._job_state(k, *seen)
+            for k, said in getattr(self, "_job_said", {}).items():
+                if (getattr(self, "_job_seen", {}).get(k) or ("",))[0] == "now":
+                    self._job_note(k, said)
+            self.pb["value"] = int(max(0.0, min(1.0, getattr(self, "_last_frac", 0.0))) * 1000)
+            doing = getattr(self, "_doing", {})
+            self.which.config(text=doing.get("which") or "")
+            self.status.config(text=self.PAUSED_SAID if engine.PAUSE.on else
+                               doing.get("status") or "")
+            if self.stop_after:
+                self.stop_after = False      # said again as it was
+                self.toggle_stop_after()
+        self._early_button()
+
+    def _still_scanning(self):
+        """Videos are still being watched and listened to (the review page may be open)."""
+        t = getattr(self, "work_thread", None)
+        return (getattr(self, "_scan_run", None) is not None and
+                self._scan_run == getattr(self, "run", 0) and t is not None and t.is_alive())
+
+    def _early_button(self):
+        """"Review the 2 done now" on the progress page, once some are done and the rest
+        are still being checked."""
+        btn = getattr(self, "early_btn", None)
+        if btn is None or not btn.winfo_exists():
+            return
+        done = [j for j in self.jobs if j.get("analysis")]
+        if done and self._still_scanning():
+            btn.config(text=f"Review the {len(done)} done now" if len(done) > 1 else
+                       "Review the one done now")
+            if not btn.winfo_manager():
+                btn.pack(side="left")
+        else:
+            btn.pack_forget()
+
+    EARLY_SAID = ("You can review these while the rest are checked. Each video can be added "
+                  "here as soon as it's done, and they're all saved together at the end.")
+
+    def _early_news(self):
+        """The line at the top of the review page while videos are still being checked:
+        how many are left, and "Add it" once another is done."""
+        lbl = getattr(self, "_early_text", None)
+        if lbl is None or not lbl.winfo_exists():
+            return
+        on_page = getattr(self, "_on_page", set())
+        ready = [j for j in self.jobs if j.get("analysis") and id(j) not in on_page]
+        left = [j for j in self.jobs
+                if not (j.get("analysis") or j.get("error") or j.get("skipped"))]
+        if not left and not ready:
+            self._early_card.destroy()       # every video is on the page: nothing to say
+            return
+        n = len(left)
+        said = (f"Still checking {n} more video{'s' if n != 1 else ''}. " if left and
+                self._still_scanning() else "Every video has been checked. ")
+        if ready:
+            said += (f"{len(ready)} more {'is' if len(ready) == 1 else 'are'} ready to review: "
+                     f"{', '.join(short(Path(j['video']).stem, 40) for j in ready[:3])}"
+                     f"{'…' if len(ready) > 3 else ''}.")
+        else:
+            said += self.EARLY_SAID
+        lbl.config(text=said)
+        add = self._early_add
+        add.config(text="Add it" if len(ready) == 1 else "Add them")
+        if ready and not add.winfo_manager():
+            add.pack(side="right", padx=(self._px(8), 0))
+        elif not ready:
+            add.pack_forget()
+        prog = self._early_prog
+        if not self._still_scanning():
+            prog.pack_forget()
+
+    def _add_finished(self):
+        """The videos done since the review page was opened, added to it (her ticks kept)."""
+        for j in [j for j in self.jobs if j.get("analysis") and id(j) in self._on_page]:
+            self._sync_job(j)
+        try:
+            tab = self._nb.index(self._nb.select())
+        except Exception:
+            tab = 0
+        self.show_review(tab)
+        self._save_session()
+
+    def _back_to_progress(self):
+        """From the review page back to the progress page, her ticks kept."""
+        for j in [j for j in self.jobs if j.get("analysis") and id(j) in self._on_page]:
+            self._sync_job(j)
+        self._save_session()
+        self.show_working(getattr(self, "_work_title", "Watching and listening…"),
+                          can_stop=True, again=True)
 
     PAUSED_SAID = "Paused \u2014 press Resume to carry on."
 
@@ -2465,6 +2573,7 @@ class App(tk.Tk):
 
     def _analyze_now(self, run):
         jobs = self.jobs                   # this run's, even if a new one starts
+        self._scan_run = run               # (the review page can open meanwhile, 1.18.132)
 
         def put(msg):
             self.q.put(("for_run", run, msg))
@@ -2848,6 +2957,16 @@ class App(tk.Tk):
         if kind in ("which", "progress"):       # for a note about a freeze
             getattr(self, "_doing", {})["which" if kind == "which" else "status"] = \
                 msg[1] if kind == "which" else msg[2]
+        # each video's state and note, and the bar, for the progress page shown again
+        # after reviewing the finished ones (1.18.132)
+        if kind == "job":
+            self.__dict__.setdefault("_job_seen", {})[msg[1]] = msg[2:]
+        elif kind == "jobmsg":
+            self.__dict__.setdefault("_job_said", {})[msg[1]] = msg[2]
+        elif kind == "progress":
+            self._last_frac = msg[1]
+        elif kind in ("analyzed", "cancelled", "error"):
+            self._scan_run = None
         alive = getattr(self, "pb", None) is not None and self.pb.winfo_exists()
         if kind == "progress" and alive:
             self.pb["value"] = int(max(0.0, min(1.0, msg[1])) * 1000)
@@ -2858,6 +2977,9 @@ class App(tk.Tk):
             self.which.config(text=msg[1])
         elif kind == "job" and alive:
             self._job_state(*msg[1:])
+            self._early_button()
+        elif kind == "job" and self.page_name == "review":
+            self._early_news()
         elif kind == "jobmsg" and alive:
             self._job_note(msg[1], msg[2])
         elif kind == "call":
@@ -3022,6 +3144,12 @@ class App(tk.Tk):
         if not good:
             self.show_setup()
             return
+        if self.page_name == "review":       # she's reviewing the ones done first
+            self._early_news()
+            self._save_session()
+            for j in good:
+                self._thumbs_later(j, lessons=True)
+            return
         # the language it was cleaned in (on Auto, the one CleanView worked out)
         engine.cl.use_language((good[0]["analysis"].get("opts") or {}).get("language"))
         self.show_review()   # always: so every mute and cut can be seen and unticked
@@ -3091,6 +3219,21 @@ class App(tk.Tk):
                            " to add anything it missed.",
                            name=short(Path(good[0]["video"]).stem, 70) +
                            (f" and {len(good) - 1} more" if len(good) > 1 else ""))
+        self._on_page = {id(j) for j in good}       # (the videos on this page)
+        self._early_text = None
+        if self._still_scanning():  # reviewing the ones done while the rest are checked
+            box = self._round_card(p, fill=NOTE, edge=NOTE_EDGE, pad=(14, 10))
+            self._early_card = box.master
+            self._early_text = tk.Label(box, text="", bg=NOTE, fg=INK, font=(FONT, 10),
+                                        justify="left", anchor="w")
+            self._early_prog = ttk.Button(box, text="See progress", style="Small.TButton",
+                                          command=self._back_to_progress)
+            self._early_prog.pack(side="right", padx=(self._px(8), 0))
+            self._early_add = ttk.Button(box, text="Add them", style="Small.TButton",
+                                         command=self._add_finished)
+            self._early_text.pack(side="left", fill="x", expand=True)
+            self._fit_text(self._early_text, box, self._px(260))
+            self._early_news()
         self.scene_vars, self.line_vars, self.word_vars, self.quiet_vars = [], [], [], []
         self._thumb_spots = {}      # id(scene) -> (row, text): where its pictures go
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
@@ -3132,14 +3275,25 @@ class App(tk.Tk):
             ttk.Checkbutton(frow, text=f"Also show the {n_fine} that the AI says are fine "
                             "(they won't be muted or cut)", variable=self.fine_var,
                             command=self._toggle_fine).pack(side="left")
+        # "Jump to:" each part of the list, as CleanListen has (1.18.132; the owner,
+        # 2026-11-18: "CleanListen has a list at the top where you can jump to different
+        # sections that it removed...can you add that to CleanView as well")
+        jump = tk.Frame(t_found, bg=BG)
+        jump.pack(fill="x", pady=(0, 4))
+        spots = []                  # (what, how many, where it starts)
         inner = self._scroll_area(t_found)
         self._found_canvas = inner._canvas
+        self._found_inner = inner
         for ji, j in enumerate(good):
             st = j["analysis"]
             j["_ji"] = ji
             if multi:
-                tk.Label(inner, text=Path(j["video"]).name, bg=BG, fg=INK,
-                         font=(FONT, 12, "bold"), anchor="w").pack(fill="x", padx=8, pady=(14, 0))
+                head = tk.Label(inner, text=Path(j["video"]).name, bg=BG, fg=INK,
+                                font=(FONT, 12, "bold"), anchor="w")
+                head.pack(fill="x", padx=8, pady=(14, 0))
+                s_, l_, w_, _ = vis[id(j)]
+                spots.append((self._episode_label(j["video"]),
+                              len(s_) + len(l_) + len(w_) + len(st.get("quiet") or []), head))
             if st.get("claude_summary"):
                 box = self._round_card(inner, fill=NOTE, edge=NOTE_EDGE)
                 tk.Label(box, text="The AI's review", bg=NOTE,
@@ -3167,17 +3321,29 @@ class App(tk.Tk):
             holder.pack(fill="x")
             self.found_frames[ji] = holder
             scs, lns, wds, _ = vis[id(j)]
+            if scs and not multi:
+                spots.append(("Scenes", len(scs), holder))
             if not scs:
                 tk.Label(holder, text="No scenes to check in this one.", bg=BG,
                          fg=INK, font=(FONT, 10), anchor="w").pack(fill="x", padx=8, pady=(6, 0))
             for sc in scs:
                 self._scene_card(holder, j, sc)
             if lns:
+                mark = self._jump_mark(inner)
                 self._lines_card(inner, j, lns)
+                if not multi:
+                    spots.append(("Lines", len(lns), mark))
             if wds:
+                mark = self._jump_mark(inner)
                 self._words_card(inner, j, wds)
+                if not multi:
+                    spots.append(("Words", len(wds), mark))
             if st.get("quiet"):
+                mark = self._jump_mark(inner)
                 self._music_card(inner, j, st["quiet"])
+                if not multi:
+                    spots.append(("Loud music", len(st["quiet"]), mark))
+        self._jump_row(jump, spots)
 
         self._dialogue_tab(t_dlg, good)
         if keep:
@@ -3221,6 +3387,44 @@ class App(tk.Tk):
         # what was refined, sent in before saving too (Lauren): the ticks as they are now
         ttk.Button(self.footer, text="Send what we refined…", style="Plain.TButton",
                    command=self._send_report_now).pack(side="left")
+
+    @staticmethod
+    def _episode_label(video):
+        """"S01E11" for a jump link, else the start of the name."""
+        m = re.search(r"[Ss](\d{1,2})\s*[Ee](\d{1,3})", Path(video).stem)
+        return f"S{int(m[1]):02d}E{int(m[2]):02d}" if m else short(Path(video).stem, 28)
+
+    def _jump_mark(self, inner):
+        """Where a part of the Found list starts (for "Jump to:")."""
+        mark = tk.Frame(inner, bg=BG, height=1)
+        mark.pack(fill="x")
+        return mark
+
+    def _jump_row(self, row, spots):
+        """"Jump to: Scenes (3)  Lines (5)  Words (12)", or each video when there are
+        several; not shown with only one part."""
+        self._jump_spots = spots
+        if len(spots) < 2:
+            row.pack_forget()
+            return
+        tk.Label(row, text="Jump to:", bg=BG, fg=MUTED, font=(FONT, 9)).pack(side="left")
+        for what, count, where in spots:
+            look.link(row, f"{what} ({count})", lambda w=where: self._jump_to(w),
+                      size=9).pack(side="left", padx=(self._px(8), 0))
+
+    def _jump_to(self, widget):
+        c, inner = self._found_canvas, self._found_inner
+
+        def go():
+            if widget.winfo_exists() and c.winfo_exists():
+                c.update_idletasks()
+                h = max(1, inner.winfo_height())
+                y = widget.winfo_rooty() - inner.winfo_rooty()
+                c.yview_moveto(max(0.0, (y - self._px(4)) / h))
+        go()
+        # pictures and cards settling to their size can move the list: aim again
+        for delay in (120, 400, 900):
+            self.after(delay, go)
 
     def _save_folder(self):
         good = [j for j in self.jobs if j.get("analysis")]
@@ -3292,6 +3496,16 @@ class App(tk.Tk):
                 return False
 
     def _back_to_start(self):
+        if self._still_scanning():
+            chime()
+            if not messagebox.askyesno(
+                    "CleanView", "The other videos are still being checked. Stop checking "
+                    "them and go back to the start?\n\nYour review of the ones done so far is "
+                    "kept.", parent=self):
+                return
+            engine.PAUSE.resume()          # frozen helpers couldn't stop
+            self.run = getattr(self, "run", 0) + 1     # the rest stop at their next check
+            self._scan_run = None
         self._learn_choices()           # learned without saving a copy too (Jason)
         self._save_session()
         self.reset()
@@ -4265,6 +4479,21 @@ class App(tk.Tk):
             pass
 
     def _save_from_review(self):
+        left = [j for j in self.jobs
+                if not (j.get("analysis") or j.get("error") or j.get("skipped"))]
+        if left and self._still_scanning():
+            n = len(left)
+            messagebox.showinfo(
+                "CleanView", f"{n} more video{'s are' if n != 1 else ' is'} still being "
+                "checked. Each one can be added to this page when it's done, and then they're "
+                "all saved together.", parent=self)
+            return
+        if any(j.get("analysis") and id(j) not in getattr(self, "_on_page", set())
+               for j in self.jobs):
+            self._add_finished()
+            messagebox.showinfo("CleanView", "The videos that just finished were added to "
+                                "this page. Have a look at them, then save.", parent=self)
+            return
         for j in self.jobs:
             j["cuts"], j["lines"], j["words"], j["quiet"] = [], [], [], []
         for v, j, m in self.word_vars:
