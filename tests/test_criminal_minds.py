@@ -58,5 +58,66 @@ class TheTaunt(unittest.TestCase):
         self.assertEqual(show["muted_for"][line], "sexref")
 
 
+class Episode3(unittest.TestCase):
+    """Her S1E3 report (1.18.133, made on 1.18.129; the owner: "Yes, fix them")."""
+
+    def test_hooked_up_with_an_agency_is_teaming_up(self):
+        casual = engine.LINE_WORDS["casual"]
+        for line in ("MORGAN HOOKED UP WITH ATF.", "I hooked up with the FBI in Boston.",
+                     "We'll hook up with the team later.", "He hooked up with local P.D."):
+            self.assertIsNone(casual.search(line), line)
+        for line in ("BUT ONLY BECAUSE HE FOUND OUT I HOOKED UP WITH BRANDON.",
+                     "We'll hook up with someone.", "She hooked up with him last night."):
+            self.assertIsNotNone(casual.search(line), line)
+
+    def test_impotent(self):
+        sexref = engine.LINE_WORDS["sexref"]
+        self.assertIsNotNone(sexref.search("YEAH. HE'S IMPOTENT."))
+        self.assertIsNotNone(sexref.search("It's about his impotence."))
+        for line in ("Our existing medications are likely impotent against it.",
+                     "He shook with impotent rage."):
+            self.assertIsNone(sexref.search(line), line)
+
+    def test_two_lines_taught(self):
+        with open(support.ROOT / "shared_learned.json", encoding="utf-8") as f:
+            show = json.load(f)["shows"]["criminal-minds"]
+        for said in ("SIGNATURE'S THE THING THAT THEY GET OFF ON,",
+                     "GIVES THEM AN EMOTIONAL OR SEXUAL RELEASE."):
+            line = learn.norm(said)
+            self.assertIn(line, show["muted"])
+            self.assertEqual(show["muted_for"][line], "sexref")
+
+
+class Episode5(unittest.TestCase):
+    """Her S1E5 report (1.18.133, made on 1.18.132): "my god" heard where the subtitles say
+    "You're killing my daughter!" was muted; only a phrase's first word was compared."""
+
+    def check(self, said, heard, raw):
+        import cvcore as cl
+        sw = said.split()
+        sn = [cl.norm(w) for w in sw]
+        asr_n = [cl.norm(w) for w in heard.split()]
+        mapping = cl.align(sn, asr_n)
+        at = asr_n.index(raw.split()[0])
+        m = {"at": at, "src": "audio", "cat": "deity", "raw": raw, "word": raw}
+        engine.subtitle_word_there([m], mapping, sw, sn, asr_n)
+        return m
+
+    def test_a_phrase_the_subtitles_have_other_words_for(self):
+        m = self.check("Do you- You're killing my daughter! Pick up that phone!",
+                       "do you you're killing my god pick up that phone", "my god")
+        self.assertEqual(m.get("sub"), "daughter!")
+        self.assertTrue(m.get("keep"), "misheard: offered unticked")
+        m = self.check("We walked down to the park this morning. Is that my dog? Sit, boy.",
+                       "we walked down to the park this morning is that my god sit boy",
+                       "my god")
+        self.assertTrue(m.get("keep"))
+
+    def test_a_phrase_that_was_said(self):
+        m = self.check("Oh, my God. What happened?", "oh my god what happened", "my god")
+        self.assertFalse(m.get("keep"))
+        self.assertNotIn("sub", m)
+
+
 if __name__ == "__main__":
     unittest.main()

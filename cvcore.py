@@ -790,10 +790,34 @@ def stupid_dazed(words, i):
     return nxt in STUPID_DAZED_NEXT or (words[i - 1] if i else "") in STUPID_DAZED_PREV
 
 
+# The raccoon (1.18.133; Christy's pilot: Creed's pet Scalawag, "...wash every natural blessed
+# thing before they eat it", "such a specially fine ... that I'm afraid the others will watch
+# him", "They be the best pets"): a raccoon word within COON_REACH words, and not said at
+# someone ("you ...", "dirty ...").
+COON_WORDS = {"raccoon", "raccoons", "racoon", "racoons", "pet", "pets", "wash", "washes",
+              "washed", "washing", "tree", "trees", "treed", "trap", "traps", "trapped",
+              "hound", "hounds", "possum", "possums", "opossum", "opossums", "skunk", "skunks",
+              "squirrel", "squirrels", "critter", "critters", "varmint", "varmints", "pelt",
+              "pelts", "fur", "furs", "tail", "tails", "paws", "den", "cage"}
+COON_INSULT_BEFORE = {"you", "ya", "dirty", "damn", "damned", "lazy", "filthy", "stupid", "dumb",
+                      "black", "ignorant", "uppity", "little", "big"}
+COON_REACH = 30
+
+
+def coon_animal(words, i):
+    """Is "coon"/"coons" at words[i] the animal: raccoon words close by, not said at someone?"""
+    if (words[i - 1] if i else "") in COON_INSULT_BEFORE:
+        return False
+    near = words[max(0, i - COON_REACH):i] + words[i + 1:i + 1 + COON_REACH]
+    return any(w in COON_WORDS for w in near)
+
+
 def old_word_innocent(words, i, wb):
-    """The animal, the bundle of sticks, the seabird, the dazed look (CleanListen 1.17.57)."""
+    """The animal, the bundle of sticks, the seabird, the dazed look (CleanListen 1.17.57),
+    the raccoon (1.18.133)."""
     near = set(words[max(0, i - 10):i + 11])
     return (wb in ("ass", "asses") and ass_animal(words, i) or
+            wb in ("coon", "coons") and coon_animal(words, i) or
             wb in ("faggot", "faggots") and bool(FAGGOT_WOOD & near) or
             wb in ("boobies", "booby") and bool(BOOBY_BIRDS & near) or
             wb == "stupid" and stupid_dazed(words, i))
@@ -1165,6 +1189,9 @@ MY_GOD_AFTER = {"are", "art", "be"}
 CALL_YOU = {("call", "you"), ("call", "thee"), ("called", "you"), ("calls", "you")}
 
 
+THANK_GOD_AND = {"seek", "pray", "praise", "trust", "ask", "keep", "give", "worship"}
+
+
 def prayer(words, i, ph):
     """True if the God/Lord phrase words[i:i+len(ph)] is said to God, not as an oath."""
     j = i + len(ph)
@@ -1177,6 +1204,9 @@ def prayer(words, i, ph):
         return True                       # "Oh God. Help me know what to do."
     if ph in (("dear", "god"), ("dear", "lord")) and prev == "please":
         return True                       # "Please, dear God, let him live"
+    if ph in (("thank", "god"), ("thank", "the", "lord")) and after[:1] == ["and"] and \
+            len(after) > 1 and after[1] in THANK_GOD_AND:
+        return True                       # "Thank God and seek faith." (Christy, 1.18.133)
     if ph == ("my", "god") and (prev in MY_GOD_AFTER or (two, prev) in CALL_YOU):
         return True                       # "that I call You my God"
     return False

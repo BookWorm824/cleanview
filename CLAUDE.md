@@ -701,6 +701,48 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   ("S01E09 (14)", `_episode_label`), as CleanListen's `_jump_to` (aims again as cards settle).
   Not shown with only one part. `test_early_review.py`; not seen on her screen (tests draw
   nothing she can see).
+- Her Criminal Minds S1E3 report (1.18.133, 2026-11-18, adults, the AI helper, made on 1.18.129,
+  53 min; coroner talk ticked; the owner: "Yes, fix them"). "MORGAN HOOKED UP WITH ATF." (1:41,
+  teamed up) had "hooked up with" muted as sleeping around: `LINE_WORDS["casual"]` leaves it out
+  before an agency or group (`HOOKUP_NOT`: ATF, FBI, the police, the team, local P.D., us
+  later...; the captions are all capitals, so it goes by the words). "YEAH. HE'S IMPOTENT."
+  (24:20) went through: `LINE_WORDS["sexref"]` has impotent/impotence/impotency (not "impotent
+  against it", "impotent rage/fury..."). Taught for criminal-minds (sexref): "SIGNATURE'S THE
+  THING THAT THEY GET OFF ON," (12:43) and Gideon's "GIVES THEM AN EMOTIONAL OR SEXUAL RELEASE."
+  (15:31); "get off on" isn't on the list ("get off on the wrong foot", "got off on a
+  technicality"). In the past reviews here only "impotent against it" has the word (left
+  alone), and both "hook up with" lines still count. No scenes were cut; the car bomb (1:04-1:24,
+  "his leg blown off") wasn't seen here. For CleanListen and CleanRead too: the guard and the
+  word. `test_criminal_minds.py`.
+  Also in 1.18.133, her Christy pilot report (adults, the AI helper, made on 1.18.129, 92 min;
+  the owner: "Yes, fix them"). Creed's pet raccoon Scalawag was muted as the slur (29:37, 29:51):
+  `cvcore.coon_animal` (through `old_word_innocent`) leaves "coon(s)" alone with a raccoon word
+  within `COON_REACH` (30) words (`COON_WORDS`: pets, wash, trees, traps, hounds, possums,
+  critters, varmints, fur...), not after `COON_INSULT_BEFORE` (you, dirty, lazy...); Forest
+  Gump's "Coons are trying to get into school" still counts, and no past line here reads
+  differently. "each grade together regardless of sex" (boys and girls) had "sex" muted:
+  `LINE_WORDS["sexref"]` leaves it after regardless/irrespective of, of either/each, age/race
+  and, and before "and age/race". Miss Alice's "Thank God and seek faith." was muted:
+  `cvcore.prayer` takes "thank God/the Lord and" + seek/pray/praise/trust/ask... (`THANK_GOD_AND`);
+  Christy's "Dear God," prayer (37:55) stays muted (too short to tell from an oath). "God, it's
+  just the way things is." (61:49) went through: no subtitles lined up, and the lone "God," check
+  (`bare_god`) only ran on subtitles; `heard_bare_god` now runs it on what was heard when there
+  are none (the heard words keep their punctuation; a pause over `HEARD_PAUSE` 0.8 s starts a
+  new line), English only. Over every past transcript here it finds 19 such lines, all oaths
+  ("God, I hate you.", "God, I completely forgot."). "Christy - Pilot.m4v" was looked up as a
+  movie (subtitles 2% lined up) and learned under movies: `guess_title` reads "<show> - Pilot" as
+  season 1, episode 1 (not "Pilot's Cut", "The Pilot"). Not seen here: the skull operation on
+  Bob Allen (~9:40, Medical ticked, no scene cut). `test_christy.py`. For CleanListen and
+  CleanRead too: the raccoon guard, "regardless of sex", "Thank God and seek faith".
+  Also in 1.18.133, her Criminal Minds S1E5 report (adults, the AI helper, made on 1.18.132, 71
+  min): "my god" was heard and muted where the subtitles say "You're killing my daughter!"
+  (31:13). `subtitle_word_there` compared only a phrase's first word ("my"); it now looks at
+  the phrase's other words too, and one the subtitles write as another ordinary word marks it
+  misheard (`sub`) and offers it unticked (`keep`). In the past reviews here it changes two:
+  "You're all I got, kid" heard as "my god", and a "what the hell" where the subtitles say
+  "What? Wow. What?". The rest of that report was right (the "hell" heard for "Elle" was already
+  offered unticked; the passionate kiss in the car at 0:50 cut). Her S1E4 report sent again
+  that day was the same 1.18.129 scan. `test_criminal_minds.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

@@ -1461,12 +1461,16 @@
   },
   "criminal-minds": {
    "muted": [
-    "what'd they come up with when you fumbled your way into some girl's pants and she started laughing when she got a good look at just"
+    "what'd they come up with when you fumbled your way into some girl's pants and she started laughing when she got a good look at just",
+    "signature's the thing that they get off on",
+    "gives them an emotional or sexual release"
    ],
    "kept": [],
    "ok_words": [],
    "muted_for": {
-    "what'd they come up with when you fumbled your way into some girl's pants and she started laughing when she got a good look at just": "sexref"
+    "what'd they come up with when you fumbled your way into some girl's pants and she started laughing when she got a good look at just": "sexref",
+    "signature's the thing that they get off on": "sexref",
+    "gives them an emotional or sexual release": "sexref"
    }
   }
  },

@@ -699,9 +699,15 @@ def guess_title(path):
     # and the first that lines up with what was heard is used (`other_subtitles`)
     sp = None if m else re.search(SPECIAL, stem)
     sm = sp and re.search(r"(?i)\b(?:s|season|series)\s*(\d{1,2})\b", stem)
+    # "Christy - Pilot" (1.18.133: looked up as a movie, its subtitles 2% lined up, and
+    # learned under movies): a show's pilot is season 1, episode 1
+    pm = None if m or sm else re.search(r"(?i)(?<=[^\W\d_])\s+-\s+pilot\b(?!')", stem)
     if m:
         season, episode = int(m.group(1)), int(m.group(2))
         show = stem[:m.start()].strip(" -#")
+    elif pm:
+        season, episode = 1, 1
+        show = stem[:pm.start()].strip(" -#")
     elif sm:
         season, episode = int(sm.group(1)), 0
         show = stem[:min(sp.start(), sm.start())].strip(" -#")
@@ -2367,11 +2373,19 @@ FORENSIC_TERMS = [
 ]
 
 
+# "hooked up with" an agency or a group is teaming up, not sleeping around (1.18.133;
+# Criminal Minds S1E3: "MORGAN HOOKED UP WITH ATF." had "hooked up with" muted)
+HOOKUP_NOT = (r"atf|fbi|cia|dea|nsa|dhs|ice|irs|nypd|lapd|interpol|homeland|the (?:atf|fbi|cia|dea|nsa|dhs|police|cops|team|rest|others|group|band|unit|squad|bureau|agency|department|feds|crew|lab|locals|local p\.?d\.?|press)|local (?:p\.?d\.?|police|cops)|cops|police|us later|a lawyer|an agent|an attorney")
+
 LINE_WORDS = {   # only phrases that are hard to mistake
     # not "sex" meaning men or women: "your sex", "the fair sex" (Pride and Prejudice)
     "sexref": re.compile(r"\b((?<!your )(?<!our )(?<!her )(?<!his )(?<!fair )(?<!fairer )"
                          r"(?<!weaker )(?<!gentle )(?<!opposite )(?<!same )(?<!other )(?<!my )(?<!marvelous )"
-                         r"(?<!stronger )sex(?! (offenders?|crimes?|trafficking|abuse)\b)|sexy|horny|make love|made love|making love|condoms?|semen|boobs|"
+                         r"(?<!stronger )"
+                         # Christy (1.18.133): "each grade together regardless of sex"
+                         r"(?<!regardless of )(?<!irrespective of )(?<!of either )"
+                         r"(?<!of each )(?<!age and )(?<!age or )(?<!race and )"
+                         r"sex(?! (offenders?|crimes?|trafficking|abuse|and age|or age|and race)\b)|sexy|horny|make love|made love|making love|condoms?|semen|boobs|"
                          # 50 First Dates (2026-11-08): walrus jokes, sharks biting
                          r"penis(es)?|private parts|"
                          # Lauren, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
@@ -2401,6 +2415,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"have sex|had sex|having sex|"
                          # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
                          r"viagra|cialis|levitra|erectile dysfunction|little blue pills?|"
+                         # Criminal Minds S1E3 (1.18.133): "YEAH. HE'S IMPOTENT."; not
+                         # "impotent against it" (a medicine), "impotent rage"
+                         r"impoten(?:t|ce|cy)(?! (?:against|rage|fury|anger|frustration|"
+                         r"in the face|to stop|to do)\b)|"
                          r"(boner|sex) pills?|aphrodisiacs?|spanish fly|"
                          # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
                          # quickie divorce" (a learned line she kept)
@@ -2413,7 +2431,9 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # Castle S2E6 (1.18.95, the owner: "1 and 2"): "That is the sexiest
                          # thing I ever heard you say" went through ("sexy" was muted)
                          r"sexy|sexier|sexiest|" + "|".join(SEXUAL_TERMS) + r")\b", re.I),
-    "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with|slept with|sleep(ing)? "
+    # not "Morgan hooked up with ATF" (teamed up: Criminal Minds S1E3, 1.18.133)
+    "casual": re.compile(r"\b(one[- ]night stand|hook(ed|ing)? up with(?! (?:" + HOOKUP_NOT +
+                         r")\b)|slept with|sleep(ing)? "
                          r"around|having an affair|had an affair|an affair with|cheat(ed|ing)? "
                          r"on (him|her|me|you)"
                          # Person of Interest S1E2 (2026-11-14): "If you're gonna step out on
@@ -4646,6 +4666,30 @@ def bare_god(sw, sw_cue, cues, k):
     return False
 
 
+HEARD_PAUSE = 0.8      # a pause this long in what was heard starts a new "line"
+
+
+def heard_bare_god(asr, mutes):
+    """A lone "God!" / "God," said as an oath in what was heard, as `bare_god` does for
+    subtitles (1.18.133; Christy's pilot had no subtitles that lined up, and "God, it's just
+    the way things is." went through). The words heard come with their punctuation."""
+    sw = [w["t"] for w in asr]
+    cue, sw_cue = 0, []
+    for k, w in enumerate(asr):
+        if k and w["s"] - asr[k - 1]["e"] > HEARD_PAUSE:
+            cue += 1
+        sw_cue.append(cue)
+    muted = {m.get("at") for m in mutes}
+    out = []
+    for k in range(len(sw)):
+        if k in muted or not bare_god(sw, sw_cue, None, k):
+            continue
+        out.append({"s": asr[k]["s"], "e": asr[k]["e"], "cat": "deity", "src": "audio",
+                    "at": k, "word": cl.mask(asr[k]["t"]), "raw": asr[k]["n"],
+                    "ctx": " ".join(asr[i]["t"] for i in range(max(0, k - 6), k))})
+    return out
+
+
 def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
     """A word heard in the sound where the subtitles have a different, ordinary word or a
     name at that very spot ("dick" where they say "Nic", "shit" for "page me"; The
@@ -4663,6 +4707,18 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
         if sn[k] == asr_n[m["at"]]:
             if k in names and can_be_name(m.get("cat"), sw[k]):
                 m["sub"], m["keep"] = sw[k], True    # "Dern" heard and written as a name
+                continue
+            # a phrase: its other words too (1.18.133, Criminal Minds S1E5: "my god" heard
+            # where the subtitles say "You're killing my daughter!"; here "You're all I
+            # got, kid" too). A phrase the subtitles write other words for wasn't said.
+            for q in range(m["at"] + 1, m["at"] + len((m.get("raw") or "").split())):
+                j = there.get(q)
+                if j is None or q >= len(asr_n) or sn[j] == asr_n[q]:
+                    continue
+                if not cl.listed_word(sw[j]) and re.search(r"[A-Za-z]{2}", sw[j]) and \
+                        m.get("cat") != "mine":
+                    m["sub"], m["keep"] = sw[j], True
+                break
             continue
         if not cl.listed_word(sw[k]) and re.search(r"[A-Za-z]{2}", sw[k]):
             m["sub"] = sw[k]
@@ -4985,6 +5041,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
               "raw": " ".join(asr[k]["n"] for k in range(i, j)),
               "ctx": " ".join(asr[k]["t"] for k in range(max(0, i - 6), i))}
              for i, j, cat in cl.find_language(asr_n, cats, mine)]
+    if "deity" in cats and not cues and cl.LANG == "en":
+        mutes += heard_bare_god(asr, mutes)
     if cues and (cats or mine):
         sw, sw_cue = [], []
         for ci, c in enumerate(cues):
