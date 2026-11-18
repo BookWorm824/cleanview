@@ -139,6 +139,15 @@ class NamesAndBareGod(unittest.TestCase):
         said = [(cue[k], sw[k]) for k in range(len(sw)) if engine.bare_god(sw, cue, cues, k)]
         self.assertEqual(said, [(0, "God!"), (1, "God,"), (7, "God.")])
 
+    def test_in_capitals_too(self):
+        # 1.18.131: Criminal Minds and Castle's captions are all capitals, and a bare "GOD,"
+        # went through ("GOD, I HATE WAITING LIKE THIS.", the owner: "Just the God fix")
+        sw, cue, cues = subtitle_words([
+            "GOD, I HATE WAITING LIKE THIS.", "AAH! GOD.", "GOD!", "GOD, PLEASE HELP US.",
+            "THANK GOD.", "OH, GOD.", "I BELIEVE IN GOD.", "GOD BLESS YOU.", "GODS AND MEN."])
+        said = [(cue[k], sw[k]) for k in range(len(sw)) if engine.bare_god(sw, cue, cues, k)]
+        self.assertEqual(said, [(0, "GOD,"), (1, "GOD."), (2, "GOD!")])
+
 
 class LineWords(unittest.TestCase):
     def test_gay_meaning_happy_isnt_a_same_sex_line(self):

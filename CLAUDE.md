@@ -666,6 +666,16 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   a worker process too). Step 3's summary says "Claude (Opus)". Not in `DEFAULTS`, so a saved
   scan is still used after changing it. ChatGPT and Gemini keep their own plan's default.
   `test_claude_model.py`.
+- A bare "GOD" in all-capital captions (1.18.131, 2026-11-18; her Criminal Minds S1E4 report,
+  adults, the AI helper, made on 1.18.129; the owner: "Just the God fix", and "leave it" for
+  "Redskins"). "GOD, I HATE WAITING LIKE THIS." (25:15) and "GOD, I HATE NOT HAVING A PLAN."
+  (29:06) went through with God's name ticked: `bare_god` matched only "God", and Criminal
+  Minds' and Castle's captions are all capitals (past reviews here: Castle S1's "GOD, I'M SO
+  STUPID.", "AAH! GOD.", "GOD. I-I DON'T WANT TO SAY..."). It now reads "GOD..." as "God...".
+  Put to her and left (her choice): the killer's "AND WHILE I'M TAKING HER, I'M GONNA BE
+  THINKING OF YOU." (26:00), two rape case-talk lines the AI helper muted with coroner talk off
+  (21:29, 28:12), Graney's attack on the mother (~33:50-34:05, not seen here) as a taught scene,
+  "Redskins" (the team, 39:43-40:09). `test_reports_nov.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

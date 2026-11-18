@@ -4630,6 +4630,8 @@ GOD_PRAYER_NEXT = {"please", "help", "bless", "grant", "forgive", "save", "thank
 
 def bare_god(sw, sw_cue, cues, k):
     w = sw[k].lstrip("\"'(\u201c\u2018[-\u2013\u2014 ")
+    if w[:3] == "GOD":           # all-capital captions (1.18.131; Criminal Minds S1E4: "GOD, I
+        w = "God" + w[3:]        # HATE WAITING LIKE THIS."; Castle S1: "GOD, I'M SO STUPID.")
     if not re.fullmatch(r"God(!+|\?!|\.\.\.|\u2026)?[\"'\u201d\u2019]?|God[,.]", w):
         return False
     if k and cl.norm(sw[k - 1]) in ("oh", "my", "good", "dear", "thank", "to", "of", "a"):
