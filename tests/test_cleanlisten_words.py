@@ -100,7 +100,9 @@ def in_line_list(words):
     text = " ".join(words)
     starts = [m.start() for m in re.finditer(r"\S+", text)]
     out = set()
-    for k in ("sexref", "casual"):
+    # and the lists muted as words: drug talk, "drunk" on crude (1.18.137; the Play chat found
+    # CleanListen 1.17.71 muting "drunk" as a word too)
+    for k in ("sexref", "casual") + engine.LIST_ONLY_KINDS + tuple(engine.WORDS_ONLY_IN):
         for m in engine.LINE_WORDS[k].finditer(text):
             out |= {n for n, s in enumerate(starts) if m.start() <= s < m.end()}
     return out

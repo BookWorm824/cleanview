@@ -1063,6 +1063,15 @@ CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are to
 # dark hair" or "a dark parking garage" isn't taken as the model being unable to see.
 # BARE_NO: no description at all, just a no (see second_look).
 BARE_NO = re.compile(r"^\s*(no|none|nothing|none of (these|the above))\s*\.?\s*$", re.I)
+# GORE_SAID: a gore answer whose own description says nothing of blood, a wound or a body is
+# offered unticked, not cut (1.18.140, Criminal Minds S1E10: "Gore" for "a dimly lit, possibly
+# gothic or occult-themed room with people", "Graphic violence" for "photos on a table, one
+# showing a red pentagram and the words 'SATAN LIVES'"; the owner: "Yes, both")
+GORE_SAID = re.compile(r"blood|bleed|wound|injur|gash|corpse|\bbod(y|ies)\b|dead|skeleton|"
+                       r"bone|skull|organ|\bguts?\b|intestin|flesh|sever|mangl|decompos|gor[ey]|"
+                       r"mutilat|stab|bruis|\bcuts?\b|burn|lacerat|victim|remains|surg|incision|"
+                       r"insides?|opened|stump|amputat|autops|red (liquid|fluid|stain|"
+                       r"substance|splatter|spatter|mark|smear)", re.I)
 UNCLEAR = re.compile(r"\b(too (dark|blurr?y)|blurr?y|unclear|"
                      r"(image|frame|picture|shot|scene)s? (is|are) (very |quite |too )?(dark|blurr?y)|"
                      r"(can't|cannot|can not|hard to|difficult to) (see|tell|make out)|"
@@ -1133,6 +1142,8 @@ def second_look(cands, frames_for, progress=None, cancel=None, notes=None, carto
             # gore ticked (Person of Interest S3E2; asked again it said no to both): offered
             # unticked, not cut
             v["unclear"] = True
+        if v["keep"] and c["cat"] == "gore" and see and not GORE_SAID.search(see):
+            v["unclear"] = True         # its own words show no gore (GORE_SAID)
         if clear is False or (clear is None and UNCLEAR.search(see)):
             # the model itself says it can't see clearly: if it still saw something, offer
             # the scene unticked rather than throwing it away

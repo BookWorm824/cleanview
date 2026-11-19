@@ -200,5 +200,53 @@ class GarbledAnswer(unittest.TestCase):
         self.assertEqual(engine.decide_picture_scenes([c], ON, True), [])
 
 
+class GoreNotDescribed(unittest.TestCase):
+    """Criminal Minds S1E10 (1.18.140; the owner: "Yes, both"): "Gore" cut for "a dimly lit,
+    possibly gothic or occult-themed room with people", "Graphic violence" for photos of a
+    pentagram. A gore answer whose own words show no blood, wound or body is offered unticked."""
+
+    def look(self, see, visible):
+        c = {"cat": "gore", "s": 10.0, "e": 20.0, "peak": 0.9, "who": {}, "frames": [12]}
+        saved, ai.chat = ai.chat, lambda *a, **k: {"see": see, "visible": visible,
+                                                  "medical": False, "clear": True}
+        try:
+            ai.second_look([c], lambda c: ["a frame"])
+        finally:
+            ai.chat = saved
+        return c
+
+    def test_offered_unticked(self):
+        for see, visible in (
+                ("The frames show a dimly lit, possibly gothic or occult-themed room with "
+                 "people in the foreground", ["organs or entrails"]),
+                ("A hand points at photos on a table, one showing a red pentagram and the "
+                 "words 'SATAN LIVES'", ["blood"])):
+            c = self.look(see, visible)
+            self.assertTrue(c["verdict"].get("unclear"), see)
+            self.assertEqual([s["sure"] for s in engine.decide_picture_scenes([c], ON, True)],
+                             [False], see)
+
+    def test_described_gore_still_cut(self):
+        for see, visible in (
+                ("A person lying on the ground with blood on their face", ["blood"]),
+                ("A skeleton under a tree, bone showing", ["bone showing"]),
+                ("A man's head busted open, red liquid on the rocks", ["blood"])):
+            c = self.look(see, visible)
+            self.assertNotIn("unclear", c["verdict"], see)
+            self.assertEqual([s["sure"] for s in engine.decide_picture_scenes([c], ON, True)],
+                             [True], see)
+
+    def test_only_gore(self):
+        c = {"cat": "fight", "s": 10.0, "e": 20.0, "peak": 0.9, "who": {}, "frames": [12]}
+        saved, ai.chat = ai.chat, lambda *a, **k: {"see": "Two men fighting in a hallway",
+                                                  "violent": True, "kind": "combat",
+                                                  "clear": True}
+        try:
+            ai.second_look([c], lambda c: ["a frame"])
+        finally:
+            ai.chat = saved
+        self.assertNotIn("unclear", c["verdict"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2719,6 +2719,55 @@ DRUNK_BEFORE = {"have", "has", "had", "having", "i've", "you've", "we've", "they
 DRUNK_NEXT = {"from", "of", "deep", "deeply"}
 
 
+# and the uses CleanListen 62d10cf found in its classics (1.18.140): a drink "was drunk" ("the
+# toast was drunk in ginger wine", "the health of the Earl was drunk", "which was always drunk
+# at such times"), "drunk by the gods", "thou hast drunk", "drunk with joy"
+DRUNK_THING = {"toast", "toasts", "health", "healths", "wine", "wines", "ale", "beer", "tea",
+               "coffee", "milk", "water", "whisky", "whiskey", "brandy", "champagne", "nectar",
+               "potion", "cup", "cups", "glass", "glasses", "bottle", "bottles", "liquor", "rum",
+               "gin", "port", "punch", "cider", "mead", "sherry", "draught", "draft", "which",
+               "broth", "soup", "juice", "lemonade", "cocoa", "chocolate", "posset", "grog"}
+DRUNK_BE = {"was", "were", "been", "is", "are", "be", "being"}
+DRUNK_SOMEONE = {"and", "but", "he", "she", "they", "i", "we", "you", "it", "who", "drank",
+                 "drink", "drinks", "drinking", "guy", "man", "woman", "girl", "boy", "his",
+                 "her", "my", "their", "everyone", "everybody"}
+DRUNK_BY_NOT = {"noon", "midday", "lunch", "lunchtime", "dinner", "supper", "evening",
+                "night", "nightfall", "morning", "ten", "eleven", "nine", "eight", "then",
+                "time", "now"}
+DRUNK_FEELING = {"joy", "delight", "power", "love", "happiness", "rage", "grief", "pride",
+                 "victory", "success", "sleep", "fatigue", "excitement", "wonder", "glee",
+                 "triumph", "hope", "fear", "passion", "freedom", "beauty", "glory", "bliss",
+                 "rapture", "ecstasy", "fury", "anger", "sorrow", "relief", "dreams", "fame"}
+
+
+def drunk_old_use(text, m, before, rest):
+    """Whether this "drunk" is a drink that "was drunk", "drunk by the/all/everyone", "thou
+    hast drunk" or "drunk with" a feeling (CleanListen 62d10cf)."""
+    if before and before[0] in ("thou'st", "hast", "hath"):
+        return True
+    sentence = re.split(r"[.!?;,]", text[:m.start()])[-1]       # this sentence's own words
+    near = re.findall(r"[a-z']+", sentence.lower())[-7:]
+    for k in range(len(near) - 1, max(-1, len(near) - 3), -1):    # "was (always) drunk"
+        if near[k] in DRUNK_BE:
+            # the drink is what "was drunk": not "the beer was cold and he was drunk", "the
+            # guy who drank the whiskey was drunk"
+            subject = near[max(0, k - 5):k]
+            if DRUNK_THING.intersection(subject) and not DRUNK_SOMEONE.intersection(subject):
+                return True
+            break
+    if re.match(r"\s*\.|\s*[!?;,]", rest):
+        return False
+    nxt = re.findall(r"[a-z']+", rest.lower())[:4]
+    if nxt[:1] == ["by"] and len(nxt) > 1:
+        if nxt[1] in ("all", "everyone", "everybody", "them", "him", "her", "us"):
+            return True
+        if nxt[1] == "the" and len(nxt) > 2 and nxt[2] not in DRUNK_BY_NOT:
+            return True
+    if nxt[:1] == ["with"] and DRUNK_FEELING.intersection(nxt[1:4]):
+        return True
+    return False
+
+
 def drunk_drink(text, m):
     """Whether this "drunk" is the past of drink (what was drunk), not being drunk."""
     if m.group(0).lower() != "drunk":
@@ -2727,6 +2776,8 @@ def drunk_drink(text, m):
     rest = text[m.end():]
     after = [] if re.match(r"\s*[.!?;]", rest) else re.findall(r"[a-z']+", rest.lower())[:1]
     if after and after[0] in DRUNK_NEXT:
+        return True
+    if drunk_old_use(text, m, before, rest):
         return True
     if before and before[0] in DRUNK_BEFORE:
         # "she's drunk" alone is being drunk; "she's drunk the water" is what she drank

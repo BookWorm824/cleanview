@@ -900,6 +900,27 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   the show and the Greenwoods" and "Screw the Columbians". For CleanListen and CleanRead too.
   Not seen here (Violence off): the hostage hurt to force answers (~14:04-16:18), Disturbing
   ticked, not cut. `test_criminal_minds.py`.
+- Her Criminal Minds S1E10 report (1.18.140, 2026-11-19, teens, the AI helper, made on 1.18.138,
+  74 min; the owner: "Yes, both"). 1.18.137-1.18.138 worked ("THEY ALL GET HIGH" drug talk, "GET
+  DRUNK" just the word, "SEX, DRUGS AND ALCOHOL" just "sex"). Taught for criminal-minds (sexref):
+  "No, I think someone calling Cherish Hanson a virgin is funny." ("virgin" isn't listed: Virgin
+  Mary, olive oil...). Two scenes cut under the wrong kind: "Gore" for the closer look's "a dimly
+  lit, possibly gothic or occult-themed room with people" (the raid, 24:26) and "Graphic
+  violence" for "photos on a table, one showing a red pentagram and the words 'SATAN LIVES'"
+  (31:15): `ai.second_look` marks a kept gore answer unclear (offered unticked; a taught find is
+  dropped) when its description says nothing of blood, a wound, a body, bone, surgery...
+  (`GORE_SAID`). In the past reviews here 4 of 22 described gore finds have none of those words
+  in their first 90 characters (all cut off before the end), so it wasn't measured on full
+  answers. Not taught (too short): Morgan's "Late night? My man." (4:42).
+  `test_taught_pictures.GoreNotDescribed`.
+  Also in 1.18.140, CleanListen 62d10cf's "drunk" uses from its classics (`drunk_old_use`): a drink
+  that "was drunk" (`DRUNK_THING` within 5 words before was/were/is/be..., one or two words
+  apart, and none of `DRUNK_SOMEONE`: "the beer was cold and he was drunk" still counts),
+  "drunk by the/all/everyone" (not by noon/the time, `DRUNK_BY_NOT`), "thou hast/hath drunk",
+  "drunk with" a feeling within 3 words (`DRUNK_FEELING`). All 21 past lines here with "drunk"
+  still count. `test_drunk.OldUses`. And `test_cleanlisten_words.in_line_list` looks at the
+  word-only lists too (`LIST_ONLY_KINDS`, `WORDS_ONLY_IN`; the Play chat found 17 "drunk"
+  differences against CleanListen 1.17.71).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
