@@ -708,6 +708,27 @@ def dumb_called(wb, prev):
     return wb == "dumb" and prev in DUMB_CALLED_PREV
 
 
+# "Darn her," exploded Davy (CleanListen cfdc3db, Anne of the Island): "darn her/his/the" with
+# nothing darned after it is the oath, not "darn her stockings". The words come here without
+# their sentence ends, so a said-verb or a word that starts a new sentence stands for the end
+SAID_VERBS = {"said", "says", "cried", "exploded", "shouted", "muttered", "growled", "snapped",
+              "yelled", "roared", "exclaimed", "grumbled", "screamed", "howled", "sputtered",
+              "fumed", "stormed", "hissed"}
+DARN_NEW_SENTENCE = {"i", "he", "she", "they", "we", "you", "i'm", "it's", "that's", "what",
+                     "why", "how", "oh", "well", "now", "no", "yes"}
+# nothing anyone darns: "darn the luck", "darn the thing", "darn his hide"
+DARN_CURSED = {"luck", "thing", "things", "fool", "fools", "hide", "eyes", "weather", "rain",
+               "day", "man", "boy", "bad"}
+
+
+def darn_oath(words, i):
+    """Is this "darn her/his/the..." the oath, with nothing darned after it?"""
+    if words[i] != "darn":
+        return False
+    k = i + 2
+    return k >= len(words) or words[k] in SAID_VERBS | DARN_NEW_SENTENCE | DARN_CURSED
+
+
 # "jerk" aimed at a person is a rude word; a movement isn't (the owner, 2026-11-16, of Black
 # Beauty, in the CleanListen chat: "i guess if jerk is used directed towards a person it should
 # come out", "but if its a motion should stay. like he jerked the rope"; the same as
@@ -1193,7 +1214,7 @@ def find_language(words, cats, mine=()):
                 if w in FREAK_WORDS and "out" in words[i + 1:i + 3]:
                     break        # "you're freaking me out": the verb, not the minced oath
                 if (nxt in INNOCENT_NEXT.get(wb, ()) and not fool_called(wb, prev, nxt)
-                        and not dumb_called(wb, prev)) or (
+                        and not dumb_called(wb, prev) and not darn_oath(words, i)) or (
                         wb in ("jerk", "jerks") and jerk_motion(words, i)) or (
                         wb in PUSSY_WORDS and pussy_cat(words, i)) or (
                         old_word_innocent(words, i, wb)) or                         prev in INNOCENT_PREV.get(wb, ()) or (

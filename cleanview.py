@@ -2706,8 +2706,23 @@ def ball_game(text, m):
     return bool(BALL_GAME.intersection(near))
 
 
+# a hen's "Cuck-cuck-cuck-cur-r-r!" (CleanListen cfdc3db, The Tale of Jemima Puddle-Duck):
+# "cuck" next to another "cuck" or a clucking sound is the noise, not the slang
+HEN_SOUNDS = {"cuck", "cucks", "cur", "k", "cluck", "clucked", "clucking", "cackle", "cackled",
+              "doodle", "doo", "hen", "hens", "chicken", "chickens"}
+
+
+def hen_sound(text, m):
+    if not m.group(0).lower().startswith("cuck") or len(m.group(0)) > 5:
+        return False
+    near = (re.findall(r"[a-z']+", text[:m.start()].lower())[-2:] +
+            re.findall(r"[a-z']+", text[m.end():].lower())[:2])
+    return bool(HEN_SOUNDS.intersection(near))
+
+
 def sexref_innocent(text, m):
-    return stripper_tool(text, m) or wiener_dog(text, m) or ball_game(text, m)
+    return (stripper_tool(text, m) or wiener_dog(text, m) or ball_game(text, m) or
+            hen_sound(text, m))
 
 
 LINE_WORDS["sexref"] = Listed(LINE_WORDS["sexref"], sexref_innocent)
@@ -2727,7 +2742,16 @@ DRUNK_THING = {"toast", "toasts", "health", "healths", "wine", "wines", "ale", "
                "potion", "cup", "cups", "glass", "glasses", "bottle", "bottles", "liquor", "rum",
                "gin", "port", "punch", "cider", "mead", "sherry", "draught", "draft", "which",
                "broth", "soup", "juice", "lemonade", "cocoa", "chocolate", "posset", "grog",
-               "bowl", "mug", "medicine", "dose"}
+               "bowl", "mug", "medicine", "dose",
+               # CleanListen cfdc3db, its free classics: "the loving-cup has always been drunk",
+               # "the bottles had been drunk out", "currant wine was not meant to be drunk"
+               "bottles", "bowls", "mugs", "tumbler", "tumblers", "cordial", "goblet", "goblets",
+               "flagon", "flagons", "potions", "draughts", "wines", "ales", "liquors", "spirits"}
+# only these may come between the drink and "was/been/be drunk" besides whose it was
+DRUNK_AUX = {"had", "has", "have", "was", "were", "is", "are", "not", "never", "always", "all",
+             "then", "to", "meant", "ought", "wasn't", "weren't", "isn't", "hadn't", "must",
+             "should", "would", "could", "might", "may", "will", "can", "be", "been", "soon",
+             "already", "quickly", "slowly"}
 DRUNK_BE = {"was", "were", "been", "is", "are", "be", "being"}
 # a person in the sentence means someone is drunk. Not "and", "but", "it", "his", "her", "my",
 # "their" (1.18.142, as CleanListen has it): "And the toast was drunk", "The health of his
@@ -2765,7 +2789,8 @@ def drunk_old_use(text, m, before, rest):
             if things and not DRUNK_SOMEONE.intersection(subject):
                 between = subject[things[-1] + 1:]
                 # "the wine that was drunk at the wedding" (1.18.143, CleanListen c4797f8)
-                if not between or between == ["that"] or between[0] in DRUNK_WHOSE:
+                if (not between or between == ["that"] or between[0] in DRUNK_WHOSE or
+                        all(w in DRUNK_AUX for w in between)):          # "had been drunk"
                     return True
             break
     if re.match(r"\s*\.|\s*[!?;,]", rest):

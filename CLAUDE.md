@@ -954,6 +954,34 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   For CleanListen and CleanStream: the between-words rule.
   1.18.143 (CleanListen c4797f8's note): "that" alone between is the drink too ("The wine
   that was drunk at the wedding"); "which" already was (it's in `DRUNK_THING`).
+- CleanListen's re-check of its free classics (1.18.144, 2026-11-19; cfdc3db, passed on by the
+  CleanListen chat under the rule that words go to every app). A hen's "Cuck-cuck-cuck-cur-r-r!"
+  (Jemima Puddle-Duck) isn't the slang: `hen_sound` (in `sexref_innocent`), "cuck" with another
+  cuck or a clucking word (`HEN_SOUNDS`) within 2 words. "Darn her," exploded Davy (Anne of the
+  Island) is the oath, not sewing: `cvcore.darn_oath` overrides `INNOCENT_NEXT["darn"]` when
+  nothing darned follows. `find_language` gets no sentence ends here, so the word after "darn
+  her" decides: a said-verb (`SAID_VERBS`), a word that starts a new sentence
+  (`DARN_NEW_SENTENCE`: she, I, oh...) or something nobody darns (`DARN_CURSED`: luck, thing,
+  hide...). "darn her stockings", "darn the elbows" stay sewing (CleanListen goes by its
+  sentence ends: `test_cleanlisten_words.SAME_WITH_SENTENCE_ENDS`). Drink: more drink words
+  (bottles, tumbler, cordial, goblet, flagon, spirits...), and only helping words between the
+  drink and "was/been/be drunk" still count as the drink (`DRUNK_AUX`: "the bottles had been
+  drunk out", "currant wine was not meant to be drunk"). No past line here reads differently.
+  `test_classics_recheck.py`.
+- The review page is grouped by filter (1.18.144, 2026-11-19; the owner: "can we organize the
+  filters more like CleanListen? its real easy to select or unselect all, soreted by filters",
+  "I accidently had a filter on that I didn't mean too....now I have to unselect 190 filters by
+  hand"). "Words to mute (N)" and "Lines to mute (N)" have "Tick all" and "Untick all" beside
+  their titles, and inside, with two or more filters, a heading for each filter with its own
+  (`_group_head`, `_tick_links`): words by the start page's groups in its order
+  (`WORD_GROUP`, `WORD_GROUP_ORDER`: Swearing, Mild words, God's name, Soft substitutes, Rude
+  words, Same-sex words, Your own words; other kinds by `engine.LINE_LABEL`), lines by their
+  first filter (`line_group`; "You muted this before" and "Found by AI" only when there's no
+  filter), scenes by the first part of their kind ("Kiss", "Violence", `scene_group`), each
+  in time order (`by_group`). With several videos, "Every video, by filter:" above the list
+  ticks or unticks a filter in all of them at once (`_filter_row`, `_filter_vars`,
+  `_note_filter`; the scene added by hand joins it too). `test_filter_groups.py`; not seen on
+  her screen (tests draw nothing she can see).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

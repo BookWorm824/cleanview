@@ -3316,6 +3316,7 @@ class App(tk.Tk):
             self._fit_text(self._early_text, box, self._px(260))
             self._early_news()
         self.scene_vars, self.line_vars, self.word_vars, self.quiet_vars = [], [], [], []
+        self._filter_vars = {}      # filter group -> its BooleanVars, every video (_note_filter)
         self._thumb_spots = {}      # id(scene) -> (row, text): where its pictures go
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
         self.found_frames = {}
@@ -3361,6 +3362,8 @@ class App(tk.Tk):
         # sections that it removed...can you add that to CleanView as well")
         jump = tk.Frame(t_found, bg=BG)
         jump.pack(fill="x", pady=(0, 4))
+        by_filter = tk.Frame(t_found, bg=BG)
+        by_filter.pack(fill="x", pady=(0, 4))
         spots = []                  # (what, how many, where it starts)
         inner = self._scroll_area(t_found)
         self._found_canvas = inner._canvas
@@ -3407,8 +3410,13 @@ class App(tk.Tk):
             if not scs:
                 tk.Label(holder, text="No scenes to check in this one.", bg=BG,
                          fg=INK, font=(FONT, 10), anchor="w").pack(fill="x", padx=8, pady=(6, 0))
-            for sc in scs:
-                self._scene_card(holder, j, sc)
+            for gname, items in self.by_group(scs, self.scene_group):
+                group_vars = []
+                if len(scs) > 1:
+                    self._group_head(holder, gname, len(items), group_vars, bg=BG,
+                                     pady=(self._px(10), 0), padx=8)
+                for sc in items:
+                    group_vars.append(self._scene_card(holder, j, sc))
             if lns:
                 mark = self._jump_mark(inner)
                 self._lines_card(inner, j, lns)
@@ -3425,6 +3433,7 @@ class App(tk.Tk):
                 if not multi:
                     spots.append(("Loud music", len(st["quiet"]), mark))
         self._jump_row(jump, spots)
+        self._filter_row(by_filter, multi)
 
         self._dialogue_tab(t_dlg, good)
         if keep:
@@ -4359,11 +4368,92 @@ class App(tk.Tk):
         self.show_review(tab=2)
         self._save_session()
 
+    # Grouped by filter, each with "Tick all" and "Untick all", as CleanListen has (1.18.144;
+    # the owner, 2026-11-19: "can we organize the filters more like CleanListen? its real easy
+    # to select or unselect all, soreted by filters", "I accidently had a filter on that I
+    # didn't mean too....now I have to unselect 190 filters by hand")
+    WORD_GROUP = {"strong": "Swearing", "moderate": "Swearing", "mild": "Mild words",
+                  "deity": "God's name", "minced": "Soft substitutes", "rude": "Rude words",
+                  "samesex": "Same-sex words", "mine": "Your own words"}
+    WORD_GROUP_ORDER = ("Swearing", "Mild words", "God's name", "Soft substitutes",
+                        "Rude words", "Same-sex words", "Your own words")
+    NOT_A_FILTER = {"learned", "claude", "shared", "chat", "added"}
+
+    @classmethod
+    def word_group(cls, m):
+        cat = m.get("cat") or ""
+        if cat in cls.WORD_GROUP:
+            return cls.WORD_GROUP[cat]
+        if cat == "claude":
+            return f"Found by {AI_NAME}"
+        return engine.LINE_LABEL.get(cat, cat.capitalize() or "Other")
+
+    @classmethod
+    def line_group(cls, l):
+        types = l.get("types") or []
+        t = ([x for x in types if x not in cls.NOT_A_FILTER] or types or ["other"])[0]
+        return f"Found by {AI_NAME}" if t == "claude" else engine.LINE_LABEL.get(t, t.capitalize())
+
+    @staticmethod
+    def scene_group(sc):
+        return engine.plain_ai((sc.get("kind") or ["Scene"])[0]).split(" \u00b7 ")[0]
+
+    @staticmethod
+    def by_group(items, group_of, order=()):
+        """[(group, its items in time order)]: the groups in `order` first, then as first seen."""
+        groups = {}
+        for it in items:
+            groups.setdefault(group_of(it), []).append(it)
+        rank = {g: n for n, g in enumerate(order)}
+        seen = list(groups)
+        names = sorted(seen, key=lambda g: (rank.get(g, len(rank)), seen.index(g)))
+        return [(g, sorted(groups[g], key=lambda x: x.get("s", 0))) for g in names]
+
+    def _note_filter(self, name, v):
+        self.__dict__.setdefault("_filter_vars", {}).setdefault(name, []).append(v)
+
+    def _tick_links(self, parent, bg, tick_vars):
+        """"Tick all   Untick all" for the BooleanVars in tick_vars (filled in afterwards)."""
+        links = tk.Frame(parent, bg=bg)
+        for label, val in (("Tick all", True), ("Untick all", False)):
+            look.link(links, label, lambda v=val: [x.set(v) for x in tick_vars],
+                      size=9, bg=bg).pack(side="left", padx=(self._px(10), 0))
+        return links
+
+    def _group_head(self, parent, title, count, tick_vars, bg=CARD, pady=(8, 2), padx=0):
+        """A filter's heading in a list: "God's name  (42)   Tick all   Untick all"."""
+        head = tk.Frame(parent, bg=bg)
+        head.pack(fill="x", pady=pady, padx=padx)
+        tk.Label(head, text=f"{title}  ({count})", bg=bg, fg=INK,
+                 font=(FONT, 10, "bold")).pack(side="left")
+        if count > 1:
+            self._tick_links(head, bg, tick_vars).pack(side="left", padx=(self._px(6), 0))
+        return head
+
+    def _filter_row(self, row, multi):
+        """With several videos, each filter's ticks in every video at once."""
+        groups = [(g, vs) for g, vs in self._filter_vars.items() if len(vs) > 1]
+        if not multi or not groups:
+            row.pack_forget()
+            return
+        tk.Label(row, text="Every video, by filter:", bg=BG, fg=MUTED,
+                 font=(FONT, 9)).grid(row=0, column=0, columnspan=2, sticky="w")
+        for n, (g, vs) in enumerate(groups):
+            one = tk.Frame(row, bg=BG)
+            one.grid(row=1 + n // 2, column=n % 2, sticky="w", padx=(self._px(8), self._px(16)))
+            tk.Label(one, text=f"{g}  ({len(vs)})", bg=BG, fg=INK, font=(FONT, 9, "bold"),
+                     anchor="w").pack(side="left")
+            self._tick_links(one, BG, vs).pack(side="left")
+
     def _words_card(self, parent, job, mutes):
         card = self._round_card(parent)
         head = tk.Frame(card, bg=CARD)
         head.pack(fill="x", pady=(0, 4))
-        tk.Label(head, text="Words to mute", bg=CARD, fg=INK, font=(HEAD, 11)).pack(side="left")
+        tk.Label(head, text=f"Words to mute  ({len(mutes)})", bg=CARD, fg=INK,
+                 font=(HEAD, 11)).pack(side="left")
+        card_vars = []
+        if len(mutes) > 1:
+            self._tick_links(head, CARD, card_vars).pack(side="left", padx=(self._px(6), 0))
         # "Show all words" (1.18.115; the owner, 2026-11-16: "if you have several words its a lot
         # of back and forth. can you put a show all tick above the main section of works to cut
         # that will show all the word in the box. but also leaving the individual ones too"):
@@ -4384,10 +4474,20 @@ class App(tk.Tk):
                             command=show_all).pack(side="right")
             self._show_all_box = reveal_all
         heard = job["analysis"].get("asr") or []
-        for n, m in enumerate(mutes):
+        groups = self.by_group(mutes, self.word_group, self.WORD_GROUP_ORDER)
+        group_vars = []
+        for gname, n, m, gsize in [(g, n, m, len(ms)) for g, ms in groups
+                                   for n, m in enumerate(ms)]:
+            if n == 0:
+                group_vars = []
+                if len(groups) > 1:
+                    self._group_head(card, gname, gsize, group_vars)
             v = tk.BooleanVar(value=not m.get("keep"))
             m["_shown"] = v.get()
             self.word_vars.append((v, job, m))
+            card_vars.append(v)
+            group_vars.append(v)
+            self._note_filter(gname, v)
             wrap = tk.Frame(card, bg=CARD if n % 2 == 0 else SHADE, padx=4, pady=2)
             wrap.pack(fill="x")
             row = tk.Frame(wrap, bg=wrap.cget("bg"))
@@ -4464,14 +4564,29 @@ class App(tk.Tk):
 
     def _lines_card(self, parent, job, lines):
         card = self._round_card(parent)
-        tk.Label(card, text="Lines to mute", bg=CARD, fg=INK, font=(HEAD, 11)).pack(
-            anchor="w", pady=(0, 4))
-        for l in lines:
+        head = tk.Frame(card, bg=CARD)
+        head.pack(fill="x", pady=(0, 4))
+        tk.Label(head, text=f"Lines to mute  ({len(lines)})", bg=CARD, fg=INK,
+                 font=(HEAD, 11)).pack(side="left")
+        card_vars = []
+        if len(lines) > 1:
+            self._tick_links(head, CARD, card_vars).pack(side="left", padx=(self._px(6), 0))
+        groups = self.by_group(lines, self.line_group)
+        group_vars = []
+        for gname, n, l, gsize in [(g, n, l, len(ls)) for g, ls in groups
+                                   for n, l in enumerate(ls)]:
+            if n == 0:
+                group_vars = []
+                if len(groups) > 1:
+                    self._group_head(card, gname, gsize, group_vars)
             row = tk.Frame(card, bg=CARD)
             row.pack(fill="x", pady=2)
             v = tk.BooleanVar(value=l.get("mute", True))
             l["_shown"] = v.get()
             self.line_vars.append((v, job, l))
+            card_vars.append(v)
+            group_vars.append(v)
+            self._note_filter(gname, v)
             ttk.Checkbutton(row, text=engine.cl.fmt_t(l["s"]), variable=v).pack(side="left", anchor="n")
             for t in l["types"]:
                 name = f"Found by {AI_NAME}" if t == "claude" else engine.LINE_LABEL.get(t, t)
@@ -4500,6 +4615,7 @@ class App(tk.Tk):
         v = tk.BooleanVar(value=sc.get("cut", True))
         sc["_shown"] = v.get()
         self.scene_vars.append((v, job, sc))
+        self._note_filter(self.scene_group(sc), v)
         secs = sc["e"] - sc["s"]
         length = f"{secs / 60:.1f} min" if secs >= 60 else f"{secs:.0f} sec"
         ttk.Checkbutton(top_row, text=f"Cut   ·   {engine.cl.fmt_t(sc['s'])}   ·   {length}",
@@ -4530,6 +4646,7 @@ class App(tk.Tk):
             txt.pack(fill="x", pady=(6, 0))
         self._answer_box(card, sc)
         self._ask_link(card, job, "scene", sc, txt, anchor="e", pady=(4, 0))
+        return v
 
     def preview(self, job, sc, btn=None):
         """A short clip of the scene in her own player: one at a time (PREVIEW_OPENING_SECS)."""
