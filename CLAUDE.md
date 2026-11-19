@@ -878,6 +878,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   on by the Play chat: "also add 'booger sugar'", cocaine; CleanListen and CleanRead have it):
   in `DRUG_SLANG` and `DRUG_TALK_SHOWN`; the crude list's "booger" leaves it alone
   (`boogers?(?! sugar)`). `test_drug_slang.py`.
+- Things shooting up aren't drug talk (1.18.139, 2026-11-19; CleanListen's note that "the flames
+  shooting up." would be caught; the owner: "Yes, fix it"): "shooting up" with flames, smoke,
+  prices, rates, a fever, pressure, plants, hands... in the 4 words before (`SHOOT_UP_THINGS`,
+  a possessive's 's taken off) is left alone; "He's shooting up again" still counts.
+  `test_drug_slang.py`.
+- Her Criminal Minds S1E9 report (1.18.139, 2026-11-19, adults, the AI helper, made on 1.18.135,
+  69 min; the owner: "Yes, fix both"). "hell" was muted twice (7:33, 7:34) where the captions say
+  "MORGAN: WHAT? ELLE." / "ELLE? WHAT?": heard in another order, those words weren't lined up
+  with the subtitles, so `subtitle_word_there` skipped them (3:38's, lined up, was offered
+  unticked). `near_sound_alike` now looks at the subtitle words within `NEAR_SUB_WORDS` (4) of
+  the lined-up words either side that weren't lined up either: if one of them has the heard word
+  (also run together: "Hell...I", "HOOKER-BY-DAY") it was said; else one that sounds alike
+  (difflib `NEAR_ALIKE` 0.6, stricter than when lined up; one word only) marks it misheard and
+  offers it unticked. In the past reviews here it changes 8, all misheard ("Is it looking that
+  bad?", "damsel in distress", "Finch" twice, "Well, I can't", "HE HAVE A FAMILY?"...); the
+  first try (any short word starting the same, or a name) changed 33, many really said.
+  "SCREW THE GOVERNMENT." (22:21) went through: `cvcore.MILD_SLANG` has "screw the <word>" as
+  "screw you", not before in/on/back/together/tight... nor with lid, cap, bulb, bolt, pieces,
+  bracket-like parts after "the" ("screw the lid on"); in the past reviews here it adds "Screw
+  the show and the Greenwoods" and "Screw the Columbians". For CleanListen and CleanRead too.
+  Not seen here (Violence off): the hostage hurt to force answers (~14:04-16:18), Disturbing
+  ticked, not cut. `test_criminal_minds.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

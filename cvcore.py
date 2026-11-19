@@ -499,6 +499,14 @@ MILD_SLANG = [re.compile(p) for p in (
     r"(screw|screws|screwed|screwing) over\b",
     r"(screw|screws|screwed|screwing) (?!(the|a|an|it|its|this|that|these|those|in|into|on|"
     r"onto|up|down|off|back|around)\b)[a-z']+ over\b",
+    # "Screw the government." (Criminal Minds S1E9, 1.18.139; the owner: "Yes, fix both"), as
+    # "screw you"; in past reviews here "Screw the show and the Greenwoods", "Screw the
+    # Columbians". Not fixing something: "screw the lid on", "screw the bulb back in"
+    r"screw the (?!(lids?|caps?|tops?|bulbs?|light|bolts?|nuts?|screws?|hinges?|pieces?|"
+    r"panels?|plates?|handles?|knobs?|legs?|base|shelf|shelves|hooks?|lens|nozzle|hose|filter|"
+    r"batter(y|ies)|covers?|door|frame|thing|lock|jar|bottle|pipe|ends?|back|two|other|"
+    r"wires?|board)\b)[a-z']+\b(?! (in|into|on|onto|back|down|together|tight|tightly|up|off|"
+    r"out|shut|to)\b)",
 )]
 
 

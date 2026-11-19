@@ -2830,6 +2830,16 @@ HIGH_NOT_NEXT = {"marks", "mark", "scores", "score", "grades", "hopes", "praise"
                  "ground", "up", "enough", "above", "off", "fever", "fevers", "ratings",
                  "points", "school", "pressure", "temperature", "temperatures"}
 SHOOT_UP_OK_NEXT = {"heroin", "drugs", "dope", "smack", "again", "in", "with", "together"}
+# things that shoot up, rising (1.18.139; the owner: "Yes, fix it", for "the flames were
+# shooting up." / "prices are shooting up."), within the 4 words before
+SHOOT_UP_THINGS = {"flames", "flame", "fire", "fires", "smoke", "sparks", "spark", "steam",
+                   "water", "geyser", "fountain", "lava", "dust", "rocket", "rockets", "fireworks",
+                   "prices", "price", "costs", "cost", "rates", "rate", "numbers", "sales",
+                   "stocks", "stock", "shares", "profits", "ratings", "polls", "demand", "crime",
+                   "rent", "taxes", "temperature", "temperatures", "fever", "pressure", "sugar",
+                   "levels", "level", "heart", "pulse", "pain", "plants", "plant", "weeds",
+                   "grass", "trees", "tree", "sprouts", "hand", "hands", "arm", "arms",
+                   "eyebrows", "eyebrow"}
 STRUNG_NOT_NEXT = {"along", "across", "over", "between", "behind", "like", "around", "in",
                    "through", "from"}
 
@@ -2846,7 +2856,11 @@ def drug_slang_innocent(text, m):
     if found == "kush":
         return bool(before) and before[0] == "hindu"
     if found.startswith("shoot"):
-        return bool(after) and after[0] not in SHOOT_UP_OK_NEXT
+        if after and after[0] not in SHOOT_UP_OK_NEXT:
+            return True
+        near = [re.sub(r"'s$", "", w) for w in
+                re.findall(r"[a-z']+", text[:m.start()].lower())[-4:]]     # temperature's
+        return bool(SHOOT_UP_THINGS.intersection(near))
     if found.endswith(" high"):
         return bool(after) and after[0] in HIGH_NOT_NEXT
     if found == "strung out":
@@ -4966,9 +4980,13 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
     # (1.18.98, Aladdin: "Hell" heard four times where the subtitles say "Al", twice at the
     # start of a sentence: "Al, you won", "Al, you little genius")
     name_words = {sn[j] for j in names}
+    lined = sorted(there)
     for m in mutes:
+        if m.get("src") != "audio":
+            continue
         k = there.get(m.get("at"))
-        if k is None or m.get("src") != "audio":
+        if k is None:
+            near_sound_alike(m, mapping, there, lined, sw, sn, asr_n, name_words)
             continue
         if sn[k] == asr_n[m["at"]]:
             if k in names and can_be_name(m.get("cat"), sw[k]):
@@ -4992,6 +5010,47 @@ def subtitle_word_there(mutes, mapping, sw, sn, asr_n, names=()):
                                            or sn[k] in name_words):
                 m["keep"] = True    # "bitch" for Finch or Mitch, "fucking" for "bugging",
                 #                     "hell" for Al
+
+
+# how far around an unmatched heard word to look among the subtitle words not lined up either
+NEAR_SUB_WORDS = 4
+NEAR_ALIKE = 0.6           # "hell"/"Elle" 0.75, "bitch"/"Finch" 0.6
+
+
+def near_sound_alike(m, mapping, there, lined, sw, sn, asr_n, name_words):
+    """A heard word the subtitles weren't lined up with (they say it in another order): when a
+    subtitle word near it that wasn't lined up either sounds alike or is a name, it was
+    probably misheard (1.18.139, Criminal Minds S1E9: "hell" heard twice where the captions
+    say "MORGAN: WHAT? ELLE." / "ELLE? WHAT?"; 3:38's, lined up, was offered unticked)."""
+    import bisect
+    at = m.get("at")
+    if at is None or at >= len(asr_n) or m.get("cat") == "mine" or not lined:
+        return
+    i = bisect.bisect_left(lined, at)
+    lo = there[lined[i - 1]] if i > 0 else None
+    hi = there[lined[i]] if i < len(lined) else None
+    lo = hi if lo is None else lo
+    hi = lo if hi is None else hi
+    if abs(hi - lo) > 2 * NEAR_SUB_WORDS:       # too far apart to say which words are near
+        return
+    a, b = min(lo, hi), max(lo, hi)
+    import difflib
+    heard = asr_n[at]
+    if len((m.get("raw") or heard).split()) != 1 or len(heard) < 3:     # one word only
+        return
+    near = [j for j in range(max(0, a - NEAR_SUB_WORDS), min(len(sn), b + NEAR_SUB_WORDS + 1))
+            if mapping[j] is None and sn[j]]
+    # the subtitles have it too, maybe run together ("Hell...I", "HOOKER-BY-DAY"): it was said
+    if any(heard in sn[j] or (len(sn[j]) >= 3 and sn[j] in heard) for j in near):
+        return
+    for j in near:
+        if cl.listed_word(sw[j]) or not re.search(r"[A-Za-z]{2}", sw[j]):
+            continue
+        # sounding alike, more strictly than when lined up: in the past reviews here "Nic"
+        # or a short word starting the same was often near a word really said
+        if difflib.SequenceMatcher(None, heard, sn[j]).ratio() >= NEAR_ALIKE:
+            m["sub"], m["keep"] = sw[j], True
+            return
 
 
 def sounds_alike(heard, written):

@@ -150,5 +150,53 @@ class Episode8(unittest.TestCase):
         self.assertIsNotNone(sexref.search("Gives them an emotional or sexual release."))
 
 
+class Episode9(unittest.TestCase):
+    """Her S1E9 report (1.18.139, made on 1.18.135; the owner: "Yes, fix both")."""
+
+    def check(self, said, heard):
+        import cvcore as cl
+        sw = [w for w in engine.spoken_words(said) if cl.norm(w)]
+        sn = [cl.norm(w) for w in sw]
+        asr_n = [cl.norm(w) for w in heard.split()]
+        mutes = [{"src": "audio", "at": i, "cat": cat, "raw": " ".join(asr_n[i:j])}
+                 for i, j, cat in cl.find_language(asr_n, list(cl.CATS))]
+        engine.subtitle_word_there(mutes, cl.align(sn, asr_n), sw, sn, asr_n)
+        return mutes
+
+    def test_elle_heard_out_of_order(self):
+        # "hell" twice where the captions say "MORGAN: WHAT? ELLE." / "ELLE? WHAT?", heard in
+        # another order, so not lined up with them
+        mutes = self.check("A TRAIN IN TEXAS? MY GOD. Morgan: WHAT? ELLE. ELLE? WHAT? "
+                           "Gideon: ROBERT OXTON BOLTON WROTE,",
+                           "a train in texas my god hell hell what what robert oxton bolton wrote")
+        hells = [m for m in mutes if m["raw"] == "hell"]
+        self.assertEqual(len(hells), 2)
+        for m in hells:
+            self.assertTrue(m.get("keep"), "misheard: offered unticked")
+            self.assertIn("ELLE", m["sub"])
+        god = [m for m in mutes if m["raw"] == "my god"]
+        self.assertFalse(god[0].get("keep"))
+
+    def test_said_out_of_order_stays_muted(self):
+        mutes = self.check("A TRAIN IN TEXAS? MY GOD. WHAT? HELL. ELLE? WHAT? "
+                           "ROBERT OXTON BOLTON WROTE,",
+                           "a train in texas my god hell what elle what robert oxton bolton wrote")
+        self.assertFalse([m for m in mutes if m["raw"] == "hell"][0].get("keep"))
+
+    def test_screw_the(self):
+        import cvcore as cl
+        cats = [c for g in ("swearing", "mild", "deity", "minced", "rude") for c in cl.GROUPS[g]]
+
+        def muted(text):
+            words = [w for w in (cl.norm(t) for t in text.split()) if w]
+            return [" ".join(words[i:j]) for i, j, _ in cl.find_language(words, cats)]
+        self.assertEqual(muted("SCREW THE GOVERNMENT."), ["screw the government"])
+        self.assertEqual(muted("Screw the show and the Greenwoods."), ["screw the show"])
+        for text in ("Screw the lid on tight.", "Screw the bulb back in.",
+                     "Just screw the cap on.", "Screw the pieces together.",
+                     "I want to screw the bracket to the wall."):
+            self.assertEqual(muted(text), [], text)
+
+
 if __name__ == "__main__":
     unittest.main()

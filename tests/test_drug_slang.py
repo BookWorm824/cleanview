@@ -40,6 +40,15 @@ class Slang(unittest.TestCase):
                      "Nic. We've been jonesin' for you."):
             self.assertIsNone(DRUGS.search(line), line)
 
+    def test_shooting_up_rising(self):
+        # 1.18.139 (the owner: "Yes, fix it"): things that shoot up aren't drug talk
+        for line in ("The flames were shooting up.", "Prices are shooting up.",
+                     "Her temperature's shooting up.", "Every hand in the room shooting up."):
+            self.assertIsNone(DRUGS.search(line), line)
+        for line in ("He's shooting up again.", "I caught her shooting up.",
+                     "They were shooting up in the bathroom."):
+            self.assertIsNotNone(DRUGS.search(line), line)
+
     def test_booger_sugar(self):
         # 1.18.138 (the owner, in the CleanListen chat: "also add 'booger sugar'"): cocaine
         self.assertIsNotNone(DRUGS.search("You got any booger sugar?"))
