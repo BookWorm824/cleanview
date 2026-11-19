@@ -952,6 +952,8 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   or a job isn't on any list). "thou'dst drunk"; bowl, mug, medicine, dose in `DRUNK_THING`.
   None of the 70 past lines here with "drunk" reads differently. `test_drunk.WhoseDrink`.
   For CleanListen and CleanStream: the between-words rule.
+  1.18.143 (CleanListen c4797f8's note): "that" alone between is the drink too ("The wine
+  that was drunk at the wedding"); "which" already was (it's in `DRUNK_THING`).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

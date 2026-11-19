@@ -67,7 +67,9 @@ class WhoseDrink(unittest.TestCase):
                      "The health of his majesty was drunk.", "The health of her father was drunk.",
                      "Her coffee was drunk cold.", "My tea was drunk long ago.",
                      "The toast to the bride was drunk standing.",
-                     "The beer and the wine were drunk.", "Till thou'dst drunk thy fill."):
+                     "The beer and the wine were drunk.", "Till thou'dst drunk thy fill.",
+                     "The wine that was drunk at the wedding was French.",
+                     "the first regular toast, which was always drunk at such times"):
             self.assertFalse([m for m in CRUDE.finditer(line)
                               if m.group(0).lower() == "drunk"], line)
 
@@ -77,7 +79,8 @@ class WhoseDrink(unittest.TestCase):
                      "The owner of the wine shop was drunk.", "The driver of the beer truck was drunk.",
                      "Her father was drunk.", "And he was drunk.", "But it was drunk driving.",
                      "His brother is always drunk.", "After the wine someone was drunk.",
-                     "Two drinks and Tom was drunk."):
+                     "Two drinks and Tom was drunk.", "The beer that Tom drank. Tom was drunk.",
+                     "After the wine the man that was drunk left."):
             self.assertIsNotNone(CRUDE.search(line), line)
 
 

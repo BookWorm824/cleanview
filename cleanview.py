@@ -2764,7 +2764,8 @@ def drunk_old_use(text, m, before, rest):
             things = [n for n, w in enumerate(subject) if w in DRUNK_THING]
             if things and not DRUNK_SOMEONE.intersection(subject):
                 between = subject[things[-1] + 1:]
-                if not between or between[0] in DRUNK_WHOSE:
+                # "the wine that was drunk at the wedding" (1.18.143, CleanListen c4797f8)
+                if not between or between == ["that"] or between[0] in DRUNK_WHOSE:
                     return True
             break
     if re.match(r"\s*\.|\s*[!?;,]", rest):
