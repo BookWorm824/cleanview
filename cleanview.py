@@ -2726,11 +2726,20 @@ DRUNK_THING = {"toast", "toasts", "health", "healths", "wine", "wines", "ale", "
                "coffee", "milk", "water", "whisky", "whiskey", "brandy", "champagne", "nectar",
                "potion", "cup", "cups", "glass", "glasses", "bottle", "bottles", "liquor", "rum",
                "gin", "port", "punch", "cider", "mead", "sherry", "draught", "draft", "which",
-               "broth", "soup", "juice", "lemonade", "cocoa", "chocolate", "posset", "grog"}
+               "broth", "soup", "juice", "lemonade", "cocoa", "chocolate", "posset", "grog",
+               "bowl", "mug", "medicine", "dose"}
 DRUNK_BE = {"was", "were", "been", "is", "are", "be", "being"}
-DRUNK_SOMEONE = {"and", "but", "he", "she", "they", "i", "we", "you", "it", "who", "drank",
-                 "drink", "drinks", "drinking", "guy", "man", "woman", "girl", "boy", "his",
-                 "her", "my", "their", "everyone", "everybody"}
+# a person in the sentence means someone is drunk. Not "and", "but", "it", "his", "her", "my",
+# "their" (1.18.142, as CleanListen has it): "And the toast was drunk", "The health of his
+# majesty was drunk", "Her coffee was drunk cold"
+DRUNK_SOMEONE = {"he", "she", "they", "i", "we", "you", "who", "drank", "drink", "drinks",
+                 "drinking", "guy", "man", "woman", "girl", "boy", "everyone", "everybody",
+                 "someone", "somebody"}
+# what may come between the drink and "was drunk": nothing ("the toast was drunk") or whose it
+# was ("the health of the Earl was drunk", "the toast to the bride was drunk"). Anything else
+# is someone or something else that was drunk: "the wine was gone but Tom was drunk", "the
+# owner of the wine shop was drunk"
+DRUNK_WHOSE = {"of", "to"}
 DRUNK_BY_NOT = {"noon", "midday", "lunch", "lunchtime", "dinner", "supper", "evening",
                 "night", "nightfall", "morning", "ten", "eleven", "nine", "eight", "then",
                 "time", "now"}
@@ -2743,7 +2752,7 @@ DRUNK_FEELING = {"joy", "delight", "power", "love", "happiness", "rage", "grief"
 def drunk_old_use(text, m, before, rest):
     """Whether this "drunk" is a drink that "was drunk", "drunk by the/all/everyone", "thou
     hast drunk" or "drunk with" a feeling (CleanListen 62d10cf)."""
-    if before and before[0] in ("thou'st", "hast", "hath"):
+    if before and before[0] in ("thou'st", "thou'dst", "hast", "hath"):
         return True
     sentence = re.split(r"[.!?;,]", text[:m.start()])[-1]       # this sentence's own words
     near = re.findall(r"[a-z']+", sentence.lower())[-7:]
@@ -2752,8 +2761,11 @@ def drunk_old_use(text, m, before, rest):
             # the drink is what "was drunk": not "the beer was cold and he was drunk", "the
             # guy who drank the whiskey was drunk"
             subject = near[max(0, k - 5):k]
-            if DRUNK_THING.intersection(subject) and not DRUNK_SOMEONE.intersection(subject):
-                return True
+            things = [n for n, w in enumerate(subject) if w in DRUNK_THING]
+            if things and not DRUNK_SOMEONE.intersection(subject):
+                between = subject[things[-1] + 1:]
+                if not between or between[0] in DRUNK_WHOSE:
+                    return True
             break
     if re.match(r"\s*\.|\s*[!?;,]", rest):
         return False

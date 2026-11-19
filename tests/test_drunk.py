@@ -58,5 +58,28 @@ class OldUses(unittest.TestCase):
             self.assertIsNotNone(CRUDE.search(line), line)
 
 
+class WhoseDrink(unittest.TestCase):
+    """1.18.142, as CleanListen has it: "and", "but", "it", "his", "her", "my", "their" don't
+    make it a person; only nothing, or whose it was, may come between the drink and "was"."""
+
+    def test_what_was_drunk(self):
+        for line in ("And the toast was drunk in ginger wine.", "But the toast was drunk.",
+                     "The health of his majesty was drunk.", "The health of her father was drunk.",
+                     "Her coffee was drunk cold.", "My tea was drunk long ago.",
+                     "The toast to the bride was drunk standing.",
+                     "The beer and the wine were drunk.", "Till thou'dst drunk thy fill."):
+            self.assertFalse([m for m in CRUDE.finditer(line)
+                              if m.group(0).lower() == "drunk"], line)
+
+    def test_still_being_drunk(self):
+        for line in ("The beer was cold and he was drunk.", "The wine was gone but Tom was drunk.",
+                     "The wine was gone, but she was drunk.", "A glass of wine and Tom was drunk.",
+                     "The owner of the wine shop was drunk.", "The driver of the beer truck was drunk.",
+                     "Her father was drunk.", "And he was drunk.", "But it was drunk driving.",
+                     "His brother is always drunk.", "After the wine someone was drunk.",
+                     "Two drinks and Tom was drunk."):
+            self.assertIsNotNone(CRUDE.search(line), line)
+
+
 if __name__ == "__main__":
     unittest.main()

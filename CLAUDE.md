@@ -941,6 +941,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   photos); two of their descriptions, cut off at 90 characters, show none of 1.18.140's gore
   words ("leaning over a dark, covered object", "a gloved hand holds a container"), so on
   1.18.140 such real scenes may be offered unticked. `test_criminal_minds.Episode11`.
+- "The toast was drunk" in more old lines (1.18.142, 2026-11-19; CleanListen's note that
+  CleanView still muted "And the toast was drunk in ginger wine" and "The health of his majesty
+  was drunk"; the owner: "fix"). `drunk_old_use`: "and", "but", "it", "his", "her", "my",
+  "their" no longer make it a person (`DRUNK_SOMEONE`, as CleanListen's; "someone",
+  "somebody" do). Stricter than CleanListen: between the drink and "was drunk" there may be
+  nothing ("the toast was drunk") or whose it was (`DRUNK_WHOSE`: "of the Earl", "to the
+  bride"); anything else is someone who was drunk ("The wine was gone but Tom was drunk",
+  "The owner of the wine shop was drunk", "The driver of the beer truck was drunk": a name
+  or a job isn't on any list). "thou'dst drunk"; bowl, mug, medicine, dose in `DRUNK_THING`.
+  None of the 70 past lines here with "drunk" reads differently. `test_drunk.WhoseDrink`.
+  For CleanListen and CleanStream: the between-words rule.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
