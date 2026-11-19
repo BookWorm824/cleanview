@@ -796,6 +796,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   S1E6 report (made on 1.18.132) was right: its four words matched the subtitles, no line went
   through; the officer executed in the trunk (~21:28-22:02, Disturbing ticked) wasn't cut, not
   seen here and not taught. `test_sections.py`.
+- Her Criminal Minds S1E8 report (1.18.136, 2026-11-18, Young kids with many boxes changed, the
+  AI helper, made on 1.18.135, 77 min; the owner: "Yes, teach them"). Every word right ("hell"
+  for "Elle" offered unticked; "impotent" from 1.18.133's list). Gideon's interrogation (30:46-
+  31:42) went through but for "Does murder excite you?" and the word "impotent". Taught for
+  criminal-minds (sexref, every age): "I think he does those late night commercials for the
+  dead worms" (its own line "...late night commercials" matches as most of it; "For the dead
+  worms. You know, softies." is too short), "There's no evidence this guy can't perform.", "Is
+  it the only thing that can give you a sexual release?", "Take these off and we'll see." (not
+  the handcuffs' "...and we'll really talk"), Garcia's "10 bucks says this involves naked coeds
+  and a plumber", "his Thursday nights with a woman in Fells Point" (a paid woman). Not taught:
+  "You have problems performing?" (under 5 words), "With your old lady" (borderline).
+  `LINE_WORDS["sexref"]` has "sexual release(s)" (no past line here has it). Not seen here: the
+  torture tapes (~32:40) and the rats (~33:54, ~40:17), Disturbing ticked, not cut. Her Young
+  kids changes went back to standard after this scan (1.18.134); she was told.
+  `test_criminal_minds.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

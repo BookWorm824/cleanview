@@ -119,5 +119,36 @@ class Episode5(unittest.TestCase):
         self.assertNotIn("sub", m)
 
 
+class Episode8(unittest.TestCase):
+    """Her S1E8 report (1.18.136, made on 1.18.135, Young kids; the owner: "Yes, teach them"):
+    Gideon's interrogation and two jokes went through; taught for the show, every age."""
+
+    def lessons(self):
+        with open(support.ROOT / "shared_learned.json", encoding="utf-8") as f:
+            show = json.load(f)["shows"]["criminal-minds"]
+        return show, learn.LearnedLines(show["muted"])
+
+    def test_taught(self):
+        show, ll = self.lessons()
+        for said in ("I THINK HE DOES THOSE LATE NIGHT COMMERCIALS",
+                     "THERE'S NO EVIDENCE THIS GUY CAN'T PERFORM.",
+                     "IS IT THE ONLY THING THAT CAN GIVE YOU A SEXUAL RELEASE?",
+                     "TAKE THESE OFF AND WE'LL SEE.",
+                     "10 BUCKS SAYS THIS INVOLVES NAKED COEDS AND A PLUMBER.",
+                     "HIS THURSDAY NIGHTS WITH A WOMAN IN FELLS POINT."):
+            self.assertTrue(ll.match(learn.norm(said)), said)
+        for line in show["muted"]:
+            self.assertEqual(show["muted_for"][line], "sexref")
+
+    def test_the_handcuffs_line_stays(self):
+        _, ll = self.lessons()
+        self.assertFalse(ll.match(learn.norm("TAKE THESE OFF AND WE'LL REALLY TALK.")))
+
+    def test_sexual_release_listed(self):
+        sexref = engine.LINE_WORDS["sexref"]
+        self.assertIsNotNone(sexref.search("Is it the only thing that can give you a sexual release?"))
+        self.assertIsNotNone(sexref.search("Gives them an emotional or sexual release."))
+
+
 if __name__ == "__main__":
     unittest.main()

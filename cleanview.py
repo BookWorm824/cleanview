@@ -2434,6 +2434,9 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # "impotent against it" (a medicine), "impotent rage"
                          r"impoten(?:t|ce|cy)(?! (?:against|rage|fury|anger|frustration|"
                          r"in the face|to stop|to do)\b)|"
+                         # Criminal Minds S1E8 (1.18.136): "Is it the only thing that can
+                         # give you a sexual release?"
+                         r"sexual releases?|"
                          r"(boner|sex) pills?|aphrodisiacs?|spanish fly|"
                          # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
                          # quickie divorce" (a learned line she kept)
