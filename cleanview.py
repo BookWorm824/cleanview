@@ -5104,6 +5104,52 @@ def near_sound_alike(m, mapping, there, lined, sw, sn, asr_n, name_words):
             return
 
 
+# A word found only in the subtitles is placed where the heard words were lined up with them;
+# where a phrase is said over and over the lining up can slip (Criminal Minds S1E11: the
+# captions' "OH, GOD, FORGIVE ME." at 12:59 and "OH, GOD..." at 13:02 were muted 14 s late,
+# over "I'M SORRY!", and the real ones played). Checked against the subtitle line's own time,
+# moved by how far the words really heard alike near it are from their subtitle times.
+SUB_PLACE_SLACK = 3.0      # seconds the placed word may be from where its line says it is
+SUB_PLACE_NEAR = 41        # the truly lined-up words nearest it that say where the line is
+#                            (enough that a run of the phrase said over and over can't sway it)
+SUB_PLACE_LEAST = 3
+
+
+def sub_word_where(sw_cue, cues):
+    """Each subtitle word's time by its place in its line (as sync_cues reads them)."""
+    where, k = [], 0
+    while k < len(sw_cue):
+        ci, n = sw_cue[k], 1
+        while k + n < len(sw_cue) and sw_cue[k + n] == ci:
+            n += 1
+        c = cues[ci]
+        where += [c["s"] + (c["e"] - c["s"]) * (q + 0.5) / n for q in range(n)]
+        k += n
+    return where
+
+
+def sub_place_slipped(i, j, s, mapping, sn, asr_n, asr, where):
+    """Where subtitle words i..j-1 should be when the time s they were given is more than
+    SUB_PLACE_SLACK from it, else None. Goes by the words nearby the subtitles and the sound
+    really agree on (the same word), so subtitles that run early or late still count. Not
+    when the sound has the word right there (a song's "God knows" heard where it was placed,
+    its subtitle line 5 s earlier; most of the phrase's words, as "what" alone of "what the
+    hell" heard in "What happened?" doesn't say so)."""
+    if 2 * sum(mapping[k] is not None and sn[k] == asr_n[mapping[k]]
+               for k in range(i, j)) > j - i:
+        return None
+    near = [k for k in range(max(0, i - 200), min(len(sn), j + 200))
+            if not i <= k < j and mapping[k] is not None and sn[k]
+            and sn[k] == asr_n[mapping[k]]]
+    if len(near) < SUB_PLACE_LEAST:
+        return None
+    near.sort(key=lambda k: abs(k - i))
+    offs = sorted((asr[mapping[k]]["s"] + asr[mapping[k]]["e"]) / 2 - where[k]
+                  for k in near[:SUB_PLACE_NEAR])
+    there = where[i] + offs[len(offs) // 2]
+    return there if abs(s - there) > SUB_PLACE_SLACK else None
+
+
 def sounds_alike(heard, written):
     """True if a heard swear and the subtitles' word there sound alike enough that the
     swear was misheard: "bitch"/"Finch", "dick"/"Nic", "fucking"/"bugging" (Person of
@@ -5470,6 +5516,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         names = {k for k in range(len(sw)) if name_in_subtitles(sw, sw_cue, cues, k)}
         subtitle_word_there(mutes, mapping, sw, sn, asr_n, names)
         added, used = 0, set()
+        where = sub_word_where(sw_cue, cues)
         found = [(i, j, cat) for i, j, cat in cl.find_language(sn, cats, mine)
                  if not (j - i == 1 and can_be_name(cat, sn[i]) and i in names)]  # "Dern"
         if "deity" in cats:
@@ -5485,6 +5532,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                     if t2:
                         e = max(e, t2[1])
                 src = "subtitles" if exact else "subtitles-estimated"
+                there = sub_place_slipped(i, j, s, mapping, sn, asr_n, asr, where)
+                if there is not None:           # lined up with the wrong words: where the
+                    s, e = max(0.0, there - 0.7), there + 0.7 + 0.3 * (j - i - 1)  # line is
+                    src = "subtitles-estimated"
             else:
                 # fall back on the subtitle's own timing: place the word by its
                 # position in the line and mute generously around it

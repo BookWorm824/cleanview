@@ -198,5 +198,63 @@ class Episode9(unittest.TestCase):
             self.assertEqual(muted(text), [], text)
 
 
+class Episode11(unittest.TestCase):
+    """Her S1E11 report (1.18.141, made on 1.18.139)."""
+
+    def test_wish_to_god(self):
+        import cvcore as cl
+        cats = [c for g in ("swearing", "mild", "deity") for c in cl.GROUPS[g]]
+
+        def muted(text):
+            words = [w for w in (cl.norm(t) for t in text.split()) if w]
+            return [" ".join(words[i:j]) for i, j, _ in cl.find_language(words, cats)]
+        self.assertEqual(muted("I WISH TO GOD HE'D NEVER SPOKEN TO YOU!"), ["wish to god"])
+        self.assertEqual(muted("And I hope to God I can."), ["hope to god"])
+        self.assertEqual(muted("I pray to God he's all right."), [])
+
+    def lines(self, heard_shift=None, heard_same=False):
+        """Ten subtitle lines of three words, line k at 10k s, heard word for word; the
+        third line's words ("oh god forgive") lined up with the sixth line's heard words."""
+        import cvcore as cl
+        texts = ["it ain't right", "i'm so sorry", "oh god forgive"] + \
+                [f"word{k} more{k} yet{k}" for k in range(3, 10)]
+        cues = [{"s": 10.0 * k, "e": 10.0 * k + 3, "text": t} for k, t in enumerate(texts)]
+        sw, sw_cue = [], []
+        for ci, c in enumerate(cues):
+            for w in engine.spoken_words(c["text"]):
+                sw.append(w)
+                sw_cue.append(ci)
+        sn = [cl.norm(w) for w in sw]
+        asr = [{"s": cues[k // 3]["s"] + (k % 3), "e": cues[k // 3]["s"] + (k % 3) + 0.8,
+                "part": 0} for k in range(len(sn))]
+        asr_n = list(sn)
+        mapping = list(range(len(sn)))
+        if heard_shift:
+            for k in range(6, 9):
+                mapping[k] = k + heard_shift
+                if heard_same:
+                    asr_n[k + heard_shift] = sn[k]
+        return sn, asr_n, asr, mapping, engine.sub_word_where(sw_cue, cues)
+
+    def test_lined_up_with_the_wrong_words(self):
+        # "OH, GOD, FORGIVE ME." at 12:59 muted at 13:13, over "I'M SORRY!"
+        sn, asr_n, asr, mapping, where = self.lines(heard_shift=9)
+        s = asr[mapping[6]]["s"]
+        there = engine.sub_place_slipped(6, 8, s, mapping, sn, asr_n, asr, where)
+        self.assertIsNotNone(there)
+        self.assertLess(abs(there - where[6]), 1.0)
+
+    def test_placed_right_stays(self):
+        sn, asr_n, asr, mapping, where = self.lines()
+        self.assertIsNone(engine.sub_place_slipped(6, 8, asr[6]["s"], mapping, sn, asr_n,
+                                                   asr, where))
+
+    def test_heard_right_there_stays(self):
+        # a song's "God knows" heard where it was placed, its subtitle line earlier
+        sn, asr_n, asr, mapping, where = self.lines(heard_shift=9, heard_same=True)
+        self.assertIsNone(engine.sub_place_slipped(6, 8, asr[mapping[6]]["s"], mapping, sn,
+                                                   asr_n, asr, where))
+
+
 if __name__ == "__main__":
     unittest.main()

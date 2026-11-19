@@ -198,6 +198,9 @@ DEITY_PHRASES = [
     ("good", "god", "almighty"), ("oh", "my", "lord"), ("lord", "have", "mercy"),
     ("lord", "knows"), ("god", "help", "us"), ("god", "help", "me"), ("lord", "help", "us"),
     ("lord", "help", "me"), ("god", "forbid"), ("swear", "to", "god"), ("thank", "the", "lord"),
+    # an oath like "swear to God", not a prayer (1.18.141, Criminal Minds S1E11: "I WISH TO GOD
+    # HE'D NEVER SPOKEN TO YOU!"); "pray to God" stays a prayer
+    ("wish", "to", "god"), ("wished", "to", "god"), ("hope", "to", "god"), ("hoped", "to", "god"),
     ("in", "god's", "name"), ("in", "gods", "name"), ("for", "the", "love", "of", "god"),
     ("for", "the", "love", "of", "christ"),
     ("christ", "on", "a", "bike"), ("god", "in", "heaven"), ("so", "help", "me", "god"),

@@ -921,6 +921,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   still count. `test_drunk.OldUses`. And `test_cleanlisten_words.in_line_list` looks at the
   word-only lists too (`LIST_ONLY_KINDS`, `WORDS_ONLY_IN`; the Play chat found 17 "drunk"
   differences against CleanListen 1.17.71).
+- Her Criminal Minds S1E11 report (1.18.141, 2026-11-19, teens, the AI helper, made on 1.18.139,
+  98 min, 55.5 of them the closer look at 43 finds). Every word heard was right ("shit" for
+  "it" and "hell" for "Elle" offered unticked), and the drug talk worked (junkies, tweaker,
+  LSD). The captions' "OH, GOD, FORGIVE ME." (12:58) and "OH, GOD..." (13:02) were muted at
+  13:13-13:14, over "I'M SORRY!", so the real ones played: Domino says "It ain't right, I'm
+  sorry" over and over, and the lining up of subtitle words with the heard words slipped.
+  A word found only in the subtitles is now checked against its own line
+  (`sub_place_slipped`, `sub_word_where`): when it was placed more than `SUB_PLACE_SLACK` (3 s)
+  from where its line says, judged by the `SUB_PLACE_NEAR` (41) nearest words the subtitles
+  and the sound really agree on (the same word, so subtitles running early or late still
+  count), it goes where its line is; not when the sound has most of the phrase's words
+  right there (a Person of Interest song's "God knows", heard where it was placed, its line
+  5 s earlier). In the past reviews here 6 of 1,000 such words move, each onto its own line.
+  "I WISH TO GOD HE'D NEVER SPOKEN TO YOU!" (21:41) went through: `DEITY_PHRASES` has
+  wish/wished/hope/hoped to God beside "swear to God" ("pray to God" stays a prayer); in the
+  past reviews here it adds "And I hope to God I can." The 22 Graphic violence cuts fit the
+  dialogue (crime scene photos, the stomach in a jar, the heart taken, the interrogation's
+  photos); two of their descriptions, cut off at 90 characters, show none of 1.18.140's gore
+  words ("leaning over a dark, covered object", "a gloved hand holds a container"), so on
+  1.18.140 such real scenes may be offered unticked. `test_criminal_minds.Episode11`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
