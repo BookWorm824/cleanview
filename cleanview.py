@@ -2523,7 +2523,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                           r"husband and husband|wife and wife)\b", re.I),
     "oppsex": re.compile(r"\b(moved in together|living together|shacking up|"
                          r"sleeping together|slept together)\b", re.I),
-    "crude": re.compile(r"\b(farts?|farted|farting|poop(ed|ing)?|butt crack|boogers?|"
+    "crude": re.compile(r"\b(farts?|farted|farting|poop(ed|ing)?|butt crack|boogers?(?! sugar)|"
                         r"peed (my|his|her|your) pants|"
                         # the owner, in the CleanStream chat (1.18.137): "add drunk to crude
                         # humor"; just the word (WORDS_ONLY_IN), not "had drunk his tea"
@@ -2799,7 +2799,8 @@ def percocet_medical(text, m):
 DRUG_SLANG = [
     r"reefers?", r"ganja", r"spliffs?", r"bong (?:hits?|rips?)", r"kush", r"stoners?",
     r"pot ?heads?", r"tok(?:e|es|ed|ing)", r"high as a kite", r"wake and bake",
-    r"nose candy", r"crack ?heads?", r"coke ?heads?", r"freebas(?:e|ed|es|ing)",
+    r"nose candy", r"booger sugar", r"crack ?heads?", r"coke ?heads?",
+    r"freebas(?:e|ed|es|ing)",
     r"lines? of (?:coke|cocaine|blow)", r"junkies?", r"dope ?fiends?", r"oxys?", r"oxies",
     r"oxycontin", r"oxycotton", r"percs", r"hillbilly heroin", r"black tar heroin", r"sizzurp",
     r"purple drank", r"speedball(?:s|ing)?", r"shoot(?:s|ing)? up", r"track marks",
@@ -2812,7 +2813,8 @@ DRUG_SLANG = [
 # the words as the Drugs section lists them on the start page
 DRUG_TALK_SHOWN = [
     "stoned", "reefer", "ganja", "spliff", "bong hit", "kush", "stoner", "pothead", "toke",
-    "high as a kite", "wake and bake", "nose candy", "crackhead", "cokehead", "freebase",
+    "high as a kite", "wake and bake", "nose candy", "booger sugar", "crackhead", "cokehead",
+    "freebase",
     "lines of coke", "junkie", "dope fiend", "oxy", "OxyContin and Percocet (only when misused)",
     "percs", "hillbilly heroin", "black tar heroin", "sizzurp", "purple drank", "speedball",
     "shooting up", "track marks", "crystal meth", "meth head", "tweaker", "Xanax bars",

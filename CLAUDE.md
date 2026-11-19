@@ -874,6 +874,10 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   medicine names (morphine, fentanyl, ketamine). PCP is left out (a family doctor in hospital
   shows). In the past reviews here it finds 15 lines, all drug talk (oxy, meth head, tweakers,
   junkie, track marks, shooting up). `test_drug_slang.py`.
+- "booger sugar" is drug talk (1.18.138, 2026-11-18; the owner in the CleanListen chat, passed
+  on by the Play chat: "also add 'booger sugar'", cocaine; CleanListen and CleanRead have it):
+  in `DRUG_SLANG` and `DRUG_TALK_SHOWN`; the crude list's "booger" leaves it alone
+  (`boogers?(?! sugar)`). `test_drug_slang.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

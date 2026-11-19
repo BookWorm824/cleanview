@@ -40,6 +40,13 @@ class Slang(unittest.TestCase):
                      "Nic. We've been jonesin' for you."):
             self.assertIsNone(DRUGS.search(line), line)
 
+    def test_booger_sugar(self):
+        # 1.18.138 (the owner, in the CleanListen chat: "also add 'booger sugar'"): cocaine
+        self.assertIsNotNone(DRUGS.search("You got any booger sugar?"))
+        crude = engine.LINE_WORDS["crude"]
+        self.assertIsNone(crude.search("You got any booger sugar?"))     # drug talk, not crude
+        self.assertIsNotNone(crude.search("He's eating his boogers."))
+
     def test_oxycontin_misused(self):
         self.assertIsNotNone(DRUGS.search("He got hooked on OxyContin."))
 
