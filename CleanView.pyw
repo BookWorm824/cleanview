@@ -109,7 +109,8 @@ FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "s
                "bullying", "disrespect", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "medical", "disturbing",
                "smoking",
-               "drinking", "drugs", "religion", "loudmusic", "holidays", "birthday",
+               "drinking", "drugs", "drugtalk", "religion", "loudmusic", "holidays",
+               "birthday",
                "gestures", "darkmagic", "magic", "vampires"]
 # "holidays" is one box for Christmas, Halloween, Valentine's, Easter and St. Patrick's Day
 # (cleanview.HOLIDAYS); these were separate boxes before 1.17.1
@@ -134,17 +135,21 @@ PRESETS = {
                    kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
                    graphic=True, gore=True, medical=False, disturbing=True, smoking=False,
                    drinking=False,
-                   drugs=True, religion=False, loudmusic=False, gestures=True,
+                   drugs=True, drugtalk=True, religion=False, loudmusic=False,
+                   gestures=True,
                    **NO_HOLIDAYS),
 }
 
 
 def one_holidays_box(ticks):
-    """Saved ticks from before the holidays were one box: ticked if any of them was."""
+    """Saved ticks from before the holidays were one box: ticked if any of them was. And from
+    before drug talk had its own box (1.18.137): it follows the old "Drug use and drug talk"."""
     ticks = dict(ticks)
     old = [ticks.pop(k) for k in OLD_HOLIDAY_BOXES if k in ticks]
     if old and "holidays" not in ticks:
         ticks["holidays"] = any(old)
+    if "drugs" in ticks and "drugtalk" not in ticks:
+        ticks["drugtalk"] = ticks["drugs"]
     return ticks
 
 
@@ -1460,6 +1465,15 @@ class App(tk.Tk):
                      "lines (dork, dorks).", bg=CARD, fg=MUTED, font=(FONT, 9),
                      wraplength=wrap_width(520), justify="left").pack(anchor="w", pady=(X(4), 0))
 
+        def drug_words(body):
+            """The drug words listed under the Drugs section (1.18.137)."""
+            tk.Label(body, text="Drug talk mutes just these words: " +
+                     ", ".join(engine.DRUG_TALK_SHOWN) + ". Not the drugs' own names said by "
+                     "police or doctors (cocaine, morphine…), nor everyday words like pot, "
+                     "joint, rock or high.", bg=CARD, fg=MUTED, font=(FONT, 9),
+                     wraplength=wrap_width(520), justify="left").pack(anchor="w",
+                                                                       pady=(X(8), 0))
+
         def fold_group(title, icon, items, cols=1, menus=False, extra=None):
             """A section: a tile with its icon, its name, a switch for all of it and how many
             are on; its boxes are shown under the tiles when it's opened."""
@@ -1578,9 +1592,14 @@ class App(tk.Tk):
             ("bullying", "Bullying and mocking", False),
             ("disrespect", "Disrespect  (bratty, talking back, disobeying parents)", False),
             ("crude", "Crude humor  (bathroom and gross-out jokes)", False)])
-        fold_group("Smoking, drinking and drugs", "cup", [
-            ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False),
-            ("drugs", "Drug use", True)], cols=3)
+        fold_group("Smoking and drinking", "cup", [
+            ("smoking", "Smoking", False), ("drinking", "Drinking alcohol", False)], cols=2)
+        # its own section (1.18.137; the owner: "start a new menu area where you can turn on
+        # or off drugs. put all drug names and reference there")
+        fold_group("Drugs", "block", [
+            ("drugs", "Drug use shown  (taking pills, needles, smoking pot, snorting)", True),
+            ("drugtalk", "Drug talk and slang  (stoned, junkie, crackhead, shrooms, "
+                         "getting high…)", True)], extra=drug_words)
         fold_group("Faith, holidays and magic", "star", [
             ("religion", "Religious conversations  (prayer, church, faith, the Bible…)",
              False),

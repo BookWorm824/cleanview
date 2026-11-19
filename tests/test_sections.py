@@ -14,8 +14,8 @@ import support
 from test_ui import ui
 
 SECTIONS = ["Bad language", "Sex and nudity", "Romance and relationships", "Violence",
-            "Medical", "Attitude", "Smoking, drinking and drugs", "Faith, holidays and magic",
-            "Music"]
+            "Medical", "Attitude", "Smoking and drinking", "Drugs",
+            "Faith, holidays and magic", "Music"]          # Drugs its own (1.18.137)
 
 
 class StartPage(unittest.TestCase):

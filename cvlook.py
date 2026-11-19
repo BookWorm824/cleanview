@@ -25,7 +25,8 @@ ICONS = {"folder": "", "video": "", "check": "", "next": "",
          "mute": "", "eye": "", "heart": "", "warning": "",
          "health": "", "smile": "", "cup": "", "star": "",
          "music": "", "pc": "", "chat": "", "cloud": "",
-         "spark": "", "down": "", "close": "", "info": "", "sun": "", "moon": ""}
+         "spark": "", "down": "", "close": "", "info": "", "sun": "", "moon": "",
+         "block": ""}
 
 C = dict(bg="#F6F3EE", card="#FFFFFF", ink="#22201E", muted="#77716A", faint="#A39C93",
          line="#E6E0D7", accent="#2F6F62", accent_dk="#245A4F", tint="#EAF2EF",

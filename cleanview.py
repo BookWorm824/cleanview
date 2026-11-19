@@ -56,11 +56,15 @@ LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "dis
               "religion", "forensic") + HOLIDAYS + ("birthday",) + MAGIC
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
 WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS + MAGIC
+# dialogue kinds found by the short lists alone, not read by an AI (1.18.137: drug talk and
+# slang, its own box in the Drugs section; "drugs" is the picture filter)
+LIST_ONLY_KINDS = ("drugtalk",)
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "graphic": True, "disturbing": True, "medical": None,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
             "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
-            "drinking": False, "drugs": False, "crude": False, "bullying": False,
+            "drinking": False, "drugs": False, "drugtalk": False, "crude": False,
+            "bullying": False,
             "forensic": False,
             "disrespect": False,
             "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
@@ -2437,6 +2441,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # Criminal Minds S1E8 (1.18.136): "Is it the only thing that can
                          # give you a sexual release?"
                          r"sexual releases?|"
+                         # the owner, 2026-11-18 (1.18.137): "little wiener when it doesn't mean
+                         # a dog" (nor food: `wiener_dog`)
+                         r"little (?:wiener|weiner|weenie|weeny)s?|"
+                         # the owner, 2026-11-18 (1.18.137): "rubbing his ball" (not a
+                         # pitcher's baseball, a crystal ball: `ball_game`)
+                         r"(?:rub|rubs|rubbed|rubbing) (?:his|your|my|their|ur) balls?|"
                          r"(boner|sex) pills?|aphrodisiacs?|spanish fly|"
                          # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
                          # quickie divorce" (a learned line she kept)
@@ -2514,7 +2524,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
     "oppsex": re.compile(r"\b(moved in together|living together|shacking up|"
                          r"sleeping together|slept together)\b", re.I),
     "crude": re.compile(r"\b(farts?|farted|farting|poop(ed|ing)?|butt crack|boogers?|"
-                        r"peed (my|his|her|your) pants)\b", re.I),
+                        r"peed (my|his|her|your) pants|"
+                        # the owner, in the CleanStream chat (1.18.137): "add drunk to crude
+                        # humor"; just the word (WORDS_ONLY_IN), not "had drunk his tea"
+                        r"drunk|drunks|drunken|drunkenly|drunkenness|drunkards?)\b", re.I),
     # coroner and doctor talk (1.18.72; the owner: "categorize coroner, medical examiner and dr
     # talk into its own ticked box"): only what's hard to mistake
     "forensic": re.compile(r"\b(sexual(ly)? assault(ed)?|(sex|sexual) offenders?|rape kit|"
@@ -2655,7 +2668,235 @@ class Listed:
         return getattr(self.rx, name)
 
 
-LINE_WORDS["sexref"] = Listed(LINE_WORDS["sexref"], stripper_tool)
+# "little wiener" said of a dachshund or of food isn't sexual (1.18.137)
+WIENER_DOG = {"dog", "dogs", "doggy", "doggie", "puppy", "puppies", "pup", "pups", "dachshund",
+              "dachshunds", "leash", "bark", "barks", "barking", "woof", "paws", "fetch", "pet",
+              "breed", "kennel", "vet", "collar", "tail", "hot", "sausage", "sausages",
+              "cocktail", "blanket", "blankets", "bun", "buns", "ketchup", "mustard", "grill",
+              "roast", "schnitzel", "beans", "franks", "frank", "eat", "eating", "ate"}
+
+
+def wiener_dog(text, m):
+    """Whether this "little wiener" is a dog or food (dog or food words within 8 words)."""
+    found = m.group(0).lower()
+    if not found.startswith("little w"):
+        return False
+    near = (re.findall(r"[a-z']+", text[:m.start()].lower())[-8:] +
+            re.findall(r"[a-z']+", text[m.end():].lower())[:8])
+    return bool(WIENER_DOG.intersection(near))
+
+
+# "rubbing his ball" said of a game or a thing isn't sexual (1.18.137); "balls" always counts
+BALL_GAME = {"baseball", "pitcher", "pitch", "pitches", "pitching", "mound", "throw", "throws",
+             "throwing", "glove", "mitt", "bat", "catcher", "inning", "innings", "umpire", "ump",
+             "game", "bowling", "bowl", "bowler", "lane", "lanes", "golf", "golfer", "putt",
+             "tee", "crystal", "fortune", "football", "basketball", "soccer", "tennis",
+             "cricket", "mud", "dirt", "seams", "lucky", "kick", "team", "coach", "field",
+             "court", "shot", "spin", "magic", "genie", "lamp"}
+
+
+def ball_game(text, m):
+    """Whether this "rubbing his ball" (one ball) is a game's ball or a thing (game words within
+    8 words)."""
+    found = m.group(0).lower()
+    if not found.startswith("rub") or not found.endswith("ball"):
+        return False
+    near = (re.findall(r"[a-z']+", text[:m.start()].lower())[-8:] +
+            re.findall(r"[a-z']+", text[m.end():].lower())[:8])
+    return bool(BALL_GAME.intersection(near))
+
+
+def sexref_innocent(text, m):
+    return stripper_tool(text, m) or wiener_dog(text, m) or ball_game(text, m)
+
+
+LINE_WORDS["sexref"] = Listed(LINE_WORDS["sexref"], sexref_innocent)
+
+# "drunk" as what was drunk, not being drunk (1.18.137): "had drunk his tea", "she's drunk the
+# water", "drunk from the well", "drunk of the cup"
+DRUNK_BEFORE = {"have", "has", "had", "having", "i've", "you've", "we've", "they've", "i'd",
+                "you'd", "he'd", "she'd", "we'd", "they'd", "he's", "she's"}
+DRUNK_NEXT = {"from", "of", "deep", "deeply"}
+
+
+def drunk_drink(text, m):
+    """Whether this "drunk" is the past of drink (what was drunk), not being drunk."""
+    if m.group(0).lower() != "drunk":
+        return False
+    before = re.findall(r"[a-z']+", text[:m.start()].lower())[-1:]
+    rest = text[m.end():]
+    after = [] if re.match(r"\s*[.!?;]", rest) else re.findall(r"[a-z']+", rest.lower())[:1]
+    if after and after[0] in DRUNK_NEXT:
+        return True
+    if before and before[0] in DRUNK_BEFORE:
+        # "she's drunk" alone is being drunk; "she's drunk the water" is what she drank
+        return before[0] not in ("he's", "she's") or bool(after) and after[0] in (
+            "the", "a", "an", "his", "her", "my", "your", "their", "our", "it", "all", "some",
+            "that", "this", "too", "enough", "every")
+    return False
+
+
+LINE_WORDS["crude"] = Listed(LINE_WORDS["crude"], drunk_drink)
+# a kind's words muted on their own even though the kind isn't one of LIST_WORDS_ONLY
+WORDS_ONLY_IN = {"crude": re.compile(r"(?i)^drunk")}
+
+
+def words_only(listed_kinds):
+    """Whether a line found only by the short lists ({kind: [words]}) mutes just the words."""
+    return all(k in LIST_WORDS_ONLY or (k in WORDS_ONLY_IN and
+                                        all(WORDS_ONLY_IN[k].match(w) for w in ws))
+               for k, ws in listed_kinds.items())
+
+# Drug talk (1.18.137; the owner, in the CleanStream chat: "Yes, add it everywhere" to
+# "stoned"): high on drugs, not a stoning (Bible stories, history: "stoned to death", "they
+# stoned him", "shall surely be stoned") or pitted fruit ("stoned olives").
+STONED_NEXT = {"to", "by", "with", "him", "her", "them", "us", "the", "a", "an", "his", "their",
+               "our", "its", "prophets", "prophet", "stephen", "paul", "until", "till", "olives",
+               "cherries", "dates", "plums", "prunes", "apricots", "fruit"}
+STONED_BEFORE2 = {"shall", "surely", "must"}         # "...shall be stoned"
+
+
+def stoned_rocks(text, m):
+    """Whether this "stoned" is a stoning or pitted fruit, not high on drugs."""
+    if not m.group(0).lower().startswith("stoned"):
+        return False
+    rest = text[m.end():]
+    # (not past the end of its sentence: lines are read with the next joined on)
+    after = [] if re.match(r"\s*[.!?;]", rest) else re.findall(r"[a-z']+", rest.lower())[:1]
+    before = re.findall(r"[a-z']+", text[:m.start()].lower())[-2:]
+    if after and after[0] in STONED_NEXT:
+        return True
+    return len(before) == 2 and before[1] == "be" and before[0] in STONED_BEFORE2
+
+
+# Percocet counts only when it's misused (the owner, in the Play chat: "only misusing"):
+# popped, bought or sold, to get high, hooked on it... within PERCOCET_REACH words. A doctor's
+# prescription or medical talk ("prescribed Percocet after surgery") has none of these.
+PERCOCET_MISUSE = {"pop", "pops", "popped", "popping", "popper", "poppers", "buy", "buys",
+                   "buying", "bought", "sell", "sells", "selling", "sold", "deal", "deals",
+                   "dealing", "dealt", "dealer", "dealers", "score", "scored", "scoring", "high",
+                   "hooked", "addicted", "addict", "addicts", "addiction", "snort", "snorted",
+                   "snorting", "crush", "crushed", "crushing", "stash", "steal", "stole",
+                   "stolen", "stealing", "street", "junkie", "junkies", "fix", "abuse", "abused",
+                   "abusing", "overdose", "overdosed", "od'd", "habit", "withdrawal", "dope",
+                   "doped", "strung", "candy", "party", "recreational", "wasted", "fiend"}
+PERCOCET_REACH = 10
+
+
+def percocet_medical(text, m):
+    """Whether this "Percocet" (or OxyContin, also a medicine's name) has no sign of misuse near
+    it (then it's left alone)."""
+    if not m.group(0).lower().startswith(("percocet", "perkaset", "oxycontin")):
+        return False
+    near = (re.findall(r"[a-z']+", text[:m.start()].lower())[-PERCOCET_REACH:] +
+            re.findall(r"[a-z']+", text[m.end():].lower())[:PERCOCET_REACH])
+    return not PERCOCET_MISUSE.intersection(near)
+
+
+# Drug slang (1.18.137; the owner, 2026-11-18: "do a search on common drug reference and
+# slang", then "group 1 only": slang that only means drugs, not the drugs' own names, which are
+# mostly police talk here, nor slang that's an everyday word: pot, joint, rock, snow, high...)
+DRUG_SLANG = [
+    r"reefers?", r"ganja", r"spliffs?", r"bong (?:hits?|rips?)", r"kush", r"stoners?",
+    r"pot ?heads?", r"tok(?:e|es|ed|ing)", r"high as a kite", r"wake and bake",
+    r"nose candy", r"crack ?heads?", r"coke ?heads?", r"freebas(?:e|ed|es|ing)",
+    r"lines? of (?:coke|cocaine|blow)", r"junkies?", r"dope ?fiends?", r"oxys?", r"oxies",
+    r"oxycontin", r"oxycotton", r"percs", r"hillbilly heroin", r"black tar heroin", r"sizzurp",
+    r"purple drank", r"speedball(?:s|ing)?", r"shoot(?:s|ing)? up", r"track marks",
+    r"crystal meth", r"meth ?heads?", r"tweakers?", r"(?:xanax|xan|z) ?-?bars", r"xannies",
+    r"zannies", r"ludes", r"quaaludes?", r"ruffies", r"rohypnol", r"lsd", r"shrooms",
+    r"magic mushrooms", r"angel dust", r"k-?holes?", r"trip(?:ping)? balls",
+    r"(?:get|gets|getting|got|gotten) high", r"high on (?:drugs|coke|cocaine|crack|meth|"
+    r"heroin|pot|weed|pills|acid|ecstasy|percocet|oxy|smack|dope|something)",
+    r"strung out", r"jones(?:ing|in')"]
+# the words as the Drugs section lists them on the start page
+DRUG_TALK_SHOWN = [
+    "stoned", "reefer", "ganja", "spliff", "bong hit", "kush", "stoner", "pothead", "toke",
+    "high as a kite", "wake and bake", "nose candy", "crackhead", "cokehead", "freebase",
+    "lines of coke", "junkie", "dope fiend", "oxy", "OxyContin and Percocet (only when misused)",
+    "percs", "hillbilly heroin", "black tar heroin", "sizzurp", "purple drank", "speedball",
+    "shooting up", "track marks", "crystal meth", "meth head", "tweaker", "Xanax bars",
+    "xannies", "ludes", "roofies", "Rohypnol", "LSD", "shrooms", "magic mushrooms",
+    "angel dust", "k-hole", "tripping balls", "getting high", "high on drugs", "strung out",
+    "jonesing"]
+JUNKIE_NOT = {"adrenaline", "news", "sugar", "political", "politics", "coffee", "caffeine",
+              "sports", "info", "information", "data", "science", "history", "thrill", "gadget",
+              "tech", "fitness", "gym", "health", "attention", "exercise", "movie", "tv",
+              "shopping", "chocolate", "crime", "trivia", "media", "power", "speed", "work"}
+# "got high marks", "get high ground", "the shooting up the street" (a gun), "strung out along"
+HIGH_NOT_NEXT = {"marks", "mark", "scores", "score", "grades", "hopes", "praise", "blood",
+                 "ground", "up", "enough", "above", "off", "fever", "fevers", "ratings",
+                 "points", "school", "pressure", "temperature", "temperatures"}
+SHOOT_UP_OK_NEXT = {"heroin", "drugs", "dope", "smack", "again", "in", "with", "together"}
+STRUNG_NOT_NEXT = {"along", "across", "over", "between", "behind", "like", "around", "in",
+                   "through", "from"}
+
+
+def drug_slang_innocent(text, m):
+    """Whether this slang find is another meaning where it stands: an adrenaline junkie, the
+    Hindu Kush, shooting up a street, got high marks, strung out along the road."""
+    found = m.group(0).lower()
+    before = re.findall(r"[a-z']+", text[:m.start()].lower())[-1:]
+    rest = text[m.end():]
+    after = [] if re.match(r"\s*[.!?;,]", rest) else re.findall(r"[a-z']+", rest.lower())[:1]
+    if found.startswith("junkie"):
+        return bool(before) and before[0] in JUNKIE_NOT
+    if found == "kush":
+        return bool(before) and before[0] == "hindu"
+    if found.startswith("shoot"):
+        return bool(after) and after[0] not in SHOOT_UP_OK_NEXT
+    if found.endswith(" high"):
+        return bool(after) and after[0] in HIGH_NOT_NEXT
+    if found == "strung out":
+        return bool(after) and after[0] in STRUNG_NOT_NEXT
+    if found in ("oxy", "oxys"):
+        return rest.startswith("-")            # oxy-acetylene
+    if found.startswith("jones"):              # "We've been jonesin' for you" (a person)
+        return bool(re.match(r"\s*for (?:you|me|him|her|them|us)\b", rest, re.I))
+    return False
+
+
+def drugs_innocent(text, m):
+    return stoned_rocks(text, m) or percocet_medical(text, m) or drug_slang_innocent(text, m)
+
+
+# the owner, in the Play chat (1.18.137): "out these under drugs", "perkaset", "roofie",
+# "roofies" (roofies always count: no medical use); and the slang above
+LINE_WORDS["drugtalk"] = Listed(re.compile(
+    r"\b(?:stoned|percocets?|perkasets?|roofie|roofies|roofied|roofy|" + "|".join(DRUG_SLANG) +
+    r")(?![\w'])", re.I), drugs_innocent)
+
+# A phrase split across two subtitle lines ("...I could go down" / "on you"): each line is read
+# with the next joined on when it follows within this many seconds (1.18.137; CleanStream 0.4.5
+# found YouTube's captions splitting "go down on you"; the owner: "both" to the same here).
+JOIN_NEXT_SECS = 2.0
+
+
+def list_hits(lines, kinds):
+    """{line number: {kind: [the words found in that line]}} by the short phrase lists. A find
+    that starts in one line and runs into the next is found too, and each line gets its part
+    of it (a find starting in the next line is that line's own)."""
+    out = {}
+    for i, l in enumerate(lines):
+        t = l["text"]
+        nxt = lines[i + 1] if i + 1 < len(lines) else None
+        join = (nxt is not None and nxt.get("s", 0) - l.get("e", nxt.get("s", 0))
+                <= JOIN_NEXT_SECS)
+        text = t + " " + nxt["text"] if join else t
+        cut = len(t)
+        for k in kinds:
+            for m in LINE_WORDS[k].finditer(text):
+                if m.start() >= cut:
+                    continue                    # the next line's own: found there
+                if m.end() <= cut:
+                    out.setdefault(i, {}).setdefault(k, []).append(m.group(0))
+                    continue
+                first, rest = text[m.start():cut].strip(), text[cut + 1:m.end()].strip()
+                if first:
+                    out.setdefault(i, {}).setdefault(k, []).append(first)
+                if rest:
+                    out.setdefault(i + 1, {}).setdefault(k, []).append(rest)
+    return out
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
               "disrespect": "Disrespect",
               "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
@@ -2667,7 +2908,8 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
               "shared": "CleanView learned", "chat": "You asked in the chat",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "forensic": "Coroner and doctor talk",
-              "samesex": "Same-sex relationship", "oppsex": "Unmarried couple"}
+              "samesex": "Same-sex relationship", "oppsex": "Unmarried couple",
+              "drugtalk": "Drug talk"}
 WHO_LABEL = {"mf": "man & woman", "mm": "two men", "ff": "two women"}
 def flirt_scenes(flirts):
     """Same-sex flirting found in the dialogue, as scenes. One where a man's and a woman's
@@ -3301,9 +3543,12 @@ def saved_scan(work, video, opts, groups):
         return None
     if sorted(st.get("groups") or []) != sorted(groups or []):
         return None
+    # a list-only box newer than the scan (drug talk, 1.18.137): its lines are added to a scan
+    # used again by `add_new_lessons`, so the scan still counts as made the same way
+    newer = {k for k in LIST_ONLY_KINDS if k not in old}
     new, old = full_opts(opts), full_opts(old)
     for k in set(DEFAULTS) | {"profile"}:
-        if k in SCAN_SAME_SKIP:
+        if k in SCAN_SAME_SKIP or k in newer:
             continue
         a, b = new.get(k), old.get(k)
         if k == "mywords":
@@ -3365,12 +3610,12 @@ def add_new_lessons(st, reused=False):
                                                     l.get("text")) for l in line_mutes}
     fo = full_opts(o)
     added = []
+    found = list_hits(lines, [k for k in LINE_KINDS + LIST_ONLY_KINDS
+                              if fo.get(k) and k in LINE_WORDS])
     for i, l in enumerate(lines):
         if i in taken or (round(l["s"], 2), l["text"]) in taken:
             continue
-        hits = {k: [m.group(0) for m in LINE_WORDS[k].finditer(l["text"])]
-                for k in LINE_KINDS if fo.get(k) and k in LINE_WORDS}
-        hits = {k: v for k, v in hits.items() if v}
+        hits = found.get(i, {})
         if not hits:
             continue
         toks = l["text"].split()
@@ -3380,7 +3625,7 @@ def add_new_lessons(st, reused=False):
         new = {"id": max((x.get("id", 0) for x in line_mutes), default=0) + 1,
                "s": round(l["s"], 2), "e": round(l["e"], 2), "text": " ".join(toks),
                "plain": l["text"], "types": sorted(hits), "mute": True, "idx": i}
-        if set(hits) <= set(LIST_WORDS_ONLY):
+        if words_only(hits):
             new["words"] = [LIST_WORD_TRIM.sub("", w) for k in sorted(hits) for w in hits[k]]
         line_mutes.append(new)
         added.append(new)
@@ -4405,10 +4650,13 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
     reads just those (the word lists always read everything). people: who's a man and who's
     a woman ({name: "man"}), told to the AI on this PC beside the lines it reads."""
     wanted = [k for k in LINE_KINDS if o[k]]
-    if not wanted or not lines:
+    by_list = wanted + [k for k in LIST_ONLY_KINDS if o.get(k)]     # (no AI reads these)
+    if not by_list or not lines:
         return [], ""
     found, how = {}, "word lists"
-    if claude_found is not None:
+    if not wanted:
+        pass
+    elif claude_found is not None:
         found = {i: set(t) for i, t in claude_found.items()}
         how = cc.name()
         if have_ai and unread:
@@ -4449,13 +4697,11 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
             except Exception:
                 pass
     listed = {}                 # found only by the word list: {line: {kind: [the words]}}
-    for i, l in enumerate(lines):
-        for k in wanted:
-            hits = [m.group(0) for m in LINE_WORDS[k].finditer(l["text"])]
-            if hits:
-                if k not in found.get(i, set()):
-                    listed.setdefault(i, {})[k] = hits
-                found.setdefault(i, set()).add(k)
+    for i, kinds_found in list_hits(lines, by_list).items():
+        for k, hits in kinds_found.items():
+            if k not in found.get(i, set()):
+                listed.setdefault(i, {})[k] = hits
+            found.setdefault(i, set()).add(k)
     explicit = set()
     if "sexref" in wanted:              # explicit findings: whole lines, whoever read them
         for i in explicit_findings(lines):
@@ -4477,7 +4723,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                     "mute": True, "idx": i})
         if i in explicit:               # the whole line, never just a word of it
             out[-1]["explicit"] = True
-        elif set(listed.get(i, {})) == found[i] and found[i] <= set(LIST_WORDS_ONLY):
+        elif set(listed.get(i, {})) == found[i] and words_only(listed[i]):
             out[-1]["words"] = [LIST_WORD_TRIM.sub("", w) for k in sorted(found[i])
                                 for w in listed[i][k]]
     return out, how
@@ -4536,7 +4782,7 @@ def explicit_stay(st):
 # The short no-AI list mutes just its words, not the whole line (Lauren, 2026-11-09, Castle
 # S1E2: she had the chat switch 22 lines to just "sex", "condom", "affair"..., and chose "Just
 # the word" for the list). What an AI flags, and lines learned to mute whole, stay whole.
-LIST_WORDS_ONLY = ("sexref", "casual")
+LIST_WORDS_ONLY = ("sexref", "casual", "drugtalk")
 # the list's longer phrases, cut to the word she mutes: "had sex" -> "sex", "having an affair"
 # -> "affair" (the chat muted just those)
 LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b)"

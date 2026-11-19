@@ -811,6 +811,69 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   torture tapes (~32:40) and the rats (~33:54, ~40:17), Disturbing ticked, not cut. Her Young
   kids changes went back to standard after this scan (1.18.134); she was told.
   `test_criminal_minds.py`.
+- "stoned" is drug talk (1.18.137, 2026-11-18; the owner in the CleanStream chat, passed on by
+  it: "Yes, add it everywhere"). The Drug use box ("Drug use and drug talk" on the start page)
+  was a picture filter only; drug talk is now its own box with a short list,
+  `LINE_WORDS["drugtalk"]` (the "drugtalk" option; "drugs" stays the picture filter), read by
+  the lists alone (`LIST_ONLY_KINDS`: `find_lines` runs `by_list`, no AI is asked about
+  it; `add_new_lessons` takes it too), just the word muted (`LIST_WORDS_ONLY`), labelled "Drug
+  talk" (`LINE_LABEL`). `stoned_rocks` leaves a stoning or pitted fruit alone: "stoned to death",
+  "stoned him/her/them/the prophets", "stoned by/with", "shall/surely/must be stoned", "stoned
+  olives" (`STONED_NEXT`, `STONED_BEFORE2`). The one past line here, Person of Interest's "He
+  was stoned. I asked him to leave.", is drug talk and now caught. For CleanListen, CleanRead
+  and CleanStream too. `test_stoned.py`. Also on it (the owner in the Play chat, passed on by
+  it: "out these under drugs", "perkaset", "roofie", "roofies"): percocet(s) and her spelling
+  perkaset(s), roofie/roofies/roofied/roofy (not roofing). Percocet only when misused (her
+  answer, relayed by the Play chat: "only misusing"): a misuse word within 10 words
+  (`percocet_medical`, `PERCOCET_MISUSE`: popped, bought/sold, dealing, high, hooked, addicted,
+  snort, crush, street, overdose...); a prescription or medical talk is left alone. Roofies
+  always count (no medical use); the guards together are `drugs_innocent`. The one past line here, "Roofies...date rape drug.", is now caught.
+  Also in 1.18.137, a phrase split across two subtitle lines is found (CleanStream 0.4.5 found
+  YouTube's captions splitting "go down on you"; the owner: "both"). `list_hits(lines, kinds)`
+  reads each line with the next joined on when it starts within `JOIN_NEXT_SECS` (2 s); a find
+  starting in a line is that line's, and one running into the next gives each line its part
+  (just those words muted), used by `find_lines` and `add_new_lessons`. Guards still hold ("the
+  sun went down / on us", "go down / on your knees"); `stoned_rocks` doesn't look past the end
+  of its sentence. In the past reviews here it adds no line.
+  And "little wiener/weiner/weenie(s)" in `LINE_WORDS["sexref"]` (the owner: "little wiener
+  when it doesn't mean a dog"), not with dog or food words within 8 words (`wiener_dog`,
+  `WIENER_DOG`: dog, puppy, dachshund, leash..., hot, sausage, cocktail, blanket, bun, mustard,
+  eat...); the sexref guards are now `sexref_innocent` (stripper and wiener). No past line here
+  has it. `test_split_phrases.py`, `test_wiener.py`.
+  And "drunk" on the crude humor list (the owner in the CleanStream chat, passed on by it: "add
+  drunk to crude humor"): `LINE_WORDS["crude"]` has drunk/drunks/drunken/drunkenly/drunkenness/
+  drunkard(s), just the word muted (`WORDS_ONLY_IN["crude"]`, `words_only`; a fart line still
+  goes whole), not what was drunk (`drunk_drink`: after have/has/had/I'd/she's + the/a/his...,
+  or before from/of: "had drunk his tea", "drunk from the well"). In the past reviews here 38
+  lines have it, all being drunk. `test_drunk.py`.
+  And "rub/rubs/rubbed/rubbing his/your/my/their ball(s)" in `LINE_WORDS["sexref"]` (the owner:
+  "can we add the line 'rubbing his ball'", then "balls"), one ball not with game or thing
+  words within 8 words (`ball_game`, `BALL_GAME`: pitcher, mound, throw, bowling, golf, crystal,
+  lucky...; "balls" always counts). No past line here has it. `test_wiener.py`.
+  And drugs get their own section, with drug slang (the owner: "do a search on common drug
+  reference and slang", then of three groups "group 1 only. start a new menu area where you can
+  turn on or off drugs. put all drug names and reference there"). Step 2's "Smoking, drinking
+  and drugs" is now "Smoking and drinking" and "Drugs" (icon `block`, new in cvlook.py): "Drug
+  use shown" (`drugs`, the picture filter) and "Drug talk and slang" (`drugtalk`, on for every
+  age), with the words listed under them (`drug_words`, `engine.DRUG_TALK_SHOWN`). Saved ticks
+  from before follow the old box (`one_holidays_box`: drugtalk = drugs). A scan made before the
+  box still counts as made the same way (`saved_scan`'s `newer`: `add_new_lessons` adds the
+  lines). The list (`DRUG_SLANG`, from the DEA's code words and recovery and parents' guides):
+  slang that only means drugs, reefer, ganja, spliff, bong hit, kush, stoner, pothead, toke,
+  high as a kite, nose candy, crackhead, cokehead, freebase, lines of coke, junkie, dope fiend,
+  oxy, percs, OxyContin (misused only, as Percocet), hillbilly heroin, sizzurp, purple drank,
+  speedball, shooting up, track marks, crystal meth, meth head, tweaker, Xanax bars, xannies,
+  ludes, quaaludes, ruffies, Rohypnol, LSD, shrooms, magic mushrooms, angel dust, k-hole,
+  tripping balls, get/got high, high on <drug>, strung out, jonesing; `drug_slang_innocent`:
+  an adrenaline/news... junkie (`JUNKIE_NOT`), the Hindu Kush, shooting up the street (only
+  before heroin/drugs/again... or the end, `SHOOT_UP_OK_NEXT`), got high marks/ground
+  (`HIGH_NOT_NEXT`), strung out along (`STRUNG_NOT_NEXT`), oxy-acetylene, jonesing for
+  you/him... Not on it (her group 2, not chosen): the drugs' own names (cocaine, heroin, meth,
+  marijuana, ecstasy, drug dealer, narcotics: mostly police talk here); never: everyday words
+  (pot, joint, blunt, weed, coke, crack, blow, rock, snow, ice, speed, Molly, bars, high...) and
+  medicine names (morphine, fentanyl, ketamine). PCP is left out (a family doctor in hospital
+  shows). In the past reviews here it finds 15 lines, all drug talk (oxy, meth head, tweakers,
+  junkie, track marks, shooting up). `test_drug_slang.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
