@@ -128,22 +128,22 @@ class Phrases(unittest.TestCase):
                            ("I'm gonna get that Polack.", "polack"), ("Wop!", "wop"),
                            ("Even a greaseball's got feelings.", "greaseball's")):
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["strong"]), [(word, "strong")])
+                self.assertEqual(found(text, ["slurs"]), [(word, "slurs")])   # 1.18.150
                 self.assertTrue(cl.never_fine(word))       # no AI may call it fine
         for text in ("keep the kitchen spic and span", "Spic 'n' Span", "a wop bop a loo bop",
                      "doo wop music", "Mick Jagger sang", "Jackson Pollock painted it"):
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["strong"]), [])
+                self.assertEqual(found(text, ["slurs"]), [])
 
     def test_fifty_first_dates_nympho(self):
         for text, word in (("How's that hot wahini nympho from Ohio, huh?", "nympho"),
                            ("Oh, the nympho is the state bird of Ohio.", "nympho"),
                            ("She was a nymphomaniac.", "nymphomaniac")):
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["moderate"]), [(word, "moderate")])
+                self.assertEqual(found(text, ["sexwords"]), [(word, "sexwords")])
         for text in ("a water nymph in the pond", "the nymphs danced"):
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["moderate"]), [])
+                self.assertEqual(found(text, ["sexwords"]), [])
 
 
 class FromCleanListen(unittest.TestCase):
@@ -152,15 +152,15 @@ class FromCleanListen(unittest.TestCase):
 
     def test_caught(self):
         for text, phrase, cat in [
-                ("He was jerking off.", "jerking off", "moderate"),
-                ("Go rub one out.", "rub one out", "moderate"),
-                ("Stop wanking.", "wanking", "moderate"), ("What a jerkoff.", "jerkoff", "moderate"),
+                ("He was jerking off.", "jerking off", "sexwords"),
+                ("Go rub one out.", "rub one out", "sexwords"),
+                ("Stop wanking.", "wanking", "sexwords"), ("What a jerkoff.", "jerkoff", "sexwords"),
                 ("What the eff, man.", "what the eff", "moderate"),
                 ("What the fudge!", "what the fudge", "minced"),
-                ("It's cold enough to freeze my nuts off.", "freeze my nuts off", "moderate"),
-                ("That took brass balls.", "brass balls", "moderate"),
-                ("They found the body, cut his balls off.", "cut his balls off", "moderate"),
-                ("She kicked him right in the nuts.", "kicked him right in the nuts", "moderate")]:
+                ("It's cold enough to freeze my nuts off.", "freeze my nuts off", "crudewords"),
+                ("That took brass balls.", "brass balls", "crudewords"),
+                ("They found the body, cut his balls off.", "cut his balls off", "crudewords"),
+                ("She kicked him right in the nuts.", "kicked him right in the nuts", "crudewords")]:
             with self.subTest(text=text):
                 self.assertEqual(found(text, [cat]), [(phrase, cat)])
 
@@ -187,8 +187,8 @@ class FromCleanListenToo(unittest.TestCase):
                      "She's got some balls from the gym"):
             with self.subTest(text=text):
                 self.assertEqual(found(text), [])
-        self.assertEqual(found("You've got some stones, kid", ["moderate"]),
-                         [("you've got some stones", "moderate")])
+        self.assertEqual(found("You've got some stones, kid", ["crudewords"]),
+                         [("you've got some stones", "crudewords")])
 
     def test_stars_alone_arent_a_word(self):
         for token in ("***", "****", "$$$", "@@@", "* * *"):
@@ -208,7 +208,7 @@ class Retarded(unittest.TestCase):
                            ("stupid libtards", "libtards"),
                            ("that's re tarded", "re tarded")]:
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["moderate"]), [(word, "moderate")])
+                self.assertEqual(found(text, ["slurs"]), [(word, "slurs")])
 
     def test_everyday_words_left_alone(self):
         for text in ("don't be tardy", "a pink leotard", "hot dog with mustard",
@@ -292,7 +292,7 @@ class SlangForPrivateParts(unittest.TestCase):
                              ("You've got some stones, kid", "you've got some stones"),
                              ("That's ballsy", "ballsy"), ("Show some cojones", "cojones")]:
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["moderate"]), [(phrase, "moderate")])
+                self.assertEqual(found(text, ["crudewords"]), [(phrase, "crudewords")])
 
     def test_everyday_stones_balls_and_nuts_left_alone(self):
         for text in ("I got some stones for the garden", "Grab the tennis balls",
@@ -307,7 +307,7 @@ class SlangForPrivateParts(unittest.TestCase):
         self.assertFalse(cl.listed_word("stones"))
 
     def test_reviewer_is_told(self):
-        self.assertIn("grow some stones", engine.wanted_text({}, ["swearing"]))
+        self.assertIn("grow some stones", engine.wanted_text({"crude": True}, []))
 
 
 class MoreOfTheSame(unittest.TestCase):
@@ -372,15 +372,15 @@ class MoreOfTheSame(unittest.TestCase):
         for text, phrase, cat in [("We're screwed", "we're screwed", "mild"),
                                   ("Up yours!", "up yours", "mild"),
                                   ("That was craptastic", "craptastic", "mild"),
-                                  ("Dayum", "dayum", "mild"), ("She's a floozy", "floozy", "mild"),
+                                  ("Dayum", "dayum", "mild"), ("She's a floozy", "floozy", "sexwords"),
                                   ("Can't be arsed", "arsed", "moderate"),
-                                  ("Check out those jugs", "check out those jugs", "moderate"),
-                                  ("Nice rack", "nice rack", "moderate"),
-                                  ("Kicked him in the junk", "kicked him in the junk", "moderate"),
-                                  ("suck my cock", "my cock", "moderate")]:
+                                  ("Check out those jugs", "check out those jugs", "sexwords"),
+                                  ("Nice rack", "nice rack", "sexwords"),
+                                  ("Kicked him in the junk", "kicked him in the junk", "crudewords"),
+                                  ("suck my cock", "my cock", "sexwords")]:
             with self.subTest(text=text):
                 self.assertEqual(found(text, [cat]), [(phrase, cat)])
-        self.assertEqual(found("lesbos", ["samesex"]), [("lesbos", "samesex")])
+        self.assertEqual(found("lesbos", ["slurs"]), [("lesbos", "slurs")])
 
     def test_everyday_uses_left_alone(self):
         for text in ("The shelf is screwed to the wall", "I screwed up the order",
@@ -448,8 +448,11 @@ class FruitAndVegetables(unittest.TestCase):
                 ("a cucumber in his pants", "cucumber in his pants"),
                 ("Look at her tight buns", "her tight buns"),
                 ("his juicy peach", "his juicy peach")]:
+            # the kicks and the frozen ones are crude humor, the rest sexual (1.18.150)
+            cat = "crudewords" if any(w in phrase for w in ("kneed", "kicked", "hit ", "zipped",
+                                                            "freezing")) else "sexwords"
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["moderate"]), [(phrase, "moderate")])
+                self.assertEqual(found(text, [cat]), [(phrase, cat)])
 
     def test_real_fruit_left_alone(self):
         for text in ("These melons are ripe", "Check out these melons, only a dollar",
@@ -469,7 +472,7 @@ class FruitAndVegetables(unittest.TestCase):
             self.assertFalse(cl.listed_word(word))
 
     def test_reviewer_is_told(self):
-        self.assertIn("those melons", engine.wanted_text({}, ["swearing"]))
+        self.assertIn("those melons", engine.wanted_text({"sexref": True}, []))
 
 
 class ShortForms(unittest.TestCase):
@@ -484,8 +487,9 @@ class ShortForms(unittest.TestCase):
                              ("She's a ball buster", "ball buster"),
                              ("ball-buster", "ballbuster"), ("ballbusting boss", "ballbusting"),
                              ("Quit busting my balls", "busting my balls")]:
+            cat = "crudewords" if "ball" in phrase else "moderate"     # 1.18.150
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["moderate"]), [(phrase, "moderate")])
+                self.assertEqual(found(text, [cat]), [(phrase, cat)])
 
     def test_everyday_words_left_alone(self):
         for text in ("She let out a sob.", "It's a sob story", "He sobbed", "a bag of chips",
@@ -510,16 +514,16 @@ class MoreCrudeSlang(unittest.TestCase):
         for text, word, cat in [
                 ("You A-hole", "ahole", "moderate"), ("What the f-ing hell", "what the fing", "strong"),
                 ("WTF is this", "wtf", "strong"), ("eff you", "eff you", "moderate"),
-                ("you mofo", "mofo", "strong"), ("Don't be a pussy", "pussy", "moderate"),
-                ("He got a boner", "boner", "moderate"), ("nice boobs", "boobs", "moderate"),
-                ("huge knockers", "knockers", "moderate"), ("She's horny", "horny", "moderate"),
-                ("a couple of hookers", "hookers", "moderate"), ("total MILF", "milf", "moderate"),
-                ("you cockblocked me", "cockblocked", "moderate"),
+                ("you mofo", "mofo", "strong"), ("Don't be a pussy", "pussy", "sexwords"),
+                ("He got a boner", "boner", "sexwords"), ("nice boobs", "boobs", "sexwords"),
+                ("huge knockers", "knockers", "sexwords"), ("She's horny", "horny", "sexwords"),
+                ("a couple of hookers", "hookers", "sexwords"), ("total MILF", "milf", "sexwords"),
+                ("you cockblocked me", "cockblocked", "sexwords"),
                 ("what a dickwad", "dickwad", "moderate"), ("numbnuts", "numbnuts", "moderate"),
                 ("you tosser", "tosser", "moderate"), ("feckin' eejit", "feckin", "moderate"),
-                ("that's retarded", "retarded", "moderate"), ("biatch", "biatch", "moderate"),
+                ("that's retarded", "retarded", "slurs"), ("biatch", "biatch", "moderate"),
                 ("shat himself", "shat", "moderate"), ("in the crapper", "crapper", "mild"),
-                ("you turd", "turd", "mild"), ("brazen hussy", "hussy", "mild"),
+                ("you turd", "turd", "crudewords"), ("brazen hussy", "hussy", "sexwords"),
                 ("frakking toasters", "frakking", "minced"),
                 ("Jesus H. Christ", "jesus h christ", "deity"),
                 ("Mother of God", "mother of god", "deity")]:
@@ -529,7 +533,7 @@ class MoreCrudeSlang(unittest.TestCase):
     def test_slurs(self):
         for word in ("wetback", "towelhead", "raghead"):
             with self.subTest(word=word):
-                self.assertEqual(found(f"you {word}", ["strong"]), [(word, "strong")])
+                self.assertEqual(found(f"you {word}", ["slurs"]), [(word, "slurs")])
 
     def test_everyday_uses_left_alone(self):
         for text in ("Dick Grayson", "Moby Dick",
@@ -547,8 +551,8 @@ class FromTheReports(unittest.TestCase):
     Prejudice, National Treasure; 2026-10-29)."""
 
     def test_now_found(self):
-        for text, phrase, cat in [("Grow some cajones", "grow some cajones", "moderate"),
-                                  ("He's got cahones", "cahones", "moderate"),
+        for text, phrase, cat in [("Grow some cajones", "grow some cajones", "crudewords"),
+                                  ("He's got cahones", "cahones", "crudewords"),
                                   ("You still get screwed", "get screwed", "mild"),
                                   ("We got screwed!", "got screwed", "mild"),
                                   ("Verdammt!", "verdammt", "mild"), ("Merde!", "merde", "moderate"),

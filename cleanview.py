@@ -3088,13 +3088,10 @@ CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smokin
              "condom": "Condom shown"}
 
 
-GROUP_TEXT = {"swearing": "swear words (strong and moderate), including slang for a man's "
-                          "private parts such as 'grow some stones', 'grow a pair', 'has the "
-                          "balls to' (the whole phrase, not ordinary stones or balls), fruit "
-                          "and vegetables used for body parts such as 'check out those "
-                          "melons', 'pop her cherry', 'kicked him in the plums', 'a banana "
-                          "in your pocket' (not real fruit), and "
-                          "slurs such as 'retarded' (even said as a description)",
+# (1.18.150: slurs are a box of their own, and sexual and crude words go with those filters)
+GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
+              "slurs": "slurs: hateful names for groups of people (racial and ethnic slurs, "
+                       "'retarded' even said as a description, anti-gay slurs)",
               "mild": "mild language such as crap, screw you, damn, hell, 'that's bull' "
                       "(short for bullshit, not the animal)",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
@@ -3119,7 +3116,12 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "samesex": "same-sex relationships and romance, including flirting",
             "casual": "sleeping around (casual sex, hooking up, affairs)",
             "oppsex": "unmarried man and woman living or sleeping together",
-            "sexref": "sexual references and innuendo", "crude": "crude humor",
+            "sexref": "sexual references and innuendo, including sexual slang words and "
+                      "fruit and vegetables used for body parts such as 'check out those "
+                      "melons', 'pop her cherry', 'a banana in your pocket' (not real fruit)",
+            "crude": "crude humor, including slang such as 'grow some stones', 'grow a pair', "
+                     "'has the balls to' (the whole phrase, not ordinary stones or balls) and "
+                     "'kicked him in the plums'",
             "forensic": "coroner, medical examiner and doctor talk: graphic findings about a "
                         "body or a victim (wounds, organs, cause of death, an autopsy, rape or "
                         "sexual assault)",
@@ -3233,9 +3235,10 @@ def hard_rule_words(st):
     return n
 
 
-def _words_listed(word, mine=(), groups=None):
-    """Every word is on a list of a word group that's ticked (groups None: any list)."""
-    cats = None if groups is None else [c for g in groups for c in cl.GROUPS.get(g, [])]
+def _words_listed(word, mine=(), groups=None, opts=None):
+    """Every word is on a list of a word group that's ticked (groups None: any list); the
+    sexual and crude words count when their dialogue filter is ticked in opts (1.18.150)."""
+    cats = None if groups is None else cl.cats_for(groups, full_opts(opts))
     ws = [w.strip() for w in re.split(r"[|,]", word or "") if w.strip()]
     return bool(ws) and all(cl.listed_word(w, mine, cats) for w in ws)
 
@@ -3406,7 +3409,8 @@ def apply_review(st, result):
             it["claude"] = {"decision": "remove", "why": EXPLICIT_WHY}     # stays muted whole
             _set_on(kind, it, True)
             continue
-        if dec == "just the word" and not _words_listed(word, own_words, st.get("groups")):
+        if dec == "just the word" and not _words_listed(word, own_words, st.get("groups"),
+                                                        st.get("opts")):
             # not a word on any list: often a name the speech recognition misheard
             # ("Grafi" for Gruffi). Offer it unticked; the line stays as it was.
             for w in re.split(r"[|,]", word):
@@ -3453,7 +3457,7 @@ def apply_review(st, result):
         l = lines[k]
         ms = [word_mute(st, l, w.strip(), why) for w in re.split(r"[|,]", word) if w.strip()]
         if ms and None not in ms:
-            ok = _words_listed(word, own_words, st.get("groups"))
+            ok = _words_listed(word, own_words, st.get("groups"), st.get("opts"))
             for m in ms:
                 if m.get("by_you") or m.get("learned"):
                     continue
@@ -3466,7 +3470,7 @@ def apply_review(st, result):
             if ok:
                 n_add += 1
             continue
-        if word and not _words_listed(word, own_words, st.get("groups")):
+        if word and not _words_listed(word, own_words, st.get("groups"), st.get("opts")):
             continue                      # couldn't even place an unlisted word: skip it
         st["lines"].append({"s": l["s"], "e": l["e"], "text": l["text"], "plain": l["text"],
                             "types": ["claude"], "mute": True, "idx": k,
@@ -5288,7 +5292,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         lang = cl.use_language(lang)
         o["language"], o["language_auto"] = lang, lang_how
         scan["language"] = lang
-    cats = [c for g in groups for c in cl.GROUPS[g]]
+    cats = cl.cats_for(groups, o)  # (sexual and crude words with their filters, 1.18.150)
     mine = my_words(o)            # her own words and phrases: always muted
     use_clip = bool(nd["clip"]) and ai.clip_ready()
     # the AI helper starts in the background while it listens (1.18.54: waiting for it first
@@ -6504,7 +6508,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     # done: it's written as .partial first); the original is never written to
     dst = out / f"{clean_stem(src.stem)} (Clean){'.mp4' if mp4 else '.mkv'}"
 
-    cats = [c for g in st["groups"] for c in cl.GROUPS[g]]
+    cats = cl.cats_for(st["groups"], full_opts(st.get("opts")))
     subs = clean_cues(st["cues"], cats, mute_rs, cut_rs, line_rs,
                       my_words(st.get("opts"))) if st["cues"] else []
     srt = None

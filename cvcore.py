@@ -91,17 +91,32 @@ def probe_duration(path):
 # Word lists
 # ---------------------------------------------------------------------------
 STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing", r"effin'?", r"f'?ing",
-          r"mofos?", r"wtf", r"stfu", r"omfg",
-          # racial slurs (the unmistakable ones; "cracker", "chink" etc. have everyday
-          # meanings too, so they're left to the AI review)
-          r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
-          r"ragheads?", r"beaners?",
-          # Forest Gump (the owner, 2026-11-16, "Add the 2 words"): "Coons are trying to get
-          # into school." went through. Not a raccoon: "a coon dog", "coon hunting", "a coon's
-          # age", "a Maine Coon" (INNOCENT_NEXT / INNOCENT_PREV)
-          r"coons?",
-          # West Side Story (the owner, 2026-11-08): "You lyin' Spic!", "that Polack", "Wop!"
-          r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?"]
+          r"mofos?", r"wtf", r"stfu", r"omfg"]
+# Slurs: hateful names for groups of people, a box of their own, ticked for every age, so they
+# are muted even with Swearing or Same-sex words unticked (1.18.150; the owner, in the
+# CleanStream chat: "when i had the hard language filter on it took out some words that should
+# be in other categories", "organize better by type", "Yes, all of it"). They were in Swearing
+# and Same-sex words before.
+SLURS = [
+    # racial slurs (the unmistakable ones; "cracker", "chink" etc. have everyday
+    # meanings too, so they're left to the AI review)
+    r"nigg(a|as|ah|az|er|ers)", r"kikes?", r"wetbacks?", r"gooks?", r"towelheads?",
+    r"ragheads?", r"beaners?",
+    # Forest Gump (the owner, 2026-11-16, "Add the 2 words"): "Coons are trying to get
+    # into school." went through. Not a raccoon: "a coon dog", "coon hunting", "a coon's
+    # age", "a Maine Coon" (INNOCENT_NEXT / INNOCENT_PREV)
+    r"coons?",
+    # West Side Story (the owner, 2026-11-08): "You lyin' Spic!", "that Polack", "Wop!"
+    r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?",
+    # disability ("a severely retarded boy", Radio; never fine, NEVER_FINE)
+    r"retard(s|ed|os?)?", r"retart(s|ed)?", r"tards?", r"libtards?",
+    # anti-gay (not "gay", "lesbian": those stay Same-sex words)
+    r"fags?", r"faggots?", r"dykes?", r"homos?", r"lesbos?",
+    # Forest Gump (2026-11-16): "Get your faggotty ass on the bus" went through
+    r"fagg?ott?(y|ie|ies)",
+    r"lez(z?ie|z?ies|bos?)",
+    # Spanish, with the short list below (a slur, as "faggot" is here)
+    r"marico?n(es)?"]
 # Never "fine in context", whatever an AI says: slurs, and "retarded" even said as a plain
 # description ("a severely retarded boy", Radio). An AI's "not an issue" on these is ignored.
 NEVER_FINE = [re.compile(p) for p in (
@@ -146,9 +161,7 @@ MODERATE = [
     r"lame|weird|broke|punk|wuss|bad|dumb|smart|jack|whole|cold|hot|mean|tough|fine|"
     r"nice|cool|pretty|ugly|old|cute|great|bitch)ass(es|ed)?",
     r"bastard.*", r"piss.*", r"dicks?", r"dickhead.*", r"pricks?", r"bollocks",
-    r"bugger.*", r"wanker.*", r"wank(s|ed|ing|in)?", r"(jerk|jack)offs?", r"twats?", r"sluts?", r"slutty", r"whores?",
-    r"cojones", r"ca[jh]ones", r"(ball|nut)sacks?", r"ballsy", r"balls?bust(er|ers|ing)",
-    r"skanks?", r"douche.*", r"tits", r"titties", r"cocksucker.*",
+    r"bugger.*", r"wanker.*", r"twats?", r"douche.*", r"cocksucker.*",
     # German, French and Spanish ones said in English films (National Treasure: "Merde")
     r"merde", r"scheisse", r"mierda",
     # A short list of Spanish swear words that mean nothing else in English, for the Spanish
@@ -163,20 +176,29 @@ MODERATE = [
     # more crude slang heard in TV and films
     r"a-?holes?", r"lardass(es)?", r"bia?y?o?tch(es)?", r"beyotch", r"shat",
     r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts", r"knobheads?", r"tossers?",
-    r"bellends?", r"feck(ing|in|er|ers)?", r"retard(s|ed|os?)?", r"retart(s|ed)?",
-    r"tards?", r"libtards?",
-    r"pussy", r"pussies", r"boners?", r"boobs", r"boobies", r"knockers", r"titty",
-    r"nymphos?", r"nymphomaniacs?",          # 50 First Dates (2026-11-08); not "nymph"
-    r"nads", r"peckers?", r"peen", r"jizz", r"cum", r"horny", r"hookers?", r"hoochies?",
-    r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
-    r"skeez(e|y|ier)", r"skeevy", r"schlongs?", r"todgers?", r"dildos?", r"arsed", r"arses",
+    r"bellends?", r"feck(ing|in|er|ers)?", r"arsed", r"arses",
 ]
 # ("damning" = incriminating, and "damnation", are left alone)
 MILD = [r"damn", r"verdammt", r"damn(s|ed|edest|it)", r"dammit", r"goddamn.*", r"goddam", r"godd?amm?it", r"hell", r"hellhole",
         r"crap", r"crappy", r"craps", r"craphole", r"bullcrap", r"sod", r"sodding", r"bloody",
-        r"crapper", r"turds?", r"hella", r"hussy", r"hussies",
-        r"crap(pier|piest|ped|ping|pers|holes|loads?|tastic|ola)", r"day+um+n?",   # "dayum"
-        r"floozy", r"floozies", r"trollops?", r"strumpets?"]
+        r"crapper", r"hella",
+        r"crap(pier|piest|ped|ping|pers|holes|loads?|tastic|ola)", r"day+um+n?"]   # "dayum"
+# Sexual words: muted when "Sexual references and innuendo" is ticked (1.18.150, from Swearing
+# and Mild words; the owner: "organize better by type"). Muted word by word as before.
+SEX_WORDS = [
+    r"wank(s|ed|ing|in)?", r"(jerk|jack)offs?", r"sluts?", r"slutty", r"whores?",
+    r"(ball|nut)sacks?", r"skanks?", r"tits", r"titties",
+    r"pussy", r"pussies", r"boners?", r"boobs", r"boobies", r"knockers", r"titty",
+    r"nymphos?", r"nymphomaniacs?",          # 50 First Dates (2026-11-08); not "nymph"
+    r"peckers?", r"peen", r"jizz", r"cum", r"horny", r"hookers?", r"hoochies?",
+    r"boink(s|ed|ing)?", r"nookie", r"milfs?", r"dilfs?", r"cockblock(s|ed|er|ing)?",
+    r"skeez(e|y|ier)", r"schlongs?", r"todgers?", r"dildos?",
+    # the old words for a loose woman
+    r"hussy", r"hussies", r"floozy", r"floozies", r"trollops?", r"strumpets?"]
+# Crude words: muted when "Crude humor" is ticked (1.18.150): "balls" meaning nerve, the poop
+# word, "nads".
+CRUDE_WORDS = [r"cojones", r"ca[jh]ones", r"ballsy", r"balls?bust(er|ers|ing)", r"nads",
+               r"turds?"]
 MINCED = [r"frigg?in[g']?", r"freakin[g']?", r"frickin[g']?", r"frick(ed|s)?", r"jeeze?",
           r"geeze?", r"gosh", r"gosh(darn|dang).*",
           # not sewing: "darning", "darns", "a darning-needle" (CleanListen 1.17.57, Little Women)
@@ -643,6 +665,29 @@ def bull_swear(words, i):
     return nxt not in BULL_NOT_NEXT and bool(BULL_BEFORE.search(" ".join(words[max(0, i - 3):i])))
 
 
+# Which box each BODY_SLANG phrase is muted with (1.18.150, sorted by type): "balls" meaning
+# nerve and kicks in the privates are crude humor, breasts, "pop her cherry", "a banana in
+# your pocket", touching yourself are sexual words, "re tard" a slur, "what the eff", "d bag",
+# "s o b", "eff you" swearing.
+_CR, _SX = "crudewords", "sexwords"
+SLANG_CAT = ([_CR] * 9 + [_SX] * 6 + [_CR] * 2 + [_SX] * 7 + ["moderate"] + [_CR] * 2 +
+             ["moderate", "slurs", "moderate", "moderate"])
+assert len(SLANG_CAT) == len(BODY_SLANG)
+
+
+def slang_box(words, i, cats):
+    """(how many words, its box) of the BODY_SLANG phrase at words[i] whose box is in cats;
+    (0, None) if none."""
+    text = " ".join(words[i:i + 8])
+    for p, cat in zip(BODY_SLANG, SLANG_CAT):
+        if cat not in cats:
+            continue
+        m = p.match(text)
+        if m and (m.end() == len(text) or text[m.end()] == " "):
+            return len(text[:m.end()].split()), cat
+    return 0, None
+
+
 def body_slang(words, i, pats=BODY_SLANG):
     """How many words from words[i] are one of the BODY_SLANG phrases (or pats) (0 if none)."""
     text = " ".join(words[i:i + 8])
@@ -939,7 +984,8 @@ RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?"
         r"wuss(es)?", r"wussy", r"sissy", r"sissies", r"crybab(y|ies)", r"scaredy(cats?)?",
         r"weirdos?", r"fatsos?", r"putz(es)?", r"schmucks?", r"ignoramus(es)?", r"brats?",
         r"sucky", r"suckage", r"sucktastic",
-        r"dumbdumbs?", r"dumdums?", r"fatheads?"]
+        r"dumbdumbs?", r"dumdums?", r"fatheads?",
+        r"skeevy"]       # creepy (from Swearing, 1.18.150)
 RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
                 ("shut", "your", "face"), ("shut", "it"), ("you", "suck"), ("it", "sucks"),
                 ("this", "sucks"), ("that", "sucks"), ("shut", "your", "pie", "hole"),
@@ -980,23 +1026,29 @@ NOT_SEX_BEFORE = {
 SEX_WINDOW_SCORE = 9   # a stretch of ~3 paragraphs (or ~60s) scoring this much gets flagged
 SEX_PARA_SCORE = 3     # a single paragraph inside such a stretch must score this to be cut
 
+# (the slurs among them are in SLURS since 1.18.150)
 SAMESEX_WORDS = [r"gays?", r"homosexuals?", r"homosexuality", r"lesbians?", r"bisexuals?",
-                 r"queers?", r"fags?", r"faggots?", r"dykes?", r"homos?", r"lesbos?",
-                 # Forest Gump (2026-11-16): "Get your faggotty ass on the bus" went through
-                 r"fagg?ott?(y|ie|ies)",
-                 r"lez(z?ie|z?ies|bos?)",
-                 # Spanish, with the short list above (a slur, as "faggot" is here)
-                 r"marico?n(es)?"]
+                 r"queers?"]
 
 # Checkbox groups shown in the app → word-list categories
 GROUPS = {
     "swearing": ["strong", "moderate"],
+    "slurs": ["slurs"],
     "mild": ["mild"],
     "deity": ["deity"],
     "minced": ["minced"],
     "samesexwords": ["samesex"],
     "rude": ["rude"],
 }
+# Words muted with a dialogue filter's box (1.18.150): sexual words with "Sexual references
+# and innuendo", crude words with "Crude humor"
+FILTER_WORDS = {"sexref": "sexwords", "crude": "crudewords"}
+
+
+def cats_for(groups, opts=None):
+    """The word lists to use: the ticked word groups' and the ticked dialogue filters' words."""
+    cats = [c for g in groups or () for c in GROUPS.get(g, [])]
+    return cats + [c for k, c in FILTER_WORDS.items() if (opts or {}).get(k)]
 
 
 # Subtitles often bleep swears ("f***ing", "s**t", "a**hole", "@#$%"). Each is matched
@@ -1066,9 +1118,9 @@ def _c(pats):
     return [re.compile(p + r"$") for p in pats]
 
 
-CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "mild": _c(MILD),
+CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "slurs": _c(SLURS), "mild": _c(MILD),
         "minced": _c(MINCED), "deity": _c(DEITY_WORDS), "samesex": _c(SAMESEX_WORDS),
-        "rude": _c(RUDE)}
+        "rude": _c(RUDE), "sexwords": _c(SEX_WORDS), "crudewords": _c(CRUDE_WORDS)}
 SEX_C = {w: _c(p) for w, p in SEX_TERMS.items()}
 
 
@@ -1105,7 +1157,7 @@ def listed_word(word, mine=(), cats=None):
     for ph in phrases:                                           # "shut up", "screw you"
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
-    if any(("moderate" in on and body_slang(parts, k))                # "grow some stones"
+    if any(slang_box(parts, k, on)[0]                                # "grow some stones"
            or (swear and body_slang(parts, k, MILD_SLANG))
            or ("minced" in on and body_slang(parts, k, MINCED_SLANG))
            or (swear and bull_swear(parts, k))                        # "that's bull"
@@ -1164,9 +1216,9 @@ def find_language(words, cats, mine=()):
                 hits.append((i, i + len(ph), "deity"))
                 i += len(ph)
                 continue
-        k = body_slang(words, i) if "moderate" in cats else 0
+        k, box = slang_box(words, i, cats)
         if k:
-            hits.append((i, i + k, "moderate"))
+            hits.append((i, i + k, box))
             i += k
             continue
         k = body_slang(words, i, MINCED_SLANG) if "minced" in cats else 0

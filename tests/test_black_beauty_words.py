@@ -8,7 +8,7 @@ import support  # noqa: F401  (must come first)
 
 import cvcore as cl
 
-CATS = ["strong", "moderate", "mild", "deity", "minced", "samesex", "rude"]
+CATS = list(cl.CATS)       # every list (slurs and sexual words have their own since 1.18.150)
 
 
 def found(text):

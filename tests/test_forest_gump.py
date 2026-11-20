@@ -18,7 +18,7 @@ import cleanview_claude as cc
 import cleanview_learn as learn
 import cvcore as cl
 
-CATS = ["strong", "moderate", "mild", "deity", "minced", "samesex", "rude"]
+CATS = list(cl.CATS)       # every list (slurs and sexual words have their own since 1.18.150)
 
 
 def found(text):

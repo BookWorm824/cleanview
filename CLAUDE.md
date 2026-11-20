@@ -1061,6 +1061,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   here (no video). Left as they were (she left them muted): "Or she could've been the
   stressor." and "Almost all of these guys had a citation", muted whole with nothing sexual
   in them. For CleanListen and CleanRead too: "sex criminals". `test_criminal_minds.Episode19`.
+- Swearing sorted by type (1.18.150, 2026-11-20; the owner in the CleanStream chat: "when i
+  had the hard language filter on it took out some words that should be in other
+  categories", "organize better by type", "Yes, all of it"; CleanStream's list, by index in
+  1.18.149's lists, is in Downloads\CleanStream\notes-for-cleanview\swearing-list-sorting-
+  2026-11-20.txt). A new word box "Slurs" (`cvcore.SLURS`, group "slurs", ticked for every
+  age, after Swearing on the start page): the racial slurs from `STRONG`, the disability ones
+  from `MODERATE` and "re tard", and the anti-gay ones from `SAMESEX_WORDS` ("gay",
+  "lesbian", "queer" stay Same-sex words); still `NEVER_FINE`. Sexual words (`SEX_WORDS`:
+  boobs, horny, hooker, slut..., hussy/floozy/trollop/strumpet from `MILD`, and the breast,
+  cherry, banana-in-your-pocket and touching-yourself phrases of `BODY_SLANG`) are muted with
+  "Sexual references and innuendo" ticked; crude words (`CRUDE_WORDS`: cojones, ballsy,
+  ball-buster, nads, turd, and the grow-some-stones, has-the-balls-to and kicked-in-the-nuts
+  phrases) with "Crude humor"; "skeevy" (creepy) is a rude word. They're still muted word by
+  word as before: `cvcore.cats_for(groups, opts)` adds the "sexwords"/"crudewords" lists when
+  those filters are ticked (`FILTER_WORDS`; used by `analyze`, `render` and
+  `_words_listed`), and `SLANG_CAT` gives each `BODY_SLANG` phrase its box (`slang_box`). The
+  review page shows them under "Slurs", "Sexual reference" and "Crude humor". What changes by
+  age with the standard ticks: Teens and Adults have Crude humor and Rude words off, so "balls"
+  meaning nerve, the kicks in the privates, "turd" and "skeevy" are no longer muted there;
+  Young kids and Kids have every box on (CleanStream told her only Adults changed). A scan
+  made before is scanned again (its word groups differ). For CleanListen and CleanRead too.
+  `test_swearing_sorted.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -2909,8 +2931,8 @@ Run from the repo folder with the app's own Python (it has the packages the app 
 - Profiles under "Filtering for": Young kids / Kids / Teens / Adults. Each has a standard set of
   ticks (`PRESETS` in `CleanView.pyw`), remembers her own changes, and learns separately
   (e.g. bullying filtered for kids, not for herself).
-- Language groups: swearing, mild, God's name, minced oaths, same-sex words, rude words kids
-  copy (stupid, dumb, idiot, shut up, "that sucks"...). "screw you" and "crap" count as
+- Language groups: swearing, slurs (1.18.150), mild, God's name, minced oaths, same-sex
+  words, rude words kids copy (stupid, dumb, idiot, shut up, "that sucks"...). "screw you" and "crap" count as
   language. "Suck" meaning "is bad" counts wherever it's said (`cvcore.suck_swear`,
   the owner 2026-10-29); sucking something (a lollipop, a thumb, "suck it up") doesn't.
 - "Jesus" and "Christ" said with reverence aren't muted as swears ("the love of Christ",

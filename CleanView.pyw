@@ -108,7 +108,7 @@ DROP_TIP = "Or drag a movie, some episodes or a whole season's folder onto this 
 DROP_READY = "Let go to choose these."
 DROP_EDGE = 3.0
 DRAG_OFF_MS = 150
-FILTER_KEYS = ["swearing", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
+FILTER_KEYS = ["swearing", "slurs", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "forensic",
                "bullying", "disrespect", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
                "samesex", "oppsex", "violence", "graphic", "gore", "medical", "disturbing",
@@ -131,7 +131,7 @@ PRESETS = {
     "kids": dict(_ALL, kiss_os="passionate"),
     "teens": dict(_ALL, rude=False, minced=False, crude=False, kiss_os="passionate",
                   implied=False, **NO_HOLIDAYS),
-    "adults": dict(swearing=True, mild=True, deity=True, minced=False, samesexwords=True,
+    "adults": dict(swearing=True, slurs=True, mild=True, deity=True, minced=False, samesexwords=True,
                    rude=False, sexref=True, crude=False, bullying=False, disrespect=False,
                    forensic=False,
                    nudity=True,
@@ -1562,6 +1562,8 @@ class App(tk.Tk):
 
         fold_group("Bad language", "mute", [
             ("swearing", "Swearing  (f-word, s-word, b-word…)", True),
+            # its own box, ticked for every age (1.18.150; the owner: "organize better by type")
+            ("slurs", "Slurs  (hateful names for groups of people)", True),
             ("mild", "Mild words  (damn, hell, crap)", True),
             ("deity", "God's name used as a swear", True),
             ("minced", "Soft substitutes  (gosh, heck, freaking)", False),
@@ -2252,7 +2254,7 @@ class App(tk.Tk):
                 self.setup_claude()
                 return
             o["reader"] = "local"
-        word_groups = ("swearing", "mild", "deity", "minced", "samesexwords", "rude")
+        word_groups = ("swearing", "slurs", "mild", "deity", "minced", "samesexwords", "rude")
         self.groups = [g for g in word_groups if o.get(g)]
         self.scan_opts = {k: v for k, v in o.items() if k not in word_groups}
         engine.cl.use_language(o.get("language"))      # the word lists the review uses too
@@ -4375,10 +4377,13 @@ class App(tk.Tk):
     # the owner, 2026-11-19: "can we organize the filters more like CleanListen? its real easy
     # to select or unselect all, soreted by filters", "I accidently had a filter on that I
     # didn't mean too....now I have to unselect 190 filters by hand")
-    WORD_GROUP = {"strong": "Swearing", "moderate": "Swearing", "mild": "Mild words",
+    # (1.18.150: slurs on their own; sexual and crude words under their dialogue filter's name)
+    WORD_GROUP = {"strong": "Swearing", "moderate": "Swearing", "slurs": "Slurs",
+                  "mild": "Mild words",
                   "deity": "God's name", "minced": "Soft substitutes", "rude": "Rude words",
-                  "samesex": "Same-sex words", "mine": "Your own words"}
-    WORD_GROUP_ORDER = ("Swearing", "Mild words", "God's name", "Soft substitutes",
+                  "samesex": "Same-sex words", "mine": "Your own words",
+                  "sexwords": engine.LINE_LABEL["sexref"], "crudewords": engine.LINE_LABEL["crude"]}
+    WORD_GROUP_ORDER = ("Swearing", "Slurs", "Mild words", "God's name", "Soft substitutes",
                         "Rude words", "Same-sex words", "Your own words")
     NOT_A_FILTER = {"learned", "claude", "shared", "chat", "added"}
 

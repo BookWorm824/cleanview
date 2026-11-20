@@ -48,12 +48,15 @@ class SpanishWordsInAnEnglishVideo(unittest.TestCase):
                          [("chingn", "moderate")])
         self.assertEqual(found("Jódete, he said, and left.", SWEARING), [("jdete", "moderate")])
 
-    def test_the_slur_goes_with_the_same_sex_words(self):
-        self.assertEqual(found("He called him a maricon and walked off.", cl.GROUPS["samesexwords"]),
-                         [("maricon", "samesex")])
-        self.assertEqual(found("He called him a maricón and walked off.", cl.GROUPS["samesexwords"]),
-                         [("maricn", "samesex")])
+    def test_the_slur_goes_with_the_slurs(self):
+        # with the same-sex words until 1.18.150, now in the Slurs box
+        self.assertEqual(found("He called him a maricon and walked off.", cl.GROUPS["slurs"]),
+                         [("maricon", "slurs")])
+        self.assertEqual(found("He called him a maricón and walked off.", cl.GROUPS["slurs"]),
+                         [("maricn", "slurs")])
         self.assertEqual(found("He called him a maricon and walked off.", SWEARING), [])
+        self.assertEqual(found("He called him a maricon and walked off.",
+                               cl.GROUPS["samesexwords"]), [])
 
     def test_already_there(self):
         self.assertEqual(found("Mierda, I left the keys inside.", SWEARING), [("mierda", "moderate")])
