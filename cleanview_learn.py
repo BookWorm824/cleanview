@@ -695,6 +695,8 @@ def title_scenes(key, title, dialogue, ticked=None, episode=None):
         out.append({"s": round(start, 2), "e": round(end, 2), "kind": [sc["kind"]],
                     "why": f"{sc['why']} (CleanView learned this scene)", "sure": True,
                     "learned": "CleanView learned this scene"})
+        if sc.get("action") == "mute":       # the sound muted, the picture kept (1.18.154)
+            out[-1]["mute_only"] = True
     return out
 
 
@@ -868,7 +870,9 @@ def export_refined(analyses, chat=None, dest_dir=None):
             "summary": st.get("claude_summary"), "notes": st.get("notes"),
             "scan": st.get("scan"),        # version, AI models, time per step, PC (1.18.58)
             "scenes": [{"s": sc["s"], "e": sc["e"], "kind": sc.get("kind"), "why": sc.get("why"),
-                        "ai": verdict(sc), "final": "cut" if sc.get("cut", True) else "kept",
+                        "ai": verdict(sc),
+                        "final": ("kept" if not sc.get("cut", True) else
+                                  "sound muted" if sc.get("mute_only") else "cut"),
                         "changed_by_you": bool(sc.get("by_you")), "added": bool(sc.get("added")),
                         "learned": sc.get("learned")} for sc in st.get("scenes", [])],
             "lines": [{"s": l["s"], "text": l.get("plain") or l["text"], "types": l.get("types"),

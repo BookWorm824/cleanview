@@ -1999,10 +1999,13 @@ def violence_scenes(snd, cues):
                 last += 1
             lo = min(lo, snd["t"][first]) if first is not None else lo
             hi = max(hi, snd["t"][last]) if last is not None else hi
+        # only heard: mute the sound and keep the picture (1.18.154; the owner: "we can keep
+        # more of the scene visual and cut audio if needed"); joined to a scene seen in the
+        # picture, it's cut with it (merge_scenes)
         scenes.append({"s": max(0.0, lo - 1.0), "e": hi + SOUND_WIN + 1.0,
                        "kind": ["Violence"], "sure": sure,
                        "why": ", ".join(kinds[:4]) + ("" if sure else SOUND_ONLY),
-                       "sdh": bool(sdh.intersection(run_))})
+                       "sdh": bool(sdh.intersection(run_)), "mute_only": True})
     return scenes
 
 
@@ -2152,6 +2155,8 @@ def merge_scenes(scenes):
             o["why"] = "; ".join(x for x in (o["why"], sc["why"]) if x)
             # one sure part (e.g. gunfire heard) is enough to cut the whole thing
             o["sure"] = o.get("sure", True) or sc.get("sure", True)
+            # sound only (1.18.154) only while every part is: one seen makes it a cut
+            o["mute_only"] = bool(o.get("mute_only")) and bool(sc.get("mute_only"))
         else:
             out.append(dict(sc, kind=list(sc["kind"])))
     return out
@@ -6504,6 +6509,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     cl.use_language((st.get("opts") or {}).get("language"))
     if cuts is None:
         cuts = [c for c in st["scenes"] if c.get("cut")]
+    # a scene set to "Mute the sound only" is muted and its picture kept (1.18.154)
+    sound_only = [c for c in cuts if c.get("mute_only")]
+    cuts = [c for c in cuts if not c.get("mute_only")]
     say = progress or (lambda f, m: None)
     info = st["info"]
     src = Path(st["path"])
@@ -6529,6 +6537,10 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     if long_rs:                   # cut instead of a long silence
         mute_rs = [r for r in mute_rs if not any(a <= r[0] and r[1] <= b for a, b in long_rs)]
         cut_rs = _merge(list(cut_rs) + long_rs)
+    # the sound-only scenes are muted after that, so their silence is never cut instead
+    scene_mute_rs = _merge((max(0.0, c["s"]), min(dur, c["e"])) for c in sound_only)
+    if scene_mute_rs:
+        mute_rs = _merge(list(mute_rs) + scene_mute_rs)
     reencode = bool(cut_rs)
     mp4 = reencode or src.suffix.lower() in (".mp4", ".m4v", ".mov")
     # a clean copy cleaned again keeps its name, and replaces itself (only once the new one is
@@ -6744,7 +6756,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     removed = sum(e - s for s, e in cut_rs)
     rep = [f"CleanView report — {src.name}", "=" * 40,
            f"{len(st['mutes'])} words/phrases muted, {len(lines)} lines muted, {len(cut_rs)} "
-           f"scenes cut ({removed / 60:.1f} minutes removed)."]
+           f"scenes cut ({removed / 60:.1f} minutes removed)."
+           + (f" {len(sound_only)} scene(s) had only their sound muted (the picture kept)."
+              if sound_only else "")]
     if long_rs:
         rep.append(f"{len(long_rs)} muted stretch(es) of {LONG_MUTE_SECS:.0f} seconds or more "
                    "were cut instead, so there's no long silence.")
@@ -6771,6 +6785,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                         f"  ({c.get('why', '')})") for c in cuts]
     events += [(s, f"CUT {e - s:.0f} seconds  instead of a long silence (muted lines or words)")
                for s, e in long_rs]
+    events += [(c["s"], f"muted the sound for {c['e'] - c['s']:.0f} seconds, picture kept  "
+                        f"{' + '.join(plain_ai(k) for k in c.get('kind') or ['scene'])}"
+                        f"  ({c.get('why', '')})") for c in sound_only]
 
     def in_clean(t):
         """Where a moment of the original is in the clean copy (cuts make it earlier)."""

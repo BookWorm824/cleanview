@@ -103,6 +103,10 @@ CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = CHIP["AI"] =
 
 # ---------- who you're filtering for: each has its own ticks, remembered separately ----------
 PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adults", "Adults")]
+# a scene can mute its sound and keep its picture (1.18.154): the box on its card, and what the
+# card's tick says then
+SOUND_ONLY_BOX = "Mute the sound only"
+SOUND_ONLY_TICK = "Mute sound"
 # step 1's card while files are held over the window (1.18.134)
 DROP_TIP = "Or drag a movie, some episodes or a whole season's folder onto this window."
 DROP_READY = "Let go to choose these."
@@ -3531,7 +3535,7 @@ class App(tk.Tk):
         for j in [j for j in self.jobs if j.get("analysis")]:
             st = j["analysis"]
             cut = sum(sc["e"] - sc["s"] for v, jj, sc in getattr(self, "scene_vars", [])
-                      if jj is j and v.get())
+                      if jj is j and v.get() and not sc.get("mute_only"))
             # long muted stretches are cut too (1.18.60), so they count here
             muted = [(m["s"], m["e"]) for v, jj, m in getattr(self, "word_vars", [])
                      if jj is j and v.get()]
@@ -4630,14 +4634,30 @@ class App(tk.Tk):
         self._note_filter(self.scene_group(sc), v)
         secs = sc["e"] - sc["s"]
         length = f"{secs / 60:.1f} min" if secs >= 60 else f"{secs:.0f} sec"
-        ttk.Checkbutton(top_row, text=f"Cut   ·   {engine.cl.fmt_t(sc['s'])}   ·   {length}",
-                        variable=v).pack(side="left")
+        # "Mute the sound only" keeps the picture (1.18.154; the owner: "we can keep more of the
+        # scene visual and cut audio if needed")
+        mo = tk.BooleanVar(value=bool(sc.get("mute_only")))
+
+        def what():
+            return (f"{SOUND_ONLY_TICK if mo.get() else 'Cut'}   ·   "
+                    f"{engine.cl.fmt_t(sc['s'])}   ·   {length}")
+        box = ttk.Checkbutton(top_row, text=what(), variable=v)
+        box.pack(side="left")
         for k in sc["kind"]:
             look.chip(top_row, engine.plain_ai(k), chip_color(k), size=9).pack(
                 side="left", padx=(10, 0))
         pv = ttk.Button(top_row, text=PREVIEW_TEXT, style="Small.TButton")
         pv.config(command=lambda: self.preview(job, sc, pv))
         pv.pack(side="right")
+
+        def sound_only(*_):
+            sc["mute_only"] = bool(mo.get())
+            if box.winfo_exists():
+                box.config(text=what())
+            self.after_idle(self._show_space)      # a muted scene doesn't make it smaller
+        mo.trace_add("write", sound_only)
+        ttk.Checkbutton(top_row, text=SOUND_ONLY_BOX, variable=mo).pack(
+            side="right", padx=(0, self._px(10)))
         mid = tk.Frame(card, bg=CARD)
         mid.pack(fill="x", pady=(8, 0))
         text = tk.Frame(mid, bg=CARD)

@@ -1121,6 +1121,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   as a line starts. Teach only the trouble itself, in pieces, never one long cut over the
   harmless parts between (rescues, agents arriving, the aftermath); her own edges when she
   gives them. `test_criminal_minds.Episode20.test_her_four_cuts`.
+- A scene can mute its sound and keep its picture (1.18.154, 2026-11-20; the owner: "we can keep
+  more of the scene visual and cut audio if needed", then "yes all 3" to: a choice on every
+  scene, sound-only finds offered that way, and taught scenes that mute). `sc["mute_only"]`:
+  `render` mutes such a scene instead of cutting it, after `long_mutes` (so its silence is
+  never cut instead), and the report says "muted the sound for N seconds, picture kept" and
+  how many; the refined report's `"final"` is "sound muted". The review page's scene card has
+  a "Mute the sound only" box (`SOUND_ONLY_BOX`); ticked, the card's tick reads "Mute sound"
+  (`SOUND_ONLY_TICK`) and the size estimate doesn't count it as cut (`_clean_bytes`). Violence
+  only heard (`violence_scenes`) is `mute_only`; joined to a scene seen in the picture it's
+  cut with it (`merge_scenes`: sound only only while every part is). A taught scene with
+  `"action": "mute"` is `mute_only` (`learn.title_scenes`); S1E20's two: Kelly's struggle heard
+  after he throws her down (39:14-39:29, to the agents' "It's clear") and her screams for help
+  before he drowns her (39:39-39:46), between her two creek cuts, placed from the dialogue (not
+  seen here). Her own unticks and choices on a video aren't learned as sound only yet. Play's
+  player needs to treat `mute_only` as a mute, not a skip (told). `test_sound_only.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

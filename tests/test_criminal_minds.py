@@ -422,8 +422,9 @@ class Episode20(unittest.TestCase):
         # and a half", "when the man is saving her from the pool doesn't need cut", "15" seconds
         # of the agents by the bushes; her refined report): torture 19:10-20:08, the pool 31:25-
         # 32:03, and the creek in two, the grab 39:04-39:14 and the drowning 39:46-40:42
-        got = learn.title_scenes("criminal-minds@adults", "Criminal Minds", self.dialogue(),
-                                 {"disturbing"}, episode=(1, 20))
+        got = [s for s in learn.title_scenes("criminal-minds@adults", "Criminal Minds",
+                                             self.dialogue(), {"disturbing"}, episode=(1, 20))
+               if not s.get("mute_only")]      # (the sound-only pieces: test_sound_only)
         self.assertEqual([s["kind"] for s in got], [["Disturbing"]] * 4)
         self.assertEqual([(round(s["s"], 1), round(s["e"], 1))
                           for s in sorted(got, key=lambda s: s["s"])],
@@ -432,8 +433,9 @@ class Episode20(unittest.TestCase):
     def test_edges_follow_the_lines(self):
         # another copy, 2.5 s later throughout: the same cuts 2.5 s later
         later = [dict(l, s=l["s"] + 2.5, e=l["e"] + 2.5) for l in self.dialogue()]
-        got = learn.title_scenes("criminal-minds@adults", "Criminal Minds", later,
-                                 {"disturbing"}, episode=(1, 20))
+        got = [s for s in learn.title_scenes("criminal-minds@adults", "Criminal Minds", later,
+                                             {"disturbing"}, episode=(1, 20))
+               if not s.get("mute_only")]
         self.assertEqual(sorted(round(s["s"], 1) for s in got), [1152.5, 1887.5, 2346.5, 2388.5])
         self.assertEqual(learn.title_scenes("criminal-minds@adults", "Criminal Minds",
                                             self.dialogue(), {"disturbing"}, episode=(1, 19)), [])

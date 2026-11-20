@@ -1623,6 +1623,50 @@
       "disturbing"
      ],
      "why": "S1E20, the end: Gregory holds Kelly Dalton under in the creek until the agents come"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      20
+     ],
+     "after": "it's over there come on let's go",
+     "start_at": [
+      "it's just the two of us out here",
+      2.79
+     ],
+     "end_at": [
+      "it's clear nobody in the car",
+      -0.26
+     ],
+     "action": "mute",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E20, the end: Kelly Dalton's struggle heard after he throws her down (sound muted)"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      20
+     ],
+     "after": "we're going into the woods keep you posted",
+     "start_at": [
+      "which way to the water it's over there",
+      2.6
+     ],
+     "end_at": [
+      "that's coming from up over there",
+      -3.46
+     ],
+     "action": "mute",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E20, the end: Kelly Dalton screaming for help before he drowns her (sound muted)"
     }
    ]
   }
