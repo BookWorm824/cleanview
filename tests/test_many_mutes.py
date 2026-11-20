@@ -1,4 +1,4 @@
-"""Jason, 2026-11-07: The Shawshank Redemption wouldn't save, every way failing with
+"""The tester, 2026-11-07: The Shawshank Redemption wouldn't save, every way failing with
 "Cannot allocate memory", and CleanView told him the PC ran out of memory (Task Manager
 said 33%). It was ffmpeg: it won't read more than 100 times added up in a row, and the
 movie had more mutes than that. Now they're bracketed in groups (and each 500 get their own

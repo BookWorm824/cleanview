@@ -1,7 +1,7 @@
 """Each conversation's flirting check asks a quick yes or no first, with the very same words,
 and only asks for the details on a yes (1.18.68; the owner: "is there any other places to
 check efficiency", then "1"). The full answer form made the AI helper write 45-170 words for
-every conversation, slow when its model is only partly on the graphics card (Lauren's laptop:
+every conversation, slow when its model is only partly on the graphics card (the owner's laptop:
 16 of 40 minutes)."""
 import unittest
 from unittest import mock

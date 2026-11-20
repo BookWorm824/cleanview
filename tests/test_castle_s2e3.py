@@ -1,4 +1,4 @@
-"""Lauren's Castle S2E3 report (2026-11-12, adults, the AI helper, 1.18.67): the AI helper missed
+"""The owner's Castle S2E3 report (2026-11-12, adults, the AI helper, 1.18.67): the AI helper missed
 the episode's sexual talk. The owner: "do both but leave coroners talk". Its lines are built in
 for Castle (not the coroner's "Any signs of sexual assault?"), and "skinny dip", "chastity
 belt" and "naked photos/pictures" are on the short list that works without an AI."""

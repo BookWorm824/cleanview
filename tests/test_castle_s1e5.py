@@ -1,4 +1,4 @@
-"""Lauren's Castle S1E5 report (2026-11-09, adults, the AI helper): "affair" went through in
+"""The owner's Castle S1E5 report (2026-11-09, adults, the AI helper): "affair" went through in
 four lines. "How long was the affair?" and "They end an affair because they're scared" weren't
 on the short list (it only had "having/had an affair" and "an affair with"), and in "Please. No
 one ends an affair" and "They have a fight. About the affair." (lines learned to mute whole)

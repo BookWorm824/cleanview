@@ -1,4 +1,4 @@
-"""From Lauren's Radio review: Claude unticked "a severely retarded..." ("retarded, which
+"""From the owner's Radio review: Claude unticked "a severely retarded..." ("retarded, which
 isn't on your list") and several swears heard in the sound for not being in the subtitles.
 Slurs are never "fine here", whatever an AI says, and the review is told heard words are
 really said. Nothing like that goes into the shared file either."""

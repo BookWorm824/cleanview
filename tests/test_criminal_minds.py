@@ -1,4 +1,4 @@
-"""Lauren's Criminal Minds S1E1 report (1.18.125, 2026-11-17, adults, the AI helper, made on
+"""The owner's Criminal Minds S1E1 report (1.18.125, 2026-11-17, adults, the AI helper, made on
 1.18.122; the owner: "yes fi them", "and the subtitle look up also"). "Criminal Minds - 1-1 --
 Extreme Aggressor.m4v" was looked up as a movie (the wrong subtitles, 3% lined up) and learned
 under movies; its rape case talk went through with coroner and detective talk ticked; and the

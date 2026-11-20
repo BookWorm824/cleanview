@@ -1,4 +1,4 @@
-"""The short no-AI list mutes just its words, not the whole line (Lauren, 2026-11-09, after
+"""The short no-AI list mutes just its words, not the whole line (the owner, 2026-11-09, after
 Castle S1E2: she had the chat switch 22 lines to just "sex", "condom", "affair"..., and chose
 "Just the word" for the list). The line starts unticked, so she can still mute all of it.
 What an AI flags, other dialogue filters, and lines learned to mute whole stay whole."""

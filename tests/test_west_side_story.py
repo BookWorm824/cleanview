@@ -1,4 +1,4 @@
-"""Lauren's West Side Story report (2026-11-08). "West Side Story.m4v" has no year, so the
+"""The owner's West Side Story report (2026-11-08). "West Side Story.m4v" has no year, so the
 subtitle search matched every movie of that name with the same score, and the 2021 remake's
 came first: only 22% of the words lined up, so no subtitles were used, and with them went the
 right words ("every last buggin' gang" was heard as a swear) and the slurs. Now the best

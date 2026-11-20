@@ -35,7 +35,7 @@ class Heard(unittest.TestCase):
                            ("Get out the Ouija board.", "darkmagic"),
                            ("The fortune teller read my palm.", "darkmagic"),
                            ("He'll summon the dead.", "darkmagic"),
-                           ("The wizard is coming!", "darkmagic"),   # Lauren: dark magic
+                           ("The wizard is coming!", "darkmagic"),   # the owner: dark magic
                            ("Wizards and sorcerers", "darkmagic"),
                            ("She cast a spell on the king.", "magic"),
                            ("A vampire bit him!", "vampires"),

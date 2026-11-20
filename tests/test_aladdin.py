@@ -1,4 +1,4 @@
-"""Lauren's Aladdin report (1.18.98, 2026-11-14, kids, the AI helper, made on 1.18.94). The
+"""The owner's Aladdin report (1.18.98, 2026-11-14, kids, the AI helper, made on 1.18.94). The
 four "hell"s muted were all the Genie saying "Al" ("Al, you won", "Al, you little genius",
 "Al, you're not gonna find another girl", "Me, too, Al"): the subtitles there say "Al", but
 "hell" and "Al" don't sound alike enough for `sounds_alike`, and "Al," starting a sentence

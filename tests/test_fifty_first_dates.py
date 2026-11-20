@@ -1,4 +1,4 @@
-"""Lauren's 50 First Dates report (2026-11-08, teens, word lists only): no subtitles were found
+"""The owner's 50 First Dates report (2026-11-08, teens, word lists only): no subtitles were found
 online, so only listed words were muted and the film's crude jokes went through. The name
 "50 First Dates" was read as episode 50 of a show called "First Dates", and the subtitle
 site's search finds nothing for a title starting with a number ("50 First Dates", "13 Going

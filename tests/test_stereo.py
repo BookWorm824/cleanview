@@ -1,4 +1,4 @@
-"""Clean copies of surround videos play on a Roku (Lauren, 2026-11-08): "Til Death" (Person of
+"""Clean copies of surround videos play on a Roku (the owner, 2026-11-08): "Til Death" (Person of
 Interest) had 5.1 sound, which her Roku can't play itself, so Jellyfin converted it while
 streaming and the Roku kept quitting; "Critical", in stereo, played fine. Surround copies now
 have a stereo track first, the default, and the surround second. Makes tiny videos with

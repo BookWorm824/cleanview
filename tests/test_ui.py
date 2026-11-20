@@ -355,7 +355,7 @@ class Window(unittest.TestCase):
         self.assertIsNone(app._cloud())
 
     def test_main_buttons_stand_out(self):
-        """Jason: "Clean another" was hard to notice, the same colour as the rest. Each
+        """The tester: "Clean another" was hard to notice, the same colour as the rest. Each
         page's main step is the big green button; first steps are green too."""
         app = self.app
         app.show_done([{"cut_minutes": 1.0, "mutes": 3, "cuts": 1,
@@ -387,7 +387,7 @@ class Window(unittest.TestCase):
         self.assertEqual(s.lookup("Plain.TButton", "borderwidth"), 1, "grey ones have an edge")
 
     def test_send_what_it_learned(self):
-        """Jason: it only saved a file and said to send it to Claude. Now it's sent to the
+        """The tester: it only saved a file and said to send it to Claude. Now it's sent to the
         CleanView inbox; if that can't happen, it says where the file is, as before."""
         import test_inbox
         app = self.app
@@ -505,7 +505,7 @@ class Window(unittest.TestCase):
             app.opts["reader"].set("local")
 
     def test_chat_when_the_ai_on_this_pc_read_it(self):
-        """Jason, 2026-11-04: cleaned with the AI on this PC, he couldn't tell Claude what it
+        """The tester, 2026-11-04: cleaned with the AI on this PC, he couldn't tell Claude what it
         got wrong. Any one that's set up is offered on the review page."""
         app, cc = self.app, ui.cc
         saved = cc.status, cc.who, ui.App._check_every_ai
@@ -575,7 +575,7 @@ class Window(unittest.TestCase):
 
     def test_text_size_changes_without_restarting(self):
         """The page is built again at the new size, in the same window. Restarting closed the
-        window for a while on a slow PC and looked like CleanView had shut down (Jason)."""
+        window for a while on a slow PC and looked like CleanView had shut down (the tester)."""
         app = self.app
         app.show_setup()
         video = support.SANDBOX / "Episode 1.mp4"

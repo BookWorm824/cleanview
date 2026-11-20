@@ -45,7 +45,7 @@ class SubtitlesThatStopHalfway(unittest.TestCase):
 
 
 class ShorterSceneCuts(unittest.TestCase):
-    """Lauren: "a shorter cut for all found scenes in general... that way you can tell more
+    """The owner: "a shorter cut for all found scenes in general... that way you can tell more
     what is happening" (a 6½-minute cut of The Little Mermaid's ending; the phone ringing
     and the cat after Julie & Julia's sex scene can stay)."""
 
@@ -124,7 +124,7 @@ class Words(unittest.TestCase):
         return [" ".join(words[i:j]) for i, j, _ in cl.find_language(words, list(cl.CATS))]
 
     def test_dickens_said_as_an_oath(self):
-        """Lauren: "the word dickens should still be removed" (Julie & Julia)."""
+        """The owner: "the word dickens should still be removed" (Julie & Julia)."""
         for text, phrase in (("How the dickens did you get in?", "how the dickens"),
                              ("It scared the dickens out of me", "the dickens out of"),
                              ("It hurts like the dickens", "like the dickens"),

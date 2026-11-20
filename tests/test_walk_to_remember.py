@@ -1,4 +1,4 @@
-"""Lauren's A Walk to Remember report (2026-11-08, adults, word lists only): every listed word
+"""The owner's A Walk to Remember report (2026-11-08, adults, word lists only): every listed word
 muted, prayers and hymns left alone; three crude lines only an AI would catch are taught."""
 import json
 import unittest

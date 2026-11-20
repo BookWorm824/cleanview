@@ -1,4 +1,4 @@
-"""Jason, 2026-11-07: Snow White wouldn't save, four times at about the same spot, and all
+"""The tester, 2026-11-07: Snow White wouldn't save, four times at about the same spot, and all
 he saw was "Couldn't save the clean copy". Now:
 1. after every usual way fails, one careful try (past damaged bits, more room between the
    streams, no subtitles) before giving up;

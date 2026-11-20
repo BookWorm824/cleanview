@@ -1,4 +1,4 @@
-"""Lauren's When Calls the Heart (Movie) report (1.18.134, 2026-11-18, adults, the AI helper, made
+"""The owner's When Calls the Heart (Movie) report (1.18.134, 2026-11-18, adults, the AI helper, made
 on 1.18.132; the owner: "yes to all"). No subtitles came during her scan ("no matching subtitles
 were found online"), though the 2013 movie's came straight away afterwards; so "hold the dam
 back" was heard as the swear, and "Dear Lord, please help us." was muted as an oath. Now the

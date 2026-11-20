@@ -227,7 +227,7 @@ def _upgrade_mark():
 
 
 # A newer AI model whose download fails is tried again on the next scans, up to UPGRADE_TRIES
-# (1.18.57: Lauren's laptop couldn't download qwen3-vl's instruct build, 6.2 GB, on the first
+# (1.18.57: the owner's laptop couldn't download qwen3-vl's instruct build, 6.2 GB, on the first
 # go, and 1.18.56 then never tried again; Ollama picks up where a download stopped). Until
 # then CleanView uses the older model, as before. The mark says "done" or "failed N".
 UPGRADE_TRIES = 3
@@ -683,17 +683,17 @@ def guess_title(path):
     parent, grand = p.parent.name, p.parent.parent.name
     season = episode = None
     m = (re.search(r"\b[Ss](\d{1,2})\s*[Ee](\d{1,3})\b", stem)
-         # "Poldark S1 Ep. 1" (Lauren, 2026-11-14: "couldn't tell which episode", so no subtitles)
+         # "Poldark S1 Ep. 1" (the owner, 2026-11-14: "couldn't tell which episode", so no subtitles)
          or re.search(r"(?i)\bs(\d{1,2})\W{0,3}(?:episode|ep)\W{0,3}(\d{1,3})\b", stem)
-         # "Person of Interest S1 - (1)": the season, then the episode in brackets (Lauren,
+         # "Person of Interest S1 - (1)": the season, then the episode in brackets (the owner,
          # 2026-11-14: "couldn't tell which episode", learned under movies)
          or re.search(r"(?i)\b(?:s|season\s*)(\d{1,2})\s*-?\s*[\(\[]\s*(\d{1,3})\s*[\)\]]", stem)
          or re.search(r"(?i)\b(?:season|series)\s*(\d{1,2})\W{0,3}(?:episode|ep)\.?\s*(\d{1,3})\b",
                       stem)
          or re.search(r"\b(\d{1,2})x(\d{2,3})\b", stem)
-         # "I Love Lucy 1 - Ep. 1" (Lauren, 2026-11-08: looked up as a movie of that name)
+         # "I Love Lucy 1 - Ep. 1" (the owner, 2026-11-08: looked up as a movie of that name)
          or re.search(r"(?i)(?<=[A-Za-z] )(\d{1,2})\s*-\s*(?:ep|episode)\W{0,3}(\d{1,3})\b", stem)
-         # "Criminal Minds - 1-1 -- Extreme Aggressor" (Lauren, 2026-11-17: the wrong
+         # "Criminal Minds - 1-1 -- Extreme Aggressor" (the owner, 2026-11-17: the wrong
          # subtitles, 3% lined up, and learned under movies): season-episode after " - "
          or re.search(r"(?<=[^\W\d_]\s-\s)(\d{1,2})-(\d{1,3})(?=\s*(?:-|$))", stem))
     show = ""
@@ -794,7 +794,7 @@ def _load_subtitle_finder(log=print):
 def sub_video(t, ext):
     """What to look up online. A movie is looked up as a movie: left to the name parser,
     "50 First Dates" was episode 50 of a show called "First Dates" and nothing was found
-    (Lauren, 2026-11-08), and "300" couldn't be read at all."""
+    (the owner, 2026-11-08), and "300" couldn't be read at all."""
     import subliminal
     if t[1] is not None:
         return subliminal.Video.fromname(f"{t[0]}.S{t[1]:02d}E{t[2]:02d}{ext}")
@@ -911,7 +911,7 @@ def _sub_where(sub):
 
 # When the first subtitles don't match what's heard, try this many others. A name without a
 # year matches every movie of that name, all scored the same: "West Side Story.m4v" got the
-# 2021 remake's subtitles for the 1961 film (Lauren, 2026-11-08: 22% lined up, none used).
+# 2021 remake's subtitles for the 1961 film (the owner, 2026-11-08: 22% lined up, none used).
 SUB_TRIES = 6
 
 
@@ -928,7 +928,7 @@ def subtitle_order(subs, score):
     return first + rest
 
 
-# A badly numbered episode (Lauren, 2026-11-11: "Castle Season 1 - Ep. 3.mp4" was really episode
+# A badly numbered episode (the owner, 2026-11-11: "Castle Season 1 - Ep. 3.mp4" was really episode
 # 4, so episode 3's subtitles lined up 4% and none were used; the owner: "also build in if it
 # is say season 2 episode 5 but says season 3 episode 5. it could be a badly marked season"):
 # after the episode's own other subtitles, the neighbours' are tried in this order, the best
@@ -1527,7 +1527,7 @@ INTIMATE_SOUNDS = {"Breathing": 0.6, "Pant": 0.8, "Gasp": 0.5, "Sigh": 0.4,
 SOFT_VIOLENCE_SOUNDS = {"Screaming", "Battle cry", "Smash, crash"}
 SOUND_ONLY = " (only heard, not seen: check it)"
 # Sounds the tagger can take for gunshots or blows. When one of these is heard more clearly
-# than the gunfire or hitting in the same 3 seconds, that's what it was (Jason, The
+# than the gunfire or hitting in the same 3 seconds, that's what it was (the tester, The
 # Shawshank Redemption 2026-11-07: cell doors clanking, Andy at a typewriter and sobbing
 # were all cut as "gunshot-like bangs"; only one of the five really was).
 LOOK_ALIKE_SOUNDS = ("Door", "Sliding door", "Slam", "Knock", "Typewriter", "Typing",
@@ -1536,7 +1536,7 @@ LOOK_ALIKE_SOUNDS = ("Door", "Sliding door", "Slam", "Knock", "Typewriter", "Typ
 MISTAKEN_SOUNDS = {"Gunshot, gunfire", "Machine gun", "Fusillade", "Artillery fire",
                    "Slap, smack", "Whack, thwack"}
 # Quieter shots under the music just before or after found gunfire belong to the same cut
-# (G.I. Joe: Retaliation clips Lauren sent, 2026-11-08: the shooting at the car started 3 s
+# (G.I. Joe: Retaliation clips the owner sent, 2026-11-08: the shooting at the car started 3 s
 # before the cut did). Only ever widens a scene found anyway, never makes one.
 GUNFIRE = {"Gunshot, gunfire", "Machine gun", "Fusillade", "Artillery fire"}
 EDGE_GUNFIRE = 0.25
@@ -2407,12 +2407,12 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"sex(?! (offenders?|crimes?|trafficking|abuse|and age|or age|and race)\b)|sexy|horny|make love|made love|making love|condoms?|semen|boobs|"
                          # 50 First Dates (2026-11-08): walrus jokes, sharks biting
                          r"penis(es)?|private parts|"
-                         # Lauren, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
+                         # The owner, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
                          # not slavery: "the house of bondage", "freed from bondage"
                          r"(?<!house of )(?<!from )(?<!in )(?<!sold into )(?<!taken into )(?<!led into )"
                          r"(?<!out of )bondage(?! of\b)|"
                          r"safe ?words?(?! (to|for) )|"
-                         # Castle S2E3 (Lauren, 2026-11-12): "Let's skinny dip!", "a chastity
+                         # Castle S2E3 (the owner, 2026-11-12): "Let's skinny dip!", "a chastity
                          # belt", "Naked photos"; not "skinny dippers found her" (police talk)
                          r"skinny[- ]?dip(?:ping|ped|s)?|chastity belts?|"
                          r"naked (?:photos?|pictures?|pics?|selfies?)|"
@@ -2432,7 +2432,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"pole danc(?:e|es|er|ers|ing)|"
                          r"blow ?job|porn|"
                          r"have sex|had sex|having sex|"
-                         # sex drugs (Lauren, 2026-11-04: "add sexual drugs")
+                         # sex drugs (the owner, 2026-11-04: "add sexual drugs")
                          r"viagra|cialis|levitra|erectile dysfunction|little blue pills?|"
                          # Criminal Minds S1E3 (1.18.133): "YEAH. HE'S IMPOTENT."; not
                          # "impotent against it" (a medicine), "impotent rage"
@@ -2448,7 +2448,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # pitcher's baseball, a crystal ball: `ball_game`)
                          r"(?:rub|rubs|rubbed|rubbing) (?:his|your|my|their|ur) balls?|"
                          r"(boner|sex) pills?|aphrodisiacs?|spanish fly|"
-                         # Red Eye (Lauren, 2026-11-08), after the airplane bathroom; not "a
+                         # Red Eye (the owner, 2026-11-08), after the airplane bathroom; not "a
                          # quickie divorce" (a learned line she kept)
                          r"thanks for the quickie|"
                          # Person of Interest S1E3 (1.18.104): "Join Manny and Danny in the land
@@ -2505,7 +2505,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"|sleeping with(?= (?-i:[A-Z][a-z]+)\b)"
                          r"|(?:my|his|her|your|their|our|secret) lovers?(?! of\b)"
                          r"|booty call|friends with benefits|"
-                         # Castle S1E5 (Lauren, 2026-11-09): "How long was the affair?", "They
+                         # Castle S1E5 (the owner, 2026-11-09): "How long was the affair?", "They
                          # end an affair because they're scared". One affair, not "affairs"
                          # (Internal Affairs, foreign affairs); not "none of your affair" (your
                          # business), "quite an affair" (an event) or "the affair of ..."
@@ -2553,8 +2553,8 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"rabbis?|imams?|the lord|god bless|our father|holy spirit|"
                            r"born again|sunday school|bible study)\b", re.I),
     # not "elves", "stockings" or "make a wish": too often something else; not "Rudolph" alone
-    # (a character "Rudolph Hill" in Lauren's sentences), only the reindeer
-    # not "Santa" in a place name or "Christmas Island" (Jason, That Thing You Do: "Santa
+    # (a character "Rudolph Hill" in the owner's sentences), only the reindeer
+    # not "Santa" in a place name or "Christmas Island" (the tester, That Thing You Do: "Santa
     # Anita is a city")
     "christmas": re.compile(r"\b(christmas(?! island)|x-?mas|santa(?! " + SANTA_PLACES + r"\b)"
                             r"( claus)?|saint nick|north pole|"
@@ -2605,7 +2605,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                             r"occult|satanic|satanists?|devil worship\w*|pentagrams?|"
                             r"fortune ?tell(er|ers|ing)|tarot|"
                             r"summon(s|ed|ing)? (a |the )?(demons?|spirits?|the dead|dead)|"
-                            # wizards are dark magic (Lauren, 2026-10-29); not "a wizard with
+                            # wizards are dark magic (the owner, 2026-10-29); not "a wizard with
                             # numbers"
                             r"wizards?(?! (with|at|of))|wizardry)\b", re.I),
     # not "magic" alone ("it was magic", "the magic word") or "spell" (spelling)
@@ -3335,7 +3335,7 @@ def word_mute(st, line, word, why, used=None):
 
 
 def learned_word_only(st, key):
-    """Lines she muted just one word of before (the chat's "just the word"; Jason, 2026-11-05:
+    """Lines she muted just one word of before (the chat's "just the word"; the tester, 2026-11-05:
     "only mute the word christmas from now on"): start that way again, the line unticked and
     the word muted. Returns how many lines."""
     wo = learn.word_only(key)
@@ -3836,7 +3836,7 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "nudity": "nudity (bare breasts, buttocks or genitals actually shown)",
             "implied": "implied nudity (undressed but covered: under sheets, in a towel, bare "
                        "back or shoulders, shower from the shoulders up)",
-            # not "a couple in bed": every couple talking in bed was cut (Jason, The Resident)
+            # not "a couple in bed": every couple talking in bed was cut (the tester, The Resident)
             "sex": "sex scenes, judged by what's happening and the context (a couple only "
                    "talking in bed is not one; sex with clothes on is), including oral sex "
                    "and touching someone's private parts",
@@ -3893,7 +3893,7 @@ def picture_wanted(o):
         if o.get(k) in KISS_TEXT:
             out.append(KISS_TEXT[o[k]] + " " + who)
     if o.get("samesex"):
-        # not only kissing: holding hands, cuddling (Lauren 2026-11-08), judged by context
+        # not only kissing: holding hands, cuddling (the owner 2026-11-08), judged by context
         out.append("same-sex romance: two men or two women kissing, being intimate, or "
                    "affectionate as a couple (\"couple affection\": holding hands, cuddling, an "
                    "arm around each other), when the context shows they're a couple")
@@ -3955,7 +3955,7 @@ def make_sheets(path, work, dur):
 
 
 def chat_sheets(path, work, a, b):
-    """Stills of a to b for the chat to look at (Lauren 2026-11-08: "you are supposed to view
+    """Stills of a to b for the chat to look at (the owner 2026-11-08: "you are supposed to view
     photos as well"), 20 to a sheet 2 s apart like make_sheets: the whole video's sheets when
     the picture was already looked through, else new ones of just that stretch.
     Returns [(sheet_path, start_seconds)]."""
@@ -4038,7 +4038,7 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
     """Claude/ChatGPT sets where each scene to cut really starts and ends, then the edges
     snap to changes of shot. Only the part where the trouble is on screen is cut (a fight
     from its first blow to its last), in pieces when it stops and starts again, so they can
-    still follow the story (Lauren 2026-11-03); a short cut is only ever made longer."""
+    still follow the story (the owner 2026-11-03); a short cut is only ever made longer."""
     say = progress or (lambda f, m: None)
     todo = [sc for sc in scenes if sc.get("cut", True)
             and not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", []))]
@@ -4370,9 +4370,9 @@ def check_nudity(nude, o, look, notes, checks=None):
 def closer_looks(o, have_ai, use_clip):
     """(the AI on this PC takes a closer look at the scenes found, Claude/ChatGPT/Gemini
     looks at the picture, the two at the same time). With Claude, ChatGPT or Gemini, both
-    look (Lauren: "so we get both but it doesn't take twice as long"): they read the
+    look (the owner: "so we get both but it doesn't take twice as long"): they read the
     dialogue, so the AI on this PC takes its closer look meanwhile, in the background,
-    instead of first (one after the other looked like the same slow step twice: Jason)."""
+    instead of first (one after the other looked like the same slow step twice: the tester)."""
     cloud = bool(o.get("reader") in CLOUD and o.get("look", True))
     local = bool(have_ai and use_clip)
     return local, cloud, local and cloud
@@ -4651,7 +4651,7 @@ def decide_picture_scenes(cands, o, have_ai):
         level = v.get("level", "?") if v else "?"
         checked = bool(v) and not v.get("error") and not v.get("unclear")
         # "so only cut if you tick it", not "so left unticked": it reads true once she ticks
-        # it too (Jason, 2026-11-06, about kisses he had cut)
+        # it too (the tester, 2026-11-06, about kisses he had cut)
         note = ("" if checked else " (hard to see, so only cut if you tick it)"
                 if v.get("unclear") else " (not double-checked, so only cut if you tick it)")
         if c["cat"] == "kiss":
@@ -4884,7 +4884,7 @@ def explicit_stay(st):
     return n
 
 
-# The short no-AI list mutes just its words, not the whole line (Lauren, 2026-11-09, Castle
+# The short no-AI list mutes just its words, not the whole line (the owner, 2026-11-09, Castle
 # S1E2: she had the chat switch 22 lines to just "sex", "condom", "affair"..., and chose "Just
 # the word" for the list). What an AI flags, and lines learned to mute whole, stay whole.
 LIST_WORDS_ONLY = ("sexref", "casual", "drugtalk")
@@ -4992,7 +4992,7 @@ def _new_sentence(sw, sw_cue, k):
             or bool(re.search(r"[.!?:;\-\u2013\u2014\u2026]['\"\u201d\u2019]?$", sw[k - 1])))
 
 
-# Still the word itself in a title or a place's name: Lauren ticked "Hell" in "right out of
+# Still the word itself in a title or a place's name: the owner ticked "Hell" in "right out of
 # Hell Hath No Fury" (Castle S1E1, 2026-11-08) both times it was left unticked as a title.
 SAID_IN_TITLES = {"hell", "hell's", "hells"}
 
@@ -5614,7 +5614,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                                           lambda f, m: progress(f, m), cancel)
         pics_job = in_background(look_through)
 
-    # what they told the chat to keep in mind: the AI helper follows it too (Jason, 2026-11-04)
+    # what they told the chat to keep in mind: the AI helper follows it too (the tester, 2026-11-04)
     told = learn.notes(learned_key(path, o), title_name(path))
     # dialogue: sexual references, sleeping around, relationship talk
     lines = ai.dialogue_lines(cues, asr, spoken_words)
@@ -6005,7 +6005,7 @@ ENCODERS = [
 
 
 def clean_size(video, duration, cut_secs=0.0, width=None, height=None):
-    """About how many bytes the clean copy of `video` takes (Jason, 2026-11-07: the drive
+    """About how many bytes the clean copy of `video` takes (the tester, 2026-11-07: the drive
     filled up while saving). Without cuts the picture is copied, so it's the original's size;
     with cuts it's made again at a set quality, which can come out bigger than a small,
     squeezed original (about 0.07 bits a pixel, 24 frames a second)."""
@@ -6062,7 +6062,7 @@ def working_encoders():
 
 
 # ffmpeg won't read more than 100 terms added up in a row in one expression: the 101st
-# fails as "Cannot allocate memory" (Jason, Shawshank Redemption 2026-11-07: every way of
+# fails as "Cannot allocate memory" (the tester, Shawshank Redemption 2026-11-07: every way of
 # saving failed, and it was told the PC ran out of memory). 1.18.26 bracketed them in 50s,
 # 500 to a filter, but CleanListen's Scarlet (Unabridged), one 7-hour MP3 with the same
 # scheme, still failed on the owner's PC with "Error when evaluating the expression ... for
@@ -6118,7 +6118,7 @@ def _removed_expr(cuts, off):
     return _sum(f"gte(T,{e + off:.3f})*{e - s:.3f}" for s, e in cuts) or "0"
 
 
-# A save that stops moving (Lauren, 2026-11-10, on her MSI laptop: Castle S1E2 "stuck saving"
+# A save that stops moving (the owner, 2026-11-10, on her MSI laptop: Castle S1E2 "stuck saving"
 # several times, and nothing said why). ffmpeg reports how far it's got twice a second; when
 # neither the time written nor the file's size has grown for SAVE_STUCK_SECS, it's stopped,
 # the next way (another encoder, then the careful way) is tried, and if every way gets stuck
@@ -6243,7 +6243,7 @@ def write_srt(cues, dst):
                                    for n, c in enumerate(cues, 1)), encoding="utf8")
 
 
-# A 5.1 clean copy wouldn't play on Lauren's Roku through Jellyfin (2026-11-08: "Til Death",
+# A 5.1 clean copy wouldn't play on the owner's Roku through Jellyfin (2026-11-08: "Til Death",
 # Person of Interest; Chrome played it): the Roku can't play 5.1 AAC itself, so Jellyfin had to
 # convert it while streaming and the Roku kept quitting. Surround copies now have a stereo
 # track first (the default, which plays anywhere) and the surround one second.
@@ -6516,7 +6516,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     tmp = dst.with_name(dst.stem + ".partial" + dst.suffix)
 
     def build(vname, vargs, new_style, careful=False):
-        """careful: the last try, after every way failed (Jason, Snow White 2026-11-07, four
+        """careful: the last try, after every way failed (the tester, Snow White 2026-11-07, four
         times at about the same spot): read past damaged bits of the video, give the
         streams more room to wait for each other, and leave the subtitles out."""
         def fopt(kind):  # ffmpeg 7+ spells it "-/filter:a"; older builds "-filter_script:a"

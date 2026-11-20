@@ -26,7 +26,7 @@ class TimeLimits(unittest.TestCase):
 
     def test_on_the_graphics_card(self):
         self.assertEqual(self.ask(0.92), 240)
-        self.assertEqual(self.ask(0.5, "vision-model"), 240)      # Lauren's laptop: 50%
+        self.assertEqual(self.ask(0.5, "vision-model"), 240)      # the owner's laptop: 50%
 
     def test_on_the_processor(self):
         self.assertEqual(self.ask(0.0), 240 * ai.SLOW_TIMES)

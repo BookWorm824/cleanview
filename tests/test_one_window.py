@@ -1,4 +1,4 @@
-"""One CleanView at a time, and a window straight away (1.18.64; Lauren, 2026-11-12: "it can
+"""One CleanView at a time, and a window straight away (1.18.64; the owner, 2026-11-12: "it can
 take several second and gives no indication it is opening. so i click again and get multiple
 windows open. I only want there to be a single instance", "The program can take time to open
 if it needs, but give an indicator box it is opening")."""

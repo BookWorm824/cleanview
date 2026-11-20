@@ -1,4 +1,4 @@
-"""Lauren, 2026-11-10 (her MSI laptop): Castle S1E2 got stuck saving, several times, and
+"""The owner, 2026-11-10 (her MSI laptop): Castle S1E2 got stuck saving, several times, and
 nothing said why. A save whose ffmpeg stops moving is now stopped after SAVE_STUCK_SECS and
 tried the next way (another encoder, then the careful way); if every way gets stuck, the
 error says where, so it can be sent in. Slow but moving saves, and the quiet stretch after

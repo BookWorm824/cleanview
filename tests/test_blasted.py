@@ -1,4 +1,4 @@
-""""Blasted" and "blast it" are mild oaths (1.18.93, 2026-11-14). From Lauren's Poldark S1E1
+""""Blasted" and "blast it" are mild oaths (1.18.93, 2026-11-14). From the owner's Poldark S1E1
 report: "lather and blasted brat" muted "brat" but not "blasted"; asked whether to add it to
 all three apps, she said "Yes, add it". Muted with the minced oaths ("darn", "heck"); blown
 up, a loud noise or drunk is left alone."""

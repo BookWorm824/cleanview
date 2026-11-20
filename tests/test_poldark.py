@@ -1,4 +1,4 @@
-"""Lauren's Poldark S1E1 report (1.18.92, 2026-11-14, kids, the AI helper, made on 1.18.89).
+"""The owner's Poldark S1E1 report (1.18.92, 2026-11-14, kids, the AI helper, made on 1.18.89).
 
 "Poldark S1 Ep. 1.mp4" said "No subtitles: couldn't tell which episode this is from its name",
 so nothing checked what was heard: "he's very full of himself" was heard as "very fool of

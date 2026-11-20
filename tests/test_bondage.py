@@ -1,4 +1,4 @@
-"""Lauren (2026-11-08): "bondage" and "safe word" are sexual references (Castle S1E1: "Bondage.
+"""The owner (2026-11-08): "bondage" and "safe word" are sexual references (Castle S1E1: "Bondage.
 My safe word is 'apples.'"). The whole line goes, with no AI (LINE_WORDS["sexref"]); "bondage"
 meaning slavery doesn't count, nor a safe word for something."""
 import unittest

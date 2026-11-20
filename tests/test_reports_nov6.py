@@ -1,4 +1,4 @@
-"""The 2026-11-06 reports: Jason's That Thing You Do on 1.18.20 (no AI) and Lauren's The
+"""The 2026-11-06 reports: the tester's That Thing You Do on 1.18.20 (no AI) and the owner's The
 Resident season 3 (Claude).
 1. "Jiminy Christmas" was learned as fine on 1.18.19, so it came back unticked, and muting just
    "christmas" in it never counted: now it's learned as just the word.

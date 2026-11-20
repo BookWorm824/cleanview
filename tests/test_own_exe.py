@@ -1,4 +1,4 @@
-"""CleanView's own name in Task Manager (Jason, 2026-11-03: it showed as "Python").
+"""CleanView's own name in Task Manager (the tester, 2026-11-03: it showed as "Python").
 launcher.pyw makes CleanView.exe, a copy of pythonw.exe with CleanView's description and
 icon, and only uses it once a test run worked."""
 import ctypes

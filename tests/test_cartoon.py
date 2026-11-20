@@ -1,5 +1,5 @@
 """Cartoons are judged as cartoons (1.18.94; the owner, 2026-11-14: "can we teach when something
-is animated", then "build it"). Lauren's Monsters University (kids, the AI helper) had eight
+is animated", then "build it"). The owner's Monsters University (kids, the AI helper) had eight
 cuts, none of them real: three "Christmas", a "St. Patrick's Day", "Magic" for a glowing
 creature, and four gunfire-like sounds in a film with no guns.
 

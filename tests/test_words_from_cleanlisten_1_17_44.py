@@ -1,4 +1,4 @@
-"""Words from CleanListen 1.17.44 (2026-11-15, Lauren's Camp Club Girls report; the same words in
+"""Words from CleanListen 1.17.44 (2026-11-15, the owner's Camp Club Girls report; the same words in
 every app): "fool" as fooling someone, "play dumb", "shut it softly" closing a door. And kept
 here: "What a fool you are!" is still calling someone a fool (FOOL_NOUN_PREV)."""
 import unittest

@@ -1,4 +1,4 @@
-"""Lauren's Person of Interest S1E2 report (1.18.102, 2026-11-14, adults, the AI helper, made on
+"""The owner's Person of Interest S1E2 report (1.18.102, 2026-11-14, adults, the AI helper, made on
 1.18.100). Two lines went through: "How the hell'd you get in here?" (a listed word with 'd
 joined on) and "If you're gonna step out on your wife, you need to think it through"
 (cheating, which the short list for sleeping around didn't have)."""

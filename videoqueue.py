@@ -1,4 +1,4 @@
-"""Several videos at once (Lauren, 2026-11-04: "have it where it can run multiple").
+"""Several videos at once (the owner, 2026-11-04: "have it where it can run multiple").
 
 When several videos are cleaned together (a season of episodes), each one is watched and
 listened to (cleanview.analyze) in its own worker process, up to "Videos at once" at a time
@@ -92,7 +92,7 @@ def memory_trouble(text):
     t = str(text or "").lower()
     if "error initializing filters" in t or "' for enable" in t:
         # ffmpeg says "Cannot allocate memory" when it can't read a list of changes that's
-        # too long; that isn't the PC running out (Jason, Shawshank 2026-11-07: 33% used)
+        # too long; that isn't the PC running out (the tester, Shawshank 2026-11-07: 33% used)
         return False
     return any(w in t for w in _MEMORY_WORDS)
 

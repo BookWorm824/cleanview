@@ -1,5 +1,5 @@
 {
-"about": "What CleanView's sound tagger heard (3 s windows every 1.5 s) in gunshot training sounds Lauren sent (2026-11-07); noise = background added this many dB under the bang. Only labels heard at 1% or more are kept.",
+"about": "What CleanView's sound tagger heard (3 s windows every 1.5 s) in gunshot training sounds the owner sent (2026-11-07); noise = background added this many dB under the bang. Only labels heard at 1% or more are kept.",
 "files": [
 {
 "file": "gunshot_000.wav",

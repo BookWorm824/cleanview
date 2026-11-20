@@ -1,4 +1,4 @@
-"""Lauren's Castle S1E1 report (2026-11-08, adults, word lists only). The shared lessons had the
+"""The owner's Castle S1E1 report (2026-11-08, adults, word lists only). The shared lessons had the
 episode's lines ("I'd be happy to let you spank me", "still hoping to get lucky", "another one
 of your conquests"...), taken from subtitles, but this run read what was heard, worded or split
 a little differently, and only 1 of them matched exactly, so the rest went through. And she

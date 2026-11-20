@@ -1,4 +1,4 @@
-"""A badly numbered episode (1.18.59, Lauren 2026-11-11: "Castle Season 1 - Ep. 3.mp4" was
+"""A badly numbered episode (1.18.59, the owner 2026-11-11: "Castle Season 1 - Ep. 3.mp4" was
 really episode 4, so episode 3's subtitles lined up 4% and none were used; the owner: "also
 build in if it is say season 2 episode 5 but says season 3 episode 5"): after the episode's own
 other subtitles, the neighbouring episodes' and then the neighbouring seasons' are tried, and the

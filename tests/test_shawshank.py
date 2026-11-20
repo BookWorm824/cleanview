@@ -1,4 +1,4 @@
-"""Jason's The Shawshank Redemption review (2026-11-07). Of five scenes cut as
+"""The tester's The Shawshank Redemption review (2026-11-07). Of five scenes cut as
 "gunshot-like bangs", four were cell doors clanking, Andy at a typewriter, sobbing and a
 door clanging. The sound tagger knows those sounds too: when one is heard more clearly than
 the gunfire in the same 3 seconds, it isn't gunfire."""

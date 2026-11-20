@@ -1,4 +1,4 @@
-"""Lauren's Christy pilot report (1.18.133, 2026-11-18, adults, the AI helper, made on 1.18.129;
+"""The owner's Christy pilot report (1.18.133, 2026-11-18, adults, the AI helper, made on 1.18.129;
 the owner: "Yes, fix them"). Creed's pet raccoon was muted as a slur, "regardless of sex" (boys
 and girls) as sexual, and Miss Alice's "Thank God and seek faith." as God's name; "God, it's
 just the way things is." went through (no subtitles lined up); "Christy - Pilot" was looked up

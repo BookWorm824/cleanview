@@ -59,7 +59,7 @@ class Heard(unittest.TestCase):
                 self.assertEqual(flagged(dialogue(text)), {})
 
     def test_one_holidays_box(self):
-        """Lauren, 2026-10-29: the holidays are one tick box. Birthday candles are their own."""
+        """The owner, 2026-10-29: the holidays are one tick box. Birthday candles are their own."""
         o = engine.full_opts({"holidays": True})
         for k in engine.HOLIDAYS:
             self.assertTrue(o[k], k)

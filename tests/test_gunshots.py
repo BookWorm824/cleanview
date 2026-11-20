@@ -1,4 +1,4 @@
-"""Real gunshots Lauren sent (2026-11-07, gunshot training sounds), as CleanView's sound tagger
+"""Real gunshots the owner sent (2026-11-07, gunshot training sounds), as CleanView's sound tagger
 heard them (`gunshot_sounds.json`: the scores, not the sounds), also with background noise
 mixed in 20 and 10 dB under the bang, the way a movie has talking and music under it.
 
@@ -54,7 +54,7 @@ def rows_scan(times, rows):
 
 
 class GunfireInAMovie(unittest.TestCase):
-    """G.I. Joe: Retaliation clips Lauren sent (2026-11-08): gunfire under talking and music."""
+    """G.I. Joe: Retaliation clips the owner sent (2026-11-08): gunfire under talking and music."""
 
     def test_cut_from_the_first_shots_to_the_last(self):
         for name, (start, end) in EDGES.items():

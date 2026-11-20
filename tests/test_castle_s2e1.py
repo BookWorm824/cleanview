@@ -1,4 +1,4 @@
-"""Lauren's Castle S2E1 report (2026-11-11, 1.18.60, adults, the AI helper). "That's a long
+"""The owner's Castle S2E1 report (2026-11-11, 1.18.60, adults, the AI helper). "That's a long
 way to go for a robbery." was muted as the lesson "That's a long way to go for a lube job" (8
 words the same, the joke in the rest), and "Now, that's kind of hot." (Castle to Beckett) was
 cut as same-sex flirting between "two men"."""

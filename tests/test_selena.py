@@ -1,4 +1,4 @@
-"""Lauren's Selena report (1.18.90; 2026-11-13, adults, the AI helper, made on 1.18.86, a movie
+"""The owner's Selena report (1.18.90; 2026-11-13, adults, the AI helper, made on 1.18.86, a movie
 with some Spanish in it). Every listed word was muted; there was no Spanish swearing for the
 short Spanish list to catch (the Spanish songs aren't in the subtitles). Her three corrections
 in the chat are built in for everyone (her "Yes, build them in")."""

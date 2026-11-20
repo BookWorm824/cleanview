@@ -1,4 +1,4 @@
-"""Lessons from Lauren's first CleanView Play scan (1.18.94; I Love Lucy 1 - Ep. 2, young, the
+"""Lessons from the owner's first CleanView Play scan (1.18.94; I Love Lucy 1 - Ep. 2, young, the
 AI helper, 2026-11-14), passed on by the play-only chat with her "yes send":
 1. the show's heart-on-satin title cards were cut four times as Valentine's Day ("teach that a
    heart doesn't mean valentine by itself");

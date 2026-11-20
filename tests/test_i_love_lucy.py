@@ -1,4 +1,4 @@
-"""Lauren's I Love Lucy report (2026-11-08, teens, word lists only). "I Love Lucy 1 - Ep. 1.m4v"
+"""The owner's I Love Lucy report (2026-11-08, teens, word lists only). "I Love Lucy 1 - Ep. 1.m4v"
 wasn't read as season 1 episode 1: it was looked up online as a movie of that name, the
 subtitles found lined up 4%, and what she chooses was learned under "movies". And "Let's get
 Valentine." was muted as Valentine's Day: a lone "Valentine" is a name."""

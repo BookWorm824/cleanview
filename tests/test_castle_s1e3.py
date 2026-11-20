@@ -1,4 +1,4 @@
-"""Lauren's Castle S1E3 report (2026-11-09, teens, the local AI helper, no Claude). The show's
+"""The owner's Castle S1E3 report (2026-11-09, teens, the local AI helper, no Claude). The show's
 built-in lessons had this episode's lines ("And that is not his wife", "I gotta hand it to
 Councilman Horny"...), learned from adults' reports under "castle", but a teens run only looked
 under "castle@teens", so none of the 191 were used. What's muted for an older age is now muted

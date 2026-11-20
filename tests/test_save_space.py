@@ -1,4 +1,4 @@
-"""Jason, 2026-11-07: the drive filled up while saving Snow White. "One thing we should
+"""The tester, 2026-11-07: the drive filled up while saving Snow White. "One thing we should
 change is being able to tell it where to save", and "estimate how many megabytes the clean
 copy will take before saving... show it in the screen". The review page now says where it
 saves, about how big it'll be and how much room there is ("Change..." picks the folder),

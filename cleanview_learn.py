@@ -96,7 +96,7 @@ AGES = ("young", "kids", "teens", "adults")      # strictest first
 def _age_keys(key, older=False):
     """The shared keys for this show at this age ("castle@teens"; adults have no "@"), and
     with older=True every older age's too: a line muted for adults is muted for teens and kids
-    as well (Lauren's Castle S1E3, 2026-11-09, teens: the show's 191 built-in lines were all
+    as well (the owner's Castle S1E3, 2026-11-09, teens: the show's 191 built-in lines were all
     under "castle", learned from adults' reports, so none were used). What an older age keeps
     is never used for a younger one."""
     base, _, age = key.partition("@")
@@ -244,7 +244,7 @@ def _same_scene(a, b):
 
 
 def _remember_scene(d, video, sc, cut):
-    """Her choice on one scene of this video (Jason, 2026-11-05: a phone slam he kept, a
+    """Her choice on one scene of this video (the tester, 2026-11-05: a phone slam he kept, a
     shirt he said wasn't nudity, joyful screaming: back again on the next scan of the same
     movie when no AI read his notes)."""
     vk = video_key(video)
@@ -293,12 +293,12 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
     something left unticked only counts if you unticked it yourself, since the AI
     or what was learned before may have unticked it. video: the file, so her own choices
     on its scenes are used again when the same one is scanned again.
-    A line she unticked while a word in it stays muted ("just the word", Jason 2026-11-05:
+    A line she unticked while a word in it stays muted ("just the word", the tester 2026-11-05:
     "only mute the word christmas") is learned as that, not as a line that's fine."""
     d = load(key)
     for l, on in zip(flagged_lines, line_choice):
         n = norm(l.get("plain") or l["text"])
-        # ...also when the line started unticked because she kept it before: Jason's
+        # ...also when the line started unticked because she kept it before: the tester's
         # "Jiminy Christmas" was learned as fine on 1.18.19, so it came back unticked and
         # his "just the word" in the chat never counted (2026-11-06)
         just = _word_only(l, on, mutes, word_choice) \
@@ -335,7 +335,7 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
 
 def _count(table, name, it, now, yes, no):
     """Count one choice (True/False, or None for not hers). Her choices are learned when
-    she leaves the review ("Back to start", Jason) and again when she saves it, so a
+    she leaves the review ("Back to start", the tester) and again when she saves it, so a
     choice already counted is only moved if she changed it since (it["_learned_as"])."""
     prev = it.get("_learned_as")
     if prev == now:
@@ -354,7 +354,7 @@ def _toks(n):
 
 class LearnedLines:
     """Learned lines to mute, found in dialogue worded or split a little differently
-    (Lauren's Castle S1E1, 2026-11-08: the shared lines came from subtitles, this run's from
+    (the owner's Castle S1E1, 2026-11-08: the shared lines came from subtitles, this run's from
     what was heard, and only 1 of 8 matched exactly). A dialogue line matches a learned one
     when the learned line is all inside it ("But if it makes you feel any better, I'd be happy
     to let you spank me"), when it's most of the learned line ("Not so loud. I'm still hoping
@@ -508,7 +508,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
             sc["learned"] = "you cut this scene before" if mine["cut"] else \
                 "you kept this scene before"
             # settled by her: "(not double-checked, so ...)" no longer says why it's set so
-            # (Jason, 2026-11-06: "the kisses are ticked... why are you saying left unticked?")
+            # (the tester, 2026-11-06: "the kisses are ticked... why are you saying left unticked?")
             sc["why"] = UNSETTLED.sub("", sc.get("why") or "")
             if mine["cut"]:
                 n_again += 1
@@ -578,7 +578,7 @@ def _notes_key(key, everywhere):
 
 def add_note(key, text, title="", everywhere=False):
     """Something they told the chat to keep in mind from now on ("the Genie's magic is
-    fine, it's Aladdin"; Jason, 2026-10-30: the chat said it couldn't learn). For a movie
+    fine, it's Aladdin"; the tester, 2026-10-30: the chat said it couldn't learn). For a movie
     it's kept for that movie only (title), for a show for every episode, or for everything
     they clean. Returns True if it's new."""
     text = " ".join(str(text).split())[:300]
@@ -789,7 +789,7 @@ def record_claude(st):
 
 def findings_rows(videos=None):
     """Every saved finding, newest video first. videos: just these (file names, or full
-    paths), for the videos being reviewed now (Jason, 2026-11-07: the spreadsheet had every
+    paths), for the videos being reviewed now (the tester, 2026-11-07: the spreadsheet had every
     movie he'd ever done, and he wanted the one he's working on)."""
     want = None if videos is None else {os.path.basename(v) for v in videos}
     out = []

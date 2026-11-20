@@ -96,7 +96,7 @@ STRONG = [r".*fuck.*", r"cunts?", r"motherf.*", r"fk", r"effing", r"effin'?", r"
           # into school." went through. Not a raccoon: "a coon dog", "coon hunting", "a coon's
           # age", "a Maine Coon" (INNOCENT_NEXT / INNOCENT_PREV)
           r"coons?",
-          # West Side Story (Lauren, 2026-11-08): "You lyin' Spic!", "that Polack", "Wop!"
+          # West Side Story (the owner, 2026-11-08): "You lyin' Spic!", "that Polack", "Wop!"
           r"spics?", r"spicks?", r"polacks?", r"greaseballs?", r"wops?"]
 # Never "fine in context", whatever an AI says: slurs, and "retarded" even said as a plain
 # description ("a severely retarded boy", Radio). An AI's "not an issue" on these is ignored.
@@ -221,7 +221,7 @@ DEITY_WORDS = [r"jesus", r"christ", r"lordy", r"omg", r"oh?m[iy]god", r"goddamn.
 
 # "Jesus" and "Christ" said with reverence aren't swears ("the love of Christ", "Jesus told
 # us", "the gospel of Jesus Christ"); oaths still are ("Jesus!", "Christ, that hurt", "oh my
-# Jesus"). Lauren, from Jason's report on At Every Turn (CleanListen 1.10.0).
+# Jesus"). The owner, from the tester's report on At Every Turn (CleanListen 1.10.0).
 REVERENT_BEFORE = {"about", "accept", "accepted", "accepts", "and", "as", "before", "believe",
     "believed", "believes", "bring", "brought", "by", "crucified", "embrace", "embraced",
     "find", "finds", "follow", "followed", "following", "follows", "for", "found", "from",
@@ -518,7 +518,7 @@ MILD_SLANG = [re.compile(p) for p in (
 MINCED_SLANG = [re.compile(p) for p in (
     r"what the (fudge|flip|fork|frack|fuh|devil|dickens|deuce|blazes)\b",
     # "how the dickens", "scared the dickens out of me", "hurts like the dickens" (Julie &
-    # Julia; Lauren 2026-11-03), never "Charles Dickens" or "the Dickens novel"
+    # Julia; the owner 2026-11-03), never "Charles Dickens" or "the Dickens novel"
     r"(how|who|where|why|when) (in )?the (dickens|deuce|blazes)\b",
     r"the (dickens|deuce) out of\b", r"like the (dickens|deuce|blazes)\b",
     r"(oh|aw|ah) (the )?dickens\b(?! (novel|book|story|stories|museum|fan))",
@@ -537,7 +537,7 @@ MINCED_SLANG = [re.compile(p) for p in (
     r"oh heavens\b", r"in heaven'?s name\b",     # "what in heaven's name" (The Resident)
     r"for (goodness|goodness's|heaven's|heavens|pete's|petes|pete|cripes|mercy's|land's|lands) "
     r"sakes?\b", r"for crying out loud\b",
-    # "holy cow", "holy moly" (Lauren, 2026-10-29: not fine)
+    # "holy cow", "holy moly" (the owner, 2026-10-29: not fine)
     r"holy (cow|cows|moly|molly|moley|mackerel|smokes|smoke|toledo|guacamole|cannoli|schmoley|"
     r"moses|crud|heck|jeez|geez|cats|socks|jumping|shamoley)\b",
 )]
@@ -650,20 +650,20 @@ def body_slang(words, i, pats=BODY_SLANG):
 
 
 # "screw" the prison guard, not the swear: "the hardest screw that ever walked a turn at
-# Shawshank" (Jason, 2026-11-07), "a screw that", "every screw that"...
+# Shawshank" (the tester, 2026-11-07), "a screw that", "every screw that"...
 SCREW_NOUN_AFTER = {"the", "a", "that", "this", "loose", "one", "each", "every", "of",
                     "tighten", "any", "no", "another", "prison"}
 
 
 # "gay" meaning happy, beside another happy word: "I feel pretty and witty and gay" (West
-# Side Story; Lauren kept the line, 2026-11-08), "merry and gay", "gay and carefree".
+# Side Story; the owner kept the line, 2026-11-08), "merry and gay", "gay and carefree".
 GAY_HAPPY = {"witty", "pretty", "merry", "bright", "happy", "light", "lighthearted",
              "carefree", "cheerful", "lively", "sunny", "jolly", "glad", "festive", "colorful",
              "colourful", "giddy", "laughing", "charming", "sparkling", "blithe", "joyful",
              "joyous", "gladsome", "frolicsome"}
 
 
-# ...and before these: "one gay round of nightclubs" (I Love Lucy; Lauren kept it, 2026-11-14:
+# ...and before these: "one gay round of nightclubs" (I Love Lucy; the owner kept it, 2026-11-14:
 # "this is an old show so gay means happy"), "a gay old time", "in gay spirits"
 GAY_HAPPY_NEXT = {"refrain", "apparel", "abandon", "laughter", "nineties", "paree", "round",
                   "rounds", "old", "whirl", "spirits", "mood", "moods", "tune", "tunes", "song",
@@ -1239,7 +1239,7 @@ KNOWS_NOT_OATH = {"best"}
 # me, I'll strangle him")
 HELP_NOT_OATH = {"to", "know", "understand", "find", "see", "trust", "forgive", "accept"}
 # "May You never be ashamed that I call You my God", "You are my God" (CleanRead: Wings of
-# a Dream, kept by Lauren 2026-11-04)
+# a Dream, kept by the owner 2026-11-04)
 MY_GOD_AFTER = {"are", "art", "be"}
 CALL_YOU = {("call", "you"), ("call", "thee"), ("called", "you"), ("calls", "you")}
 

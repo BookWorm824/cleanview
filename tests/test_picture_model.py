@@ -57,7 +57,7 @@ class WhichModel(unittest.TestCase):
 
 
 class TriedAgainAfterAFailedDownload(unittest.TestCase):
-    """1.18.57: Lauren's laptop couldn't download the new model (6.2 GB) the first time, and
+    """1.18.57: the owner's laptop couldn't download the new model (6.2 GB) the first time, and
     1.18.56 marked it tried and never tried again."""
 
     def setUp(self):

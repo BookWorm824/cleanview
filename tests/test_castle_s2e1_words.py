@@ -1,4 +1,4 @@
-"""Two things from Lauren's Castle S2E1 tests of 2026-11-13 (the AI helper, then asking Claude):
+"""Two things from the owner's Castle S2E1 tests of 2026-11-13 (the AI helper, then asking Claude):
 
 - "using him as a stripper pole": only "stripper" was muted, so "pole" played. In the chat she
   said "if pole ever comes after stripper it should be muted, keep pole other instances".

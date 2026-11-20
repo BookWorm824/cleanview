@@ -1,4 +1,4 @@
-"""What they tell the chat to keep in mind from now on (Jason, 2026-10-30: he explained Aladdin
+"""What they tell the chat to keep in mind from now on (the tester, 2026-10-30: he explained Aladdin
 was different and the chat said it couldn't change what it looks for). The chat now keeps it
 as a note, for that movie or show, or for everything, and later checks follow it. Also the
 review page's way back to the start page without saving."""
@@ -114,7 +114,7 @@ class Chat(unittest.TestCase):
 
 
 class Lessons(unittest.TestCase):
-    """Jason (1.18.1): told it the couple in bed were only talking, the chat unticked the
+    """The tester (1.18.1): told it the couple in bed were only talking, the chat unticked the
     scene but kept no lesson, and the picture check had cut it for "two people in bed"."""
 
     def test_a_correction_is_a_lesson(self):
@@ -127,7 +127,7 @@ class Lessons(unittest.TestCase):
 
 
 class SexScenesByContext(unittest.TestCase):
-    """Lauren (2026-10-30): in bed isn't a sex scene by itself, but a sex scene can be people
+    """The owner (2026-10-30): in bed isn't a sex scene by itself, but a sex scene can be people
     sitting with their clothes on, so look at the context; and look for oral sex and
     touching too."""
 
@@ -184,7 +184,7 @@ class ReligionIsNotAnExclamation(unittest.TestCase):
 
 
 class ViolenceCalls(unittest.TestCase):
-    """Lauren (2026-10-30): blood from an accident is Disturbing (The Blind Side's car
+    """The owner (2026-10-30): blood from an accident is Disturbing (The Blind Side's car
     wreck); a killing heard but not seen is Violence (Bambi's mother)."""
 
     def test_accident_blood_is_disturbing(self):
@@ -227,7 +227,7 @@ class CountedOnce(unittest.TestCase):
 
 
 class PictureCheckFollowsNotes(unittest.TestCase):
-    """Jason, 2026-11-04: he corrects scenes in the chat to teach the AI on this PC, so the
+    """The tester, 2026-11-04: he corrects scenes in the chat to teach the AI on this PC, so the
     local picture check gets what the chat was told too."""
 
     def look(self, notes):
@@ -291,7 +291,7 @@ class BackToStart(unittest.TestCase):
             Window.tearDownClass()
 
     def test_the_videos_name_is_on_the_review_page(self):
-        """Jason: after cleaning you don't know which movie it was."""
+        """The tester: after cleaning you don't know which movie it was."""
         from test_ui import Window, ui
         Window.setUpClass()
         try:

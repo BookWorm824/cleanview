@@ -1,4 +1,4 @@
-"""Noticing a freeze or a crash (Jason, 2026-11-03: CleanView stopped responding during a
+"""Noticing a freeze or a crash (the tester, 2026-11-03: CleanView stopped responding during a
 movie and didn't say why), and a window that a flood of progress messages can't keep busy."""
 import importlib.machinery
 import importlib.util

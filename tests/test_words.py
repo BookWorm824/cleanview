@@ -90,7 +90,7 @@ class Phrases(unittest.TestCase):
         self.assertEqual(found("screw it let's go", ["mild"]), [("screw it", "mild")])
 
     def test_screw_the_prison_guard(self):
-        # Jason, The Shawshank Redemption 2026-11-07: "screw that" was muted here
+        # The tester, The Shawshank Redemption 2026-11-07: "screw that" was muted here
         for text in ("courtesy of the hardest screw that ever walked a turn at Shawshank",
                      "the meanest screw that ever lived", "no screw that I know of",
                      "another screw that owed him a favor"):
@@ -113,7 +113,7 @@ class Phrases(unittest.TestCase):
                 self.assertEqual(found(text, ["samesex"]), [(word, "samesex")])
 
     def test_gay_meaning_happy(self):
-        # West Side Story 2026-11-08: Lauren kept "I feel pretty and witty and gay"
+        # West Side Story 2026-11-08: the owner kept "I feel pretty and witty and gay"
         for text in ("I feel pretty and witty and gay", "we were merry and gay",
                      "so gay and carefree all summer"):
             with self.subTest(text=text):
@@ -574,7 +574,7 @@ class FromTheReports(unittest.TestCase):
 
 
 class Suck(unittest.TestCase):
-    """"Suck" meaning "is bad" is a rude word kids copy (Lauren, 2026-10-29); sucking
+    """"Suck" meaning "is bad" is a rude word kids copy (the owner, 2026-10-29); sucking
     something is left alone."""
 
     def test_found(self):
@@ -623,7 +623,7 @@ class SubtitleWordsNearOtherMutes(unittest.TestCase):
         self.assertAlmostEqual(e, 2.15)
 
 
-class FromJasonsReports(unittest.TestCase):
+class FromTestersReports(unittest.TestCase):
     """Words from the reports sent in on 2026-10-30 (Aladdin, The Blind Side, A Walk to
     Remember), and their everyday uses."""
 
@@ -690,7 +690,7 @@ class FromTheResident(unittest.TestCase):
 
 class ReverentJesus(unittest.TestCase):
     """"Jesus" and "Christ" said with reverence aren't muted as swears; oaths are
-    (Lauren, from Jason's report on At Every Turn; the same in CleanListen 1.10.0)."""
+    (the owner, from the tester's report on At Every Turn; the same in CleanListen 1.10.0)."""
 
     def test_reverent_left_alone(self):
         for text in ("the love of Christ", "Jesus told us to love one another",
@@ -757,7 +757,7 @@ class FromCleanReadReports(unittest.TestCase):
             self.assertIn(word, [w for w, _ in found(text)], text)
 
     def test_prayers_she_kept(self):
-        """Wings of a Dream (CleanRead, 2026-11-04): Lauren kept these prayers."""
+        """Wings of a Dream (CleanRead, 2026-11-04): the owner kept these prayers."""
         for text in ("Oh God. Help me know what to do.", "Please, please, dear Jesus.",
                      "Had I let Jesus illuminate my path",
                      "May You never be ashamed that I call You my God.", "You are my God",

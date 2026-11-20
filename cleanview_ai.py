@@ -1080,7 +1080,7 @@ WHO_KEY = {"man and woman": "mf", "two men": "mm", "two women": "ff"}
 
 
 def family_said(notes):
-    """What they told the chat to keep in mind (learn.notes), for the picture check: Jason
+    """What they told the chat to keep in mind (learn.notes), for the picture check: the tester
     (2026-11-04) corrects scenes in the chat to teach the AI on this PC."""
     if not notes:
         return ""
@@ -1426,7 +1426,7 @@ def classify_dialogue(lines, wanted, progress=None, cancel=None, chunk=25, overl
 
 
 # ---------------------------------------------------------------------------
-# Who's a man and who's a woman (1.18.95; Lauren's Castle S2E6, 2026-11-14: "Daemon fell in
+# Who's a man and who's a woman (1.18.95; the owner's Castle S2E6, 2026-11-14: "Daemon fell in
 # love with Crow" and "He was Crow's boyfriend, not mine" went through with the same-sex
 # filter on; the names don't say both are men, and the "he" that does was in another part of
 # the 25 lines read at a time). Before the dialogue is read, the people named in talk about
@@ -2017,7 +2017,7 @@ _FEMALE = re.compile(r"\b(woman|women|girl|girls|she|her|hers|wife|girlfriend|la
 
 def _between_checked(between, what):
     """The small model often says "two men" while its own words say a man and a woman
-    (That Thing You Do, Jason 2026-11-05: 8 "Same-sex romance · two men" scenes, each "the
+    (That Thing You Do, the tester 2026-11-05: 8 "Same-sex romance · two men" scenes, each "the
     man ... the woman"). Its own sentence wins."""
     if between == "mm" and _FEMALE.search(what or ""):
         return "mf"
@@ -2180,7 +2180,7 @@ def romance_scenes(lines, genders, progress=None, cancel=None, notes=None, peopl
         try:
             # first just yes or no, with the very same words (1.18.68): the full answer form
             # made it write 45-170 words for every conversation, slow when the model is only
-            # partly on the graphics card (Lauren's laptop: 16 of 40 minutes); asked this way
+            # partly on the graphics card (the owner's laptop: 16 of 40 minutes); asked this way
             # it said yes to every one the full question did, on 270 conversations
             if not chat(prompt, schema=QUICK_YES, timeout=300).get("romance"):
                 continue

@@ -1,4 +1,4 @@
-"""Jason, 2026-11-06: "making the movie title a little bigger and bolder" on the progress
+"""The tester, 2026-11-06: "making the movie title a little bigger and bolder" on the progress
 page. The title is the file's name without ".m4v", in big bold letters."""
 import tkinter as tk
 import unittest

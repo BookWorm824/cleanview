@@ -1,4 +1,4 @@
-"""Lauren's Forest Gump report (1.18.111, 2026-11-16, kids, the AI helper, made on 1.18.110; the
+"""The owner's Forest Gump report (1.18.111, 2026-11-16, kids, the AI helper, made on 1.18.110; the
 owner: "lets train from this", then "Teach the 9 lines", "Add the 2 words", "Fix Dr Pepper
 and Dick", "Forest Gump note", and "any of the strip club stuff needs cut for all ages if it is
 checked")."""

@@ -183,10 +183,10 @@ class SignInWindow(unittest.TestCase):
         saved = accounts.subprocess.Popen
         accounts.subprocess.Popen = lambda args, **kw: opened.append((args, kw.get("env")))
         saved_find, gem_find = cc.find_claude, gem.find
-        cc.find_claude = lambda: r"C:\Users\Jason Smith\.local\bin\claude.exe"
+        cc.find_claude = lambda: r"C:\Users\Some Tester\.local\bin\claude.exe"
         gem.find = lambda: [r"C:\Program Files\nodejs\node.exe", r"C:\npm\gemini\index.js"]
         saved_gpt = gpt.find
-        gpt.find = lambda: r"C:\Users\Jason Smith\codex.exe"
+        gpt.find = lambda: r"C:\Users\Some Tester\codex.exe"
         try:
             cc.open_sign_in()
             gpt.open_sign_in()
@@ -196,8 +196,8 @@ class SignInWindow(unittest.TestCase):
             cc.find_claude, gem.find, gpt.find = saved_find, gem_find, saved_gpt
         self.assertEqual(len(opened), 3)
         for (args, env), ai, line in zip(opened, ("claude", "chatgpt", "gemini"), (
-                r'"C:\Users\Jason Smith\.local\bin\claude.exe" "auth" "login"',
-                r'"C:\Users\Jason Smith\codex.exe" "login"',
+                r'"C:\Users\Some Tester\.local\bin\claude.exe" "auth" "login"',
+                r'"C:\Users\Some Tester\codex.exe" "login"',
                 r'"C:\Program Files\nodejs\node.exe" "C:\npm\gemini\index.js"')):
             self.assertEqual(args[:3] + args[4:6], ["cmd", "/c", "start", "cmd", "/k"])
             self.assertFalse(any('\\"' in a for a in args), "no Python-style quotes for cmd")

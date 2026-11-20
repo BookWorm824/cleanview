@@ -1,4 +1,4 @@
-"""Ollama only while CleanView, CleanListen or CleanRead are open (Lauren, 2026-11-05; the same
+"""Ollama only while CleanView, CleanListen or CleanRead are open (the owner, 2026-11-05; the same
 ollama_care.py as CleanListen 1.15.2, plus CleanView's video workers), and the window staying
 quick to answer while videos are worked on (CleanListen 1.15.1: one core left free, the work
 below normal priority). The real Ollama on this PC is never stopped here: stop() is a stand-in."""

@@ -1,4 +1,4 @@
-"""Lauren's Person of Interest S1E4 report (1.18.105, 2026-11-15, adults, the AI helper, made on
+"""The owner's Person of Interest S1E4 report (1.18.105, 2026-11-15, adults, the AI helper, made on
 1.18.104; the owner: "yes 1 and 2"). "I'm going home and hitting the hay" was heard as "hit in
 the heck" and "heck" muted, though the subtitles say "hay" right there; "Benton's conquests?"
 and "I do know a place right around the corner -- full bar, comfy bed." went through."""

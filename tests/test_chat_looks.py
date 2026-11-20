@@ -1,4 +1,4 @@
-"""The chat looks at the picture (Lauren, 2026-11-08). Told "near the beginning they are holding
+"""The chat looks at the picture (the owner, 2026-11-08). Told "near the beginning they are holding
 hands", the chat said it could only see the dialogue and cut a whole 49-second visit; told
 "you are supposed to view photos as well", it said again it couldn't. And the picture check
 itself could only report two women kissing, not holding hands. Now the chat asks to see a

@@ -1,5 +1,5 @@
 """The Shawshank Redemption on Adults (1.18.116; a report from another PC, adults, made on
-1.18.113; the owner: "Lines, not the scene"). Jason's lessons for the film (1.18.27) were under
+1.18.113; the owner: "Lines, not the scene"). The tester's lessons for the film (1.18.27) were under
 Teens, which Adults doesn't use, so Bogs' threat and the rest went through; they're taught for
 every age now, each only with its filter ticked."""
 import unittest

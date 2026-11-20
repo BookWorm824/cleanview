@@ -1,4 +1,4 @@
-"""Jason, 2026-11-07:
+"""The tester, 2026-11-07:
 1. "Claude's findings (spreadsheet)" had every movie he'd ever done: now it's just the
    video(s) on the review page, newest first in the full one.
 2. The progress page was "a lot of dead space": CleanView's logo sits in the middle."""

@@ -1,4 +1,4 @@
-"""Lauren's Person of Interest S1 report (1.18.101, 2026-11-14, adults, the AI helper, made on
+"""The owner's Person of Interest S1 report (1.18.101, 2026-11-14, adults, the AI helper, made on
 1.18.100; passed on by the CleanListen chat). "Person of Interest S1 - (1).wmv" said "No
 subtitles: couldn't tell which episode this is from its name" and was learned under movies.
 The season, then the episode in brackets, is read as season and episode now."""

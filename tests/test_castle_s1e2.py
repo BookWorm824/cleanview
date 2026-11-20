@@ -1,4 +1,4 @@
-"""Lauren's Castle S1E2 report (2026-11-09, teens, word lists only). She asked the chat to mute
+"""The owner's Castle S1E2 report (2026-11-09, teens, word lists only). She asked the chat to mute
 just the words instead of whole lines, and it muted the phrase "explain how that works later"
 as one squashed word ("explainhowthatworkslater"): not found in what was heard, so only 1.2 s
 around its middle was muted. A phrase is now found word by word and muted from its first word

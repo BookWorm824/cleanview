@@ -1,4 +1,4 @@
-"""Jason's That Thing You Do runs (2026-11-05). Without an AI his chat notes reach nothing, so
+"""The tester's That Thing You Do runs (2026-11-05). Without an AI his chat notes reach nothing, so
 he had to correct the same things on every scan. Now:
 1. her own choices on a video's scenes come back when the same video is scanned again;
 2. "just the word" is learned as that (not as a line that's fine);

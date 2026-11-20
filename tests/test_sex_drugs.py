@@ -1,4 +1,4 @@
-"""Sex drugs are sexual references (Lauren, 2026-11-04: "add sexual drugs to sexual reference
+"""Sex drugs are sexual references (the owner, 2026-11-04: "add sexual drugs to sexual reference
 filter"): Viagra and the like, aphrodisiacs, drugging someone for sex."""
 import unittest
 

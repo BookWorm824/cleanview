@@ -24,7 +24,7 @@ def _ver(s):
 
 # ---------- CleanView's own name in Task Manager ----------
 # Task Manager names a program by its .exe's description, so CleanView showed as "Python"
-# (Jason, 2026-11-03). CleanView.exe is a copy of the venv's base pythonw.exe in
+# (the tester, 2026-11-03). CleanView.exe is a copy of the venv's base pythonw.exe in
 # venv\CleanView, with python312.dll beside it and its description and icon changed; it
 # finds the venv through venv\pyvenv.cfg one folder up, like Scripts\pythonw.exe does.
 # (Not in Scripts: sherpa-onnx put an onnxruntime.dll there, which an .exe in that folder
@@ -288,7 +288,7 @@ def as_own_exe():
 
 
 # ---------- one CleanView at a time, and a window straight away ----------
-# Lauren, 2026-11-12: "it can take several second and gives no indication it is opening. so
+# The owner, 2026-11-12: "it can take several second and gives no indication it is opening. so
 # i click again and get multiple windows open. I only want there to be a single instance".
 # The part started from the Start menu (clicked) shows "Opening CleanView..." at once and
 # starts CleanView itself as its own process (run_app, "--app"); that one holds ONE_NAME for

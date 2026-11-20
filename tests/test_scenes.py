@@ -172,7 +172,7 @@ class SexTalk(unittest.TestCase):
 class BothLookAtOnce(unittest.TestCase):
     """With Claude, ChatGPT or Gemini, the AI on this PC takes its closer look at the scenes
     found in the background while they read the dialogue: both look, and it doesn't take
-    twice as long ("taking a closer look" seemed to run twice, as slowly: Jason)."""
+    twice as long ("taking a closer look" seemed to run twice, as slowly: the tester)."""
 
     def test_both_look_together_with_any_cloud_ai(self):
         for reader in ("claude", "chatgpt", "gemini"):

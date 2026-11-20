@@ -1,4 +1,4 @@
-"""Lauren's Castle S2E6 report (1.18.95, 2026-11-14, adults, the AI helper, made on 1.18.92; the
+"""The owner's Castle S2E6 report (1.18.95, 2026-11-14, adults, the AI helper, made on 1.18.92; the
 owner: "yes teach", then "1 and 2" to catching them the first time). Every listed word was
 muted; six lines that fit her filters went through: Crow and Daemon (two men) as a couple,
 Vixen's "lovers", and three bits of innuendo.

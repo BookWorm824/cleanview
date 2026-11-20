@@ -1,4 +1,4 @@
-"""Several videos at once (Lauren, 2026-11-04: "have it where it can run multiple"): each
+"""Several videos at once (the owner, 2026-11-04: "have it where it can run multiple"): each
 video is watched and listened to in its own worker (videoqueue.py), "Videos at once" at a
 time. The workers run a stand-in engine (fake_engine.py)."""
 import json

@@ -1,4 +1,4 @@
-"""Lauren's Person of Interest reports (2026-11-08, Claude, adults): S02E07 on 1.18.32 found the
+"""The owner's Person of Interest reports (2026-11-08, Claude, adults): S02E07 on 1.18.32 found the
 two wives hugging and holding hands; S02E11-E22 on 1.18.28 were right except one line she
 unticked through the chat. That chat kept a note for everything she cleans ("a line that just
 mentions someone's wife, family or kids ... is not a problem line"), which mustn't unmute a

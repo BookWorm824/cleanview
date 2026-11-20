@@ -1,4 +1,4 @@
-"""Disrespect (Lauren, 2026-10-30): kids being bratty, talking back to or disobeying their
+"""Disrespect (the owner, 2026-10-30): kids being bratty, talking back to or disobeying their
 parents and other grown-ups. A dialogue filter, whole lines, ticked for Young kids, Kids and
 Teens. The AI still flags it when the child learns their lesson, but says so (or that they
 get away with it)."""

@@ -1,4 +1,4 @@
-"""Lauren's Person of Interest S1E3 report (1.18.104, 2026-11-14, adults, the AI helper, made on
+"""The owner's Person of Interest S1E3 report (1.18.104, 2026-11-14, adults, the AI helper, made on
 1.18.102; the owner: "Yes, do both"). Every mute was right; four lines went through: "Who's the
 other woman?" / "Looks like Joey's other woman's got a little girl" and "Bank robber and a
 cheat" (talk of cheating), "...the land of tequila / and grateful señoritas" (innuendo, split

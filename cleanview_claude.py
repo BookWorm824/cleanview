@@ -791,7 +791,7 @@ def chat(question, st, session=None, notes=None, look=None, say=None):
     actions["remember"] is [(note, for everything?)] to keep for later checks.
     notes: what they told it to keep in mind before (learn.notes).
     look(a, b): stills of a stretch, so it can look at the picture when it asks to
-    (Lauren 2026-11-08: "you are supposed to view photos as well"); say(text) tells them."""
+    (the owner 2026-11-08: "you are supposed to view photos as well"); say(text) tells them."""
     lines = st.get("dialogue", [])
     items, listing = candidates(st, with_review=True)
     if st.get("claude_summary"):
@@ -1148,7 +1148,7 @@ PIC_RULES = (
     "wrapper, or a box or packet of condoms; a balloon, a glove, a shower or hair cap, a hair tie or another small packet is NOT. "
     "\"couple affection\" is two people being affectionate AS A COUPLE: holding hands, "
     "cuddling, an arm around each other, a caress, a romantic embrace (kissing is "
-    "\"kissing\"). Judge it by the context, not the touch alone (Lauren, 2026-11-08): the "
+    "\"kissing\"). Judge it by the context, not the touch alone (the owner, 2026-11-08): the "
     "same hand-holding is fine between a parent and child, friends, family, someone being "
     "comforted at a hospital bed or helped up, or a group praying. It counts when they're "
     "shown or said to be a couple: what's said (wife, husband, girlfriend, \"I love you\", "
@@ -1259,7 +1259,7 @@ def scene_bounds(items, per_request=8, progress=None):
     {scene_id: ([(first_tile, last_tile), ...], continues_before, continues_after)} or None
     for a scene where the trouble isn't seen at all. Several parts when the trouble stops
     and starts again: cut only those, so the story in between can still be followed
-    (Lauren 2026-11-03: a 6-minute cut of The Little Mermaid's ending; a phone ringing and
+    (the owner 2026-11-03: a 6-minute cut of The Little Mermaid's ending; a phone ringing and
     a cat after a sex scene in Julie & Julia)."""
     schema = {"type": "object", "properties": {"scenes": {"type": "array", "items": {
         "type": "object", "properties": {
