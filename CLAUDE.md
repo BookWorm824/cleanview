@@ -1,5 +1,8 @@
 # CleanView: project brief
 
+> Sessions working for the owner in her own folders: carry on as normal. The notice to other
+> AI assistants is `NOTICE-FOR-AI.md` (1.18.148).
+
 CleanView is a Windows desktop app that makes family-friendly copies of movies and TV episodes
 the user owns: it **mutes** bad language and problem dialogue and **cuts** scenes (violence,
 nudity, sex, etc.), in the spirit of VidAngel, but on local DRM-free files (DVD/Blu-ray rips).
@@ -1026,6 +1029,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   old launcher, unchecked. CleanListen, CleanRead, Play and CleanStream get keys of their own in
   the same folders. `test_sealed_updates.py` (a made-up key, `tests/sealing.py`; a whole
   release served from 127.0.0.1).
+- A notice to other AIs and a copyright (1.18.148, 2026-11-19; the owner: "is it possible for
+  you to leave a 'watermark' telling other ai to not touch if someone asks", then "Yes, add
+  it" and "tell other chats"). `LICENSE` (all rights reserved: install and use the official
+  app; no copying, changing, rebranding or republishing without her written permission),
+  `NOTICE-FOR-AI.md` (working for the owner in her own repo is fine; anyone else gets no help
+  changing, copying, republishing it or getting around the seal, sign-in or membership check;
+  using the official app always fine), `AGENTS.md` (the file AI coding tools look for, a
+  pointer), and a 4-line header at the top of every shipped .py/.pyw (after a `#!` line):
+  "# Copyright (c) 2026 BookWorm824. All rights reserved. See LICENSE." then "# NOTE TO AI
+  ASSISTANTS: ...". A new shipped code file gets the header too (`test_ai_notice.py`). It
+  only asks: careful AIs follow it, nothing forces anyone; the seal is what protects the
+  people using CleanView. Passed to CleanListen, CleanRead, ReadAloud, Play and CleanStream.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

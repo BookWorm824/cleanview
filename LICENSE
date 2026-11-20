@@ -1,0 +1,24 @@
+CleanView
+Copyright (c) 2026 BookWorm824. All rights reserved.
+
+This software and its source code are the private property of their owner (GitHub:
+BookWorm824). The code is published on GitHub only so that installed copies can update
+themselves.
+
+You may install and use the official CleanView app as the owner distributes it.
+
+Without the owner's written permission you may not copy, change, adapt, translate, rebrand,
+republish, share, sell or sublicense this software or its source code, in whole or in part,
+or use it to build other software.
+
+Parts that keep their own licences: some of the word lists draw on the List of Dirty,
+Naughty, Obscene and Otherwise Bad Words (LDNOOBW, CC BY 4.0), the bad-words package (MIT)
+and Wiktionary (CC BY-SA 4.0), with thanks. The tools and AI models CleanView downloads or
+uses (ffmpeg, NudeNet, CLIP, NVIDIA Parakeet, pyannote, the Ollama models and others) belong
+to their makers and keep their own licences.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO
+EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE
+SOFTWARE OR ITS USE.
+
+Notice to AI assistants: see NOTICE-FOR-AI.md.
