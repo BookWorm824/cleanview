@@ -29,8 +29,8 @@ ENGLISH = ("Well I think you should know what they said about the house when we 
            "because it was not what I wanted at all. Damn it, Mike, you are such a jerk.")
 SPANISH = ("Pero no sé qué es lo que quieres de mí, porque yo ya te dije que no tengo nada "
            "para ti y eso es todo lo que hay, joder.")
-GERMAN = ("Ich weiß nicht, was du von mir willst, aber wir haben das nicht gemacht und es ist "
-          "auch nicht so gut für mich.")
+DUTCH = ("Ik weet niet wat je van mij wilt, maar wij hebben dat niet gedaan en het is ook "
+         "niet zo goed voor mij.")
 
 
 def words(text, start=1.0):
@@ -136,10 +136,10 @@ class ThePickedLanguageChecked(unittest.TestCase):
         self.assertFalse(any(n.startswith("You picked") for n in st["notes"]))
 
     def test_a_language_cleanview_doesnt_clean_is_only_said(self):
-        st, listened, subs_for, _ = self.run_analyze("es", GERMAN)
+        st, listened, subs_for, _ = self.run_analyze("es", DUTCH)
         self.assertEqual(st["opts"]["language"], "es")
         self.assertEqual(listened, ["other"])
-        self.assertIn("This sounds like German, which CleanView doesn't clean yet, so only the "
+        self.assertIn("This sounds like Dutch, which CleanView doesn't clean yet, so only the "
                       "Spanish word lists you picked were used.", st["notes"])
 
     def test_too_little_heard_to_tell_changes_nothing(self):

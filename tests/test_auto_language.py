@@ -33,12 +33,14 @@ SAID = {
           "e isso é tudo que tem aqui",
     "ru": "Я не знаю, что ты хочешь от меня, потому что я уже сказал тебе, что у меня "
           "ничего нет для тебя",
+    "de": "Ich weiß nicht, was du von mir willst, aber wir haben das nicht gemacht und "
+          "es ist auch nicht so gut für mich",
+    "it": "Io non so che cosa vuoi da me, perché ho già detto che non ho niente per te "
+          "e questo è tutto quello che ho",
 }
 OTHERS = {
-    "German": "Ich weiß nicht, was du von mir willst, aber wir haben das nicht gemacht und "
-              "es ist auch nicht so gut für mich",
-    "Italian": "Io non so che cosa vuoi da me, perché ho già detto che non ho niente per te "
-               "e questo è tutto quello che ho",
+    "Dutch": "Ik weet niet wat je van mij wilt, maar wij hebben dat niet gedaan en het is "
+             "ook niet zo goed voor mij",
     "Ukrainian": "Я не знаю, що ти хочеш від мене, тому що я вже сказав тобі, що у мене "
                  "нічого немає для тебе і її",
 }
@@ -58,7 +60,7 @@ class TellingByTheWords(unittest.TestCase):
         self.assertEqual(cvlang.which_language([]), (None, None))
         # a few words are only enough when they're very clearly one language
         self.assertEqual(cvlang.which_language(
-            "Alles hat ein Ende, nur die Wurst hat zwei.".split()), ("other", "German"))
+            "Alles hat ein Ende, nur die Wurst hat zwei.".split()), ("de", None))
         self.assertEqual(cvlang.which_language(
             "Castle and Beckett chased Esposito downtown.".split()), (None, None))
 
@@ -88,11 +90,12 @@ class TellingByTheWords(unittest.TestCase):
 class TheSoundTracksLabel(unittest.TestCase):
     def test_labels_cleanview_cleans(self):
         for tag, code in (("eng", "en"), ("spa", "es"), ("fre", "fr"), ("fra", "fr"),
-                          ("por", "pt"), ("rus", "ru"), ("ENG", "en")):
+                          ("por", "pt"), ("rus", "ru"), ("ENG", "en"),
+                          ("ger", "de"), ("deu", "de"), ("ita", "it")):
             self.assertEqual(cvlang.tag_language(tag), (code, None), tag)
 
     def test_labels_it_doesnt_clean_yet(self):
-        self.assertEqual(cvlang.tag_language("ger"), ("other", "German"))
+        self.assertEqual(cvlang.tag_language("dut"), ("other", "Dutch"))
         self.assertEqual(cvlang.tag_language("jpn"), ("other", "Japanese"))
 
     def test_no_label_to_go_by(self):
@@ -168,7 +171,7 @@ class WorkingItOut(unittest.TestCase):
         self.assertIn("couldn't be told", how)
 
     def test_a_language_it_doesnt_clean_is_said_plainly(self):
-        for tag, heard, name in (("ger", (), "German"), ("", OTHERS["Italian"].split(), "Italian")):
+        for tag, heard, name in (("dut", (), "Dutch"), ("", OTHERS["Dutch"].split(), "Dutch")):
             with self.assertRaises(engine.VideoError) as err:
                 self.tell(tag, heard)
             said = str(err.exception)
@@ -262,13 +265,8 @@ class RealSpeech(unittest.TestCase):
             return engine.tell_language(str(video), info, work, info["duration"])
 
     def test_told_from_what_is_heard(self):
-        for code in ("es", "fr", "en"):
+        for code in ("es", "fr", "en", "de"):      # German is cleaned since 1.18.145
             self.assertEqual(self.tell(code), (code, "from what was heard"), code)
-
-    def test_german_is_said_plainly(self):
-        with self.assertRaises(engine.VideoError) as err:
-            self.tell("de")
-        self.assertIn("is in German", str(err.exception))
 
     def test_a_whole_clean_on_auto(self):
         video = self.videos["es"]

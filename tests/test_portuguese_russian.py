@@ -213,7 +213,8 @@ class FilesAndTheList(unittest.TestCase):
 
     def test_on_the_start_pages_list(self):
         self.assertEqual(list(cvlang.LANGS.values()),
-                         ["English", "Spanish", "French", "Portuguese", "Russian"])
+                         ["English", "Spanish", "French", "German", "Italian", "Portuguese",
+                          "Russian"])   # German and Italian since 1.18.145
         for code in ("pt", "ru"):
             self.assertEqual(set(cvlang.WORDS[code]), set(cvlang.ORDER) | {"sex"})
             for table in (cvlang.PHRASES, cvlang.NOT_NEXT, cvlang.NOT_BEFORE, cvlang.TAGS,

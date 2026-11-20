@@ -982,6 +982,24 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   ticks or unticks a filter in all of them at once (`_filter_row`, `_filter_vars`,
   `_note_filter`; the scene added by hand joins it too). `test_filter_groups.py`; not seen on
   her screen (tests draw nothing she can see).
+- German and Italian (1.18.145, 2026-11-19; the owner: "i know to check the voices in german
+  etc. it would require a new speech pack, but what about just the word to read subtitles?",
+  then "i think german , italian, espanola"; Spanish was in already). No new speech pack: the
+  listening model for other languages (Parakeet v3, 25 European languages) heard German all
+  along and Auto refused it only for want of lists. `cvlang.DE` / `IT` with phrases and guards,
+  in `LANGS` (after French), `TAGS`, `FILE_TAGS`, `SUB_LANG` (deu, ita). German letters are
+  written out before matching (`SPELLED_OUT`: ä ae, ö oe, ü ue, ß ss), not stripped, so
+  "schwül" (humid) isn't "schwul"; its roots take compounds ("Scheißkerl", "Vollidiot"); English
+  swearing said in German is on its list. Italian drops joined-on short words like French
+  (`ELIDED["it"]`: "dell'idiota", "vai all'inferno" is "vai inferno"). Left out as mostly
+  innocent: Schwanz, Sack, Sau, geil, Blödsinn, Gott and Teufel alone (only in phrases), Mist
+  after den/dem/vom (dung); finocchio, sega, cagna, cavolo/palle/diavolo/zitto alone, Troia
+  after di/a (Troy). Dutch is now the language named but not cleaned (`LITTLE_WORDS["nl"]`,
+  `OTHER_HEARD`); in all 152 past reviews here the stretches Auto would hear are still English
+  or can't-tell. The model's own German sample is now told as German (`RealSpeech`). No native
+  speaker has checked the lists, and no German or Italian film has been cleaned here.
+  cvlang.py changed: CleanListen and CleanRead copy it; CleanStream takes the lists.
+  `test_german_italian.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, Jason: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
