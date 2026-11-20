@@ -649,7 +649,13 @@ def title_scenes(key, title, dialogue, ticked=None, episode=None):
     One show's episode (1.18.149, Criminal Minds S1E19): "title" is the show's name and
     "episode" [season, episode] has to be `episode` (guess_title's); "before": a line instead
     of "until" ends it as that line starts (a scene that ends where the next one's talk
-    begins, with nothing said in between)."""
+    begins, with nothing said in between). "from": the first line after "after" that is
+    this line starts it, as that line starts (1.18.153, S1E20's creek: starting at the end of
+    the line before cut 50 s of agents running through the woods before her first "No!").
+    "start_at" / "end_at": [a line, seconds] start or end it that many seconds from that line's
+    start (negative: before it), the line looked for after "after" (and the end after the
+    start), so a scene she set to the second in the app fits any copy (1.18.153, her S1E20
+    cuts)."""
     t, out, items = norm(title or ""), [], []
     s = shared()
     for k in dict.fromkeys((key, key.split("@")[0])):
@@ -663,11 +669,24 @@ def title_scenes(key, title, dialogue, ticked=None, episode=None):
         if ticked is not None and not set(sc.get("for", [])) & set(ticked):
             continue
         a = _line_at(dialogue, sc["after"])
-        b = None if a is None else _line_at(dialogue, sc.get("until") or sc["before"], a + 1)
+        first = sc.get("start_at", [sc.get("from")])[0]
+        f = a if a is None or not first else _line_at(dialogue, first, a + 1)
+        last = sc["end_at"][0] if "end_at" in sc else sc.get("until") or sc["before"]
+        b = None if f is None else _line_at(dialogue, last, f + 1 if first else a + 1)
         if b is None:
             continue
-        start = float(dialogue[a]["e"])
-        end = float(dialogue[b]["s"]) - 0.2 if "before" in sc else float(dialogue[b]["e"]) + 0.5
+        if "start_at" in sc:
+            start = max(0.0, float(dialogue[f]["s"]) + float(sc["start_at"][1]))
+        elif "from" in sc:
+            start = max(0.0, float(dialogue[f]["s"]) - 0.3)
+        else:
+            start = float(dialogue[a]["e"])
+        if "end_at" in sc:
+            end = float(dialogue[b]["s"]) + float(sc["end_at"][1])
+        elif "before" in sc:
+            end = float(dialogue[b]["s"]) - 0.2
+        else:
+            end = float(dialogue[b]["e"]) + 0.5
         if not 0 < end - start <= 600:          # not this film's lines after all
             continue
         # said in the reason too, so the review page's card and the report both show it was

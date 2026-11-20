@@ -1106,6 +1106,21 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   Kelly drowned in the creek until the agents shoot him (38:17-40:51). Left (she left it cut):
   "Condom shown" at 15:02, likely not one (they're going over his business card and website).
   `test_criminal_minds.Episode20`.
+  1.18.153 (her S1E20 scanned again on 1.18.152: every fix worked; the owner: "like this has a
+  cut of a minute and a half", "it probably needed 30 seconds", "when the man is saving her
+  from the pool doesn't need cut", "its rescue", "15" seconds of "guys talking by bushes" cut
+  before the torture, then her refined report with the cuts set in the app after her review,
+  and "not just this scene": "if it sees something it cuts a whole 3 minuted when it could cut
+  two scenes saving a lot of the video"). The S1E20 scenes are now her own four cuts: the
+  torture 19:10-20:08, the pool 31:25-32:03 (forced in and held under until she lies limp; not
+  the grab before or the CPR after), and the creek in two, the grab 39:04-39:14 and the
+  drowning 39:46-40:42 (not the agents in the woods between): 2.7 minutes where the scenes
+  placed from the dialogue took 5.2. A taught scene can follow edges set to the second:
+  `"start_at"` / `"end_at"`: [a line, seconds from that line's start] (the line looked for after
+  "after", the end after the start), so it fits any copy (`learn.title_scenes`); `"from"`: start
+  as a line starts. Teach only the trouble itself, in pieces, never one long cut over the
+  harmless parts between (rescues, agents arriving, the aftermath); her own edges when she
+  gives them. `test_criminal_minds.Episode20.test_her_four_cuts`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

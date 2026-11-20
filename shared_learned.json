@@ -1547,7 +1547,14 @@
       20
      ],
      "after": "i'm not sure it did him any favors",
-     "before": "based on these interviews it looks like the first victim wasn't being unfaithful",
+     "start_at": [
+      "you're gonna be ok",
+      -9.31
+     ],
+     "end_at": [
+      "wake up",
+      8.83
+     ],
      "kind": "Disturbing",
      "for": [
       "disturbing"
@@ -1561,12 +1568,19 @@
       20
      ],
      "after": "and now at least 6 women are dead because of it",
-     "before": "found other suspicious drownings the last couple of days",
+     "start_at": [
+      "hey can't be in the pool with your clothes on",
+      -14.16
+     ],
+     "end_at": [
+      "look man i'm doing the best that i can",
+      -0.27
+     ],
      "kind": "Disturbing",
      "for": [
       "disturbing"
      ],
-     "why": "S1E20: Allyson Glennon taken and drowned in the motel pool"
+     "why": "S1E20: Allyson Glennon forced into the motel pool and held under until she lies limp"
     },
     {
      "title": "Criminal Minds",
@@ -1575,12 +1589,40 @@
       20
      ],
      "after": "it's over there come on let's go",
-     "before": "come here i got you",
+     "start_at": [
+      "no",
+      -1.12
+     ],
+     "end_at": [
+      "it's just the two of us out here",
+      2.79
+     ],
      "kind": "Disturbing",
      "for": [
       "disturbing"
      ],
-     "why": "S1E20, the end: Kelly Dalton drowned in the creek until the agents shoot him"
+     "why": "S1E20, the end: Gregory grabs Kelly Dalton as she runs and throws her down"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      20
+     ],
+     "after": "we're going into the woods keep you posted",
+     "start_at": [
+      "that's coming from up over there",
+      -3.46
+     ],
+     "end_at": [
+      "mark gregory fbi put it down",
+      0.19
+     ],
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E20, the end: Gregory holds Kelly Dalton under in the creek until the agents come"
     }
    ]
   }

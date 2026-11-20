@@ -352,18 +352,30 @@ class Episode20(unittest.TestCase):
     "infidelity" and three lines went through; three disturbing scenes weren't cut."""
 
     CASE = "THAT SOUNDS LIKE STATUTORY RAPE. I'M NOT SURPRISED. YOU TALK TO HOTCH?"
-    # (start, text) of her copy's subtitles around the three scenes; each ends at the next
-    CUES = [(1141.5, "NO. I'M SAYING YOU'RE MAKING EXCUSES."),
-            (1143.6, "I'M NOT SURE IT DID HIM ANY FAVORS."), (1159.7, "YOU'RE GONNA BE OK."),
-            (1199.1, "WAKE UP."),
+    # (start, text) of her copy's subtitles around the scenes; each ends at the next
+    CUES = [(1141.53, "NO. I'M SAYING YOU'RE MAKING EXCUSES."),
+            (1143.13, "I'M NOT SURE IT DID HIM ANY FAVORS."), (1159.31, "YOU'RE GONNA BE OK."),
+            (1199.17, "WAKE UP."),
             (1217.4, "BASED ON THESE INTERVIEWS, IT LOOKS LIKE THE FIRST VICTIM WASN'T BEING "
                      "UNFAITHFUL."),
             (1863.6, "BUT HE PROTECTED ONE,"),
-            (1865.4, "AND NOW AT LEAST 6 WOMEN ARE DEAD BECAUSE OF IT."), (1872.6, "COME ON."),
-            (1879.0, "NO!"), (1946.4, "YOU'RE BREATHING. THERE YOU GO, HONEY."),
+            (1865.4, "AND NOW AT LEAST 6 WOMEN ARE DEAD BECAUSE OF IT."), (1872.89, "COME ON."),
+            (1873.91, "MOVE IT."), (1879.57, "NO!"),
+            (1899.16, "HEY, CAN'T BE IN THE POOL WITH YOUR CLOTHES ON."),
+            (1906.1, "HELP ME. IT'S MY WIFE. SHE FELL IN THE POOL."),
+            (1919.64, "WELL, SHE'S NOT BREATHING."),
+            (1923.27, "LOOK, MAN, I'M DOING THE BEST THAT I CAN."),
+            (1946.4, "YOU'RE BREATHING. THERE YOU GO, HONEY."),
             (1958.2, "FOUND OTHER SUSPICIOUS DROWNINGS THE LAST COUPLE OF DAYS?"),
-            (2291.9, "YOU GUYS HEAR THAT?"), (2294.5, "IT'S OVER THERE. COME ON, LET'S GO."),
-            (2345.0, "NO!"), (2441.4, "MARK GREGORY, FBI! PUT IT DOWN!"),
+            (2291.9, "YOU GUYS HEAR THAT?"), (2294.39, "IT'S OVER THERE. COME ON, LET'S GO."),
+            (2345.12, "NO!"), (2346.96, "PLEASE!"),
+            (2348.45, "NO ONE WILL HEAR YOU. SOMEBODY HELP ME!"),
+            (2351.21, "IT'S JUST THE TWO OF US OUT HERE."),
+            (2369.86, "IT'S CLEAR. NOBODY IN THE CAR."),
+            (2374.26, "WE'RE GOING INTO THE WOODS. KEEP YOU POSTED."),
+            (2384.88, "HELP ME!"), (2386.26, "HELP ME!"), (2388.1, "SOMEBODY HELP!"),
+            (2389.46, "THAT'S COMING FROM UP OVER THERE."), (2393.0, "NO!"),
+            (2441.81, "MARK GREGORY, FBI! PUT IT DOWN!"),
             (2451.4, "COME HERE. I GOT YOU."), (2454.0, "OK.")]
 
     def dialogue(self):
@@ -405,17 +417,24 @@ class Episode20(unittest.TestCase):
             self.assertTrue(ll.match(learn.norm(said)), said)
             self.assertEqual(show["muted_for"][learn.norm(said)], kind)
 
-    def test_three_scenes(self):
+    def test_her_four_cuts(self):
+        # 1.18.153: her own edges after her review (the owner: "like this has a cut of a minute
+        # and a half", "when the man is saving her from the pool doesn't need cut", "15" seconds
+        # of the agents by the bushes; her refined report): torture 19:10-20:08, the pool 31:25-
+        # 32:03, and the creek in two, the grab 39:04-39:14 and the drowning 39:46-40:42
         got = learn.title_scenes("criminal-minds@adults", "Criminal Minds", self.dialogue(),
                                  {"disturbing"}, episode=(1, 20))
-        self.assertEqual([s["kind"] for s in got], [["Disturbing"]] * 3)
-        tortured, pool, creek = sorted(got, key=lambda s: s["s"])
-        self.assertLess(tortured["s"], 1159.7)
-        self.assertAlmostEqual(tortured["e"], 1217.2, places=1)
-        self.assertLess(pool["s"], 1872.6)
-        self.assertAlmostEqual(pool["e"], 1958.0, places=1)
-        self.assertLess(creek["s"], 2345.0)
-        self.assertAlmostEqual(creek["e"], 2451.2, places=1)
+        self.assertEqual([s["kind"] for s in got], [["Disturbing"]] * 4)
+        self.assertEqual([(round(s["s"], 1), round(s["e"], 1))
+                          for s in sorted(got, key=lambda s: s["s"])],
+                         [(1150.0, 1208.0), (1885.0, 1923.0), (2344.0, 2354.0), (2386.0, 2442.0)])
+
+    def test_edges_follow_the_lines(self):
+        # another copy, 2.5 s later throughout: the same cuts 2.5 s later
+        later = [dict(l, s=l["s"] + 2.5, e=l["e"] + 2.5) for l in self.dialogue()]
+        got = learn.title_scenes("criminal-minds@adults", "Criminal Minds", later,
+                                 {"disturbing"}, episode=(1, 20))
+        self.assertEqual(sorted(round(s["s"], 1) for s in got), [1152.5, 1887.5, 2346.5, 2388.5])
         self.assertEqual(learn.title_scenes("criminal-minds@adults", "Criminal Minds",
                                             self.dialogue(), {"disturbing"}, episode=(1, 19)), [])
         self.assertEqual(learn.title_scenes("criminal-minds@adults", "Criminal Minds",
