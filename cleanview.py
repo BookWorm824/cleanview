@@ -2393,6 +2393,10 @@ CASUAL_TERMS = [
     r"side (?:chicks?|pieces?)", r"bit on the side(?![ \t]+of\b)", r"booty calls",
     r"friend with benefits", r"fwb",
     r"notch(?:es)? on (?:the|my|his|her|your) bedpost", r"gyall?is", r"loose characters?", r"ladies'? man",
+    # Criminal Minds S1E20 (1.18.152): "MARK WAS OBSESSED WITH THINKING SHE WAS UNFAITHFUL.",
+    # "THAT EXPLAINS HIS ISSUES WITH INFIDELITY"; not "the unfaithful servant" (none of the
+    # past reviews here has either word)
+    r"unfaithful(?:ness)?(?! servants?\b)", r"infidelit(?:y|ies)",
 ]
 
 # graphic case talk (with rape and the rest, 1.18.125)
@@ -4847,10 +4851,33 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
                     "mute": True, "idx": i})
         if i in explicit:               # the whole line, never just a word of it
             out[-1]["explicit"] = True
+        elif not o.get("forensic") and case_talk_only(l["text"], found[i], listed.get(i, {})):
+            out[-1]["mute"] = False
+            out[-1]["why"] = CASE_TALK_UNTICKED
         elif set(listed.get(i, {})) == found[i] and words_only(listed[i]):
             out[-1]["words"] = [LIST_WORD_TRIM.sub("", w) for k in sorted(found[i])
                                 for w in listed[i][k]]
     return out, how
+
+
+# Case talk an AI called a sexual reference (1.18.152, Criminal Minds S1E20, coroner talk off:
+# "That sounds like statutory rape. I'm not surprised. You talk to Hotch?" was muted whole; the
+# owner: "All of them"). With coroner talk off, a line flagged only as a sexual reference by
+# an AI whose only sexual words are case talk (rape, sexual assault, sex offenders...) is
+# offered unticked: it may still hold innuendo, which she can tick.
+CASE_TALK_UNTICKED = ("case talk (rape, sexual assault...) and you're not removing coroner "
+                      "talk, so only muted if you tick it")
+
+
+def case_talk_only(text, kinds, listed=None):
+    """True if a line flagged as a sexual reference (and nothing else) has case talk in it and
+    no word on the sexual list once the case talk is taken out."""
+    if set(kinds) != {"sexref"} or "sexref" in (listed or {}):
+        return False
+    if not LINE_WORDS["forensic"].search(text) or EXPLICIT_FINDING.search(text):
+        return False
+    rest = LINE_WORDS["forensic"].sub(" ", text)
+    return not LINE_WORDS["sexref"].search(rest)
 
 
 # Explicit detail in a coroner's, doctor's or detective's findings is removed whatever the

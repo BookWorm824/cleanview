@@ -137,9 +137,12 @@ class Episode8(unittest.TestCase):
                      "10 BUCKS SAYS THIS INVOLVES NAKED COEDS AND A PLUMBER.",
                      "HIS THURSDAY NIGHTS WITH A WOMAN IN FELLS POINT."):
             self.assertTrue(ll.match(learn.norm(said)), said)
-        for line in show["muted"]:      # S1E19's boyfriend line is same-sex
-            self.assertEqual(show["muted_for"][line],
-                             "samesex" if "boyfriend" in line else "sexref")
+        # S1E19's boyfriend line is same-sex; S1E20's mother's affairs are sleeping around
+        other = {"he didn't point the finger at his boyfriend": "samesex",
+                 "what did she pick men up": "casual",
+                 "but because she was a cheater he also saw her as a sinner": "casual"}
+        for line in show["muted"]:
+            self.assertEqual(show["muted_for"][line], other.get(line, "sexref"), line)
 
     def test_the_handcuffs_line_stays(self):
         _, ll = self.lessons()
@@ -341,6 +344,82 @@ class Episode19(unittest.TestCase):
                  {"s": 20.0, "e": 22.0, "text": "You don't say much, do you?"}]
         got = learn.title_scenes("_movies@adults", "Forest Gump", lines, {"sex"})
         self.assertEqual([(s["s"], s["e"]) for s in got], [(2.0, 22.5)])
+
+
+class Episode20(unittest.TestCase):
+    """Her S1E20 report (1.18.152, made on 1.18.149, adults, the AI helper, coroner talk off; the
+    owner: "All of them"): case talk the AI helper called sexual was muted whole; "unfaithful",
+    "infidelity" and three lines went through; three disturbing scenes weren't cut."""
+
+    CASE = "THAT SOUNDS LIKE STATUTORY RAPE. I'M NOT SURPRISED. YOU TALK TO HOTCH?"
+    # (start, text) of her copy's subtitles around the three scenes; each ends at the next
+    CUES = [(1141.5, "NO. I'M SAYING YOU'RE MAKING EXCUSES."),
+            (1143.6, "I'M NOT SURE IT DID HIM ANY FAVORS."), (1159.7, "YOU'RE GONNA BE OK."),
+            (1199.1, "WAKE UP."),
+            (1217.4, "BASED ON THESE INTERVIEWS, IT LOOKS LIKE THE FIRST VICTIM WASN'T BEING "
+                     "UNFAITHFUL."),
+            (1863.6, "BUT HE PROTECTED ONE,"),
+            (1865.4, "AND NOW AT LEAST 6 WOMEN ARE DEAD BECAUSE OF IT."), (1872.6, "COME ON."),
+            (1879.0, "NO!"), (1946.4, "YOU'RE BREATHING. THERE YOU GO, HONEY."),
+            (1958.2, "FOUND OTHER SUSPICIOUS DROWNINGS THE LAST COUPLE OF DAYS?"),
+            (2291.9, "YOU GUYS HEAR THAT?"), (2294.5, "IT'S OVER THERE. COME ON, LET'S GO."),
+            (2345.0, "NO!"), (2441.4, "MARK GREGORY, FBI! PUT IT DOWN!"),
+            (2451.4, "COME HERE. I GOT YOU."), (2454.0, "OK.")]
+
+    def dialogue(self):
+        c = self.CUES
+        return [{"s": s, "e": min(s + 2.5, c[i + 1][0] - 0.1) if i + 1 < len(c) else s + 2.5,
+                 "text": t} for i, (s, t) in enumerate(c)]
+
+    def test_case_talk_offered_unticked(self):
+        self.assertTrue(engine.case_talk_only(self.CASE, {"sexref"}))
+        lines = [{"s": 652.7, "e": 655.9, "text": self.CASE}]
+        o = engine.full_opts({"sexref": True, "forensic": False})
+        out, _ = engine.find_lines(lines, o, False, claude_found={0: {"sexref"}})
+        self.assertFalse(out[0]["mute"])
+        self.assertEqual(out[0]["why"], engine.CASE_TALK_UNTICKED)
+        o["forensic"] = True                  # coroner talk ticked: muted as before
+        out, _ = engine.find_lines(lines, o, False, claude_found={0: {"sexref"}})
+        self.assertTrue(out[0]["mute"])
+
+    def test_innuendo_beside_case_talk_still_muted(self):
+        for t in ("HAD AN INTENSE AFFECTION FOR LADIES WITH LEARNER'S PERMITS.",
+                  "HE RAPED HER, THEN HAD SEX WITH HER SISTER.", "SIGNS OF FORCED PENETRATION."):
+            self.assertFalse(engine.case_talk_only(t, {"sexref"}), t)
+        self.assertFalse(engine.case_talk_only(self.CASE, {"sexref", "casual"}))
+
+    def test_unfaithful_and_infidelity(self):
+        casual = engine.LINE_WORDS["casual"]
+        for t in ("MARK WAS OBSESSED WITH THINKING SHE WAS UNFAITHFUL.", "WAS SHE BEING UNFAITHFUL?",
+                  "THAT EXPLAINS HIS ISSUES WITH INFIDELITY,"):
+            self.assertTrue(casual.search(t), t)
+        self.assertIsNone(casual.search("the wicked and unfaithful servant"))
+
+    def test_three_lines_taught(self):
+        with open(support.ROOT / "shared_learned.json", encoding="utf-8") as f:
+            show = json.load(f)["shows"]["criminal-minds"]
+        ll = learn.LearnedLines(show["muted"])
+        for said, kind in (("YOU'RE GETTIN' SOME LOVIN', AREN'T YOU? YOU GOT A BOYFRIEND.", "sexref"),
+                           ("WHAT? DID SHE PICK MEN UP?", "casual"),
+                           ("BUT BECAUSE SHE WAS A CHEATER, HE ALSO SAW HER AS A SINNER.", "casual")):
+            self.assertTrue(ll.match(learn.norm(said)), said)
+            self.assertEqual(show["muted_for"][learn.norm(said)], kind)
+
+    def test_three_scenes(self):
+        got = learn.title_scenes("criminal-minds@adults", "Criminal Minds", self.dialogue(),
+                                 {"disturbing"}, episode=(1, 20))
+        self.assertEqual([s["kind"] for s in got], [["Disturbing"]] * 3)
+        tortured, pool, creek = sorted(got, key=lambda s: s["s"])
+        self.assertLess(tortured["s"], 1159.7)
+        self.assertAlmostEqual(tortured["e"], 1217.2, places=1)
+        self.assertLess(pool["s"], 1872.6)
+        self.assertAlmostEqual(pool["e"], 1958.0, places=1)
+        self.assertLess(creek["s"], 2345.0)
+        self.assertAlmostEqual(creek["e"], 2451.2, places=1)
+        self.assertEqual(learn.title_scenes("criminal-minds@adults", "Criminal Minds",
+                                            self.dialogue(), {"disturbing"}, episode=(1, 19)), [])
+        self.assertEqual(learn.title_scenes("criminal-minds@adults", "Criminal Minds",
+                                            self.dialogue(), {"violence"}, episode=(1, 20)), [])
 
 
 if __name__ == "__main__":

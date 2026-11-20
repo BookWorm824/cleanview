@@ -1472,7 +1472,10 @@
     "his thursday nights with a woman in fells point",
     "no i think someone calling cherish hanson a virgin is funny",
     "he didn't point the finger at his boyfriend",
-    "and then abuses them sexually with the knife"
+    "and then abuses them sexually with the knife",
+    "you're gettin' some lovin' aren't you you got a boyfriend",
+    "what did she pick men up",
+    "but because she was a cheater he also saw her as a sinner"
    ],
    "kept": [],
    "ok_words": [],
@@ -1488,7 +1491,10 @@
     "his thursday nights with a woman in fells point": "sexref",
     "no i think someone calling cherish hanson a virgin is funny": "sexref",
     "he didn't point the finger at his boyfriend": "samesex",
-    "and then abuses them sexually with the knife": "sexref"
+    "and then abuses them sexually with the knife": "sexref",
+    "you're gettin' some lovin' aren't you you got a boyfriend": "sexref",
+    "what did she pick men up": "casual",
+    "but because she was a cheater he also saw her as a sinner": "casual"
    },
    "scenes": [
     {
@@ -1533,6 +1539,48 @@
       "disturbing"
      ],
      "why": "S1E19, the end: the women kill Pablo Vargas, and his body is found"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      20
+     ],
+     "after": "i'm not sure it did him any favors",
+     "before": "based on these interviews it looks like the first victim wasn't being unfaithful",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E20: the woman from the airport tortured and brought back to drown again"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      20
+     ],
+     "after": "and now at least 6 women are dead because of it",
+     "before": "found other suspicious drownings the last couple of days",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E20: Allyson Glennon taken and drowned in the motel pool"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      20
+     ],
+     "after": "it's over there come on let's go",
+     "before": "come here i got you",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E20, the end: Kelly Dalton drowned in the creek until the agents shoot him"
     }
    ]
   }

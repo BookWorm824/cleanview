@@ -1089,6 +1089,23 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   Light, so in Dark each heading was a white bar under Dark's pale text (since 1.18.144). It
   takes `CARD` when it's called now. A default argument is fixed when the file loads: never
   give one a colour name, which `use_theme` changes. `test_filter_groups.test_headings_in_dark`.
+- Her Criminal Minds S1E20 report (1.18.152, 2026-11-20, adults, the AI helper, made on
+  1.18.149, 76 min; coroner talk off, Disturbing and Gore on, Violence and Graphic off; she
+  changed nothing; the owner: "All of them"). "THAT SOUNDS LIKE STATUTORY RAPE. I'M NOT
+  SURPRISED. YOU TALK TO HOTCH?" (10:52) was muted whole as a sexual reference by the AI
+  helper though it's case talk: with coroner talk off, a line an AI flagged only as a sexual
+  reference whose only sexual words are on `LINE_WORDS["forensic"]` (and no explicit
+  finding) is offered unticked (`case_talk_only`, `CASE_TALK_UNTICKED`, in `find_lines`);
+  "learner's permits" before it stays muted. `CASUAL_TERMS` has "unfaithful(ness)" (not "the
+  unfaithful servant") and "infidelity" (the mother's affairs; no past review here has
+  either). Taught for criminal-minds: "You're gettin' some lovin', aren't you? You got a
+  boyfriend." (sexref), "What? Did she pick men up?" and "But because she was a cheater, he
+  also saw her as a sinner." (casual; "cheater" alone is mostly games). Three Disturbing
+  scenes for S1E20 only, placed on her copy from the dialogue (not seen here): the airport
+  woman tortured and revived (19:06-20:16), Allyson drowned in the motel pool (31:09-32:38),
+  Kelly drowned in the creek until the agents shoot him (38:17-40:51). Left (she left it cut):
+  "Condom shown" at 15:02, likely not one (they're going over his business card and website).
+  `test_criminal_minds.Episode20`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
