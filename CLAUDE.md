@@ -1000,6 +1000,32 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   speaker has checked the lists, and no German or Italian film has been cleaned here.
   cvlang.py changed: CleanListen and CleanRead copy it; CleanStream takes the lists.
   `test_german_italian.py`.
+- Updates carry the owner's seal (1.18.147, 2026-11-19; the owner: "how safe is the code that
+  makes up clean view? could someone use another ai chat to change it?", then "yes, label the
+  key so its obvious what it is", "put the keys in a master folder", "each key labelled"). The
+  code is public and every copy updates by itself, so whoever got into the GitHub account could
+  have sent anything to everyone. `launcher.pyw` now takes an update only when `version.sig` is
+  an Ed25519 signature (RFC 8032, written out in pure Python: the updater can't install
+  packages, and the launcher must always open CleanView) of `version.json`'s exact bytes with
+  `SEAL_FOR` ("CleanView update\n") in front, fitting `PUBLIC_KEY`, and every file it downloads
+  has the SHA-256 that `version.json` lists (`"sha256"`; `sealed`, `remote_version`,
+  `file_matches`). Otherwise `NotSealed`: nothing is swapped in and CleanView opens as it is
+  (`update_error.txt`). The window's 30-minute check uses `remote_version` too, so an unsealed
+  update isn't offered or installed by itself. The fingerprints also stop a half-updated copy
+  while GitHub's CDN still sends an older file. The secret key is only in
+  "C:\Users\<owner>\App update keys\CleanView update key - SECRET.txt" (labelled: what it is,
+  keep it secret, what happens if it's lost) and in Google Drive "Cleaning up" > "App update
+  keys", with the other apps' keys. That folder takes "Cleaning up"'s sharing (anyone with its
+  link can read it, two other accounts can edit it); told so, the owner chose it: "dont use the
+  provate folder just regulat" (the three of them can). The first key, put there before anyone
+  knew, was replaced before release anyway; the old file is "OLD CleanView key - NOT USED". `tools/sign_release.py` (new-key, sign, check [ref]) reads it, never prints it, and
+  seals git's staged copy (the working copy's other changes are kept, with the same
+  fingerprints); the key file's name and label follow the launcher's `APP_NAME`, so Play's copy
+  ("CleanView Play") works as it is. If the key is lost, installed copies can't be updated:
+  everyone reinstalls from a new setup zip with a new key. 1.18.147 itself was fetched by the
+  old launcher, unchecked. CleanListen, CleanRead, Play and CleanStream get keys of their own in
+  the same folders. `test_sealed_updates.py` (a made-up key, `tests/sealing.py`; a whole
+  release served from 127.0.0.1).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
@@ -2377,6 +2403,10 @@ If its `version` is higher (compared as int tuples, so 1.10.0 > 1.9.3) it downlo
 name in its `"files"` list, compiles each `.py/.pyw` to reject a broken download, then swaps
 them in. Rules that follow from this:
 
+- **Every release must be sealed** (1.18.147): `python tools/sign_release.py` as the very last
+  step before the commit, once everything else is staged. It writes every file's SHA-256 into
+  `version.json` and the owner's signature into `version.sig`; an installed copy refuses an
+  update without them, or with any file changed after sealing.
 - **Every release must bump `version` in `version.json`.**
 - **A new module must be added to the `"files"` list**, or installed copies never get it.
 - File names must be flat (no folders): the launcher refuses names with `/`.
@@ -3022,11 +3052,16 @@ too: a filter added here is wanted in CleanListen and CleanRead.
 
 1. Make the change, run the tests, bump `version` in `version.json` (and add any new file to
    `"files"`).
-2. Commit as `BookWorm824 <166928895+BookWorm824@users.noreply.github.com>` and push to `main`. Installed copies
-   pick it up within a few minutes (the raw GitHub CDN can lag ~5 minutes).
-3. Tell the owner in one or two plain sentences what changed and to press F5 / "Update now".
-4. The installer zip is only rebuilt for new installs (e.g. for her sister).
-5. No one's name or email goes in the files: the code is public (installed copies update from
+2. Seal it, last, once everything else is staged: `python tools/sign_release.py` (it checks
+   itself; the key is read from the owner's "App update keys" folder). Without the seal every
+   copy from 1.18.147 on refuses the update.
+3. Commit as `BookWorm824 <166928895+BookWorm824@users.noreply.github.com>` and push to `main`. Installed copies
+   pick it up within a few minutes (the raw GitHub CDN can lag ~5 minutes; until version.json
+   and version.sig both arrive, copies wait and try again). Then
+   `python tools/sign_release.py check origin/main`.
+4. Tell the owner in one or two plain sentences what changed and to press F5 / "Update now".
+5. The installer zip is only rebuilt for new installs (e.g. for her sister).
+6. No one's name or email goes in the files: the code is public (installed copies update from
    it). Write "the owner" and "the tester"; commits use the GitHub no-reply address above
    (1.18.146, 2026-11-19; the owner: "check and delete our name to owner test and change the
    git hub": 161 first names, 82 of the tester's and the owner's email were in 75 files).

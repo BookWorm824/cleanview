@@ -669,8 +669,7 @@ class App(tk.Tk):
                 import urllib.request
                 lm = self._launcher()
                 local = json.loads((lm.HERE / "version.json").read_text())
-                with urllib.request.urlopen(lm.RAW + "version.json", timeout=6) as r:
-                    remote = json.loads(r.read().decode("utf8"))
+                remote = lm.remote_version(timeout=6)     # only an update with her seal
                 if lm._ver(remote["version"]) > lm._ver(local["version"]):
                     self.q.put(("update_ready", remote["version"]))
                 elif manual:

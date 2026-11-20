@@ -254,6 +254,9 @@ class TheUpdate(unittest.TestCase):
         p = mock.patch.object(self.lm, "HERE", self.here)
         p.start()
         self.addCleanup(p.stop)
+        import sealing
+        sealing.use_test_key(self.lm)
+        self.seal = lambda: sealing.sealed_release(self.lm, self.remote, self.files)
 
     def urlopen(self, url, timeout=None):
         import io
@@ -261,7 +264,9 @@ class TheUpdate(unittest.TestCase):
         name = url.rsplit("/", 1)[-1]
         self.asked.append(name)
         if name == "version.json":
-            body = json.dumps(self.remote).encode()
+            body = self.seal()[0]
+        elif name == "version.sig":
+            body = self.seal()[1].encode()
         else:
             if name in self.slow:
                 time.sleep(3)

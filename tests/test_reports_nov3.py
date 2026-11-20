@@ -162,11 +162,15 @@ class NewLauncherAfterAnUpdate(unittest.TestCase):
             here = Path(d)
             (here / "version.json").write_text('{"version": "1.0.0", "files": []}')
             (here / "launcher.pyw").write_text(old)
-            files = {"version.json": json.dumps({"version": "1.0.1", "files": [
-                "launcher.pyw", "CleanView.pyw"]}), "launcher.pyw": new, "CleanView.pyw": "x = 1"}
+            import sealing
+            sealing.use_test_key(launcher)
+            files = {"launcher.pyw": new, "CleanView.pyw": "x = 1"}
+            files["version.json"], files["version.sig"] = sealing.sealed_release(
+                launcher, {"version": "1.0.1", "files": ["launcher.pyw", "CleanView.pyw"]}, files)
 
             def urlopen(url, timeout=0):
-                return io.BytesIO(files[url.rsplit("/", 1)[1]].encode("utf8"))
+                body = files[url.rsplit("/", 1)[1]]
+                return io.BytesIO(body if isinstance(body, bytes) else body.encode("utf8"))
             with mock.patch.object(launcher, "HERE", here),                     mock.patch.object(launcher.urllib.request, "urlopen", urlopen):
                 self.assertEqual(launcher.update(), "1.0.1")
             return launcher.LAUNCHER_CHANGED
