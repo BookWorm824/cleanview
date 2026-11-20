@@ -4428,8 +4428,12 @@ class App(tk.Tk):
                       size=9, bg=bg).pack(side="left", padx=(self._px(10), 0))
         return links
 
-    def _group_head(self, parent, title, count, tick_vars, bg=CARD, pady=(8, 2), padx=0):
+    def _group_head(self, parent, title, count, tick_vars, bg=None, pady=(8, 2), padx=0):
         """A filter's heading in a list: "God's name  (42)   Tick all   Untick all"."""
+        # the card's colour as it is now (1.18.151): a default of CARD was Light's white even in
+        # Dark, so each heading was pale text on a white bar (the owner: "the white bar is hard
+        # to read", "all the bars are like that")
+        bg = CARD if bg is None else bg
         head = tk.Frame(parent, bg=bg)
         head.pack(fill="x", pady=pady, padx=padx)
         tk.Label(head, text=f"{title}  ({count})", bg=bg, fg=INK,

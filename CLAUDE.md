@@ -1083,6 +1083,12 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   Young kids and Kids have every box on (CleanStream told her only Adults changed). A scan
   made before is scanned again (its word groups differ). For CleanListen and CleanRead too.
   `test_swearing_sorted.py`.
+- The filter headings on the review page read in Dark (1.18.151, 2026-11-20; the owner, with a
+  screenshot of "Sexual reference (6)": "the white bar is hard to read on the left", "all the
+  bars are like that"). `_group_head`'s `bg=CARD` default was taken when the file loaded, in
+  Light, so in Dark each heading was a white bar under Dark's pale text (since 1.18.144). It
+  takes `CARD` when it's called now. A default argument is fixed when the file loads: never
+  give one a colour name, which `use_theme` changes. `test_filter_groups.test_headings_in_dark`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

@@ -132,6 +132,21 @@ class FilterGroups(unittest.TestCase):
         self.assertEqual(sorted((sc["kind"][0], v.get()) for v, _, sc in self.app.scene_vars),
                          [("Kiss", True), ("Violence", False), ("Violence", False)])
 
+    def test_headings_in_dark(self):
+        # 1.18.151, the owner: "the white bar is hard to read", "all the bars are like that":
+        # each heading had Light's white card behind Dark's pale text
+        try:
+            ui.use_theme("dark")
+            self.open([self.review()])
+            for title in ("Swearing  (1)", "God's name  (3)", "Sexual reference  (2)"):
+                label = next(w for w in every(self.app, tk.Label) if w.cget("text") == title)
+                self.assertEqual(label.cget("bg"), ui.CARD, title)
+                self.assertEqual(label.master.cget("bg"), ui.CARD, title)
+                for link in every(label.master, tk.Label):
+                    self.assertNotEqual(link.cget("bg"), ui.LIGHT["CARD"], title)
+        finally:
+            ui.use_theme("light")
+
     def test_what_is_unticked_is_what_is_saved(self):
         self.open([self.review()])
         self.click("God's name  (3)", "Untick all")
