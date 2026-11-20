@@ -137,8 +137,9 @@ class Episode8(unittest.TestCase):
                      "10 BUCKS SAYS THIS INVOLVES NAKED COEDS AND A PLUMBER.",
                      "HIS THURSDAY NIGHTS WITH A WOMAN IN FELLS POINT."):
             self.assertTrue(ll.match(learn.norm(said)), said)
-        for line in show["muted"]:
-            self.assertEqual(show["muted_for"][line], "sexref")
+        for line in show["muted"]:      # S1E19's boyfriend line is same-sex
+            self.assertEqual(show["muted_for"][line],
+                             "samesex" if "boyfriend" in line else "sexref")
 
     def test_the_handcuffs_line_stays(self):
         _, ll = self.lessons()
@@ -254,6 +255,92 @@ class Episode11(unittest.TestCase):
         sn, asr_n, asr, mapping, where = self.lines(heard_shift=9, heard_same=True)
         self.assertIsNone(engine.sub_place_slipped(6, 8, asr[mapping[6]]["s"], mapping, sn,
                                                    asr_n, asr, where))
+
+class Episode19(unittest.TestCase):
+    """Her S1E19 report (1.18.149, made on 1.18.145, adults, the AI helper; the owner: "All of
+    them"): "sex criminals" had "sex" muted while six "sex crimes" played; the boyfriend line and
+    the explicit knife line went through; three scenes taught for the episode."""
+
+    # (start, text) of her copy's subtitles around the three scenes; each ends at the next
+    CUES = [(146.38, "LET ME GET YOU MORE TO DRINK."), (156.63, "BUT I AM GETTING OLDER. I NEED HELP."),
+            (171.63, "NO."), (173.17, "NO! NO!"),
+            (185.95, "HEY, WHAT'S UP WITH THAT? WHAT'S THAT ALL ABOUT?"),
+            (189.5, "IT'S OK. IT'S OK."),
+            (2209.9, "HELLO?"), (2210.9, "ARE YOU ALL RIGHT?"), (2213.2, "CAN YOU HEAR ME?"),
+            (2222.3, "HOTCH!"), (2225.3, "WE'RE A LITTLE LATE."),
+            (2228.2, "SOUVENIRS FOR HIS MOTHER?"), (2229.3, "ANNA'S NECKLACE."),
+            (2233.6, "ELLE, LOOK AT THIS."), (2236.7, "HIS RAPE VICTIMS."),
+            (2346.2, "MILAGROS VILLANUEVA."), (2349.1, "HE'S GONNA KILL HER MOTHER."),
+            (2374.5, "Elle: MORGAN?"), (2403.3, "ELLE."), (2405.2, "OVER HERE!"),
+            (2411.5, "GOT ME?"), (2412.6, "Elle: GOT YOU."),
+            (2437.7, "HE PRETENDED TO BE A WOMAN."), (2439.9, "NOW HE DOESN'T HAVE TO PRETEND."),
+            (2466.7, "MUCHAS GRACIAS.")]
+
+    def dialogue(self):
+        c = self.CUES
+        return [{"s": s, "e": min(s + 2.5, c[i + 1][0] - 0.1) if i + 1 < len(c) else s + 2.5,
+                 "text": t} for i, (s, t) in enumerate(c)]
+
+    def scenes(self, ticked, episode=(1, 19)):
+        return learn.title_scenes("criminal-minds@adults", "Criminal Minds", self.dialogue(),
+                                  ticked, episode=episode)
+
+    def test_sex_criminals_is_case_talk(self):
+        sexref = engine.LINE_WORDS["sexref"]
+        for line in ("BRINGING IN THE SEX CRIMINALS.", "HE GRADUALLY ESCALATED FROM SEX CRIMES.",
+                     "A KNOWN SEX CRIMINAL."):
+            self.assertIsNone(sexref.search(line), line)
+            self.assertTrue(FORENSIC.search(line), line)
+        self.assertIsNotNone(sexref.search("They had sex."))
+
+    def test_two_lines_taught(self):
+        with open(support.ROOT / "shared_learned.json", encoding="utf-8") as f:
+            show = json.load(f)["shows"]["criminal-minds"]
+        ll = learn.LearnedLines(show["muted"])
+        for said, kind in (("HE DIDN'T POINT THE FINGER AT HIS BOYFRIEND.", "samesex"),
+                           ("AND THEN ABUSES THEM SEXUALLY WITH THE KNIFE.", "sexref")):
+            self.assertTrue(ll.match(learn.norm(said)), said)
+            self.assertEqual(show["muted_for"][learn.norm(said)], kind)
+
+    def test_the_episode(self):
+        self.assertEqual(engine.episode_of("Criminal Minds - 1-19 -- Machissmo.m4v"), (1, 19))
+        self.assertIsNone(engine.episode_of("Forest Gump.mp4"))
+        self.assertIsNone(engine.episode_of(None))
+
+    def test_three_scenes(self):
+        got = self.scenes({"disturbing", "gore"})
+        self.assertEqual(len(got), 3)
+        opening, house, end = sorted(got, key=lambda s: s["s"])
+        # from the end of "I need help" to just before the next scene's first line
+        self.assertEqual(opening["kind"], ["Disturbing"])
+        self.assertAlmostEqual(opening["s"], 159.13, places=1)
+        self.assertAlmostEqual(opening["e"], 185.75, places=1)
+        self.assertEqual(house["kind"], ["Gore"])
+        self.assertLess(house["s"], 2222.3)              # before "HOTCH!": the body found
+        self.assertGreater(house["e"], 2233.6)           # through the necklace
+        self.assertEqual(end["kind"], ["Disturbing"])
+        self.assertLess(end["s"], 2374.5)                # the attack before the team comes
+        self.assertGreater(end["e"], 2441.0)             # "...doesn't have to pretend"
+        for sc in got:
+            self.assertTrue(sc["sure"])
+
+    def test_only_with_their_filters(self):
+        self.assertEqual(self.scenes({"sexref", "violence"}), [])
+        self.assertEqual([s["kind"] for s in self.scenes({"graphic"})], [["Gore"]])
+        self.assertEqual(len(self.scenes({"disturbing"})), 2)
+
+    def test_only_that_episode(self):
+        self.assertEqual(self.scenes({"disturbing", "gore"}, episode=(1, 18)), [])
+        self.assertEqual(self.scenes({"disturbing", "gore"}, episode=None), [])
+        self.assertEqual(learn.title_scenes("criminal-minds", "Castle", self.dialogue(),
+                                            None, episode=(1, 19)), [])
+
+    def test_movies_still_placed(self):
+        # a scene with no "episode" (Forest Gump's) doesn't need one
+        lines = [{"s": 0.0, "e": 2.0, "text": "He's on vacation."},
+                 {"s": 20.0, "e": 22.0, "text": "You don't say much, do you?"}]
+        got = learn.title_scenes("_movies@adults", "Forest Gump", lines, {"sex"})
+        self.assertEqual([(s["s"], s["e"]) for s in got], [(2.0, 22.5)])
 
 
 if __name__ == "__main__":

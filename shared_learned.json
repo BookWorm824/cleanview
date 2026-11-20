@@ -1470,7 +1470,9 @@
     "take these off and we'll see",
     "10 bucks says this involves naked coeds and a plumber",
     "his thursday nights with a woman in fells point",
-    "no i think someone calling cherish hanson a virgin is funny"
+    "no i think someone calling cherish hanson a virgin is funny",
+    "he didn't point the finger at his boyfriend",
+    "and then abuses them sexually with the knife"
    ],
    "kept": [],
    "ok_words": [],
@@ -1484,8 +1486,55 @@
     "take these off and we'll see": "sexref",
     "10 bucks says this involves naked coeds and a plumber": "sexref",
     "his thursday nights with a woman in fells point": "sexref",
-    "no i think someone calling cherish hanson a virgin is funny": "sexref"
-   }
+    "no i think someone calling cherish hanson a virgin is funny": "sexref",
+    "he didn't point the finger at his boyfriend": "samesex",
+    "and then abuses them sexually with the knife": "sexref"
+   },
+   "scenes": [
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      19
+     ],
+     "after": "but i am getting older i need help",
+     "before": "hey what's up with that what's that all about",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E19, the opening: the killer, dressed as a woman, attacks Lupe Trejo in her home"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      19
+     ],
+     "after": "can you hear me",
+     "until": "elle look at this",
+     "kind": "Gore",
+     "for": [
+      "gore",
+      "graphic"
+     ],
+     "why": "S1E19, Pablo Vargas's house: his mother's body is found"
+    },
+    {
+     "title": "Criminal Minds",
+     "episode": [
+      1,
+      19
+     ],
+     "after": "he's gonna kill her mother",
+     "until": "now he doesn't have to pretend",
+     "kind": "Disturbing",
+     "for": [
+      "disturbing"
+     ],
+     "why": "S1E19, the end: the women kill Pablo Vargas, and his body is found"
+    }
+   ]
   }
  },
  "general": {

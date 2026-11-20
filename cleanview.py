@@ -758,6 +758,13 @@ def title_name(path):
     return t[0] if t else Path(path or "").stem
 
 
+def episode_of(path):
+    """(season, episode) from the file's name, for scenes taught for one episode (1.18.149);
+    None for a movie."""
+    t = guess_title(path) if path else None
+    return tuple(t[1:3]) if t and t[1] is not None else None
+
+
 MISS_REMEMBER = "no matching subtitles were found online"
 # the subtitle site lists some but sent none (When Calls the Heart, 1.18.134: nothing came
 # during her scan, and the 2013 movie's came straight away afterwards); never remembered
@@ -2408,7 +2415,7 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # Christy (1.18.133): "each grade together regardless of sex"
                          r"(?<!regardless of )(?<!irrespective of )(?<!of either )"
                          r"(?<!of each )(?<!age and )(?<!age or )(?<!race and )"
-                         r"sex(?! (offenders?|crimes?|trafficking|abuse|and age|or age|and race)\b)|sexy|horny|make love|made love|making love|condoms?|semen|boobs|"
+                         r"sex(?! (offenders?|crimes?|criminals?|trafficking|abuse|and age|or age|and race)\b)|sexy|horny|make love|made love|making love|condoms?|semen|boobs|"
                          # 50 First Dates (2026-11-08): walrus jokes, sharks biting
                          r"penis(es)?|private parts|"
                          # The owner, 2026-11-08 ("Bondage. My safe word is apples.", Castle);
@@ -2534,7 +2541,10 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                         r"drunk|drunks|drunken|drunkenly|drunkenness|drunkards?)\b", re.I),
     # coroner and doctor talk (1.18.72; the owner: "categorize coroner, medical examiner and dr
     # talk into its own ticked box"): only what's hard to mistake
-    "forensic": re.compile(r"\b(sexual(ly)? assault(ed)?|(sex|sexual) offenders?|rape kit|"
+    # "sex crimes"/"sex criminals" too (1.18.149, Criminal Minds S1E19: "Bringing in the sex
+    # criminals" had "sex" muted while six "sex crimes" played; the owner: "All of them")
+    "forensic": re.compile(r"\b(sexual(ly)? assault(ed)?|(sex|sexual) offenders?|sex crimes?|"
+                           r"sex criminals?|rape kit|"
                            r"raped|rapes?|rapists?|raping|cause of death|time of death|"
                            r"autopsy|post[- ]?mortem|stab wounds?|gunshot wounds?|GSW|"
                            r"blunt[- ]force trauma|ligature marks?|exit wound|entry wound|"
@@ -3746,7 +3756,8 @@ def add_new_lessons(st, reused=False):
     dur = st.get("duration") or max((l["e"] for l in lines), default=0)
     n_scenes = 0
     for sc in learn.title_scenes(key, title_name(st.get("path")), lines,
-                                 {k for k, v in full_opts(o).items() if v is True}):
+                                 {k for k, v in full_opts(o).items() if v is True},
+                                 episode=episode_of(st.get("path"))):
         if any(x.get("learned") == sc["learned"] and x["s"] < sc["e"] and sc["s"] < x["e"]
                for x in scenes):
             continue
@@ -5891,7 +5902,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     # would have failed the whole scan; found by the CleanView Play chat), ticked, within the
     # video, what's said in it.
     for sc in learn.title_scenes(key, title_name(path), lines,
-                                 {k for k, v in o.items() if v is True}):
+                                 {k for k, v in o.items() if v is True},
+                                 episode=episode_of(path)):
         if any(x.get("learned") == sc["learned"] and x["s"] < sc["e"] and sc["s"] < x["e"]
                for x in scenes):
             continue

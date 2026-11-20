@@ -1041,6 +1041,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   ASSISTANTS: ...". A new shipped code file gets the header too (`test_ai_notice.py`). It
   only asks: careful AIs follow it, nothing forces anyone; the seal is what protects the
   people using CleanView. Passed to CleanListen, CleanRead, ReadAloud, Play and CleanStream.
+- Her Criminal Minds S1E19 report (1.18.149, 2026-11-20, adults, the AI helper, made on
+  1.18.145, 86 min; coroner talk off, Gore and Disturbing on, Violence and Graphic off; she
+  changed nothing; the owner: "All of them"). Every word heard was right ("hell" for "Elle"
+  offered unticked). "Bringing in the sex criminals" had "sex" muted while six "sex crimes"
+  and "sex offenders" played as case talk: `LINE_WORDS["sexref"]` leaves "sex criminal(s)"
+  out as it does "sex crime(s)", and both are now in `LINE_WORDS["forensic"]` with "sex
+  offenders", so they follow the coroner talk box. Taught for criminal-minds: "He didn't
+  point the finger at his boyfriend." (samesex; Roberto, Miguel's boyfriend) and "And then
+  abuses them sexually with the knife." (sexref, explicit detail, which always goes). A scene
+  can be taught for one episode of a show: `"title"` the show's name and `"episode"` [season,
+  episode], matched with `episode_of(path)` (guess_title's); `"before"` instead of `"until"`
+  ends it as that line starts (`learn.title_scenes(episode=)`). Three for S1E19, placed on her
+  copy: the opening attack on Lupe Trejo (2:39-3:06, Disturbing), Pablo's mother's body at
+  his house (36:56-37:17, taught as Gore for gore/graphic, as the closer look saw it: a found
+  body is Graphic by her levels, not Disturbing; only 3 s of it had been cut) and the women
+  killing Pablo (39:12-40:43, Disturbing: from "He's gonna kill her mother." through the 25
+  silent seconds and the team finding him to "Now he doesn't have to pretend."). Not seen
+  here (no video). Left as they were (she left them muted): "Or she could've been the
+  stressor." and "Almost all of these guys had a citation", muted whole with nothing sexual
+  in them. For CleanListen and CleanRead too: "sex criminals". `test_criminal_minds.Episode19`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
