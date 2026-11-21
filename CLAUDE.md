@@ -1197,6 +1197,11 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   there. Not pulled off something: "jerked him off his feet", "off the ledge", "off balance".
   "jerk" alone stays a rude word. No line in the past reviews here has it. For CleanListen and
   CleanRead too. `test_jerk_me_off.py`.
+  1.18.158 (her screenshot at "Larger": the left column's "Send what CleanView Save learned…" cut
+  off at both ends): it says "Send what it learned…", and the name at the top left is 13 points
+  (was 15), which ran right up to the edge. `test_side_fits.py` keeps every label in the left
+  column inside its margin at every text size (here the old link only just fitted, so it
+  checks against the margin, not the edge).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

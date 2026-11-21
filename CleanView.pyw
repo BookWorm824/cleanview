@@ -1207,7 +1207,8 @@ class App(tk.Tk):
         else:
             look.Badge(brand, "video", size=38, fill=ACCENT, fg="#FFFFFF").pack(
                 side="left", padx=(0, X(10)))
-        tk.Label(brand, text=SHOWN_NAME, bg=SIDE, fg=INK, font=(HEAD, 15)).pack(side="left")
+        # 13 points (15 before 1.18.158): "CleanView Save" ran right up to the column's edge
+        tk.Label(brand, text=SHOWN_NAME, bg=SIDE, fg=INK, font=(HEAD, 13)).pack(side="left")
         self._step_rows = []
         for i, (title, _) in enumerate(self.STEPS, 1):
             card = look.Card(side, fill=SIDE, edge="", radius=12, pad=(12, 9))
@@ -1231,7 +1232,9 @@ class App(tk.Tk):
         self.size_link.pack(anchor="w", pady=X(3))
         look.link(extras, "Check for updates", lambda: self._check_update(manual=True),
                   icon="refresh", size=9, fg=MUTED, bold=False).pack(anchor="w", pady=X(3))
-        look.link(extras, "Send what CleanView Save learned…", self.share_learned, icon="send",
+        # short enough for the column at any text size (1.18.158: "Send what CleanView Save
+        # learned…" was cut off at both ends)
+        look.link(extras, "Send what it learned…", self.share_learned, icon="send",
                   size=9, fg=MUTED, bold=False).pack(anchor="w", pady=X(3))
         # light or dark (1.18.78)
         self.theme_var = tk.StringVar(value=self.theme)
