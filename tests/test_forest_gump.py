@@ -147,7 +147,7 @@ class ThePrincipalsVisit(unittest.TestCase):
                              [(537.0, 566.5, ["Sex scene"])], ticked)
             self.assertTrue(got[0]["sure"] and got[0]["learned"])     # ticked; no AI undoes it
             self.assertIn("principal", got[0]["why"])                 # shown on the card and
-            self.assertIn("CleanView learned this scene", got[0]["why"])   # in the report
+            self.assertIn("CleanView Save learned this scene", got[0]["why"])   # in the report
 
     def test_any_copy_any_age_either_spelling(self):
         for key in ("_movies", "_movies@teens", "_movies@young"):
@@ -262,7 +262,7 @@ class ThroughAWholeScan(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))                     # each its own number
         self.assertEqual(len(st["scenes"]), 2)                         # with the stand-in find
         self.assertIn(f"{learned[0]['id']}_0.png", stills)
-        self.assertIn("CleanView learned this scene", learned[0]["why"])
+        self.assertIn("CleanView Save learned this scene", learned[0]["why"])
 
     def test_not_there_unticked(self):
         st, _ = self.scan({"nudity": True, "sexref": False, "sex": False, "violence": False,

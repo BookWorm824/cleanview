@@ -36,6 +36,12 @@ def _ver(s):
 # The changed .exe has no signature, so Smart App Control would block it: it's only made
 # while that's off, and only used once a test run of it has worked.
 APP_NAME = "CleanView"
+# What people read (1.18.157; the owner: "Yes, everywhere", so CleanView Play can be shown as
+# "CleanView"): the opening box, Task Manager and the shortcut say "CleanView Save". APP_NAME
+# stays: the folder, the .exe and the update seal (SEAL_FOR) go by it.
+SHOWN = "CleanView Save"
+OLD_SHORTCUT = APP_NAME + ".lnk"
+SHORTCUT = SHOWN + ".lnk"
 OWN_EXE = APP_NAME + ".exe"
 WORK_EXE = APP_NAME + "-work.exe"
 OWN_BUILD = 1          # raise to make every copy again
@@ -179,7 +185,8 @@ def _rename_exe(path, name, icon):
 
 def _icon_mark(icon):
     import hashlib
-    return hashlib.sha1(Path(icon).read_bytes()).hexdigest()[:12]
+    # with the shown name, so .exes made with the old name are given the new one (1.18.157)
+    return hashlib.sha1(Path(icon).read_bytes()).hexdigest()[:12] + " " + SHOWN
 
 
 def _new_icon_on_exes(folder, icon):
@@ -200,7 +207,7 @@ def _new_icon_on_exes(folder, icon):
             import shutil
             shutil.copy2(folder / exe, tmp)
             try:
-                _rename_exe(tmp, APP_NAME, icon)
+                _rename_exe(tmp, SHOWN, icon)
                 os.replace(tmp, folder / exe)
             finally:
                 tmp.unlink(missing_ok=True)
@@ -241,7 +248,7 @@ def make_own_exe(folder=None, base=None, icon=None):
         for src, dst in (("pythonw.exe", OWN_EXE), ("python.exe", WORK_EXE)):
             shutil.copy2(base / src, folder / dst)
             _unsign(folder / dst)
-            _rename_exe(folder / dst, APP_NAME, icon)
+            _rename_exe(folder / dst, SHOWN, icon)
         out = folder / "tried.txt"
         for exe in (OWN_EXE, WORK_EXE):
             out.unlink(missing_ok=True)
@@ -449,7 +456,8 @@ def bring_forward():
         pid = int(PID_FILE.read_text(encoding="utf8").strip())
     except (OSError, ValueError):
         pid = None
-    wins = (windows_of(pid) if pid else []) or windows_of(title=APP_NAME)
+    # by the shown name, so CleanView Play's window ("CleanView") isn't taken for this one
+    wins = (windows_of(pid) if pid else []) or windows_of(title=SHOWN)
     for hwnd in wins[:1]:
         if u.IsIconic(hwnd):
             u.ShowWindow(hwnd, 9)                          # SW_RESTORE
@@ -541,7 +549,7 @@ def splash(child, most=SPLASH_MOST):
     import tkinter as tk
     from tkinter import ttk
     root = tk.Tk()
-    root.title(APP_NAME)
+    root.title(SHOWN)
     try:                # the logo for every window of this program, and for this one
         root.iconbitmap(default=str(HERE / "cleanview.ico"))
         root.iconbitmap(str(HERE / "cleanview.ico"))
@@ -549,7 +557,7 @@ def splash(child, most=SPLASH_MOST):
         pass
     root.configure(bg="#FFFFFF")
     root.resizable(False, False)
-    title = tk.StringVar(value=f"Opening {APP_NAME}\u2026")
+    title = tk.StringVar(value=f"Opening {SHOWN}\u2026")
     tk.Label(root, textvariable=title, bg="#FFFFFF", fg="#23211F",
              font=("Segoe UI", 14, "bold")).pack(padx=40, pady=(22, 4))
     said = tk.StringVar(value="This can take a few seconds.")
@@ -593,8 +601,8 @@ def splash(child, most=SPLASH_MOST):
             return
         if text and text != said.get():
             said.set(text)
-            title.set(f"{UPDATING} {APP_NAME}\u2026" if updating else f"Opening {APP_NAME}\u2026")
-            wait.set(f"Please wait: {APP_NAME} opens by itself when it's done." if updating
+            title.set(f"{UPDATING} {SHOWN}\u2026" if updating else f"Opening {SHOWN}\u2026")
+            wait.set(f"Please wait: {SHOWN} opens by itself when it's done." if updating
                      else "")
         root.after(200, check)
     root.after(200, check)
@@ -742,7 +750,7 @@ def update():
         if "/" in name or "\\" in name or name.startswith("."):
             raise ValueError(f"unexpected file name {name}")
     ver = remote["version"]
-    opening(f"{UPDATING} {APP_NAME} to {ver}\u2026 (0 of {len(names)})")
+    opening(f"{UPDATING} {SHOWN} to {ver}\u2026 (0 of {len(names)})")
     # download everything first, check it, and only then swap files in; several at a time,
     # each tried twice, and all of it within UPDATE_MOST (one after the other, a slow
     # connection to GitHub could keep the opening box waiting for minutes)
@@ -769,7 +777,7 @@ def update():
         end = time.time() + UPDATE_MOST
         for job in concurrent.futures.as_completed(jobs, timeout=max(1, end - time.time())):
             staged[jobs[job]] = job.result()
-            opening(f"{UPDATING} {APP_NAME} to {ver}\u2026 ({len(staged)} of {len(names)})")
+            opening(f"{UPDATING} {SHOWN} to {ver}\u2026 ({len(staged)} of {len(names)})")
     except concurrent.futures.TimeoutError:
         raise TimeoutError(f"the update took over {UPDATE_MOST} s; it's tried again next time")
     finally:
@@ -822,12 +830,13 @@ def new_icon_on_shortcuts(here=None):
         script = (f"$ws = New-Object -ComObject WScript.Shell\n"
                   f"foreach ($d in {SHORTCUT_PLACES}) {{\n"
                   f"  if (-not $d) {{ continue }}\n"
-                  f"  $p = Join-Path $d {q(APP_NAME + '.lnk')}\n"
+                  f"  foreach ($n in @({q(OLD_SHORTCUT)}, {q(SHORTCUT)})) {{\n"
+                  f"  $p = Join-Path $d $n\n"
                   f"  if (Test-Path -LiteralPath $p) {{\n"
                   f"    $l = $ws.CreateShortcut($p)\n"
                   f"    if ($l.Arguments.Contains({q(here / 'launcher.pyw')})) {{\n"
                   f"      $l.IconLocation = {q(shown)} + ',0'; $l.Save(); Write-Output $p }}\n"
-                  f"  }}\n}}\n")
+                  f"  }}\n  }}\n}}\n")
         r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
                            capture_output=True, text=True, timeout=60, creationflags=0x08000000,
                            stdin=subprocess.DEVNULL)
@@ -854,6 +863,71 @@ def new_icon_on_shortcuts(here=None):
         return False
 
 
+SHORTCUT_NAMED = APP_DATA / "shortcut_named.txt"   # the shortcut name given (1.18.157)
+# where the shortcut is renamed: the desktop and the Start menu, not what's pinned to the taskbar
+# or Start (Windows keeps those by the old file; renaming it could unpin it)
+NAME_PLACES = r"""@([Environment]::GetFolderPath('Desktop'),
+  [Environment]::GetFolderPath('Programs'))"""
+
+
+def name_shortcuts(here=None):
+    """This install's "CleanView" shortcuts on the desktop and in the Start menu become
+    "CleanView Save" (1.18.157; the owner: "Yes, everywhere", so CleanView Play can take the
+    name "CleanView"). Only a shortcut that starts this folder's launcher.pyw is renamed; if a
+    "CleanView Save" one is there already, the old one goes. Once; True when it was done."""
+    import subprocess
+    here = Path(here or HERE)
+    if os.name != "nt":
+        return False
+    try:
+        if SHORTCUT_NAMED.read_text(encoding="utf8").strip() == SHOWN:
+            return False
+    except OSError:
+        pass
+    try:
+        q = lambda s: "'" + str(s).replace("'", "''") + "'"     # noqa: E731
+        script = (f"$ws = New-Object -ComObject WScript.Shell\n"
+                  f"foreach ($d in {NAME_PLACES}) {{\n"
+                  f"  if (-not $d) {{ continue }}\n"
+                  f"  $old = Join-Path $d {q(OLD_SHORTCUT)}\n"
+                  f"  $new = Join-Path $d {q(SHORTCUT)}\n"
+                  f"  if (Test-Path -LiteralPath $old) {{\n"
+                  f"    $l = $ws.CreateShortcut($old)\n"
+                  f"    if ($l.Arguments.Contains({q(here / 'launcher.pyw')})) {{\n"
+                  f"      $l.Description = {q(SHOWN)}; $l.Save()\n"
+                  f"      if (Test-Path -LiteralPath $new) {{ Remove-Item -LiteralPath $old }}\n"
+                  f"      else {{ Rename-Item -LiteralPath $old -NewName {q(SHORTCUT)} }}\n"
+                  f"      Write-Output $new }}\n"
+                  f"  }}\n}}\n")
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                           capture_output=True, text=True, timeout=60, creationflags=0x08000000,
+                           stdin=subprocess.DEVNULL)
+        if r.returncode:
+            raise RuntimeError(r.stderr.strip()[:300])
+        changed = [p.strip() for p in r.stdout.splitlines() if p.strip()]
+        if changed:
+            import ctypes
+            sh = ctypes.windll.shell32
+            for p in changed:
+                sh.SHChangeNotify(0x0002, 0x0005, ctypes.c_wchar_p(p), None)   # it's there
+            sh.SHChangeNotify(0x08000000, 0, None, None)
+        APP_DATA.mkdir(parents=True, exist_ok=True)
+        SHORTCUT_NAMED.write_text(SHOWN, encoding="utf8")
+        return True
+    except Exception as ex:
+        try:
+            (APP_DATA / "shortcut_name_problem.txt").write_text(str(ex), encoding="utf8")
+        except OSError:
+            pass
+        return False
+
+
+def _shortcut_jobs():
+    """The shortcut's name, then its icon (one after the other: the icon finds either name)."""
+    name_shortcuts()
+    new_icon_on_shortcuts()
+
+
 def run_app():
     """The part that is CleanView: one at a time, look for an update, then open the window."""
     restart = _restarting()
@@ -869,7 +943,7 @@ def run_app():
     try:
         new = update()
         if new:
-            note = f"CleanView was updated to version {new}."
+            note = f"CleanView Save was updated to version {new}."
     except Exception as ex:  # never block the app over an update problem
         try:
             (HERE / "update_error.txt").write_text(str(ex), encoding="utf8")
@@ -883,9 +957,9 @@ def run_app():
         sys.argv = [str(HERE / "launcher.pyw"), APP_PART]
         runpy.run_path(str(HERE / "launcher.pyw"), run_name="__main__")
         return
-    opening(f"Opening {APP_NAME}\u2026")
+    opening(f"Opening {SHOWN}\u2026")
     import threading
-    threading.Thread(target=new_icon_on_shortcuts, daemon=True).start()
+    threading.Thread(target=_shortcut_jobs, daemon=True).start()
     sys.argv = [str(HERE / "CleanView.pyw")]
     runpy.run_path(str(HERE / "CleanView.pyw"), run_name="__main__")
 

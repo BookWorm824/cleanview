@@ -108,7 +108,7 @@ def plain_error(ex):
             or memory_trouble(f"{type(ex).__name__}: {ex}")):
         return OUT_OF_MEMORY
     if isinstance(ex, PermissionError) or win in (32, 33):
-        return ("A file CleanView needs is open in another program (maybe a video player). "
+        return ("A file CleanView Save needs is open in another program (maybe a video player). "
                 "Close it and try again.")
     if isinstance(ex, OSError) and (win == 112 or ex.errno == 28):
         return "The drive is full. Free up some space and try again."

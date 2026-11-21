@@ -139,7 +139,7 @@ class ThePickedLanguageChecked(unittest.TestCase):
         st, listened, subs_for, _ = self.run_analyze("es", DUTCH)
         self.assertEqual(st["opts"]["language"], "es")
         self.assertEqual(listened, ["other"])
-        self.assertIn("This sounds like Dutch, which CleanView doesn't clean yet, so only the "
+        self.assertIn("This sounds like Dutch, which CleanView Save doesn't clean yet, so only the "
                       "Spanish word lists you picked were used.", st["notes"])
 
     def test_too_little_heard_to_tell_changes_nothing(self):

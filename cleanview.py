@@ -1266,7 +1266,7 @@ def tell_language(path, info, work, dur, say=None, cancel=None, threads=None):
         if code is None:
             code, how = "en", "it couldn't be told from what was heard, so English"
     if code == "other":
-        raise VideoError(f"{Path(path).name} is in {name}, which CleanView doesn't clean yet. "
+        raise VideoError(f"{Path(path).name} is in {name}, which CleanView Save doesn't clean yet. "
                          "To clean it anyway, pick a language yourself in step 1.")
     try:
         kept.write_text(json.dumps({"language": code, "how": how}), encoding="utf8")
@@ -1423,7 +1423,7 @@ TECHNICAL_NOTES = re.compile(
     r"Nudity check: |Dialogue was checked with |Took (under a minute|\d+ min)|Who's who"
     r", from the whole dialogue: |"
     r"(The AI|\S+) looked through the whole picture \(")
-TECHNICAL_HEAD = "For CleanView's maker, to look into a problem (how this video was checked):"
+TECHNICAL_HEAD = "For CleanView Save's maker, to look into a problem (how this video was checked):"
 
 
 def technical(note):
@@ -1440,8 +1440,9 @@ def technical_notes(st):
     problem (the version first, also when no AI helper ran to say it)."""
     tech = [n for n in st.get("notes") or [] if technical(n)]
     version = (st.get("scan") or {}).get("app_version")
-    if version and not any(f"(CleanView {version})" in n for n in tech):
-        tech.insert(0, f"CleanView {version}.")
+    if version and not any(f"(CleanView Save {version})" in n or f"(CleanView {version})" in n
+                           for n in tech):          # (named CleanView before 1.18.157)
+        tech.insert(0, f"CleanView Save {version}.")
     return ["", TECHNICAL_HEAD] + ["  " + n for n in tech] if tech else []
 
 
@@ -2276,6 +2277,12 @@ SEXUAL_TERMS = [
     # by themselves
     r"spank ?bank", r"jerk(?:s|ed|ing)? the gherkin",
     r"(?:jerk|jerks|jerked|jerking|jack|jacks|jacked|jacking) off(?![ \t]+(?:the|a|an|his|her|their|its|my|your|our|them|him|those|these|all|any|every)\b)",
+    # "jerk me off", "jerked him off" (1.18.157), not "jerked him off his feet"
+    r"(?:jerk|jerks|jerked|jerking|jack|jacks|jacked|jacking) (?:me|him|you|ya|her|them|us|"
+    r"myself|yourself|himself|herself|themselves|each other) off"
+    r"(?![ \t]+(?:the|a|an|his|her|its|their|my|your|our|of|to|into|onto|from|at|toward|"
+    r"towards|course|balance|guard|track|road|path|ground|floor|table|shelf|wall|hook|feet|"
+    r"chair|bed|couch|stage|bike|horse|seat|ledge|edge|roof|ladder)\b)",
     r"jork(?:s|ed|ing)? it",
     r"beat(?:s|ing)? " + _P + r" meat", r"beat the meat",
     r"(?:beat|beats|beating|whack|whacks|whacked|whacking|wank|wanks|wanked|wanking) off"
@@ -3033,7 +3040,7 @@ LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Relig
               "vampires": "Vampires and werewolves",
               "learned": "You muted this before",
               "added": "Added by you", "claude": "Found by AI",
-              "shared": "CleanView learned", "chat": "You asked in the chat",
+              "shared": "CleanView Save learned", "chat": "You asked in the chat",
               "sexref": "Sexual reference", "casual": "Sleeping around",
               "forensic": "Coroner and doctor talk",
               "samesex": "Same-sex relationship", "oppsex": "Unmarried couple",
@@ -3645,7 +3652,7 @@ def match_review(st, res):
 # differ without a new scan: subtitles are always looked for, and "offline" only changed that.
 SCAN_SAME_SKIP = {"autosubs", "offline", "language"}
 SCAN_REUSED = "This video was scanned before with the same choices, so that scan was used"
-LESSONS_ADDED = "Added what CleanView has learned since this video was scanned"
+LESSONS_ADDED = "Added what CleanView Save has learned since this video was scanned"
 
 
 def _picked_language(o):
@@ -3771,7 +3778,8 @@ def add_new_lessons(st, reused=False):
     for sc in learn.title_scenes(key, title_name(st.get("path")), lines,
                                  {k for k, v in full_opts(o).items() if v is True},
                                  episode=episode_of(st.get("path"))):
-        if any(x.get("learned") == sc["learned"] and x["s"] < sc["e"] and sc["s"] < x["e"]
+        if any(learn.same_lesson(x.get("learned"), sc["learned"]) and x["s"] < sc["e"]
+               and sc["s"] < x["e"]
                for x in scenes):
             continue
         sc["e"] = round(min(sc["e"], dur), 2)
@@ -3793,9 +3801,9 @@ def add_new_lessons(st, reused=False):
     notes = [n for n in st.get("notes") or []
              if not n.startswith((SCAN_REUSED, LESSONS_ADDED))]
     if reused:
-        notes.append(SCAN_REUSED + (", with what CleanView has learned since added: " +
+        notes.append(SCAN_REUSED + (", with what CleanView Save has learned since added: " +
                                     " and ".join(what) + "." if what else
-                                    ". CleanView hasn't learned anything new for it since."))
+                                    ". CleanView Save hasn't learned anything new for it since."))
     elif what:
         notes.append(LESSONS_ADDED + ": " + " and ".join(what) + ".")
     st["notes"] = notes
@@ -5532,7 +5540,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                           f"{cvlang.name(lang)} (from what was heard), so it was cleaned as "
                           f"{cvlang.name(lang)}.")
     elif not_cleaned:
-        lang_notes.append(f"This sounds like {not_cleaned}, which CleanView doesn't clean "
+        lang_notes.append(f"This sounds like {not_cleaned}, which CleanView Save doesn't clean "
                           f"yet, so only the {cvlang.name(lang)} word lists you picked were "
                           f"used.")
     if lang != "en":
@@ -5881,7 +5889,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if have_ai:                         # which models: reports from different versions compare
         scan["models"] = {"pictures": ai.VISION_MODEL, "dialogue": ai.TEXT_MODEL}
         notes.insert(1, f"The AI helper used {ai.VISION_MODEL} for the picture and "
-                        f"{ai.TEXT_MODEL} for the dialogue (CleanView {scan['app_version']}).")
+                        f"{ai.TEXT_MODEL} for the dialogue (CleanView Save {scan['app_version']}).")
     if look_job:                        # the closer look taken while Claude read the dialogue
         finish_look()
         look_job = None
@@ -5966,7 +5974,8 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     for sc in learn.title_scenes(key, title_name(path), lines,
                                  {k for k, v in o.items() if v is True},
                                  episode=episode_of(path)):
-        if any(x.get("learned") == sc["learned"] and x["s"] < sc["e"] and sc["s"] < x["e"]
+        if any(learn.same_lesson(x.get("learned"), sc["learned"]) and x["s"] < sc["e"]
+               and sc["s"] < x["e"]
                for x in scenes):
             continue
         sc["e"] = round(min(sc["e"], dur), 2)
@@ -6120,7 +6129,7 @@ def save_trouble(err):
         return ("The drive the clean copy goes to can't hold a file this big (it only "
                 "takes files up to 4 GB). Save it to another drive")
     if "permission denied" in e:
-        return ("CleanView wasn't allowed to write the clean copy there. It may be open in a "
+        return ("CleanView Save wasn't allowed to write the clean copy there. It may be open in a "
                 "video player, or the folder may be protected. Close the player, or save it "
                 "to another folder")
     return None
@@ -6784,7 +6793,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
 
     # no separate .srt file next to the video: players show those automatically
     removed = sum(e - s for s, e in cut_rs)
-    rep = [f"CleanView report — {src.name}", "=" * 40,
+    rep = [f"CleanView Save report — {src.name}", "=" * 40,
            f"{len(st['mutes'])} words/phrases muted, {len(lines)} lines muted, {len(cut_rs)} "
            f"scenes cut ({removed / 60:.1f} minutes removed)."
            + (f" {len(sound_only)} scene(s) had only their sound muted (the picture kept)."

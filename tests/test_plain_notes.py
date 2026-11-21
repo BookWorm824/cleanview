@@ -98,7 +98,7 @@ class WhichNotes(unittest.TestCase):
         self.assertEqual(engine.technical_notes({"notes": ABOUT_THE_VIDEO}), [])    # no heading
         # the version, also when no AI helper ran to say it; not said twice
         no_ai = {"notes": [TECHNICAL[0], TECHNICAL[-1]], "scan": {"app_version": "1.18.83"}}
-        self.assertEqual(engine.technical_notes(no_ai)[2], "  CleanView 1.18.83.")
+        self.assertEqual(engine.technical_notes(no_ai)[2], "  CleanView Save 1.18.83.")
         with_ai = {"notes": TECHNICAL[:2], "scan": {"app_version": "1.18.82"}}
         self.assertEqual(len(engine.technical_notes(with_ai)), 4)
 

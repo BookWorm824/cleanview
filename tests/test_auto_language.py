@@ -175,7 +175,7 @@ class WorkingItOut(unittest.TestCase):
             with self.assertRaises(engine.VideoError) as err:
                 self.tell(tag, heard)
             said = str(err.exception)
-            self.assertIn(f"Film.mkv is in {name}, which CleanView doesn't clean yet", said)
+            self.assertIn(f"Film.mkv is in {name}, which CleanView Save doesn't clean yet", said)
             self.assertIn("pick a language yourself in step 1", said)
         self.assertFalse((self.work / "language.json").exists())
 

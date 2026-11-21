@@ -152,9 +152,10 @@ class NoRoom(unittest.TestCase):
         self.assertTrue(ui.her_fix(RuntimeError(
             "The drive the clean copy goes to can't hold a file this big (it only takes files "
             "up to 4 GB). Save it to another drive:\nlibx264: File too large")))
-        self.assertTrue(ui.her_fix(RuntimeError(
-            "CleanView wasn't allowed to write the clean copy there. It may be open in a video "
-            "player:\nlibx264: Permission denied")))
+        for name in ("CleanView Save", "CleanView"):     # (named CleanView before 1.18.157)
+            self.assertTrue(ui.her_fix(RuntimeError(
+                f"{name} wasn't allowed to write the clean copy there. It may be open in a "
+                "video player:\nlibx264: Permission denied")))
         self.assertFalse(ui.her_fix(RuntimeError("Couldn't save the clean copy of x.mp4:\n...")))
         self.assertFalse(ui.her_fix(KeyError("lines")))
 

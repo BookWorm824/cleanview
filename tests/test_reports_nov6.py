@@ -63,7 +63,7 @@ class RememberedScenesSayWhy(unittest.TestCase):
         self.assertTrue(again[0]["cut"])
         self.assertEqual(again[0]["why"], "kissing seen")
         self.assertIn("Ticked to cut again because you cut them before: 1 scene(s).", notes)
-        self.assertIn("Left unticked because of what CleanView has learned: 1 scene(s).", notes)
+        self.assertIn("Left unticked because of what CleanView Save has learned: 1 scene(s).", notes)
 
     def test_old_saved_wording_too(self):
         again = [{"s": 6088.0, "e": 6099.0, "kind": ["Kiss · man & woman"], "cut": False,

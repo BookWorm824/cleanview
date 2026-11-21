@@ -484,7 +484,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
         elif n in hint_kept:
             l["mute"] = False
             l["hint"] = ("Claude said this was fine before" if n in d["claude_kept"] else
-                         "CleanView learned this is fine")
+                         "CleanView Save learned this is fine")
             n_kept += 1
     added = []
     mine_muted = set(d["muted"])
@@ -541,18 +541,18 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
             m["keep"] = True
             m["hint"] = ("Claude said this was fine here before"
                          if _phrase(m) in d["claude_ok_words"] else
-                         "CleanView learned this is fine here")
+                         "CleanView Save learned this is fine here")
             n_w += 1
     n_you = sum(1 for l in added if l["learned_from"] == "you")
     if n_you:
         notes.append(f"Muted {n_you} line(s) you muted before in this show.")
     if len(added) - n_you:
-        notes.append(f"Muted {len(added) - n_you} line(s) CleanView has learned to mute in this "
+        notes.append(f"Muted {len(added) - n_you} line(s) CleanView Save has learned to mute in this "
                      "show.")
     if n_kept or n_sc or n_w:
         bits = [f"{n_kept} line(s)" if n_kept else "", f"{n_sc} scene(s)" if n_sc else "",
                 f"{n_w} word(s)" if n_w else ""]
-        notes.append("Left unticked because of what CleanView has learned: " +
+        notes.append("Left unticked because of what CleanView Save has learned: " +
                      ", ".join(b for b in bits if b) + ".")
     if n_again:
         notes.append(f"Ticked to cut again because you cut them before: {n_again} scene(s).")
@@ -639,6 +639,17 @@ def _line_at(dialogue, want, start=0):
     return None
 
 
+# what a taught scene is marked with, and what it was before 1.18.157 (the app's name then)
+TAUGHT_SCENE = "CleanView Save learned this scene"
+TAUGHT_SCENE_OLD = "CleanView learned this scene"
+
+
+def same_lesson(a, b):
+    """Two scenes' "learned" marks say the same lesson (the old and new names count as one)."""
+    one = {TAUGHT_SCENE, TAUGHT_SCENE_OLD}
+    return a == b or (a in one and b in one)
+
+
 def title_scenes(key, title, dialogue, ticked=None, episode=None):
     """Scenes taught for one movie (shared_learned.json "scenes", 1.18.112; the owner, of Forest
     Gump's principal visiting Mrs. Gump: "you hear sounds, then he walks past forest and says
@@ -693,8 +704,8 @@ def title_scenes(key, title, dialogue, ticked=None, episode=None):
         # cut on purpose ("also show the scene as cut in after report", "in case people look
         # for it to be cut")
         out.append({"s": round(start, 2), "e": round(end, 2), "kind": [sc["kind"]],
-                    "why": f"{sc['why']} (CleanView learned this scene)", "sure": True,
-                    "learned": "CleanView learned this scene"})
+                    "why": f"{sc['why']} ({TAUGHT_SCENE})", "sure": True,
+                    "learned": TAUGHT_SCENE})
         if sc.get("action") == "mute":       # the sound muted, the picture kept (1.18.154)
             out[-1]["mute_only"] = True
     return out

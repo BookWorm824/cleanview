@@ -499,6 +499,14 @@ BODY_SLANG = [re.compile(p) for p in (
     r"re (tard|tards|tarded)\b",                               # "retarded" heard as two words
     r"s o b\b",                                                # "S.O.B." spelled out
     r"eff (you|off|me|him|her|them|it|that|this)\b",           # "eff you"
+    # "jerk me off", "jerked him off" (1.18.157; the owner in the CleanStream chat: "jerk me off
+    # should go in the sex catogory for all"); not pulled off something: "jerked him off his
+    # feet", "jerked her off the ledge". At the end, so the others keep their places.
+    r"(jerk|jerks|jerked|jerking|jerkin|jack|jacks|jacked|jacking|jackin) (me|him|you|ya|her|"
+    r"them|us|myself|yourself|himself|herself|themselves|each other) off\b"
+    r"(?! (the|a|an|his|her|its|their|my|your|our|of|to|into|onto|from|at|toward|towards|"
+    r"course|balance|guard|track|road|path|ground|floor|table|shelf|wall|hook|feet|chair|bed|"
+    r"couch|stage|bike|horse|seat|ledge|edge|roof|ladder)\b)",
 )]
 
 
@@ -671,7 +679,7 @@ def bull_swear(words, i):
 # "s o b", "eff you" swearing.
 _CR, _SX = "crudewords", "sexwords"
 SLANG_CAT = ([_CR] * 9 + [_SX] * 6 + [_CR] * 2 + [_SX] * 7 + ["moderate"] + [_CR] * 2 +
-             ["moderate", "slurs", "moderate", "moderate"])
+             ["moderate", "slurs", "moderate", "moderate"] + [_SX])
 assert len(SLANG_CAT) == len(BODY_SLANG)
 
 

@@ -1169,6 +1169,34 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   the settings, the file names, the shortcuts, Task Manager's "CleanView" and the launcher's
   `APP_NAME` (the update seal goes by it, and it still finds the window, whose title starts with
   "CleanView") stay as they are; so do the messages that say "CleanView". `test_shown_name.py`.
+- "CleanView Save" wherever people read it (1.18.157, 2026-11-21; the owner: "we are going to
+  rename clean view play as clean view", "the shortcut and anything people can read should
+  change to cleanview also" (Play), "functtionally file wise it can be clean view play", then
+  for this app "Yes, everywhere"). Every message, box title and label, the report's heading
+  ("CleanView Save report"), the learning notes ("CleanView Save learned"), the opening and
+  updating box (launcher `SHOWN`), Task Manager (CleanView.exe's description: `_rename_exe(...,
+  SHOWN)`; `_icon_mark` carries the name, so .exes made before are given it once), the installer
+  and the desktop and Start menu shortcut: `launcher.name_shortcuts` renames this install's
+  "CleanView.lnk" (only one that starts this folder's launcher.pyw; one of CleanView Play's is
+  left alone) to "CleanView Save.lnk" once (`SHORTCUT_NAMED`), not the ones pinned to the
+  taskbar or Start (Windows keeps those by their file; renaming could unpin them);
+  `new_icon_on_shortcuts` finds either name. The launcher finds its own open window by
+  "CleanView Save" (`windows_of(title=SHOWN)`), so Play's "CleanView" window isn't taken for it.
+  Kept "CleanView": `APP_NAME` (the folder, the .exe's file name, `SEAL_FOR` and the key),
+  file names (the reports, the problem notes, "CleanView learned <date>.json"), the data sent
+  in (`"app": "CleanView"`, the `"what"` tags `merge_learned.py` reads). A review made before
+  still works: `learn.same_lesson` takes a taught scene's old mark ("CleanView learned this
+  scene") as the new one (`TAUGHT_SCENE`), `technical_notes` finds "(CleanView 1.18.x)" too,
+  and `her_fix` either wording. Play keeps "CleanView Play" behind the scenes and shows
+  "CleanView", and makes its "CleanView.lnk" only where none is, or where it's its own (told).
+  `test_save_name.py`.
+  Also in 1.18.157, "jerk me off" (the owner in the CleanStream chat, for every app: "jerk me off
+  should go in the sex catogory for all"): "jerk/jack me/him/you/her/them/us/each other... off"
+  is a sexual word (a new `BODY_SLANG` phrase at the end, so the others keep their places for
+  CleanStream's sync; `SLANG_CAT` sexwords) and in `SEXUAL_TERMS`; "jerk off" alone was already
+  there. Not pulled off something: "jerked him off his feet", "off the ledge", "off balance".
+  "jerk" alone stays a rude word. No line in the past reviews here has it. For CleanListen and
+  CleanRead too. `test_jerk_me_off.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

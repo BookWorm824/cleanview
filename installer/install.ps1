@@ -56,7 +56,7 @@ function Find-Python {
 }
 
 try {
-    Write-Host "CleanView setup" -ForegroundColor White
+    Write-Host "CleanView Save setup" -ForegroundColor White
     Write-Host "This takes 5-15 minutes. Leave this window open."
     if (-not (Test-Path (Join-Path $PSScriptRoot 'app\CleanView.pyw'))) {
         Fail "Setup files are missing. Right-click the zip, choose 'Extract All', and run setup from the extracted folder."
@@ -64,7 +64,7 @@ try {
     New-Item -ItemType Directory -Force -Path $Root, $AppDir, $Tmp | Out-Null
 
     # 1. app files
-    Step 1 "Copying CleanView..."
+    Step 1 "Copying CleanView Save..."
     Copy-Item -Path (Join-Path $PSScriptRoot 'app\*') -Destination $AppDir -Recurse -Force
     Ok "Done"
 
@@ -161,24 +161,30 @@ try {
     } else { Ok "Already there" }
 
     # 6. icon on the desktop and in the Start menu
-    Step 6 "Adding the CleanView icon..."
+    Step 6 "Adding the CleanView Save icon..."
     $pyw = Join-Path $Venv 'Scripts\pythonw.exe'
     $launcher = Join-Path $AppDir 'launcher.pyw'
     $s = New-Object -ComObject WScript.Shell
     foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
         if (-not $dir) { continue }
-        $l = $s.CreateShortcut((Join-Path $dir 'CleanView.lnk'))
+        # "CleanView Save" since 1.18.157 (CleanView Play is shown as "CleanView"); an old
+        # "CleanView" shortcut of this install goes
+        $old = Join-Path $dir 'CleanView.lnk'
+        if ((Test-Path -LiteralPath $old) -and $s.CreateShortcut($old).Arguments.Contains($launcher)) {
+            Remove-Item -LiteralPath $old
+        }
+        $l = $s.CreateShortcut((Join-Path $dir 'CleanView Save.lnk'))
         $l.TargetPath = $pyw
         $l.Arguments = '"' + $launcher + '"'
         $l.WorkingDirectory = $AppDir
         $l.IconLocation = (Join-Path $AppDir 'cleanview.ico')
-        $l.Description = 'Clean up movies and TV shows'
+        $l.Description = 'CleanView Save: clean up movies and TV shows'
         $l.Save()
     }
     Ok "On your desktop and in the Start menu"
 
     Write-Host ""
-    Write-Host "All done! Opening CleanView..." -ForegroundColor Green
+    Write-Host "All done! Opening CleanView Save..." -ForegroundColor Green
     Start-Process -FilePath $pyw -ArgumentList ('"' + $launcher + '"') -WorkingDirectory $AppDir
 }
 catch {
