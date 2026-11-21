@@ -1136,6 +1136,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   before he drowns her (39:39-39:46), between her two creek cuts, placed from the dialogue (not
   seen here). Her own unticks and choices on a video aren't learned as sound only yet. Play's
   player needs to treat `mute_only` as a mute, not a skip (told). `test_sound_only.py`.
+- Mutes a second or less apart are one stretch (1.18.155, 2026-11-20; the owner, of The Resident
+  S2E1's clean copy: "when words are being muted and it lasts longer then 5 seconds its supposed
+  to remove...that doesn't seem to be working", then "I'm wandering if there is less than a
+  seconds between mutes if they should just be combined as ones"). Its six long stretches had
+  been cut (the copy was 2 min 14 s shorter, as the report said), but a muted line, a 1.0 s
+  pause and then 5 s muted at 42:32 was cut only from 42:34, two cuts at 0:57 and 1:06 had
+  0.75 s of sound between them, and a lone 3.5 s muted line (37:47) stays silent (under 4 s).
+  `LONG_MUTE_JOIN` 1.05 (was 0.75: "a second or less", subtitle times being rounded) and
+  `LONG_MUTE_SHARE` 0.80 (was 0.85); 0:57-1:23 and 42:32-42:39 are now one cut each. Words
+  muted one by one with talking between still aren't (a word every 0.8 s is half muted). In
+  the 154 past reviews here: 4 more stretches, 1 more minute cut in all. `test_long_mutes`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

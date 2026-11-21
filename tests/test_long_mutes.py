@@ -22,6 +22,18 @@ class Stretches(unittest.TestCase):
         self.assertEqual(L([(1.0, 3.0), (3.4, 5.6), (30.0, 31.0)]), [(1.0, 5.6)])  # two lines
         self.assertEqual(L([]), [])
 
+    def test_a_second_apart_is_one_stretch(self):
+        # 1.18.155, her The Resident S2E1 (the owner: "if there is less than a seconds between
+        # mutes if they should just be combined as ones"): at 42:32 a muted line, a 1-second
+        # pause, then 5 s muted was cut at the second part only; at 0:57 two cuts had 0.75 s of
+        # sound between them
+        L = engine.long_mutes
+        self.assertEqual(L([(2552.0, 2553.4), (2554.4, 2559.4)]), [(2552.0, 2559.4)])
+        self.assertEqual(L([(57.0, 65.0), (65.75, 83.4)]), [(57.0, 83.4)])
+        self.assertEqual(len(L([(1.0, 3.0), (4.2, 6.0)])), 0)      # 1.2 s of talk: apart
+        # half talk isn't a silence: two 1.5 s lines with 1.4 s of talk between
+        self.assertEqual(L([(277.0, 278.5), (279.9, 281.4)]), [])
+
     def test_words_muted_one_by_one_stay_words(self):
         # a word every 0.8 s with talking between (Shawshank-like): not a long silence
         words = [(i * 0.8, i * 0.8 + 0.4) for i in range(150)]

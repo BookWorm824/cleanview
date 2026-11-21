@@ -6211,9 +6211,13 @@ def _quieter(rs, level=MUSIC_LEVEL, ramp=0.5):
 # less than LONG_MUTE_JOIN apart count as one stretch (the pause between two muted lines), but
 # only a stretch that's mostly muted (LONG_MUTE_SHARE) is a long silence: words muted one by
 # one with talking between them stay muted words (a word every 0.8 s isn't a silence).
+# 1.18.155 (her The Resident S2E1: "I'm wandering if there is less than a seconds between mutes
+# if they should just be combined as ones"): a second or less apart (subtitle times are rounded,
+# so a little over), and 80% muted, so a muted line, a 1-second pause, then a long muted
+# stretch is one cut (42:32), and two cuts aren't left with 0.75 s of sound between (1:05).
 LONG_MUTE_SECS = 4.0
-LONG_MUTE_JOIN = 0.75
-LONG_MUTE_SHARE = 0.85
+LONG_MUTE_JOIN = 1.05
+LONG_MUTE_SHARE = 0.80
 
 
 def long_mutes(rs, most=LONG_MUTE_SECS, join=LONG_MUTE_JOIN, share=LONG_MUTE_SHARE):
