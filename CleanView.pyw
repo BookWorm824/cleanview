@@ -103,6 +103,11 @@ CHIP["Found"] = CHIP["Claude"] = CHIP["ChatGPT"] = CHIP["Gemini"] = CHIP["AI"] =
 
 # ---------- who you're filtering for: each has its own ticks, remembered separately ----------
 PROFILES = [("young", "Young kids"), ("kids", "Kids"), ("teens", "Teens"), ("adults", "Adults")]
+# The name at the top left and on the window (1.18.157; the owner: "rename ... clean view as clean
+# view save", "when opening the app on top left where it says clean view"), beside "CleanView
+# Play". Only what's shown: the install folder, the update seal (launcher APP_NAME) and the
+# file names stay "CleanView".
+SHOWN_NAME = "CleanView Save"
 # a scene can mute its sound and keep its picture (1.18.154): the box on its card, and what the
 # card's tick says then
 SOUND_ONLY_BOX = "Mute the sound only"
@@ -598,7 +603,7 @@ class App(tk.Tk):
     def __init__(self):
         own_taskbar_id()                 # before the window: its logo in the taskbar
         super().__init__()
-        self.title("CleanView")
+        self.title(SHOWN_NAME)
         # bigger text if she chose it: Tk sizes text as each part of the window is built,
         # so this comes first (and changing it builds the page again, see _set_text_size)
         global _base_scaling
@@ -1176,7 +1181,7 @@ class App(tk.Tk):
         p.pack(fill="both", expand=True)
         try:
             ver = json.loads((Path(__file__).resolve().parent / "version.json").read_text())["version"]
-            self.title(f"CleanView {ver}")
+            self.title(f"{SHOWN_NAME} {ver}")
         except Exception:
             pass
 
@@ -1201,7 +1206,7 @@ class App(tk.Tk):
         else:
             look.Badge(brand, "video", size=38, fill=ACCENT, fg="#FFFFFF").pack(
                 side="left", padx=(0, X(10)))
-        tk.Label(brand, text="CleanView", bg=SIDE, fg=INK, font=(HEAD, 15)).pack(side="left")
+        tk.Label(brand, text=SHOWN_NAME, bg=SIDE, fg=INK, font=(HEAD, 15)).pack(side="left")
         self._step_rows = []
         for i, (title, _) in enumerate(self.STEPS, 1):
             card = look.Card(side, fill=SIDE, edge="", radius=12, pad=(12, 9))

@@ -69,7 +69,7 @@ class Voices(unittest.TestCase):
         src = inspect.getsource(engine.analyze)
         self.assertIn("picture_voices(pictured, lines, genders)", src)
         self.assertEqual(src.count("picture_voices("), 1)
-        a = src.index("pictured = decide_picture_scenes(")
+        a = src.index("decide_picture_scenes(cands")      # (inside intimate_from_kiss, 1.18.156)
         self.assertLess(a, src.index("picture_voices(pictured"))
         self.assertLess(src.index("scenes += pictured"), src.index("look_at_picture("))
 

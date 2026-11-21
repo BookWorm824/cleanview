@@ -4751,6 +4751,32 @@ def decide_picture_scenes(cands, o, have_ai):
     return scenes
 
 
+# The "couple in bed or making out" check sees a couple getting close before they kiss, so a
+# kiss it also caught was cut from there: her Criminal Minds S1E22 trimmed two such cuts by 10
+# and 5 s at the front (1.18.156); in the past reviews here it starts a median 7.5 s before the
+# kiss. When the closer look describes only kissing (nothing in bed, lying down, undressed),
+# the intimate find starts where the kiss does.
+MORE_THAN_A_KISS = re.compile(r"\b(bed|beds|lying|lies|lie|laying|undress\w*|naked|nude|topless|"
+                              r"shirtless|underwear|lingerie|bra|sheets?|straddl\w*|on top|"
+                              r"touching|groping|caress\w*|sex\w*)\b", re.I)
+
+
+def intimate_from_kiss(scenes):
+    """Each checked intimate find described as just a kiss starts where a kiss find over it
+    starts, when that's later."""
+    kisses = [sc for sc in scenes if sc["kind"][0].startswith("Kiss")]
+    for sc in scenes:
+        if not sc["kind"][0].startswith("Intimate scene") or " — " not in sc.get("why", ""):
+            continue
+        said = sc["why"].split(" — ", 1)[1]
+        if not re.search(r"\bkiss", said, re.I) or MORE_THAN_A_KISS.search(said):
+            continue
+        over = [k for k in kisses if k["s"] < sc["e"] and sc["s"] < k["e"] and k["s"] > sc["s"]]
+        if over:
+            sc["s"] = min(k["s"] for k in over)
+    return scenes
+
+
 def find_voices(path, info, work, lines, cancel=None):
     """Speaker numbers and man/woman/child guesses for each line."""
     a = info["audio"]
@@ -5893,7 +5919,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
         scenes += cartoon_sound(violence_scenes(snd, cues), asr, bool(cartoon))
     if o["sex"]:
         scenes += sex_scenes(snd, cues, asr_n, asr, skin, nude)
-    pictured = decide_picture_scenes(cands, o, have_ai)
+    pictured = intimate_from_kiss(decide_picture_scenes(cands, o, have_ai))
     picture_voices(pictured, lines, genders)          # long hair isn't a woman (1.18.96)
     scenes += pictured
     scenes += flirt_scenes(flirts)

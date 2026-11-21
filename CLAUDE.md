@@ -1147,6 +1147,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `LONG_MUTE_SHARE` 0.80 (was 0.85); 0:57-1:23 and 42:32-42:39 are now one cut each. Words
   muted one by one with talking between still aren't (a word every 0.8 s is half muted). In
   the 154 past reviews here: 4 more stretches, 1 more minute cut in all. `test_long_mutes`.
+- Her Criminal Minds S1E22 report (1.18.156, 2026-11-20, adults, the AI helper, made on 1.18.152,
+  119 min, 83 of them the closer look at 33 finds; the owner: "all"). Every word right. Fixed:
+  Garcia telling JJ about her online crush Sir Kneighf (8:04-8:33) was cut as "Same-sex romance
+  · two women" (JJ's "or even if he is a him"): a criminal-minds note says he's a man. "I CAN GET
+  MY MAN TO SWING YOU A HOTEL ROOM FOR PRACTICALLY NOTHING." was muted though innocent: taught as
+  fine (`kept`: offered unticked); "EVEN YOU MIGHT GET A LITTLE LOVIN' OUT THERE." stays muted.
+  She trimmed two kiss cuts at the front through the chat (10:09 by 10 s, 11:58 by 5 s); both
+  were a kiss joined with an "Intimate scene" find (the plain kiss at 10:35 needed nothing): the
+  bed/making-out check sees the couple getting close first (in the past reviews here it starts a
+  median 7.5 s before the kiss, 8 of 14 more than 5 s). `intimate_from_kiss` (after
+  `decide_picture_scenes`): a checked intimate find whose description is only kissing (nothing
+  in `MORE_THAN_A_KISS`: bed, lying, undressed...) starts where a kiss find over it starts. Put
+  to her, not done: the intimate cut 13:08-13:56 runs into Hotch's call from the killer (13:24
+  on); disturbing scenes not cut, from the dialogue only (the screams at 3:25, the head in the
+  box at 16:08, the attack on Elle at 41:50). `test_criminal_minds.Episode22`.
+  Also in 1.18.156, the app shows "CleanView Save" (the owner, 2026-11-21: "rename here and on
+  the application clean view as clean view save", "when opening the app on top left where it
+  says clean view"), beside "CleanView Play": the name at the top left of the start page and
+  the window's title (`SHOWN_NAME` in CleanView.pyw). Only what's shown: the install folder,
+  the settings, the file names, the shortcuts, Task Manager's "CleanView" and the launcher's
+  `APP_NAME` (the update seal goes by it, and it still finds the window, whose title starts with
+  "CleanView") stay as they are; so do the messages that say "CleanView". `test_shown_name.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

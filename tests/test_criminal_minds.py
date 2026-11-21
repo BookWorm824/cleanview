@@ -443,5 +443,57 @@ class Episode20(unittest.TestCase):
                                             self.dialogue(), {"violence"}, episode=(1, 20)), [])
 
 
+class Episode22(unittest.TestCase):
+    """Her S1E22 report (1.18.156, made on 1.18.152, adults, the AI helper; the owner: "all"):
+    Garcia's crush on Sir Kneighf cut as same-sex, an innocent hotel-room line muted, and two
+    kiss cuts she trimmed at the front (10 and 5 s) where an intimate find started early."""
+
+    def show(self):
+        with open(support.ROOT / "shared_learned.json", encoding="utf-8") as f:
+            return json.load(f)["shows"]["criminal-minds"]
+
+    def test_sir_kneighf_is_a_man(self):
+        notes = learn.notes("criminal-minds@adults", "Criminal Minds")
+        self.assertTrue(any("Sir Kneighf" in n and "is a man" in n for n in notes))
+
+    def test_hotel_room_line_fine(self):
+        line = "I CAN GET MY MAN TO SWING YOU A HOTEL ROOM FOR PRACTICALLY NOTHING."
+        self.assertIn(learn.norm(line), self.show()["kept"])
+        flags = [{"s": 85.7, "e": 88.1, "text": line, "types": ["sexref"], "mute": True},
+                 {"s": 88.21, "e": 90.2, "text": "EVEN YOU MIGHT GET A LITTLE LOVIN' OUT THERE.",
+                  "types": ["sexref"], "mute": True}]
+        learn.apply("criminal-minds@adults", [], flags, [], [])
+        self.assertFalse(flags[0]["mute"])            # offered unticked
+        self.assertTrue(flags[1]["mute"])             # the innuendo stays muted
+
+    def kiss(self, s, e):
+        return {"s": s, "e": e, "kind": ["Kiss · man & woman · passionate"], "sure": True,
+                "why": "kissing seen — A man and a woman kissing passionately in a dim room"}
+
+    def intimate(self, s, e, said):
+        return {"s": s, "e": e, "kind": ["Intimate scene · man & woman"], "sure": True,
+                "why": "a couple in bed or making out — " + said}
+
+    def test_a_kiss_starts_at_the_kiss(self):
+        got = engine.merge_scenes(engine.intimate_from_kiss([
+            self.kiss(616.0, 628.0),
+            self.intimate(609.0, 628.0, "A man and a woman are kissing passionately in a dimly lit, "
+                                        "possibly outdoor or semi-outdoor setting")]))
+        self.assertEqual([(s["s"], s["e"]) for s in got], [(616.0, 628.0)])
+
+    def test_more_than_a_kiss_keeps_its_start(self):
+        for said in ("A man and a woman are kissing passionately in bed",
+                     "A couple kissing, lying on a couch", "kissing while undressing"):
+            got = engine.merge_scenes(engine.intimate_from_kiss([
+                self.kiss(616.0, 628.0), self.intimate(609.0, 628.0, said)]))
+            self.assertEqual(got[0]["s"], 609.0, said)
+        # no kiss over it: as it was (Hotch on the couch, 13:08)
+        alone = [self.intimate(788.0, 836.0, "A man and a woman lying together on a couch")]
+        self.assertEqual(engine.intimate_from_kiss(alone)[0]["s"], 788.0)
+        # not checked (no description): as it was
+        bare = dict(self.intimate(609.0, 628.0, "x"), why="a couple in bed or making out")
+        self.assertEqual(engine.intimate_from_kiss([self.kiss(616.0, 628.0), bare])[1]["s"], 609.0)
+
+
 if __name__ == "__main__":
     unittest.main()
