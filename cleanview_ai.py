@@ -954,15 +954,16 @@ LOOK = {
              "as \"open surgery with the inside of the body showing\" even if it is mostly "
              "blood and drapes. A stump where a limb was cut off counts as \"a severed or "
              "mangled body part\". A bruise, rash or red skin is not blood. Not blood either: a "
-             "dark red object, raw meat when cooking. " + MEDICAL_ASK,
+             "dark red object, raw meat being cut or cooked (a butcher chopping meat, a "
+             "kitchen, a deli counter). " + MEDICAL_ASK,
              {"type": "object", "properties": {
                  "see": {"type": "string"},
                  "visible": {"type": "array", "items": {"type": "string", "enum": GORE_SEEN}},
                  "medical": {"type": "boolean"}},
               "required": ["see", "visible", "medical"]}),
     "fight": ("Question: are people clearly fighting, hitting, shooting, or threatening someone "
-              "with a weapon? People talking, running, or a police officer simply holding a gun "
-              "at their side is NOT. If it is violent, is it a fight between people who can "
+              "with a weapon? People talking, running, a police officer simply holding a gun "
+              "at their side, or a butcher or cook chopping meat with a cleaver or knife is NOT. If it is violent, is it a fight between people who can "
               "fight back (\"combat\"), or done to someone helpless: torture, an execution, "
               "cruelty, abuse (\"helpless\")?",
               {"type": "object", "properties": {
@@ -1192,6 +1193,12 @@ LINE_TYPES = {
                "the past ('my girlfriend kicked me out'). NOT: married couples, dating, "
                "roommates, family, co-workers sharing a room for work"),
     "forensic": ("graphic talk about a body or a victim by a coroner, medical examiner, doctor or detective: wounds and injuries, blood, organs, cause or time of death, an autopsy or what was done to the body, and case talk about rape or sexual assault, sex offenders or sexual evidence (condoms, DNA). NOT: everyday medical talk with nothing graphic (a diagnosis, a prescription, 'he'll be fine', 'she's stable'), the people's own lines about their lives, a suspect's alibi"),
+    # 1.18.159, as CleanListen's "flirt"
+    "flirt": ("flirting: someone flirting with, hitting on, winking at, sweet-talking or making "
+              "a pass at someone, a pick-up line, a romantic compliment meant to win someone, "
+              "between any two people. NOT: a married couple's or a parent's affection, friendly "
+              "politeness, 'flirting with disaster' or 'with the idea', talk that's only sexual "
+              "(a separate choice)"),
     "crude": ("crude humor: jokes or talk about bodily functions, bathroom or toilet humor, "
               "gross-out jokes, crude jokes about body parts. NOT: ordinary jokes, sarcasm, "
               "plain insults"),
@@ -1251,6 +1258,7 @@ LINE_NAMES = {"sexref": "a sexual reference", "casual": "talk of sleeping around
               "samesex": "a same-sex romance", "oppsex": "an unmarried couple living or sleeping "
                                                          "together",
               "crude": "crude humor", "bullying": "bullying", "religion": "religious talk",
+              "flirt": "flirting",
               "forensic": "coroner or doctor talk",
               "disrespect": "disrespect or talking back to a parent",
               "christmas": "talk about Christmas", "halloween": "talk about Halloween",

@@ -1202,6 +1202,33 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (was 15), which ran right up to the edge. `test_side_fits.py` keeps every label in the left
   column inside its margin at every text size (here the old link only just fitted, so it
   checks against the margin, not the edge).
+- Religious content in parts and a Flirting box, as CleanListen and CleanRead have them
+  (1.18.159, 2026-11-21; the owner: "what happened to the religious filter options?", "there
+  should not be so much difference in all of them...I told you to match the filters of
+  CleanListen, as well as CleanListen should have all your filters"). "Religious content" has
+  three parts under it (`RELIGION_PARTS` in CleanView.pyw, greyed while it's unticked):
+  Preaching and Anger at God ticked, Prayers & verses not, for every age; the box itself stays
+  off for every age as before. A setting or scan from before the parts with religion ticked
+  meant all three (`one_holidays_box`, `engine.old_religion`); the box with no part ticked is
+  off (`full_opts`). `engine.religion_parts(o)`; `use_religion(o)` (in analyze, find_lines,
+  add_new_lessons, wanted_text) tells the AI on this PC, Claude/ChatGPT/Gemini, the final
+  review and the chat what it is for those parts (`religion_text`, as CleanListen's
+  religion_def; all three: the old "all religious conversations" text). The list
+  (`line_words(o)`, `list_hits(words=)`): the prayer and church words only with Prayers &
+  verses, `RELIGION_ANGER` with Anger at God (CleanListen's NO_GOD_PHRASES and blame words,
+  but God's name right beside the blame: "Oh God, I'm so mad" is a swear; not "lost my faith
+  in people"); preaching is left to the readers. Flirting (`flirt`, a dialogue kind, "Flirting"
+  on the review page): `LINE_WORDS["flirt"]` (flirting, hitting on me/her..., winked at,
+  pick-up lines, playing hard to get; not "flirting with disaster/the idea", not "check him
+  out"), the whole line; ticked for Young kids, Kids and Teens, not Adults, as CleanListen's.
+  Still CleanView's own: Slurs, Coroner talk apart from Medical, Drug talk and slang, loud
+  music (sent to CleanListen). `test_religion_parts.py`.
+  Also in 1.18.159, a butcher isn't violence (her Castle S2E2 report through Play, Adults, the AI
+  helper: 11:16-11:21 "graphic violence seen (hard to see...)", unticked; the owner: "yes, it
+  was a butcher chopping meat", Hal Ross at his shop): the closer look's gore question says raw
+  meat being cut or cooked (a butcher, a kitchen, a deli counter) isn't blood, its fight
+  question that a butcher or cook chopping with a cleaver or knife isn't threatening anyone,
+  and `PIC_RULES` that butchered or cooked meat isn't a match. `test_religion_parts.Butcher`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

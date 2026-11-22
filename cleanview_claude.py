@@ -451,6 +451,10 @@ TYPE_TEXT = {
     "oppsex": "an unmarried man and woman living or sleeping together, now or in the past "
               "('my girlfriend kicked me out', 'we're dividing the furniture'). Not: two "
               "co-workers sharing a motel room for work, dating, flirting",
+    "flirt": "flirting, between anyone: someone flirting with, hitting on, winking at, "
+             "sweet-talking or making a pass at someone, a pick-up line, a romantic compliment "
+             "meant to win someone; just those lines. Not: a married couple's or a parent's "
+             "affection, friendly politeness, 'flirting with disaster' or 'with the idea'",
     "crude": "crude humor: bathroom, bodily-function or gross-out jokes",
     "bullying": "bullying: mocking, taunting, demeaning someone or cruel name-calling, "
                 "including a villain's mocking song, an insult passed on ('she called "
@@ -1068,7 +1072,9 @@ PIC_RULES = (
     "Be accurate. Police or soldiers simply carrying guns, a gun only held or handled (not "
     "aimed at someone or fired), a hug, a peck on the cheek or forehead (a family goodbye), "
     "a hospital or crime-scene photo with no visible wounds, a foot chase, or a glass of "
-    "water, or a soda, coffee or juice (Forest Gump's Dr Pepper), are NOT matches. An evening gown or a formal dress is not immodest; rule the same "
+    "water, or a soda, coffee or juice (Forest Gump's Dr Pepper), or meat being butchered, "
+    "chopped or cooked (a butcher's shop, a kitchen, a deli counter; Castle S2E2's butcher), "
+    "are NOT matches. An evening gown or a formal dress is not immodest; rule the same "
     "outfit the same way all through the video. Nudity in a statue or painting is nudity in "
     "art: call it that in \"why\". "
     "Violence levels (pick the highest that's shown): \"violence\" = fighting, hitting, "

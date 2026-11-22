@@ -82,7 +82,7 @@ class StartPage(unittest.TestCase):
         o = self.app._current_opts()
         self.assertEqual((o["kiss_os"], o["kiss_ss"]), ("off", "off"))
         self.app.opts["kiss_os"].set("Cut passionate kisses")    # a menu counts as ticked
-        self.assertEqual(count.cget("text"), "1 of 5 on")
+        self.assertEqual(count.cget("text"), "1 of 6 on")      # Flirting since 1.18.159
 
     def test_folds_and_remembers(self):
         show = self.heads["Attitude"][3]

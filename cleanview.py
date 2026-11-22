@@ -56,7 +56,7 @@ CLOUD = ("claude", "chatgpt", "gemini")   # readers that use your Claude, ChatGP
 # candles and the two magic boxes are their own.
 HOLIDAYS = ("christmas", "halloween", "valentine", "easter", "stpatricks")
 MAGIC = ("darkmagic", "magic", "vampires")          # magic, and vampires and werewolves
-LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "crude", "bullying", "disrespect",
+LINE_KINDS = ("sexref", "casual", "samesex", "oppsex", "flirt", "crude", "bullying", "disrespect",
               "religion", "forensic") + HOLIDAYS + ("birthday",) + MAGIC
 # the lines between go too (fill_conversations). Not birthdays: only the candles count there.
 WHOLE_CONVERSATIONS = ("religion",) + HOLIDAYS + MAGIC
@@ -66,12 +66,14 @@ LIST_ONLY_KINDS = ("drugtalk",)
 DEFAULTS = {"nudity": True, "implied": False, "sex": True, "violence": True, "gore": True,
             "graphic": True, "disturbing": True, "medical": None,
             "kiss_os": "off", "kiss_ss": "off", "samesex": False, "casual": False,
-            "oppsex": False, "sexref": False, "immodest": False, "smoking": False,
+            "oppsex": False, "flirt": False, "sexref": False, "immodest": False, "smoking": False,
             "drinking": False, "drugs": False, "drugtalk": False, "crude": False,
             "bullying": False,
             "forensic": False,
             "disrespect": False,
-            "religion": False, "loudmusic": False, "christmas": False, "halloween": False,
+            "religion": False, "religion_preach": True, "religion_anger": True,
+            "religion_prayers": False,
+            "loudmusic": False, "christmas": False, "halloween": False,
             "birthday": False, "valentine": False, "easter": False, "stpatricks": False,
             "holidays": False, "darkmagic": False,
             "magic": False, "vampires": False, "gestures": False, "mywords": (), "ai": True,
@@ -92,12 +94,39 @@ def _lang_file(name):
 
 def full_opts(opts=None):
     o = dict(DEFAULTS)
-    o.update(opts or {})
+    o.update(old_religion(opts))
+    if o.get("religion") and not any(o.get("religion_" + p) for p in RELIGION_PARTS):
+        o["religion"] = False          # ticked with none of its parts: nothing to look for
     if o.get("holidays"):              # the one "Holidays" box: every holiday
         o.update(dict.fromkeys(HOLIDAYS, True))
     if o.get("medical") is None:       # settings from before the Medical box: as gore was
         o["medical"] = bool(o["gore"] or o["graphic"])
     return o
+
+
+# Religious content in parts, as CleanListen and CleanRead have it (1.18.159; the owner: "what
+# happened to the religious filter options?", "I told you to match the filters of CleanListen").
+# Preaching and anger at God are on when the box is ticked; prayers & verses is the old "all
+# religious conversations". A scan or settings from before the parts: religion ticked meant all
+# three (`religion_parts`, `old_religion`).
+RELIGION_PARTS = ("preach", "anger", "prayers")
+RELIGION_LABELS = {"preach": "Preaching", "anger": "Anger at God", "prayers": "Prayers & verses"}
+
+
+def old_religion(opts):
+    """Options from before the parts: "religion" ticked meant every part."""
+    o = dict(opts or {})
+    if o.get("religion") and not any("religion_" + p in o for p in RELIGION_PARTS):
+        o.update({"religion_" + p: True for p in RELIGION_PARTS})
+    return o
+
+
+def religion_parts(opts):
+    """The religion parts ticked (none when the box isn't)."""
+    o = full_opts(old_religion(opts))
+    if not o.get("religion"):
+        return set()
+    return {p for p in RELIGION_PARTS if o.get("religion_" + p)}
 
 
 def on_kinds(opts):
@@ -2582,6 +2611,15 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                            r"bapti[sz](e|ed|m)|church(es)?|synagogues?|mosques?|pastor|priests?|"
                            r"rabbis?|imams?|the lord|god bless|our father|holy spirit|"
                            r"born again|sunday school|bible study)\b", re.I),
+    # flirting (1.18.159, as CleanListen's): not "flirting with disaster / the idea", nor
+    # "check him out" (police talk)
+    "flirt": re.compile(r"\b(flirt(s|ed|ing)?(?! with (the |a )?(disaster|danger|death|idea|notion|"
+                        r"thought|bankruptcy|fame|trouble|madness|suicide|ruin|temptation|fate|"
+                        r"possibility)\b)|flirty|flirtatious(ly)?|flirtations?|coquettish(ly)?|"
+                        r"come-hither|pick-?up lines?|bedroom eyes|"
+                        r"hit(s|ting)? on (me|you|him|her|them|us)|"
+                        r"wink(s|ed|ing)? at (me|you|him|her|them|us)|"
+                        r"(make|makes|made|making) eyes at|play(s|ed|ing)? hard to get)\b", re.I),
     # not "elves", "stockings" or "make a wish": too often something else; not "Rudolph" alone
     # (a character "Rudolph Hill" in the owner's sentences), only the reindeer
     # not "Santa" in a place name or "Christmas Island" (the tester, That Thing You Do: "Santa
@@ -3007,10 +3045,46 @@ LINE_WORDS["drugtalk"] = Listed(re.compile(
 JOIN_NEXT_SECS = 2.0
 
 
-def list_hits(lines, kinds):
+# Anger at God, found by the list too (1.18.159, as CleanListen's NO_GOD_PHRASES and
+# blames_god, but only God's name right beside the blame: "Oh God, I'm so mad" is a swear)
+RELIGION_ANGER = re.compile(
+    r"\b(there is no god|there'?s no god|god is dead|god (doesn'?t|does not|don'?t) exist|"
+    r"no such thing as god|where was god|if there is a god|if there'?s a god|how could god|"
+    r"why would god|why did god|lost faith in god|g(ave|ive|iven) up on god|"
+    r"(lost|losing|lose) (my|her|his|their|your|our) faith(?! in (?!(god|the lord|jesus)\b))|"
+    r"(don'?t|doesn'?t|do not|does not|never|didn'?t) believe in god|"
+    r"(hate|hates|hated|blame|blames|blamed|blaming|curse|curses|cursed|cursing) "
+    r"(god|the lord|jesus|heaven)|"
+    r"god (has )?(abandoned|forsaken|forsook) (me|us|you|him|her|them)|god doesn'?t care|"
+    r"god (hates|hated) (me|us|you|him|her|them))\b", re.I)
+
+
+def religion_words(opts):
+    """The list for the religion parts ticked: prayers & verses the prayer and church words,
+    anger at God its phrases; preaching is left to the readers. None when neither is ticked."""
+    parts = religion_parts(opts)
+    pats = ([LINE_WORDS["religion"].pattern] if "prayers" in parts else []) + (
+        [RELIGION_ANGER.pattern] if "anger" in parts else [])
+    return re.compile("|".join(f"(?:{p})" for p in pats), re.I) if pats else None
+
+
+def line_words(opts):
+    """LINE_WORDS with religion's list for the parts ticked (none: left out)."""
+    d = dict(LINE_WORDS)
+    r = religion_words(opts)
+    if r is None:
+        d.pop("religion", None)
+    else:
+        d["religion"] = r
+    return d
+
+
+def list_hits(lines, kinds, words=None):
     """{line number: {kind: [the words found in that line]}} by the short phrase lists. A find
     that starts in one line and runs into the next is found too, and each line gets its part
     of it (a find starting in the next line is that line's own)."""
+    words = LINE_WORDS if words is None else words
+    kinds = [k for k in kinds if k in words]
     out = {}
     for i, l in enumerate(lines):
         t = l["text"]
@@ -3020,7 +3094,7 @@ def list_hits(lines, kinds):
         text = t + " " + nxt["text"] if join else t
         cut = len(t)
         for k in kinds:
-            for m in LINE_WORDS[k].finditer(text):
+            for m in words[k].finditer(text):
                 if m.start() >= cut:
                     continue                    # the next line's own: found there
                 if m.end() <= cut:
@@ -3033,6 +3107,7 @@ def list_hits(lines, kinds):
                     out.setdefault(i + 1, {}).setdefault(k, []).append(rest)
     return out
 LINE_LABEL = {"crude": "Crude humor", "bullying": "Bullying", "religion": "Religious talk",
+              "flirt": "Flirting",
               "disrespect": "Disrespect",
               "christmas": "Christmas", "halloween": "Halloween", "birthday": "Birthday candles",
               "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
@@ -3147,6 +3222,8 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "religion": "all religious conversations: talk about God, faith, prayer, church, the "
                         "Bible, heaven, or any religion's beliefs and practices, including "
                         "sincere prayer (God's name said as a swear is a separate choice)",
+            "flirt": "flirting, between anyone: someone flirting with, hitting on, winking at, "
+                     "sweet-talking or making eyes at someone, pick-up lines",
             "christmas": "Christmas, in talk or on screen: Santa, Christmas trees, decorations, "
                          "presents, carols, the holiday itself, Advent, and the nativity story "
                          "or a nativity play (Bethlehem, the manger, Mary and Joseph, baby "
@@ -3190,8 +3267,60 @@ def sound_cues(cues, limit=150):
     return "\n".join(out[:limit])
 
 
+# What the readers are told religious content is, for the parts ticked (1.18.159). All three:
+# what it always was ("all religious conversations"); otherwise as CleanListen's religion_def.
+RELIGION_PART_TEXT = {
+    "preach": "someone explaining, preaching, teaching or debating religious beliefs of any faith "
+              "(a sermon, scripture quoted as part of it, statements of belief or testimony "
+              "such as 'there is a God, and He listens')",
+    "anger": "someone angry with, blaming, mocking, hating or denying God, doubting whether God "
+             "exists or cares, or losing their faith",
+    "prayers": "a prayer, a Bible verse or hymn, thanking or praising God, a blessing, or other "
+               "sincere talk about God, faith, church or heaven",
+}
+RELIGION_OFF_TEXT = {
+    "preach": "explaining, preaching or debating beliefs is NOT this",
+    "anger": "doubting, being angry with or denying God is NOT this",
+    "prayers": "praying, a short prayer, saying grace, thanking God, a Bible verse said in "
+               "passing, believing in God, going to church, or a priest or pastor in the story "
+               "is NOT this",
+}
+RELIGION_NOT = ("God's or Jesus' name said as a swear or exclamation ('thank God', 'dear God', "
+                "'oh, hallelujah', 'go to hell'), idioms ('a match made in heaven', 'get to the "
+                "church on time'), 'bless you' after a sneeze, a passing 'God bless you' or "
+                "'Merry Christmas', or a character's name is NOT this either. Any religion "
+                "counts, including voodoo or Vodun rituals")
+_RELIGION_ALL = None
+
+
+def religion_text(parts):
+    """The definition of religious content for these parts (None: all three, as before)."""
+    parts = set(parts)
+    if not parts or parts >= set(RELIGION_PARTS):
+        return None
+    on = "; or ".join(RELIGION_PART_TEXT[p] for p in RELIGION_PARTS if p in parts)
+    off = "; ".join(RELIGION_OFF_TEXT[p] for p in RELIGION_PARTS if p not in parts)
+    return f"religious content, only these kinds: {on}. Not: {off}. {RELIGION_NOT}"
+
+
+def use_religion(opts):
+    """Tell every reader (the AI on this PC, Claude/ChatGPT/Gemini, the final review and the
+    chat) what religious content is for the parts ticked in opts."""
+    global _RELIGION_ALL
+    if _RELIGION_ALL is None:
+        _RELIGION_ALL = (OPT_TEXT["religion"], ai.LINE_TYPES["religion"],
+                         cc.TYPE_TEXT["religion"])
+    t = religion_text(religion_parts(opts))
+    if t is None:
+        OPT_TEXT["religion"], ai.LINE_TYPES["religion"], cc.TYPE_TEXT["religion"] = _RELIGION_ALL
+    else:
+        OPT_TEXT["religion"] = ai.LINE_TYPES["religion"] = t
+        cc.TYPE_TEXT["religion"] = t + "; the whole conversation, not just the line that names it"
+
+
 def wanted_text(o, groups):
     o = full_opts(o)
+    use_religion(o)
     out = [GROUP_TEXT[g] for g in groups if g in GROUP_TEXT]
     if my_words(o):
         out.append("these words and phrases from their own list: " +
@@ -3749,8 +3878,9 @@ def add_new_lessons(st, reused=False):
                                                     l.get("text")) for l in line_mutes}
     fo = full_opts(o)
     added = []
+    use_religion(fo)
     found = list_hits(lines, [k for k in LINE_KINDS + LIST_ONLY_KINDS
-                              if fo.get(k) and k in LINE_WORDS])
+                              if fo.get(k) and k in LINE_WORDS], line_words(fo))
     for i, l in enumerate(lines):
         if i in taken or (round(l["s"], 2), l["text"]) in taken:
             continue
@@ -4816,6 +4946,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
     """unread: (first, end) line numbers of parts Claude couldn't read: the AI on this PC
     reads just those (the word lists always read everything). people: who's a man and who's
     a woman ({name: "man"}), told to the AI on this PC beside the lines it reads."""
+    use_religion(o)
     wanted = [k for k in LINE_KINDS if o[k]]
     by_list = wanted + [k for k in LIST_ONLY_KINDS if o.get(k)]     # (no AI reads these)
     if not by_list or not lines:
@@ -4864,7 +4995,7 @@ def find_lines(lines, o, have_ai, progress=None, cancel=None, genders=None, clau
             except Exception:
                 pass
     listed = {}                 # found only by the word list: {line: {kind: [the words]}}
-    for i, kinds_found in list_hits(lines, by_list).items():
+    for i, kinds_found in list_hits(lines, by_list, line_words(o)).items():
         for k, hits in kinds_found.items():
             if k not in found.get(i, set()):
                 listed.setdefault(i, {})[k] = hits
@@ -5324,6 +5455,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     closer look made its checks time out and be done again (16 minutes instead of 12); the
     picture scan during the listening was no faster (25 s slower)."""
     o = full_opts(opts)
+    use_religion(o)                     # what religious content is, for the parts ticked
     auto = o.get("language") == cvlang.AUTO        # (English until it's worked out, below)
     lang = cl.use_language(o.get("language"))      # English, or another one's word lists
     for k_old, k_new in (("find_nudity", "nudity"), ("find_sex", "sex"), ("find_violence", "violence")):

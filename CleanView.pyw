@@ -120,9 +120,10 @@ DRAG_OFF_MS = 150
 FILTER_KEYS = ["swearing", "slurs", "mild", "deity", "minced", "samesexwords", "rude", "sexref", "crude",
                "forensic",
                "bullying", "disrespect", "nudity", "implied", "sex", "immodest", "casual", "kiss_os", "kiss_ss",
-               "samesex", "oppsex", "violence", "graphic", "gore", "medical", "disturbing",
+               "samesex", "oppsex", "flirt", "violence", "graphic", "gore", "medical", "disturbing",
                "smoking",
-               "drinking", "drugs", "drugtalk", "religion", "loudmusic", "holidays",
+               "drinking", "drugs", "drugtalk", "religion", "religion_preach", "religion_anger",
+               "religion_prayers", "loudmusic", "holidays",
                "birthday",
                "gestures", "darkmagic", "magic", "vampires"]
 # "holidays" is one box for Christmas, Halloween, Valentine's, Easter and St. Patrick's Day
@@ -132,7 +133,13 @@ OLD_HOLIDAY_BOXES = ("christmas", "halloween", "valentine", "easter")
 MAGIC = ("darkmagic", "magic", "vampires")
 _ALL = {k: True for k in FILTER_KEYS}
 _ALL.update(kiss_os="all", kiss_ss="all", religion=False,     # these two: only if she ticks them
-            loudmusic=False)
+            loudmusic=False, religion_prayers=False)
+# religion's parts (1.18.159, as CleanListen's): under the box, which turns them on; preaching
+# and anger at God ticked, prayers & verses not, for every age
+RELIGION_PARTS = (("religion_preach", "Preaching  (explaining, teaching or debating beliefs)", True),
+                  ("religion_anger", "Anger at God  (blaming, hating or denying God)", True),
+                  ("religion_prayers", "Prayers & verses  (prayers, Bible verses, hymns, church "
+                                       "talk)", False))
 # holidays and magic are taken out for the kids' ages only
 NO_HOLIDAYS = dict.fromkeys(HOLIDAYS + MAGIC, False)
 PRESETS = {
@@ -145,10 +152,11 @@ PRESETS = {
                    forensic=False,
                    nudity=True,
                    implied=False, sex=True, immodest=False, casual=True, kiss_os="passionate",
-                   kiss_ss="passionate", samesex=False, oppsex=False, violence=True,
+                   kiss_ss="passionate", samesex=False, oppsex=False, flirt=False, violence=True,
                    graphic=True, gore=True, medical=False, disturbing=True, smoking=False,
                    drinking=False,
-                   drugs=True, drugtalk=True, religion=False, loudmusic=False,
+                   drugs=True, drugtalk=True, religion=False, religion_preach=True,
+                   religion_anger=True, religion_prayers=False, loudmusic=False,
                    gestures=True,
                    **NO_HOLIDAYS),
 }
@@ -163,6 +171,9 @@ def one_holidays_box(ticks):
         ticks["holidays"] = any(old)
     if "drugs" in ticks and "drugtalk" not in ticks:
         ticks["drugtalk"] = ticks["drugs"]
+    # from before religion's parts (1.18.159): the one box meant all religious conversations
+    if ticks.get("religion") and not any(k in ticks for k, _, _ in RELIGION_PARTS):
+        ticks.update({k: True for k, _, _ in RELIGION_PARTS})
     return ticks
 
 
@@ -1439,14 +1450,39 @@ class App(tk.Tk):
         shows = {}
 
         def checks(grid, items, cols=2):
-            out = []
-            for n, (key, label, on) in enumerate(items):
+            out, below = [], 0
+            for n, item in enumerate(items):
+                key, label, on = item[:3]
                 v = tk.BooleanVar(value=cur.get(key, on))
                 self.opts[key] = v
                 ttk.Checkbutton(grid, text=label, variable=v).grid(
-                    row=n // cols, column=n % cols, sticky="w", padx=(0, X(26)), pady=X(2))
+                    row=below + n // cols, column=n % cols, sticky="w", padx=(0, X(26)),
+                    pady=X(2))
                 out.append(v)
+                if len(item) > 3:           # its parts, under it (religion, 1.18.159)
+                    below += 1
+                    sub = tk.Frame(grid, bg=CARD)
+                    sub.grid(row=below + n // cols, column=n % cols, sticky="w",
+                             padx=(X(26), 0), pady=(0, X(4)))
+                    parts_of(sub, v, item[3])
             return out
+
+        def parts_of(sub, box, parts):
+            """The part boxes under a box; greyed while it's unticked."""
+            buttons = []
+            for pkey, plabel, pon in parts:
+                pv = tk.BooleanVar(value=cur.get(pkey, pon))
+                self.opts[pkey] = pv
+                b = ttk.Checkbutton(sub, text=plabel, variable=pv)
+                b.pack(anchor="w", pady=X(1))
+                buttons.append(b)
+
+            def grey(*_):
+                for b in buttons:
+                    if b.winfo_exists():
+                        b.state(["!disabled"] if box.get() else ["disabled"])
+            box.trace_add("write", grey)
+            grey()
 
         def kiss_menus(grid):
             out = []
@@ -1594,7 +1630,9 @@ class App(tk.Tk):
         fold_group("Romance and relationships", "heart", [
             ("casual", "Sleeping around  (casual sex, affairs)", True),
             ("oppsex", "Unmarried couples living or sleeping together", False),
-            ("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False)],
+            ("samesex", "Same-sex relationships  (flirting, talk and intimate scenes)", False),
+            # as CleanListen's (1.18.159; the owner: "match the filters of CleanListen")
+            ("flirt", "Flirting  (hitting on someone, winking, pick-up lines)", False)],
             menus=True)
         fold_group("Violence", "warning", [
             ("violence", "Violence  (fights, shootings, attacks)", True),
@@ -1619,8 +1657,9 @@ class App(tk.Tk):
             ("drugtalk", "Drug talk and slang  (stoned, junkie, crackhead, shrooms, "
                          "getting high…)", True)], extra=drug_words)
         fold_group("Faith, holidays and magic", "star", [
-            ("religion", "Religious conversations  (prayer, church, faith, the Bible…)",
-             False),
+            # in parts, as CleanListen's (1.18.159; the owner: "what happened to the
+            # religious filter options?")
+            ("religion", "Religious content  (choose which kinds:)", False, RELIGION_PARTS),
             ("holidays", "Holidays  (Christmas, Halloween, Easter, Valentine's Day, "
                          "St. Patrick's Day)", False),
             ("birthday", "Candles on a birthday cake  (parties and cake are fine)", False),
@@ -2272,7 +2311,8 @@ class App(tk.Tk):
         self.scan_opts = {k: v for k, v in o.items() if k not in word_groups}
         engine.cl.use_language(o.get("language"))      # the word lists the review uses too
         # (only what's to be removed counts: not "who reads the dialogue" and the like)
-        if not any(o.get(k) not in (False, "off", None) for k in FILTER_KEYS) and \
+        if not any(o.get(k) not in (False, "off", None) for k in FILTER_KEYS
+                   if not k.startswith("religion_")) and \
                 not o.get("mywords"):
             messagebox.showinfo("CleanView Save", "Tick at least one thing to remove, or type your "
                                 "own words to mute.")
