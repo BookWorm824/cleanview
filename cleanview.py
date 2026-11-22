@@ -1606,9 +1606,10 @@ def load_tagger(threads=None):
 
 
 def sound_scan(path, info, tagger, progress=None, cancel=None):
-    """Probabilities of the tracked sounds in 3-second windows every 1.5 s.
-    Returns {"t": [...window starts], "p": [[...per TRACKED label]]}."""
-    ts, rows = [], []
+    """Probabilities of the tracked sounds in 3-second windows every 1.5 s, and each window's
+    loudness in dB (1.18.160, for "loud" music).
+    Returns {"t": [...window starts], "p": [[...per TRACKED label]], "db": [...]}."""
+    ts, rows, db = [], [], []
     for offset, seg, last in _stream_chunks(_audio_cmd(path, info, False), SOUND_WIN,
                                             SOUND_WIN - SOUND_HOP, cancel):
         if len(seg) < SR * 0.5:
@@ -1618,9 +1619,17 @@ def sound_scan(path, info, tagger, progress=None, cancel=None):
         got = {e.name: e.prob for e in tagger.compute(s, top_k=527)}
         ts.append(round(offset, 2))
         rows.append([round(float(got.get(k, 0.0)), 3) for k in TRACKED])
+        db.append(window_db(seg))
         if progress:
             progress(offset + len(seg) / SR)
-    return {"labels": TRACKED, "t": ts, "p": rows}
+    return {"labels": TRACKED, "t": ts, "p": rows, "db": db}
+
+
+def window_db(seg):
+    """How loud a stretch of sound is, in dB (0 the loudest)."""
+    import numpy as np
+    seg = np.asarray(seg, dtype=np.float32)
+    return round(float(20 * np.log10(np.sqrt(np.mean(seg * seg)) + 1e-9)), 1) if len(seg) else -99.0
 
 
 # ---------------------------------------------------------------------------
@@ -2117,24 +2126,76 @@ MUSIC_SHORTEST = 4.0   # shorter bits of music aren't worth turning down
 MUSIC_TAGS = re.compile(r"\b(rock|metal|punk|grunge|rap|hip[- ]?hop)\b", re.I)
 
 
+# Other loud music is turned down too (1.18.160; the owner: "its not catching all the rock and
+# rap music,...so I think it has a different opinion on what bad music is - so lets make rap and
+# hard rock muisc barely aduible, and the rest of the loud music 25% vilume"). Loud: within
+# LOUD_BELOW dB of the talking or louder (the median of windows that are clearly talk). On four
+# of her The Resident episodes music with nobody talking was about as loud as the talking (its
+# median 2 dB under to 2 dB over), so this is about three in four such windows; quieter music
+# under a scene is left alone. Needs the sound scan's loudness ("db"): without it only hard
+# music is found.
+LOUD_BELOW = 3.0
+TALK_SURE, TALK_MUSIC_MOST = 0.6, 0.3      # a window that's clearly talk, for the talking's level
+TALK_LEAST = 20                            # windows of clear talk needed to judge loudness
+
+
+def talking_level(snd):
+    """The talking's loudness in this video (dB), or None if it can't be told."""
+    db = (snd or {}).get("db")
+    if not db or len(db) != len(snd.get("p") or []):
+        return None
+    lab = snd["labels"]
+    if "Speech" not in lab or "Music" not in lab:
+        return None
+    sp, mu = lab.index("Speech"), lab.index("Music")
+    talk = sorted(d for d, r in zip(db, snd["p"]) if r[sp] >= TALK_SURE and r[mu] < TALK_MUSIC_MOST)
+    return talk[len(talk) // 2] if len(talk) >= TALK_LEAST else None
+
+
+def _music_pieces(music, talk, dur):
+    """(start, end, windows inside) of the music stretches with nobody talking."""
+    out = []
+    for s, e in _merge((a, b + 1.5) for a, b, _, _ in music):    # join music a moment apart
+        e = min(e - 1.5, dur)
+        inside = [x for x in music if x[0] < e and x[1] > s]
+        if sum(x[3] for x in inside) < MUSIC_WINDOWS:
+            continue                      # one or two windows: not sure enough
+        pieces, at = [], s
+        for a, b in _merge((a, b) for a, b in talk if b > s and a < e):
+            if a > at:
+                pieces.append((at, a))
+            at = max(at, b)
+        if at < e:
+            pieces.append((at, e))
+        out += [(a, b, inside) for a, b in pieces if b - a >= MUSIC_SHORTEST]
+    return out
+
+
 def loud_music(snd, asr, cues, dur):
-    """Stretches of hard rock, metal or rap music with nobody talking, to turn down:
-    [{"s", "e", "kind", "why", "lower": True}]. Talking is what the speech recognition
+    """Stretches of music with nobody talking, to turn down: hard rock, metal or rap to
+    barely heard (`HARD_MUSIC_LEVEL`), other loud music to a quarter (`OTHER_MUSIC_LEVEL`):
+    [{"s", "e", "kind", "why", "lower": True, "level"}]. Talking is what the speech recognition
     heard, except where the sound checker hears singing or hardly hears speech (that's
     the lyrics: in the Castle song the words came through with speech at 0.05-0.12), and
     subtitle lines that are said rather than sung (sung ones have a note sign). Subtitles
     that describe the music ("[heavy metal playing]") count as music too."""
     music, sung = [], []        # music: (start, end, "rock"/"rap", how many windows)
+    other = []                  # other loud music, the same way
+    level = talking_level(snd)
+    db = (snd or {}).get("db") or []
     if snd and snd.get("t") and all(k in snd["labels"] for k in MUSIC_SOUNDS):
         lab = snd["labels"]
         rock = [lab.index(k) for k in ROCK_SOUNDS]
         rap = [lab.index(k) for k in RAP_SOUNDS]
         sing = [lab.index(k) for k in LYRIC_SOUNDS]
         speech, mus = lab.index("Speech"), lab.index("Music")
-        for t, row in zip(snd["t"], snd["p"]):
+        for n, (t, row) in enumerate(zip(snd["t"], snd["p"])):
             r_, p_ = max(row[i] for i in rock), max(row[i] for i in rap)
             if (r_ >= ROCK_MIN or p_ >= RAP_MIN) and row[mus] >= MUSIC_SURE:
                 music.append((t, t + SOUND_WIN, "rap" if p_ >= RAP_MIN and p_ > r_ else "rock", 1))
+            elif (level is not None and row[mus] >= MUSIC_SURE and n < len(db) and
+                  db[n] >= level - LOUD_BELOW):
+                other.append((t, t + SOUND_WIN, "other", 1))
             sung.append((t, t + SOUND_WIN,
                          row[speech] < SPEECH_MIN or max(row[i] for i in sing) >= SPEECH_MIN))
     talk = []
@@ -2153,25 +2214,25 @@ def loud_music(snd, asr, cues, dur):
         if not (over and all(over)):
             talk.append((s - 0.4, e + 0.4))
     out = []
-    for s, e in _merge((a, b + 1.5) for a, b, _, _ in music):    # join music a moment apart
-        e = min(e - 1.5, dur)
-        inside = [x for x in music if x[0] < e and x[1] > s]
-        if sum(x[3] for x in inside) < MUSIC_WINDOWS:
-            continue                      # one or two windows: not sure enough
-        pieces, at = [], s
-        for a, b in _merge((a, b) for a, b in talk if b > s and a < e):
-            if a > at:
-                pieces.append((at, a))
-            at = max(at, b)
-        if at < e:
-            pieces.append((at, e))
-        rap_secs = sum(min(e, y) - max(s, x) for x, y, k, _ in inside if k == "rap")
-        all_secs = sum(min(e, y) - max(s, x) for x, y, _, _ in inside)
+    for a, b, inside in _music_pieces(music, talk, dur):
+        rap_secs = sum(min(b, y) - max(a, x) for x, y, k, _ in inside if k == "rap")
+        all_secs = sum(min(b, y) - max(a, x) for x, y, _, _ in inside)
         kind = "Rap music" if rap_secs > all_secs / 2 else "Rock or metal music"
-        for a, b in pieces:
-            if b - a >= MUSIC_SHORTEST:
-                out.append({"id": len(out) + 1, "s": round(a, 2), "e": round(b, 2), "kind": kind,
-                            "why": "loud " + kind.lower() + " with nobody talking", "lower": True})
+        out.append({"s": round(a, 2), "e": round(b, 2), "kind": kind,
+                    "why": "loud " + kind.lower() + " with nobody talking", "lower": True,
+                    "level": HARD_MUSIC_LEVEL})
+    hard = [(q["s"], q["e"]) for q in out]
+    for a, b, _ in _music_pieces(music + other, talk, dur):
+        at = a
+        for x, y in sorted(h for h in hard if h[1] > a and h[0] < b) + [(b, b)]:
+            if x - at >= MUSIC_SHORTEST:
+                out.append({"s": round(at, 2), "e": round(x, 2), "kind": "Loud music",
+                            "why": "loud music with nobody talking", "lower": True,
+                            "level": OTHER_MUSIC_LEVEL})
+            at = max(at, y)
+    out.sort(key=lambda q: q["s"])
+    for n, q in enumerate(out):
+        q["id"] = n + 1
     return out
 
 
@@ -5554,8 +5615,10 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if nd["sound"]:
         if sfile.exists():
             snd = json.loads(sfile.read_text())
-            if o["loudmusic"] and not all(k in snd.get("labels", []) for k in MUSIC_SOUNDS):
-                snd = None           # saved before CleanView listened for music: again
+            if o["loudmusic"] and (not all(k in snd.get("labels", []) for k in MUSIC_SOUNDS)
+                                   or "db" not in snd):
+                snd = None           # saved before CleanView listened for music, or before
+                                     # it measured how loud (1.18.160): again
             elif (o.get("violence") and
                   not all(k in snd.get("labels", []) for k in LOOK_ALIKE_SOUNDS)):
                 snd = None           # saved before it told doors and typewriters from gunfire
@@ -6134,9 +6197,11 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
 
     quiet = loud_music(snd, asr, cues, dur) if o["loudmusic"] else []
     if o["loudmusic"]:
-        notes.append(f"Loud music: {len(quiet)} stretch(es) of hard rock, metal or rap with "
-                     "nobody talking will be turned down." if quiet else
-                     "Loud music: no hard rock, metal or rap with nobody talking was found.")
+        hard_n = sum(1 for q in quiet if q.get("level") != OTHER_MUSIC_LEVEL)
+        notes.append(f"Loud music: {hard_n} stretch(es) of hard rock, metal or rap with nobody "
+                     f"talking will be turned down until barely heard, and "
+                     f"{len(quiet) - hard_n} of other loud music to a quarter." if quiet else
+                     "Loud music: no loud music with nobody talking was found.")
     st = {"path": path, "info": info, "groups": list(groups), "mutes": mutes, "scenes": scenes,
           "lines": line_mutes, "cues": cues, "show": key, "quiet": quiet,
           "dialogue": [{"s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
@@ -6363,7 +6428,12 @@ def _remove(path):
 # Turned-down music plays at a tenth of its volume (20 dB quieter). It was a quarter (12 dB)
 # until 1.18.99 (the owner, 2026-11-14: "on the reducing loud music - that needs to come down
 # more").
-MUSIC_LEVEL = 0.1
+# 1.18.160 (the owner: "lets make rap and hard rock muisc barely aduible, and the rest of the
+# loud music 25% vilume"): hard rock, metal and rap barely heard (30 dB quieter), other loud
+# music a quarter (12 dB). A stretch found before has no "level": it was hard music.
+HARD_MUSIC_LEVEL = 0.03
+OTHER_MUSIC_LEVEL = 0.25
+MUSIC_LEVEL = HARD_MUSIC_LEVEL
 
 
 def _quieter(rs, level=MUSIC_LEVEL, ramp=0.5):
@@ -6728,9 +6798,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
 
     a = info["audio"]
     afilt = ["aresample"]   # copes with files whose speaker layout changes mid-stream
-    quiet_rs = _merge((max(0.0, q["s"]), min(dur, q["e"])) for q in quiet if q["e"] > q["s"])
-    for chunk in _chunks(quiet_rs):   # (they don't overlap, so one after another is the same)
-        afilt.append(f"volume=volume='{_quieter(chunk)}':eval=frame")
+    for lvl in sorted({q.get("level", HARD_MUSIC_LEVEL) for q in quiet}):
+        quiet_rs = _merge((max(0.0, q["s"]), min(dur, q["e"])) for q in quiet
+                          if q["e"] > q["s"] and q.get("level", HARD_MUSIC_LEVEL) == lvl)
+        for chunk in _chunks(quiet_rs):  # (they don't overlap, so one after another is the same)
+            afilt.append(f"volume=volume='{_quieter(chunk, lvl)}':eval=frame")
     afilt += _mute_filters(mute_rs, off)
     if cut_rs:
         afilt += _cut_filters(cut_rs, off)
@@ -6950,7 +7022,9 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     events += [(l["s"], "muted line  (" + ", ".join(LINE_LABEL.get(t, t) for t in l["types"]) + ")")
                for l in lines]
     events += [(q["s"], f"turned down  {q.get('kind', 'loud music').lower()} for "
-                        f"{q['e'] - q['s']:.0f} seconds") for q in quiet]
+                        f"{q['e'] - q['s']:.0f} seconds" +
+                        ("  (to a quarter)" if q.get("level") == OTHER_MUSIC_LEVEL else
+                         "  (barely heard)")) for q in quiet]
     events += [(c["s"], f"CUT {c['e'] - c['s']:.0f} seconds  "
                         f"{' + '.join(plain_ai(k) for k in c.get('kind') or ['scene'])}"
                         f"  ({c.get('why', '')})") for c in cuts]

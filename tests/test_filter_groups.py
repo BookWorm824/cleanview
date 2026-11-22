@@ -165,6 +165,16 @@ class FilterGroups(unittest.TestCase):
         self.assertEqual(got, {("deity", False), ("mild", True), ("strong", True)})
         self.assertEqual(sum(1 for v, _, m in self.app.word_vars if m["cat"] == "deity"), 6)
 
+    def test_by_filter_scrolls(self):
+        """Inside the scrolling list, not above it (1.18.160; the owner, with 13 videos: "it
+        stays with you even when you scroll, so it makes it very hard to see")."""
+        a, b = self.review(), self.review()
+        b["path"] = b["path"].replace(".mp4", " 2.mp4").replace(".mkv", " 2.mkv")
+        self.open([a, b])
+        row = self.app._by_filter
+        self.assertIs(row.master, self.app._found_inner)
+        self.assertIn("Every video, by filter:", [w.cget("text") for w in every(row, tk.Label)])
+
     def test_no_every_video_row_for_one(self):
         self.open([self.review()])
         self.assertNotIn("Every video, by filter:",

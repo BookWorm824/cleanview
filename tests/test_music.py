@@ -39,6 +39,61 @@ def words(*times):
     return [["word", t, t + 0.3] for t in times]
 
 
+POP = {"Pop music": 0.6, "Music": 0.9, "Speech": 0.05}
+
+
+def with_db(snd, loud_spans, talk=-28.0, quiet=-45.0):
+    """Loudness for each window: the talking at `talk`, music in loud_spans (start, end, dB)."""
+    db = []
+    for t in snd["t"]:
+        d = talk
+        for a, b, x in loud_spans:
+            if a <= t < b:
+                d = x
+        db.append(d)
+    snd["db"] = db
+    return snd
+
+
+class OtherLoudMusic(unittest.TestCase):
+    """1.18.160 (the owner: "lets make rap and hard rock muisc barely aduible, and the rest of
+    the loud music 25% vilume")."""
+
+    def test_loud_other_music_to_a_quarter(self):
+        snd = with_db(heard([(10, 25, POP)]), [(10, 25, -27.0)])
+        got = engine.loud_music(snd, words(5, 40), [], 60)
+        self.assertEqual([(g["kind"], g["level"]) for g in got],
+                         [("Loud music", engine.OTHER_MUSIC_LEVEL)])
+        self.assertEqual(engine.OTHER_MUSIC_LEVEL, 0.25)
+
+    def test_quiet_music_under_a_scene_left_alone(self):
+        snd = with_db(heard([(10, 25, POP)]), [(10, 25, -40.0)])
+        self.assertEqual(engine.loud_music(snd, words(5, 40), [], 60), [])
+
+    def test_hard_music_barely_heard_whatever_its_loudness(self):
+        snd = with_db(heard([(10, 25, ROCK)]), [(10, 25, -40.0)])
+        got = engine.loud_music(snd, words(5, 40), [], 60)
+        self.assertEqual([(g["kind"], g["level"]) for g in got],
+                         [("Rock or metal music", engine.HARD_MUSIC_LEVEL)])
+        self.assertEqual(engine.HARD_MUSIC_LEVEL, 0.03)
+
+    def test_hard_and_other_side_by_side(self):
+        snd = with_db(heard([(10, 25, ROCK), (25, 45, POP)], 90), [(10, 45, -26.0)])
+        got = engine.loud_music(snd, words(5, 85), [], 90)
+        self.assertEqual([g["kind"] for g in got], ["Rock or metal music", "Loud music"])
+        self.assertLessEqual(got[0]["e"], got[1]["s"])
+        self.assertEqual([g["id"] for g in got], [1, 2])
+
+    def test_talking_level(self):
+        snd = with_db(heard([(10, 25, POP)]), [])
+        self.assertEqual(engine.talking_level(snd), -28.0)
+        self.assertIsNone(engine.talking_level(heard([])))
+
+    def test_sound_scan_measures_loudness(self):
+        import numpy as np
+        self.assertAlmostEqual(engine.window_db(np.full(1600, 0.1, np.float32)), -20.0, delta=0.1)
+
+
 class FindingIt(unittest.TestCase):
 
     def test_rock_with_nobody_talking(self):
@@ -70,7 +125,9 @@ class FindingIt(unittest.TestCase):
     def test_not_from_a_blip(self):
         self.assertEqual(engine.loud_music(heard([(10, 12, ROCK)]), [], [], 60), [])
 
-    def test_quiet_rock_or_other_music_left_alone(self):
+    def test_without_loudness_only_hard_music(self):
+        """A sound scan with no loudness ("db", before 1.18.160): other music can't be told
+        loud, so it's left alone (the scan is listened to again when Loud music is ticked)."""
         weak = {"Rock music": 0.08, "Music": 0.7, "Speech": 0.05}
         pop = {"Pop music": 0.6, "Music": 0.9, "Speech": 0.05}
         self.assertEqual(engine.loud_music(heard([(10, 25, weak)]), [], [], 60), [])
@@ -109,15 +166,17 @@ class TurningItDown(unittest.TestCase):
     def setUpClass(cls):
         cls.src = support.SANDBOX / "loud music.mkv"
         subprocess.run([support.FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i",
-                        "testsrc=size=160x120:rate=25:duration=8", "-f", "lavfi", "-i",
-                        "sine=frequency=440:duration=8:sample_rate=48000", "-c:v", "mpeg4",
+                        "testsrc=size=160x120:rate=25:duration=11", "-f", "lavfi", "-i",
+                        "sine=frequency=440:duration=11:sample_rate=48000", "-c:v", "mpeg4",
                         "-c:a", "pcm_s16le", str(cls.src)], check=True, capture_output=True)
         work = Path(tempfile.mkdtemp(dir=support.SANDBOX))
         info = engine.probe(cls.src)
         st = {"path": str(cls.src), "info": info, "duration": info["duration"], "groups": [],
               "mutes": [], "scenes": [], "lines": [], "cues": [], "notes": [],
               "quiet": [{"s": 2.0, "e": 6.0, "kind": "Rock or metal music", "lower": True},
-                        {"s": 6.5, "e": 7.5, "kind": "Rap music", "lower": False}]}
+                        {"s": 6.5, "e": 7.5, "kind": "Rap music", "lower": False},
+                        {"s": 8.0, "e": 10.0, "kind": "Loud music", "lower": True,
+                         "level": engine.OTHER_MUSIC_LEVEL}]}
         (work / "analysis.json").write_text(json.dumps(st))
         mute = [{"s": 4.0, "e": 4.5, "word": "d**n", "raw": "damn", "cat": "mild", "src": "audio"}]
         res = engine.render(work, work / "Clean", [], encoders=[engine.ENCODERS[-1]], lines=[],
@@ -132,13 +191,18 @@ class TurningItDown(unittest.TestCase):
         seg = self.sound[int(a * SR):int(b * SR)]
         return float(np.sqrt(np.mean(seg ** 2)))
 
-    def test_turned_down_to_a_tenth(self):
-        # a tenth since 1.18.99 (a quarter before; the owner: "that needs to come down more")
-        self.assertEqual(engine.MUSIC_LEVEL, 0.1)
+    def test_hard_music_barely_heard(self):
+        # a tenth since 1.18.99, barely heard since 1.18.160 (a stretch with no "level" is hard
+        # music: the owner, "lets make rap and hard rock muisc barely aduible")
         full = self.loud(0.5, 1.5)
         self.assertGreater(full, 0.05)
-        self.assertAlmostEqual(self.loud(2.7, 3.8) / full, 0.1, delta=0.02)
-        self.assertAlmostEqual(self.loud(5.0, 5.4) / full, 0.1, delta=0.02)
+        self.assertAlmostEqual(self.loud(2.7, 3.8) / full, 0.03, delta=0.01)
+        self.assertAlmostEqual(self.loud(5.0, 5.4) / full, 0.03, delta=0.01)
+
+    def test_other_loud_music_to_a_quarter(self):
+        full = self.loud(0.5, 1.5)
+        self.assertAlmostEqual(self.loud(8.7, 9.3) / full, 0.25, delta=0.03)
+        self.assertIn("turned down  loud music for 2 seconds  (to a quarter)", self.report)
 
     def test_eases_in_and_back_up(self):
         full = self.loud(0.5, 1.5)
@@ -149,7 +213,8 @@ class TurningItDown(unittest.TestCase):
         self.assertLess(self.loud(4.1, 4.4), 0.003)
 
     def test_unticked_music_left_alone_and_report_says_so(self):
-        self.assertIn("turned down  rock or metal music for 4 seconds", self.report)
+        self.assertIn("turned down  rock or metal music for 4 seconds  (barely heard)",
+                      self.report)
         self.assertNotIn("rap music", self.report)
 
 

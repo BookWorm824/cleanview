@@ -1668,8 +1668,10 @@ class App(tk.Tk):
             ("magic", "Magic  (spells, wands, potions, fairies)", False),
             ("vampires", "Vampires and werewolves", False)])
         fold_group("Music", "music", [
-            ("loudmusic", "Turn down hard rock, metal and rap music  (where no one's talking)",
-             False)])
+            # 1.18.160 (the owner: "lets make rap and hard rock muisc barely aduible, and the
+            # rest of the loud music 25% vilume")
+            ("loudmusic", "Turn down loud music where no one's talking  (hard rock, metal and "
+                          "rap until barely heard, other loud music to a quarter)", False)])
         look.link(dhead, "Done", lambda: [s(False) for s in shows.values()], size=9).pack(
             side="right")
         for t in list(self._open_sections):
@@ -3348,7 +3350,7 @@ class App(tk.Tk):
         if nw:
             parts.append(f"{nw} word{'s' if nw != 1 else ''}")
         if nq:
-            parts.append(f"{nq} loud song{'s' if nq != 1 else ''}")
+            parts.append(f"{nq} stretch{'es' if nq != 1 else ''} of loud music")
         title = (", ".join(parts[:-1]) + " and " + parts[-1] if len(parts) > 1 else
                  parts[0] if parts else "Nothing found") + (" to check" if parts else "")
         p = self._new_page(title,
@@ -3420,12 +3422,16 @@ class App(tk.Tk):
         # sections that it removed...can you add that to CleanView as well")
         jump = tk.Frame(t_found, bg=BG)
         jump.pack(fill="x", pady=(0, 4))
-        by_filter = tk.Frame(t_found, bg=BG)
-        by_filter.pack(fill="x", pady=(0, 4))
         spots = []                  # (what, how many, where it starts)
         inner = self._scroll_area(t_found)
         self._found_canvas = inner._canvas
         self._found_inner = inner
+        # at the top of the list, so it scrolls away with it (1.18.160; the owner, with 13
+        # videos: "it stays with you even when you scroll, so it makes it very hard to see":
+        # above the list it took most of the window)
+        by_filter = tk.Frame(inner, bg=BG)
+        by_filter.pack(fill="x", padx=8, pady=(4, 4))
+        self._by_filter = by_filter
         for ji, j in enumerate(good):
             st = j["analysis"]
             j["_ji"] = ji
@@ -4604,12 +4610,14 @@ class App(tk.Tk):
             self._answer_box(wrap, m)
 
     def _music_card(self, parent, job, quiet):
-        """Loud hard rock, metal or rap with nobody talking: ticked ones are turned down."""
+        """Loud music with nobody talking: ticked ones are turned down (hard rock, metal and
+        rap until barely heard, the rest to a quarter: 1.18.160)."""
         card = self._round_card(parent)
         tk.Label(card, text="Loud music to turn down", bg=CARD, fg=INK,
                  font=(HEAD, 11)).pack(anchor="w")
-        tk.Label(card, text="Ticked music plays at a tenth of its volume, only where nobody is "
-                 "talking. Use Preview to listen, and untick anything that's fine.", bg=CARD,
+        tk.Label(card, text="Ticked music is turned down only where nobody is talking: hard "
+                 "rock, metal and rap until it's barely heard, other loud music to a quarter. "
+                 "Use Preview to listen, and untick anything that's fine.", bg=CARD,
                  fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(
             anchor="w", pady=(0, 4))
         for q in quiet:
@@ -4618,7 +4626,9 @@ class App(tk.Tk):
             v = tk.BooleanVar(value=q.get("lower", True))
             q["_shown"] = v.get()
             self.quiet_vars.append((v, job, q))
-            ttk.Checkbutton(row, text=f"Turn down   ·   {engine.cl.fmt_t(q['s'])}   ·   "
+            how = ("to a quarter" if q.get("level") == engine.OTHER_MUSIC_LEVEL else
+                   "barely heard")
+            ttk.Checkbutton(row, text=f"Turn down ({how})   ·   {engine.cl.fmt_t(q['s'])}   ·   "
                             f"{q['e'] - q['s']:.0f} sec", variable=v).pack(side="left")
             kind = q.get("kind", "Loud music")
             look.chip(row, engine.plain_ai(kind), chip_color(kind)).pack(side="left",

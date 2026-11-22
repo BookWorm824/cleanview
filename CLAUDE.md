@@ -1229,6 +1229,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   meat being cut or cooked (a butcher, a kitchen, a deli counter) isn't blood, its fight
   question that a butcher or cook chopping with a cleaver or knife isn't threatening anyone,
   and `PIC_RULES` that butchered or cooked meat isn't a match. `test_religion_parts.Butcher`.
+- "Every video, by filter" scrolls with the list (1.18.160, 2026-11-21; the owner, with a
+  screenshot of 13 videos of The Resident S2: "this window is where it stays with you even when
+  you scroll, so it makes it very hard to see"). It was above the Found tab's scrolling list
+  with the other rows, so with 13 videos and 16 filters it filled most of the window; it's now
+  the top of the list (`self._by_filter` inside `_found_inner`). "Missed a scene?", "Also show
+  the ... fine" and "Jump to:" stay above it. `test_filter_groups.test_by_filter_scrolls`.
+- All loud music is turned down, hard music the most (1.18.160, 2026-11-21; the owner: "its not
+  catching all the rock and rap music,...so I think it has a different opinion on what bad music
+  is - so lets make rap and hard rock muisc barely aduible, and the rest of the loud music 25%
+  vilume"). `loud_music` finds hard rock, metal and rap as before (`ROCK_MIN`, `RAP_MIN`,
+  "level" `HARD_MUSIC_LEVEL` 0.03, 30 dB quieter: barely heard) and now other loud music with
+  nobody talking (`OTHER_MUSIC_LEVEL` 0.25): music the sound checker is sure of, within
+  `LOUD_BELOW` (3) dB of the talking or louder (`talking_level`: the median of windows that are
+  clearly talk, at least `TALK_LEAST`), not where hard music is (`_music_pieces`). The sound scan
+  measures each window's loudness (`window_db`, "db"); a scan from before is listened to again
+  when Loud music is ticked; without "db" only hard music is found. On four of her The Resident
+  episodes here music with nobody talking was about as loud as the talking (median -2 to +2 dB),
+  and 15-22 stretches an episode (3-4 minutes) would be turned down to a quarter; none was hard
+  music on this PC's scans. A stretch found before has no "level" and is hard music (barely
+  heard now, a tenth before). `render` turns each level down on its own; the report says "(to a
+  quarter)" or "(barely heard)"; the review page's rows say which, the title "N stretches of loud
+  music". `test_music.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
