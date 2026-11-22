@@ -2483,6 +2483,14 @@ SEXUAL_TERMS = [
     r"bedroom (?:athletics|gymnastics|antics)", r"girls gone wild", r"baby[- ]making",
     r"shaved beaver", r"beaver shots?", r"escort (?:services?|agenc(?:y|ies))",
     r"lead in (?:his|your|my) pencil", r"intimate (?:areas?|parts)",
+    # Castle S2E20 and S2E23 (1.18.162; the owner: "Yes, both"): "He was banging my daughter
+    # right under my nose?", "I would've done her", "I would maybe do her". "bang" alone stays
+    # with the AI; "do her" only said of wanting her, ending the sentence ("I'd do her hair",
+    # "I'd do her a favor" aren't)
+    r"bang(?:s|ed|ing)? (?:my|his|your|her|their|our) (?:daughters?|wi(?:fe|ves)|sisters?|"
+    r"mom|mum|mother|girlfriends?|boyfriends?|husbands?|secretar(?:y|ies)|assistants?)",
+    r"(?:i'?d|i would|i'?d have|i would have|i would'?ve|would'?ve|would have) (?:totally |"
+    r"maybe |so |definitely |still |never |not )?(?:do|done) (?:her|him)(?=[ \t]*(?:[.!?,]|$))",
 ]
 
 # sleeping around
@@ -2499,6 +2507,10 @@ CASUAL_TERMS = [
     # "THAT EXPLAINS HIS ISSUES WITH INFIDELITY"; not "the unfaithful servant" (none of the
     # past reviews here has either word)
     r"unfaithful(?:ness)?(?! servants?\b)", r"infidelit(?:y|ies)",
+    # Castle S2E22-23 (1.18.162): "The b**** that he was two-timing me with", "...a cheap motel
+    # in Jersey to have a tryst", "David doesn't sleep with every girl who walks by"
+    r"two[- ]tim(?:e|es|ed|ing|er|ers)", r"trysts?",
+    r"sleep(?:s|ing)? with every(?:one|body| girl| woman| guy| man)",
 ]
 
 # graphic case talk (with rape and the rest, 1.18.125)

@@ -1268,6 +1268,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   pull that off", "he wouldn't sleep with me", casual) and Castle's "rubbing off on you" / "That
   sounded dirtier than I meant it" (sexref); none matches a line in another past review.
   `test_castle_s2e10.py`.
+- Her Castle S2E19-24 report (1.18.162, 2026-11-22, adults, the AI helper, made in Play 1.0.72 /
+  1.18.158; she changed nothing; the owner: "Yes, both"). Every word muted was right; "You're
+  Daphne." (a Scooby-Doo joke) and "I don't buy it." were muted whole wrongly (too short to
+  teach as fine); about 30 innuendo and affair lines went through (the six episodes read by three
+  helpers, each find checked against the dialogue). For every show: `SEXUAL_TERMS` "banging
+  my/his... daughter/wife/sister/girlfriend..." ("bang" alone stays with the AI) and "I'd /
+  I would / would've (maybe, totally, not...) do/done her/him" ending the sentence (not "do her
+  hair", "done her harm", "done her in"); `CASUAL_TERMS` two-timing, tryst(s), "sleep with
+  every girl / everyone". Taught for castle (31 lines): the golfer's "pulled out" jokes,
+  "'Comforting.' Is that what the cool kids call it", "doing more than interning", "in the act",
+  "have at me anytime", Beckett and Demming's sparring double meanings ("be gentle", "slow to
+  get started", "find my rhythm", "think about baseball"), the chef's "best work in the
+  kitchen", "violate several health codes", "done screwing around", "lying, cheating wife",
+  "liked married women", "with someone different", "who I would not do", the E24 affair lines
+  ("I was in bed / with his wife", "I was seeing Lee", "kept him up till well past midnight",
+  "the museum turned into a hotel", "his wife's lover", "Two affairs", "getting lucky", "stay on
+  top of him"). In the 122,005 past lines here neither the new phrasings nor the taught lines
+  find anything new. Left: "pick up chicks", "meth addict", the E20 bed cut (29:12-30:26, the
+  last 45 s only talk in bed, not seen), a possible beating in bed in E23 (38:45, not seen).
+  `test_castle_s2e19.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
