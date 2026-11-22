@@ -1251,6 +1251,23 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   heard now, a tenth before). `render` turns each level down on its own; the report says "(to a
   quarter)" or "(barely heard)"; the review page's rows say which, the title "N stretches of loud
   music". `test_music.py`.
+- Her Castle S2E10 report (1.18.161, 2026-11-21, adults, the AI helper, made on 1.18.158; she
+  changed nothing; the owner: "Yes, both"). Every word and line muted was right; the episode is
+  a man with a wife and a fiancee, and with Sleeping around and Sexual references ticked about
+  ten lines went through. `LINE_WORDS["casual"]` (just the words, `LIST_WORD_TRIM`): someone's
+  affair ("her husband's affair", "Jeremy's affair"; not "it's/that's/what's affair"), one that
+  lasted a while ("her six-month affair", "a two-year affair", long-term, ongoing, office),
+  cheating on a name ("cheating on Helen": only "cheating on" muted; not a weekday, month,
+  holiday or school subject) or on a sister, brother, mother, friend..., and refusing to sleep
+  with someone ("he wouldn't sleep with me", "I didn't sleep with her"; never "Can I sleep with
+  you tonight?"). In the 122,005 past lines here they add only "Jeremy's affair" (Person of
+  Interest) and "I didn't sleep with her, but I did kiss her" (The Resident). Taught for castle:
+  the double-life lines ("both of these women believing / that they were his one and only",
+  "weren't the only woman in his life", "romantically involved with one of your employees", "It
+  was another woman!", "Our love triangle just became a love square", "the stress of trying to
+  pull that off", "he wouldn't sleep with me", casual) and Castle's "rubbing off on you" / "That
+  sounded dirtier than I meant it" (sexref); none matches a line in another past review.
+  `test_castle_s2e10.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

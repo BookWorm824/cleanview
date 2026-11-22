@@ -2627,7 +2627,29 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          # (Internal Affairs, foreign affairs); not "none of your affair" (your
                          # business), "quite an affair" (an event) or "the affair of ..."
                          r"(?<!quite )(?<!such )(?<!what )(the|an|his|her|their|love|secret|"
-                         r"torrid|illicit|sordid|extramarital) affair(?! of\b)|" + "|".join(CASUAL_TERMS)
+                         r"torrid|illicit|sordid|extramarital) affair(?! of\b)|"
+                         # Castle S2E10 (1.18.161; the owner: "Yes, both"): "...her husband's
+                         # affair", "her six-month affair", "Sam was cheating on Helen", "the
+                         # freedom to cheat on my sister", "because he wouldn't sleep with me".
+                         # Someone's affair (not "it's/that's/what's"), one that lasted a while;
+                         # cheating on a name (only the words muted) or a sister, a friend...;
+                         # refusing to sleep with someone (never a child's bedtime question)
+                         r"(?:(?:the|an?|his|her|their|secret|(?!(?:it|that|what|let|there|here|"
+                         r"who|he|she)'s)\w+'s) (?:[a-z]+-(?:months?|years?|weeks?|days?|nights?)"
+                         r"(?:-long)?|long-term|ongoing|office) affair(?! of\b))|"
+                         r"\w+'s affair(?! of\b)(?<!it's affair)(?<!that's affair)"
+                         r"(?<!what's affair)(?<!let's affair)(?<!there's affair)"
+                         r"(?<!here's affair)(?<!who's affair)(?<!he's affair)(?<!she's affair)|"
+                         r"cheat(?:s|ed|ing)? on(?= (?!(?:Monday|Tuesday|Wednesday|Thursday|"
+                         r"Friday|Saturday|Sunday|January|February|March|April|May|June|July|"
+                         r"August|September|October|November|December|Christmas|Thanksgiving|"
+                         r"Easter|It|The|This|That|Facebook|Twitter|Instagram|English|Math|"
+                         r"French|Spanish|History|Science)\b)(?-i:[A-Z][a-z]+)\b)|"
+                         r"cheat(?:s|ed|ing)? on (?:his|her|my|your|their|our) (?:sisters?|"
+                         r"brothers?|daughters?|sons?|mom|mum|mother|dad|father|best friends?|"
+                         r"friends?)\b|"
+                         r"(?:wouldn'?t|won'?t|didn'?t|doesn'?t|refused to|refuses to|never "
+                         r"would) sleep with (?:me|him|her|you|them)\b|" + "|".join(CASUAL_TERMS)
                          + r")\b", re.I),
     # "gay" beside another happy word is the old word for happy (cvcore.gay_happy): "I feel
     # pretty and witty and gay" (West Side Story, 2026-11-08)
@@ -5170,6 +5192,10 @@ LIST_WORDS_ONLY = ("sexref", "casual", "drugtalk")
 LIST_WORD_TRIM = re.compile(r"(?i)^(?:(?:have|had|having) (?=sex\b)|(?:having |had )?an (?=affair\b)"
                             r"|(?:the|his|her|their|love|secret|torrid|illicit|sordid|extramarital) "
                             r"(?=affair\b)|(?:my|his|her|your|their|our|secret) (?=lovers?\b)"
+                            # (1.18.161) "her husband's affair", "her six-month affair"
+                            r"|(?:the|an?|his|her|their|secret|\w+'s) (?:[a-z]+-(?:months?|years?|"
+                            r"weeks?|days?|nights?)(?:-long)?|long-term|ongoing|office) "
+                            r"(?=affair\b)|\w+'s (?=affair\b)"
                             r"|(?:who'?s|who is|who was) the (?=other wom[ae]n\b)"
                             r"|(?:his|her|my|your|their|\w+'s) (?=other wom[ae]n\b)"
                             r"|(?:his|her|my|your|their|\w+'s) (?=conquests?\b))"
