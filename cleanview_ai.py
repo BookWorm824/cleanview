@@ -1171,12 +1171,14 @@ LINE_TYPES = {
                "meaning, including oral sex or touching someone's private parts, bragging "
                "about sleeping with women ('twelve for twelve with the models'), brothel talk, "
                "and lines like 'be gentle, it's my first time' or 'what was his name?' to "
-               "the woman he woke up with, and talk of sex drugs: pills for sex or erections (Viagra, Cialis, 'the little blue pill', erectile dysfunction), aphrodisiacs ('Spanish fly', a love potion meant to make someone want sex) and drugging someone to have sex with them. "
+               "the woman he woke up with, handcuffs as a sexual joke ('I always pictured "
+               "you in handcuffs', 'bring the furry handcuffs'), and talk of sex drugs: pills for sex or erections (Viagra, Cialis, 'the little blue pill', erectile dysfunction), aphrodisiacs ('Spanish fly', a love potion meant to make someone want sex) and drugging someone to have sex with them. "
                "NOT: swearing, insults, lying, drinking, other drugs, violence, crime, threats, "
                "compliments, ordinary love and affection, pregnancy or babies, 'sex' meaning men or "
                "women ('the fair sex', 'others of my sex'), 'make love to' in an old film "
                "(courting), a polite 'it's a pleasure', a body part in a threat, "
-               "'sleeps with the pigs' meaning where someone sleeps, " + NOT_CASE + ""),
+               "'sleeps with the pigs' meaning where someone sleeps, police putting "
+               "handcuffs on someone, " + NOT_CASE + ""),
     "casual": ("says or clearly implies someone had, or wants, sex outside a committed "
                "relationship: hooking up, a one-night stand, an affair, cheating, sleeping with "
                "someone, sleeping around; also talk of cheating on a partner, even with nothing sexual "

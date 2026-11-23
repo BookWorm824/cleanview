@@ -620,7 +620,9 @@ SQUAT_NOT_NEXT = {"down", "jump", "jumps", "thrust", "thrusts", "rack", "racks",
                   "toilet", "toilets", "lift", "lifts", "press", "exercise", "exercises", "low",
                   "lower", "deep", "deeper", "squat", "squats", "reps", "sets", "and", "with"}
 # "Suck" for "is bad" ("that really sucks", "he sucks at math", "life sucks"), muted with the
-# rude words kids copy. Sucking something (a lollipop, a thumb, air, "sucks up dirt", "suck
+# mild words since 1.18.163 (the owner, 2026-11-22: "sucks - its not picking this word out", then
+# "Move to Mild words": it was with the rude words kids copy, off for Teens and Adults; "you
+# sucker" stays a rude word). Sucking something (a lollipop, a thumb, air, "sucks up dirt", "suck
 # it up") always has something after it, so those are left alone.
 SUCK_WORDS = {"suck", "sucks", "sucked"}
 SUCK_NOT_NEXT = {"up", "in", "on", "out", "into", "through", "from", "down", "off", "away",
@@ -991,18 +993,19 @@ RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?"
         r"meatheads?", r"lamebrains?", r"birdbrains?", r"dunces?", r"wimps?",   # not Wimpy
         r"wuss(es)?", r"wussy", r"sissy", r"sissies", r"crybab(y|ies)", r"scaredy(cats?)?",
         r"weirdos?", r"fatsos?", r"putz(es)?", r"schmucks?", r"ignoramus(es)?", r"brats?",
-        r"sucky", r"suckage", r"sucktastic",
         r"dumbdumbs?", r"dumdums?", r"fatheads?",
         r"skeevy"]       # creepy (from Swearing, 1.18.150)
 RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
-                ("shut", "your", "face"), ("shut", "it"), ("you", "suck"), ("it", "sucks"),
-                ("this", "sucks"), ("that", "sucks"), ("shut", "your", "pie", "hole"),
+                ("shut", "your", "face"), ("shut", "it"), ("shut", "your", "pie", "hole"),
                 ("shut", "your", "piehole"), ("shut", "your", "cake", "hole"),
                 ("shut", "your", "cakehole"), ("shut", "your", "yap"),
                 ("shut", "your", "big", "mouth"), ("shut", "your", "big", "fat", "mouth"),
                 ("buzz", "off"), ("i", "hate", "you"), ("talk", "to", "the", "hand"),
-                ("eat", "my", "shorts"), ("suck", "it"), ("sucks", "to", "be", "you"),
-                ("you", "sucker"), ("you", "suckers")]
+                ("eat", "my", "shorts"), ("you", "sucker"), ("you", "suckers")]
+# "sucks" for "is bad": mild words since 1.18.163 (with `suck_swear` and `SUCK_SLANG`)
+SUCK_PHRASES = [("you", "suck"), ("it", "sucks"), ("this", "sucks"), ("that", "sucks"),
+                ("suck", "it"), ("sucks", "to", "be", "you")]
+SUCK_SLANG = [r"sucky", r"suckage", r"sucktastic"]
 BLOODY_SWEAR_NEXT = {
     "hell", "well", "idiot", "fool", "fools", "stupid", "ridiculous", "nuisance",
     "nonsense", "cheek", "marvellous", "marvelous", "brilliant", "awful", "good",
@@ -1126,7 +1129,7 @@ def _c(pats):
     return [re.compile(p + r"$") for p in pats]
 
 
-CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "slurs": _c(SLURS), "mild": _c(MILD),
+CATS = {"strong": _c(STRONG), "moderate": _c(MODERATE), "slurs": _c(SLURS), "mild": _c(MILD + SUCK_SLANG),
         "minced": _c(MINCED), "deity": _c(DEITY_WORDS), "samesex": _c(SAMESEX_WORDS),
         "rude": _c(RUDE), "sexwords": _c(SEX_WORDS), "crudewords": _c(CRUDE_WORDS)}
 SEX_C = {w: _c(p) for w, p in SEX_TERMS.items()}
@@ -1161,7 +1164,8 @@ def listed_word(word, mine=(), cats=None):
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
     phrases = ((DEITY_PHRASES if "deity" in on else []) + (CRUDE_PHRASES if swear else []) +
-               (RUDE_PHRASES if "rude" in on else []))
+               (RUDE_PHRASES if "rude" in on else []) +
+               (SUCK_PHRASES if "mild" in on else []))
     for ph in phrases:                                           # "shut up", "screw you"
         if any(tuple(parts[k:k + len(ph)]) == ph for k in range(len(parts) - len(ph) + 1)):
             return True
@@ -1170,7 +1174,7 @@ def listed_word(word, mine=(), cats=None):
            or ("minced" in on and body_slang(parts, k, MINCED_SLANG))
            or (swear and bull_swear(parts, k))                        # "that's bull"
            or ("minced" in on and squat_swear(parts, k))              # "know squat"
-           or ("rude" in on and suck_swear(parts, k))                 # "that really sucks"
+           or ("mild" in on and suck_swear(parts, k))                 # "that really sucks"
            for k in range(len(parts))):
         return True
     for c in [w] + parts:
@@ -1264,8 +1268,15 @@ def find_language(words, cats, mine=()):
                 hits.append((i, i + len(ph), "rude"))
                 i += len(ph)
                 continue
+        if "mild" in cats:                      # "sucks" for "is bad" (1.18.163)
+            ph = next((p for p in sorted(SUCK_PHRASES, key=len, reverse=True)
+                       if tuple(words[i:i + len(p)]) == p and rude_use(p)), None)
+            if ph:
+                hits.append((i, i + len(ph), "mild"))
+                i += len(ph)
+                continue
             if suck_swear(words, i):                                    # "that really sucks"
-                hits.append((i, i + 1, "rude"))
+                hits.append((i, i + 1, "mild"))
                 i += 1
                 continue
         w = words[i]

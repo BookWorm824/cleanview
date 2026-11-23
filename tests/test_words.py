@@ -578,17 +578,20 @@ class FromTheReports(unittest.TestCase):
 
 
 class Suck(unittest.TestCase):
-    """"Suck" meaning "is bad" is a rude word kids copy (the owner, 2026-10-29); sucking
-    something is left alone."""
+    """"Suck" meaning "is bad" was a rude word kids copy (the owner, 2026-10-29), a mild word
+    since 1.18.163 (the owner: "sucks - its not picking this word out", "Move to Mild words");
+    "you sucker" stays a rude word; sucking something is left alone."""
 
     def test_found(self):
         for text, phrase in [("That really sucks", "sucks"), ("Life sucks", "sucks"),
                              ("He sucks at math", "sucks"), ("That sucked", "sucked"),
-                             ("What a sucky day", "sucky"), ("You sucker!", "you sucker"),
+                             ("What a sucky day", "sucky"),
                              ("You suck", "you suck"), ("This sucks big time", "this sucks"),
                              ("Man, that sucks.", "that sucks"), ("Sucks to be you", "sucks to be you")]:
             with self.subTest(text=text):
-                self.assertEqual(found(text, ["rude"]), [(phrase, "rude")])
+                self.assertEqual(found(text, ["mild"]), [(phrase, "mild")])
+                self.assertEqual(found(text, ["rude"]), [])
+        self.assertEqual(found("You sucker!", ["rude"]), [("you sucker", "rude")])
         self.assertTrue(cl.listed_word("sucks"))
 
     def test_everyday_uses_left_alone(self):

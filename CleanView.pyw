@@ -1613,7 +1613,7 @@ class App(tk.Tk):
             ("swearing", "Swearing  (f-word, s-word, b-word…)", True),
             # its own box, ticked for every age (1.18.150; the owner: "organize better by type")
             ("slurs", "Slurs  (hateful names for groups of people)", True),
-            ("mild", "Mild words  (damn, hell, crap)", True),
+            ("mild", "Mild words  (damn, hell, crap, sucks)", True),
             ("deity", "God's name used as a swear", True),
             ("minced", "Soft substitutes  (gosh, heck, freaking)", False),
             ("rude", "Rude words kids copy  (stupid, dumb, idiot, shut up…)", False),

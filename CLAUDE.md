@@ -1288,6 +1288,22 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   find anything new. Left: "pick up chicks", "meth addict", the E20 bed cut (29:12-30:26, the
   last 45 s only talk in bed, not seen), a possible beating in bed in E23 (38:45, not seen).
   `test_castle_s2e19.py`.
+- "sucks" is a mild word (1.18.163, 2026-11-22; the owner: "sucks - its not picking this word
+  out", then "Move to Mild words"). "That sucks", "you suck", "life sucks", "it sucked", "sucks
+  to be you", "suck it!", sucky/suckage/sucktastic were rude words kids copy, off for Teens and
+  Adults, so her Adults scans left them in; now with the mild words (`SUCK_PHRASES`,
+  `SUCK_SLANG`, `suck_swear` under "mild"), muted at every age. "you sucker" stays a rude word;
+  sucking something (a thumb, ice, "suck it up", "sucker punch") is left alone as before. The
+  start page says "Mild words (damn, hell, crap, sucks)". In the past reviews here 21 lines
+  are now muted with Mild words, all "is bad". For CleanListen, CleanRead and CleanStream too.
+  Also in 1.18.163, handcuffs as innuendo (the owner: "add handcuffs to the list when used as
+  inuendo"). Of the 24 past lines here with handcuffs or cuffs nearly all are police work ("cuff
+  him", "75 cops in cuffs"), and The Resident cuffs a patient to a bed, so `SEXUAL_TERMS` takes
+  only the unmistakable: furry/fuzzy/pink/novelty... handcuffs, "(hand)cuff me/you to the/my bed
+  (post)", "handcuffs in the bedroom", kinky/naughty/frisky in the same sentence (just the words).
+  The rest ("I always pictured you in the back of my car. / In handcuffs.") is for the readers:
+  `OPT_TEXT`, `ai.LINE_TYPES` and `cc.TYPE_TEXT` for sexref say handcuffs as a sexual joke, not
+  police cuffing someone. No past line here is newly caught. `test_handcuffs.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

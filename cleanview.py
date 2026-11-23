@@ -2491,6 +2491,18 @@ SEXUAL_TERMS = [
     r"mom|mum|mother|girlfriends?|boyfriends?|husbands?|secretar(?:y|ies)|assistants?)",
     r"(?:i'?d|i would|i'?d have|i would have|i would'?ve|would'?ve|would have) (?:totally |"
     r"maybe |so |definitely |still |never |not )?(?:do|done) (?:her|him)(?=[ \t]*(?:[.!?,]|$))",
+    # handcuffs as innuendo (1.18.163; the owner: "add handcuffs to the list when used as
+    # inuendo"). Nearly every handcuff line in the past reviews here is police work ("cuff
+    # him", "75 cops in cuffs"), and a patient can be cuffed to a bed, so only the unmistakable:
+    # furry or pink ones, cuffed to the bed(post) by "me/you", in the bedroom, or kinky/naughty
+    # in the same sentence. The rest is for the readers (`OPT_TEXT`, `ai.LINE_TYPES`,
+    # `cc.TYPE_TEXT`)
+    r"(?:furry|fuzzy|fluffy|pink|novelty|leopard[- ]print|velvet|satin|silk|feathered) "
+    r"(?:hand)?cuffs",
+    r"(?:hand)?cuff(?:s|ed|ing)? (?:me|you) to (?:the|my|your) bed(?:posts?|frame)?",
+    r"(?:hand)?cuffs (?:in|for) (?:the|my|your) bedroom",
+    r"(?:kinky|naughty|frisky)\b[^.!?]{0,40}?\b(?:hand)?cuff(?:s|ed)?",
+    r"(?:hand)?cuff(?:s|ed)?\b[^.!?]{0,40}?\b(?:kinky|naughty|frisky)",
 ]
 
 # sleeping around
@@ -3279,7 +3291,8 @@ GROUP_TEXT = {"swearing": "swear words (strong and moderate)",
               "slurs": "slurs: hateful names for groups of people (racial and ethnic slurs, "
                        "'retarded' even said as a description, anti-gay slurs)",
               "mild": "mild language such as crap, screw you, damn, hell, 'that's bull' "
-                      "(short for bullshit, not the animal)",
+                      "(short for bullshit, not the animal), 'that sucks' or 'you suck' "
+                      "(meaning bad, not sucking something)",
               "deity": "God's or Jesus' name used as a swear (not sincere prayer or talk about God)",
               "minced": "minced oaths such as gosh, darn, heck, golly, jeepers, good grief, "
                         "for Pete's sake, my goodness, good heavens",
@@ -3304,7 +3317,9 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "oppsex": "unmarried man and woman living or sleeping together",
             "sexref": "sexual references and innuendo, including sexual slang words and "
                       "fruit and vegetables used for body parts such as 'check out those "
-                      "melons', 'pop her cherry', 'a banana in your pocket' (not real fruit)",
+                      "melons', 'pop her cherry', 'a banana in your pocket' (not real fruit), "
+                      "and handcuffs as a sexual joke ('I always pictured you in handcuffs'; "
+                      "not police putting cuffs on someone)",
             "crude": "crude humor, including slang such as 'grow some stones', 'grow a pair', "
                      "'has the balls to' (the whole phrase, not ordinary stones or balls) and "
                      "'kicked him in the plums'",

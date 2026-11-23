@@ -418,7 +418,9 @@ NOT_CASE = ("a coroner's, medical examiner's, doctor's or detective's case talk 
 TYPE_TEXT = {
     "sexref": "sexual references, sexual jokes or innuendo, including "
               "talk of sex drugs: pills for sex or erections (Viagra, Cialis, 'the little blue pill', erectile dysfunction), aphrodisiacs ('Spanish fly', a love potion meant to make someone want sex) and drugging someone to have sex with them, talk of oral sex or of "
-              "touching someone's private parts, and the sounds of it in the subtitles. Only "
+              "touching someone's private parts, handcuffs as a sexual joke ('I always pictured "
+              "you in handcuffs'; not police cuffing someone), and the sounds of it in the "
+              "subtitles. Only "
               "the lines that are sexual themselves, not the lines around a joke, but do take "
               "a follow-up that carries the joke on ('there's no need to be gentle' after a "
               "bondage joke) or calls back to it later, bragging about sleeping with women, "
