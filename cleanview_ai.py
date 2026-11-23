@@ -743,13 +743,47 @@ def pull_model(name, progress=None, label="the AI model"):
             except ValueError:
                 continue
             if d.get("error"):
-                raise RuntimeError(f"Couldn't download {label}: " + d["error"])
+                raise RuntimeError(plain_download_error(label, d["error"]))
             if d.get("total"):
                 done = d.get("completed", 0)
                 say(done / d["total"], f"Getting {label} (one time) · "
                     f"{done / 1e9:.1f} of {d['total'] / 1e9:.1f} GB")
     if not model_ready(name):
         raise RuntimeError(f"The download of {label} didn't finish. Try again.")
+
+
+# A download that breaks off is tried again (1.18.165; the owner's screenshot: "Couldn't download
+# the picture helper: max retries exceeded: read tcp [2603:...]:54187->[2606:...]:443: wsarecv:
+# An existing connection was forcibly closed by the remote host."). Ollama carries on from
+# where it got to, so each try picks up the rest; the message says it in plain words.
+PULL_TRIES = 3
+PULL_WAITS = (10, 30)
+NET_TROUBLE = re.compile(r"tcp|wsarecv|connection|timed? ?out|retries|reset|refused|EOF|dial|"
+                         r"no such host|network|tls|i/o", re.I)
+
+
+def plain_download_error(label, err):
+    """What went wrong with a download, in plain words."""
+    if NET_TROUBLE.search(str(err)):
+        return (f"Couldn't download {label}: the internet connection dropped partway. "
+                f"CleanView Save tries again next time.")
+    if re.search(r"space|disk|no room", str(err), re.I):
+        return f"Couldn't download {label}: there isn't enough room on this PC's drive."
+    return f"Couldn't download {label}. CleanView Save tries again next time."
+
+
+def pull_with_retries(name, say, label):
+    """pull_model, tried again after a wait when the connection breaks off."""
+    for k in range(PULL_TRIES):
+        try:
+            return pull_model(name, say, label)
+        except Exception as ex:
+            if k == PULL_TRIES - 1 or not NET_TROUBLE.search(str(ex)) and \
+                    "dropped partway" not in str(ex):
+                raise
+            wait = PULL_WAITS[min(k, len(PULL_WAITS) - 1)]
+            say(0.0, f"The internet connection dropped. Trying again in {wait} seconds…")
+            time.sleep(wait)
 
 
 def ensure_ai(progress=None):
@@ -766,7 +800,7 @@ def ensure_ai(progress=None):
         err = None
         for m in models:
             try:
-                pull_model(m, lambda f, msg: say(base + span * f, msg), label)
+                pull_with_retries(m, lambda f, msg: say(base + span * f, msg), label)
                 err = None
                 break
             except Exception as ex:   # e.g. an older Ollama that can't run the newest model

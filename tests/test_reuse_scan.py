@@ -32,6 +32,7 @@ def old_scan(video, opts=OPTS, groups=("swearing", "mild")):
     return {"path": str(video), "groups": list(groups), "show": "_movies@kids",
             "opts": engine.full_opts(opts), "duration": 900.0, "notes": ["Checked with: x."],
             "dialogue": dialogue, "mutes": [], "quiet": [], "cues": [],
+            "blurs": [],          # words on screen read (1.18.165), none found
             "asr": [[w, 600.0 + k * 0.3, 600.2 + k * 0.3]
                     for k, w in enumerate("have you ever been with a girl".split())],
             "lines": [{"id": 1, "s": 600.0, "e": 602.0, "text": LINES[4][1],

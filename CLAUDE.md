@@ -1328,6 +1328,38 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   disc splits it, joined back to 12 s). `test_dvd.py`.
   Also in 1.18.164 (CleanListen 1.17.101's care): pink, velvet, satin and silk count only before
   "handcuffs", since "his silk cuffs" are a shirt's sleeves in a period drama.
+- Bad words written in the picture are blurred (1.18.165, 2026-11-23; the owner, of a Tomb Raider
+  walkthrough: "it also has the words written on the bottom (not CC)...CleanView needs to be able
+  to blur that, because it could be on other things as well", "Yes, build it", then "there
+  doesn't need to be a tickbox to blur the bad words..that needs to be automatic if the bad
+  words filter is turned on"). `cvocr.py` (new, in version.json's files): Windows' own text
+  reader (Windows.Media.Ocr, Windows 10/11, nothing to download, offline) through PowerShell
+  for a batch of pictures (`SCRIPT`, `read_pictures`: each word with its box; `ready()`, once).
+  `engine.screen_scan` (in the background from "Finding language", whenever a word group or
+  her own words are ticked): the picture `SCREEN_FPS` (2) times a second at up to
+  `SCREEN_WIDTH` (1280), `SCREEN_CHUNK` (300 s) at a time, kept in work/screen.json (every word
+  read, so other ticks need no second look). `screen_blurs`: a line's words through
+  `find_language` with the ticked lists (`cats_for`) and her own words; a find seen again
+  within `SCREEN_GAP` in about the same place is one; blurred from `SCREEN_BEFORE` before to
+  `SCREEN_AFTER` after, `SCREEN_PAD` pixels round, in the video's own pixels; a line of 3+
+  words low or high in the picture is a caption. `screen_mutes`: a caption's word the
+  listening missed (no mute near) is muted where a heard word sounds like it (difflib 0.5),
+  else offered unticked over its time (`SEEN_NOT_HEARD`); a sign isn't said. `render`:
+  `_blur_filters` (ffmpeg delogo for each, while it's there) before the cuts, and a copy with
+  blurs is made again, not copied; the report says "blurred <word> written on screen" and
+  "(seen written on screen)". The review page: "Words written on screen (N)" (`_screen_card`,
+  ticked to blur, Tick all / Untick all), "N words on screen" in the title, "On screen" in
+  Jump to. A scan from before is scanned again when word groups are ticked (`saved_scan`: no
+  "blurs"). Speed here: 60 frames read in 1.6 s, about 3 minutes for an hour at 2 a second; it
+  found the made-up "shit" in 27 of the 31 frames it was on, over a busy fractal background
+  (the gaps are joined). Tried only on made-up videos, not her Tomb Raider walkthrough.
+  `test_screen_words.py`.
+  Also in 1.18.165, an AI helper's download that breaks off (her screenshot: "Couldn't download
+  the picture helper: max retries exceeded: read tcp [...]: wsarecv: An existing connection was
+  forcibly closed by the remote host."): `ai.plain_download_error` says "the internet connection
+  dropped partway. CleanView Save tries again next time.", and `pull_with_retries` tries
+  `PULL_TRIES` (3) times, `PULL_WAITS` 10 and 30 s apart (Ollama carries on where it got to).
+  `test_download_plain.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

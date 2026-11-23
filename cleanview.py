@@ -39,6 +39,7 @@ import cvlang  # noqa: E402  (other languages: word lists and their listening mo
 import cleanview_ai as ai  # noqa: E402  (picture AI and the local AI helper)
 import cleanview_claude as cc  # noqa: E402  (Claude, through Claude Code)
 import cleanview_learn as learn  # noqa: E402  (what your past choices taught it)
+import cvocr  # noqa: E402  (words written in the picture: Windows' own text reader)
 
 SR = cl.SR
 VIDEO_EXTS = (".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".mpg", ".mpeg",
@@ -1403,6 +1404,7 @@ SCAN_STEPS = [("Loading the listening model", "listening"), ("Listening to the d
               ("Finishing the closer look", "closer look"),
               ("Telling voices apart", "voices"), ("Reading the dialogue", "reading the dialogue"),
               ("Reading each conversation", "reading each conversation"),
+              ("Reading words written on screen", "words on screen"),
               ("Putting the scene list together", "scene list"), ("Done", "scene list")]
 CLOUD_NAMES = ("Claude", "ChatGPT", "Gemini")
 # What CleanView calls whichever of them is helping, everywhere but the step where one is
@@ -2234,6 +2236,162 @@ def loud_music(snd, asr, cues, dur):
     out.sort(key=lambda q: q["s"])
     for n, q in enumerate(out):
         q["id"] = n + 1
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Words written in the picture (1.18.165; the owner, of a Tomb Raider walkthrough: "it also has
+# the words written on the bottom (not CC)...CleanView needs to be able to blur that, because it
+# could be on other things as well", then "there doesn't need to be a tickbox to blur the bad
+# words..that needs to be automatic if the bad words filter is turned on"). The picture is
+# looked at SCREEN_FPS times a second (SCREEN_WIDTH wide), SCREEN_CHUNK seconds at a time, by
+# Windows' own text reader (cvocr); what it reads is kept (screen.json), so a scan used again or
+# other word ticks need no second look. A word on the lists the word groups ticked (and her own
+# words) is blurred where it's written, for as long as it's there (`screen_blurs`), and one
+# written as a caption that the listening missed is muted too (`screen_mutes`).
+# ---------------------------------------------------------------------------
+SCREEN_FPS = 2
+SCREEN_WIDTH = 1280
+SCREEN_CHUNK = 300
+SCREEN_VERSION = 1
+SCREEN_GAP = 1.1            # seen again within this, in about the same place: the same word
+SCREEN_BEFORE, SCREEN_AFTER = 0.4, 0.6     # blurred a little before and after it was seen
+SCREEN_PAD = 6              # pixels round the word
+CAPTION_LOW = 0.6           # a line of 3+ words this far down the picture (or higher up than
+CAPTION_HIGH = 0.2          # this) is a caption: what's said
+SEEN_NOT_HEARD = ("written on screen, but not clearly heard there, so only muted if you "
+                  "tick it")
+
+
+def screen_scan(path, info, work, progress=None, cancel=None):
+    """What's written in the picture: {"version", "fps", "size": [w, h] of the pictures read,
+    "frames": [[time, words], ...]} with only the pictures that had words. Kept in
+    work/screen.json. None when Windows' text reader can't be used here."""
+    sfile = Path(work) / "screen.json"
+    try:
+        old = json.loads(sfile.read_text(encoding="utf8"))
+        if old.get("version") == SCREEN_VERSION:
+            return old
+    except (OSError, ValueError):
+        pass
+    if not cvocr.ready():
+        return None
+    v = info.get("video") or {}
+    vw, vh = int(v.get("width") or 0), int(v.get("height") or 0)
+    if not vw or not vh:
+        return None
+    dur = info.get("duration") or 0.0
+    w = min(SCREEN_WIDTH, vw)
+    h = int(round(vh * w / vw / 2)) * 2
+    frames = []
+    tmp = Path(work) / "screen_frames"
+    t0 = 0.0
+    while t0 < dur:
+        if cancel and cancel():
+            raise KeyboardInterrupt
+        shutil.rmtree(tmp, ignore_errors=True)
+        tmp.mkdir(parents=True, exist_ok=True)
+        span = min(SCREEN_CHUNK, dur - t0)
+        cl.run([cl._tool("ffmpeg"), "-v", "error", "-y", "-ss", f"{t0:.3f}", "-t", f"{span:.3f}",
+                "-i", str(path), "-map", "0:v:0", "-vf", f"fps={SCREEN_FPS},scale={w}:{h}",
+                "-q:v", "3", str(tmp / "%06d.jpg")], capture_output=True)
+        pics = sorted(tmp.glob("*.jpg"))
+        read = cvocr.read_pictures(pics)
+        for k, p in enumerate(pics):
+            words = read.get(p) or []
+            if any(x and x[0] != "\n" for x in words):
+                frames.append([round(t0 + k / SCREEN_FPS, 2), words])
+        t0 += SCREEN_CHUNK
+        if progress:
+            progress(min(1.0, t0 / dur) if dur else 1.0)
+    shutil.rmtree(tmp, ignore_errors=True)
+    out = {"version": SCREEN_VERSION, "fps": SCREEN_FPS, "size": [w, h], "frames": frames}
+    try:
+        sfile.write_text(json.dumps(out), encoding="utf8")
+    except OSError:
+        pass
+    return out
+
+
+def screen_blurs(screen, cats, mine, size):
+    """The listed words written in the picture, to blur: [{"id", "s", "e", "x", "y", "w", "h"
+    (in the video's own pixels), "word" (masked), "raw", "cat", "caption", "blur": True}]."""
+    if not screen or not (cats or mine):
+        return []
+    sw, sh = screen.get("size") or size
+    fx, fy = size[0] / float(sw or 1), size[1] / float(sh or 1)
+    seen = []                   # (time, word, cat, box, caption)
+    for t, words in screen.get("frames", []):
+        for line in cvocr.lines_of(words):
+            normed = [cl.norm(x[0]) for x in line]
+            keep = [k for k, n in enumerate(normed) if n]
+            if not keep:
+                continue
+            toks = [normed[k] for k in keep]
+            top = min(x[2] for x in line)
+            caption = len(keep) >= 3 and (top >= CAPTION_LOW * sh or top <= CAPTION_HIGH * sh)
+            for a, b, cat in cl.find_language(toks, cats, mine):
+                parts = [line[keep[k]] for k in range(a, b)]
+                x0 = min(p[1] for p in parts)
+                y0 = min(p[2] for p in parts)
+                x1 = max(p[1] + p[3] for p in parts)
+                y1 = max(p[2] + p[4] for p in parts)
+                seen.append((t, " ".join(toks[a:b]), cat, (x0, y0, x1, y1), caption))
+    seen.sort(key=lambda s: s[0])
+    out = []
+    for t, raw, cat, box, caption in seen:
+        same = next((b for b in reversed(out) if b["raw"] == raw and t - b["last"] <= SCREEN_GAP
+                     and _boxes_near(b["box"], box)), None)
+        if same:
+            same["last"] = t
+            same["box"] = tuple(f(p, q) for f, p, q in zip((min, min, max, max), same["box"], box))
+            same["caption"] = same["caption"] or caption
+        else:
+            out.append({"first": t, "last": t, "raw": raw, "cat": cat, "box": box,
+                        "caption": caption})
+    blurs = []
+    for k, b in enumerate(out):
+        x0, y0, x1, y1 = b["box"]
+        x = max(0, int((x0 - SCREEN_PAD) * fx))
+        y = max(0, int((y0 - SCREEN_PAD) * fy))
+        w = min(size[0] - x, int((x1 - x0 + 2 * SCREEN_PAD) * fx))
+        h = min(size[1] - y, int((y1 - y0 + 2 * SCREEN_PAD) * fy))
+        blurs.append({"id": k + 1, "s": round(max(0.0, b["first"] - SCREEN_BEFORE), 2),
+                      "e": round(b["last"] + 1.0 / screen.get("fps", SCREEN_FPS) + SCREEN_AFTER, 2),
+                      "x": x, "y": y, "w": w, "h": h, "raw": b["raw"],
+                      "word": " ".join(cl.mask(x) for x in b["raw"].split()), "cat": b["cat"],
+                      "caption": b["caption"], "blur": True})
+    return blurs
+
+
+def _boxes_near(a, b, slack=40):
+    """About the same place: the boxes overlap, give or take `slack` pixels."""
+    return not (a[2] + slack < b[0] or b[2] + slack < a[0] or
+                a[3] + slack < b[1] or b[3] + slack < a[1])
+
+
+def screen_mutes(blurs, mutes, asr):
+    """Swears written as captions that the listening missed: muted where a word that sounds
+    like it was heard, else offered unticked over the time it's written. Returns new mutes."""
+    import difflib
+    out = []
+    for b in blurs:
+        if not b.get("caption"):
+            continue
+        s, e = b["s"] - 1.0, b["e"] + 1.0
+        if any(m["s"] < e and s < m["e"] for m in mutes + out):
+            continue                    # muted already
+        heard = [w for w in asr if b["s"] - 0.5 <= w["s"] <= b["e"] + 0.5]
+        target = b["raw"].replace(" ", "")
+        best = max(heard, key=lambda w: difflib.SequenceMatcher(None, w["n"], target).ratio(),
+                   default=None)
+        if best is not None and difflib.SequenceMatcher(None, best["n"], target).ratio() >= 0.5:
+            out.append({"s": best["s"], "e": best["e"], "cat": b["cat"], "src": "screen",
+                        "word": b["word"], "raw": b["raw"], "ctx": ""})
+        elif heard:
+            out.append({"s": b["s"], "e": b["e"], "cat": b["cat"], "src": "screen",
+                        "word": b["word"], "raw": b["raw"], "ctx": "", "keep": True,
+                        "why": SEEN_NOT_HEARD})
     return out
 
 
@@ -3924,6 +4082,8 @@ def saved_scan(work, video, opts, groups):
         return None
     if sorted(st.get("groups") or []) != sorted(groups or []):
         return None
+    if (groups or my_words(opts)) and "blurs" not in st:
+        return None                     # made before words on screen were read (1.18.165)
     # a list-only box newer than the scan (drug talk, 1.18.137): its lines are added to a scan
     # used again by `add_new_lessons`, so the scan still counts as made the same way
     newer = {k for k in LIST_ONLY_KINDS if k not in old}
@@ -5973,6 +6133,12 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     if lang != "en":
         lang_notes.append(f"Cleaned as a {cvlang.name(lang)} video, with the "
                           f"{cvlang.name(lang)} word lists.")
+    # words written in the picture, read meanwhile (1.18.165): whenever a word group is ticked
+    screen_box, screen_job = {}, None
+    if cats or mine:
+        def read_screen(progress):
+            screen_box["scan"] = screen_scan(path, info, work, progress, cancel)
+        screen_job = in_background(read_screen)
     say(at("lang", 0), "Finding language…")
     if subs_job["thread"].is_alive():
         say(at("lang", 0.5), "Looking for subtitles online…")
@@ -6427,6 +6593,28 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
     line_mutes.sort(key=lambda l: l["s"])
     notes += learned_notes
 
+    blurs = []
+    if screen_job is not None:
+        try:
+            wait_for(screen_job, lambda f, n="": say(at("end", 0.6), "Reading words written on "
+                                                     "screen…"), cancel)
+        except KeyboardInterrupt:
+            raise
+        except Exception:
+            screen_box["scan"] = None
+        v = info.get("video") or {}
+        blurs = screen_blurs(screen_box.get("scan"), cats, mine,
+                             [v.get("width") or 0, v.get("height") or 0])
+        seen = screen_mutes(blurs, mutes, asr) if blurs else []
+        if seen:
+            mutes = sorted(mutes + seen, key=lambda m: m["s"])
+        if screen_box.get("scan") is None:
+            notes.append("Words written on screen weren't read: Windows' text reader isn't "
+                         "available on this PC.")
+        elif blurs:
+            notes.append(f"Words on screen: {len(blurs)} bad word(s) written in the picture will "
+                         f"be blurred" + (f", and {len(seen)} that the listening missed muted"
+                                          if seen else "") + ".")
     quiet = loud_music(snd, asr, cues, dur) if o["loudmusic"] else []
     if o["loudmusic"]:
         hard_n = sum(1 for q in quiet if q.get("level") != OTHER_MUSIC_LEVEL)
@@ -6435,7 +6623,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
                      f"{len(quiet) - hard_n} of other loud music to a quarter." if quiet else
                      "Loud music: no loud music with nobody talking was found.")
     st = {"path": path, "info": info, "groups": list(groups), "mutes": mutes, "scenes": scenes,
-          "lines": line_mutes, "cues": cues, "show": key, "quiet": quiet,
+          "lines": line_mutes, "cues": cues, "show": key, "quiet": quiet, "blurs": blurs,
           "dialogue": [{"s": round(l["s"], 2), "e": round(l["e"], 2), "text": l["text"],
                         "who": l.get("who", "")} for l in lines],
           "voices": genders, "reader": who if claude_found is not None else line_how,
@@ -6973,8 +7161,23 @@ class keep_awake:
         return False
 
 
+def _blur_filters(blurs, size):
+    """A blur (delogo) for each word written on screen, while it's there (1.18.165)."""
+    W, H = size
+    out = []
+    for b in blurs:
+        x, y = max(1, int(b["x"])), max(1, int(b["y"]))
+        w = min(int(b["w"]), W - x - 1)
+        h = min(int(b["h"]), H - y - 1)
+        if w < 4 or h < 4 or b["e"] <= b["s"]:
+            continue
+        out.append(f"delogo=x={x}:y={y}:w={w}:h={h}:"
+                   f"enable='between(t,{b['s']:.3f},{b['e']:.3f})'")
+    return out
+
+
 def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, encoders=None,
-           lines=None, words=None, quiet=None):
+           lines=None, words=None, quiet=None, blurs=None):
     """Write the clean copy. cuts: list of {"s","e"} (default: scenes with cut=True).
     lines: dialogue lines to mute (default: lines with mute=True)."""
     work = Path(workdir)
@@ -7002,6 +7205,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         st["mutes"] = list(words)
     if quiet is None:              # loud music to turn down (default: what's ticked)
         quiet = [q for q in st.get("quiet", []) if q.get("lower", True)]
+    if blurs is None:              # words written on screen to blur (1.18.165)
+        blurs = [b for b in st.get("blurs", []) if b.get("blur", True)]
+    v = info.get("video") or {}
+    blur_vf = _blur_filters(blurs, (v.get("width") or 0, v.get("height") or 0)) \
+        if v.get("width") and v.get("height") else []
     cut_rs = _merge((max(0.0, c["s"]), min(dur, c["e"])) for c in cuts)
     line_rs = _merge((l["s"], l["e"]) for l in lines)
     mute_rs = _merge([(m["s"], m["e"]) for m in st["mutes"]] + line_rs)
@@ -7014,7 +7222,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     scene_mute_rs = _merge((max(0.0, c["s"]), min(dur, c["e"])) for c in sound_only)
     if scene_mute_rs:
         mute_rs = _merge(list(mute_rs) + scene_mute_rs)
-    reencode = bool(cut_rs)
+    reencode = bool(cut_rs) or bool(blur_vf)
     mp4 = reencode or src.suffix.lower() in (".mp4", ".m4v", ".mov")
     # a clean copy cleaned again keeps its name, and replaces itself (only once the new one is
     # done: it's written as .partial first); the original is never written to
@@ -7039,8 +7247,8 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
     if cut_rs:
         afilt += _cut_filters(cut_rs, off)
     (work / "afilter.txt").write_text(",".join(afilt))
-    (work / "vfilter.txt").write_text(
-        ",".join(_cut_filters(cut_rs, off, video=True)) if cut_rs else "null")
+    vf = blur_vf + (_cut_filters(cut_rs, off, video=True) if cut_rs else [])
+    (work / "vfilter.txt").write_text(",".join(vf) if vf else "null")
     abr = "448k" if a["channels"] > 2 else "192k"
     if a["bit_rate"]:
         abr = str(min(max(a["bit_rate"], 128000), 640000 if a["channels"] > 2 else 320000))
@@ -7247,12 +7455,15 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         rep.append("Only the main soundtrack was kept (other languages and commentary "
                    "weren't cleaned, so they were left out).")
     rep.append("")
-    src_note = {"audio": "", "claude": "   (only this word, per the AI review)",
+    src_note = {"audio": "", "screen": "   (seen written on screen)",
+                "claude": "   (only this word, per the AI review)",
                 "claude-estimated": "   (only this word, per the AI review)"}
     events = [(m["s"], f"muted  {m['word']}" + src_note.get(m.get("src"), "   (caught by subtitles)"))
               for m in st["mutes"]]
     events += [(l["s"], "muted line  (" + ", ".join(LINE_LABEL.get(t, t) for t in l["types"]) + ")")
                for l in lines]
+    events += [(b["s"], f"blurred  {b['word']}  written on screen for {b['e'] - b['s']:.0f} "
+                        f"seconds") for b in blurs]
     events += [(q["s"], f"turned down  {q.get('kind', 'loud music').lower()} for "
                         f"{q['e'] - q['s']:.0f} seconds" +
                         ("  (to a quarter)" if q.get("level") == OTHER_MUSIC_LEVEL else

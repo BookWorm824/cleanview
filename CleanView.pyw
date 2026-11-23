@@ -3010,7 +3010,7 @@ class App(tk.Tk):
                 try:
                     results.append(engine.render(
                         j["work"], self.outdir, j["cuts"], encoders=encs, lines=j.get("lines", []),
-                        words=j.get("words"), quiet=j.get("quiet"),
+                        words=j.get("words"), quiet=j.get("quiet"), blurs=j.get("blurs"),
                         progress=lambda f, m, k=k: put(("progress", (k + f) / len(todo), m, "")),
                         log=lambda m: None, cancel=stopped))
                     put(("job", k, "done"))
@@ -3417,6 +3417,7 @@ class App(tk.Tk):
         nl = sum(len(vis[id(j)][1]) for j in good)
         nw = sum(len(vis[id(j)][2]) for j in good)
         nq = sum(len(j["analysis"].get("quiet") or []) for j in good)
+        nb = sum(len(j["analysis"].get("blurs") or []) for j in good)
         n_fine = sum(vis[id(j)][3] for j in good)
         parts = []
         if n:
@@ -3425,6 +3426,8 @@ class App(tk.Tk):
             parts.append(f"{nl} line{'s' if nl != 1 else ''}")
         if nw:
             parts.append(f"{nw} word{'s' if nw != 1 else ''}")
+        if nb:
+            parts.append(f"{nb} word{'s' if nb != 1 else ''} on screen")
         if nq:
             parts.append(f"{nq} stretch{'es' if nq != 1 else ''} of loud music")
         title = (", ".join(parts[:-1]) + " and " + parts[-1] if len(parts) > 1 else
@@ -3452,6 +3455,7 @@ class App(tk.Tk):
             self._fit_text(self._early_text, box, self._px(260))
             self._early_news()
         self.scene_vars, self.line_vars, self.word_vars, self.quiet_vars = [], [], [], []
+        self.blur_vars = []
         self._filter_vars = {}      # filter group -> its BooleanVars, every video (_note_filter)
         self._thumb_spots = {}      # id(scene) -> (row, text): where its pictures go
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
@@ -3567,6 +3571,11 @@ class App(tk.Tk):
                 self._words_card(inner, j, wds)
                 if not multi:
                     spots.append(("Words", len(wds), mark))
+            if st.get("blurs"):
+                mark = self._jump_mark(inner)
+                self._screen_card(inner, j, st["blurs"])
+                if not multi:
+                    spots.append(("On screen", len(st["blurs"]), mark))
             if st.get("quiet"):
                 mark = self._jump_mark(inner)
                 self._music_card(inner, j, st["quiet"])
@@ -4127,6 +4136,11 @@ class App(tk.Tk):
                 m["keep"] = not v.get()
                 if v.get() != m.get("_shown", v.get()):
                     m["by_you"] = True
+        for v, j, b in getattr(self, "blur_vars", []):
+            if j is job:
+                b["blur"] = v.get()
+                if v.get() != b.get("_shown", v.get()):
+                    b["by_you"] = True
         for v, j, q in getattr(self, "quiet_vars", []):
             if j is job:
                 q["lower"] = v.get()
@@ -4685,6 +4699,31 @@ class App(tk.Tk):
             line.pack(side="left", fill="x", expand=True, padx=(6, 0))
             self._answer_box(wrap, m)
 
+    def _screen_card(self, parent, job, blurs):
+        """Bad words written in the picture (1.18.165): ticked ones are blurred where they're
+        written, for as long as they're there."""
+        card = self._round_card(parent)
+        head = tk.Frame(card, bg=CARD)
+        head.pack(fill="x")
+        tk.Label(head, text=f"Words written on screen  ({len(blurs)})", bg=CARD, fg=INK,
+                 font=(HEAD, 11)).pack(side="left")
+        card_vars = []
+        if len(blurs) > 1:
+            self._tick_links(head, CARD, card_vars).pack(side="left", padx=(self._px(6), 0))
+        tk.Label(card, text="Ticked words are blurred in the picture where they're written, "
+                 "for as long as they're there. They follow your word ticks, like the words "
+                 "that are muted.", bg=CARD, fg=MUTED, font=(FONT, 9),
+                 wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(0, 4))
+        for b in blurs:
+            row = tk.Frame(card, bg=CARD)
+            row.pack(fill="x", pady=2)
+            v = tk.BooleanVar(value=b.get("blur", True))
+            b["_shown"] = v.get()
+            self.blur_vars.append((v, job, b))
+            card_vars.append(v)
+            ttk.Checkbutton(row, text=f"Blur  “{b['word']}”   ·   {engine.cl.fmt_t(b['s'])}   ·   "
+                            f"{max(1, round(b['e'] - b['s']))} sec", variable=v).pack(side="left")
+
     def _music_card(self, parent, job, quiet):
         """Loud music with nobody talking: ticked ones are turned down (hard rock, metal and
         rap until barely heard, the rest to a quarter: 1.18.160)."""
@@ -4861,6 +4900,10 @@ class App(tk.Tk):
             return
         for j in self.jobs:
             j["cuts"], j["lines"], j["words"], j["quiet"] = [], [], [], []
+            j["blurs"] = []
+        for v, j, b in getattr(self, "blur_vars", []):
+            if v.get():
+                j["blurs"].append(b)
         for v, j, m in self.word_vars:
             if v.get():
                 j["words"].append(m)
