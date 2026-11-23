@@ -1360,6 +1360,30 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   dropped partway. CleanView Save tries again next time.", and `pull_with_retries` tries
   `PULL_TRIES` (3) times, `PULL_WAITS` 10 and 30 s apart (Ollama carries on where it got to).
   `test_download_plain.py`.
+- Lessons from the past scans on this PC (1.18.166, 2026-11-23; the owner: "the things you are
+  scanning are you able to teach to clean view", "yes", then "Yes, teach them"). The 136 videos
+  scanned here (`views\*\analysis.json`, the newest scan of each: 51 Person of Interest, 57 The
+  Resident, 11 Castle, 13 Gummi Bears, 4 movies; nearly all read by Claude) were read again line
+  by line by eight helpers for lines that should have been muted for the filters that were on;
+  each of their 90 finds was checked against its own dialogue here and only the clear ones kept.
+  Taught (`muted`/`muted_for`, each matching only its own line in the 122,005 past lines): castle
+  5 (sexref: "...debrief each other", "There's no need to be gentle" while cuffed, Nikki naked on
+  the cover twice, "Don't do anything I would do"), person-of-interest 10 (sexref "see some
+  action", "go au naturel", "bare-a** naked in front of...", "Things get heavy with you and Cal",
+  "some dirty pictures of you", "...that was you from behind", the two bar-fight slurs "tube
+  steak" and "split-tails"; casual "special friends", "the cheating boyfriend"), the-resident 6
+  (sexref "spooning", "must have some fun"; casual the escort's "my client's husband"; oppsex
+  "Let's move in together", "He asked me to move in with him", "move in together and then
+  host"). Taught as fine (`kept`): "But you're only fairy tales." (adventures-of-the-gummi-bears,
+  a new show entry), and for person-of-interest "...having a relationship with the victim",
+  "...pining for that girl in Staad" (said to a man), "to be occupying my mind" (the Machine); for
+  the-resident "I knew we were a thing.", "A winky and a smiley face." `CASUAL_TERMS`: "cheating"
+  before husband/wife/boyfriend/girlfriend/spouse/partner/fiance (only "cheating" muted; the four
+  such past lines are all affairs). Not taught: doubtful finds, case and medical talk (the
+  coroner box decides), religious lines (the Religious content parts decide), lines that need the
+  line before, under 5 words. Left: Gummi Bears' "Dummy"/"dummies" heard for Zummi/Gummies is
+  still muted (2 lines). `test_past_scans.py`. For CleanListen, CleanRead and CleanStream: the
+  "cheating husband" phrasing.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

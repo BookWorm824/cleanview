@@ -261,7 +261,12 @@
     "tracked down and killed his wife's lover",
     "mmm two affairs a loveless marriage",
     "who's getting lucky this summer",
-    "so i can stay on top of him while he finishes his book"
+    "so i can stay on top of him while he finishes his book",
+    "we could uh go to dinner debrief each other",
+    "oh there's no need to be gentle",
+    "pretty sweet right sweet she's naked",
+    "she's not naked she's holding a gun",
+    "all right get outta here don't do anything i would do"
    ],
    "kept": [
     "well it wasn't unusual for him to crash on his couch",
@@ -559,7 +564,12 @@
     "tracked down and killed his wife's lover": "casual",
     "mmm two affairs a loveless marriage": "casual",
     "who's getting lucky this summer": "sexref",
-    "so i can stay on top of him while he finishes his book": "sexref"
+    "so i can stay on top of him while he finishes his book": "sexref",
+    "we could uh go to dinner debrief each other": "sexref",
+    "oh there's no need to be gentle": "sexref",
+    "pretty sweet right sweet she's naked": "sexref",
+    "she's not naked she's holding a gun": "sexref",
+    "all right get outta here don't do anything i would do": "sexref"
    },
    "notes": [
     "Dern (Cynthia Dern) is a character's surname: never the minced oath 'dern'. 'Hell' in the book title 'Hell Hath No Fury' is still muted (she ticks it).",
@@ -975,7 +985,13 @@
     "and it cost him his voice so he couldn't preach",
     "and i know that alcohol is considered haram and forbidden",
     "god he just keeps choosing the wrong one of us",
-    "he talked for a while about conversion therapy"
+    "he talked for a while about conversion therapy",
+    "mm may your egos have a wonderful time spooning",
+    "handsome guy like you must have some fun",
+    "i was trying to get away from my client's husband",
+    "i'm ready let's move in together",
+    "he asked me to move in with him",
+    "move in together and then host"
    ],
    "kept": [
     "mine or yours",
@@ -1148,7 +1164,9 @@
     "it's time to hang up the saddle jonesy",
     "science froze your embryos medicine got you pregnant",
     "without doctors you would have no baby",
-    "i brought my mother from nigeria to come and operate on you"
+    "i brought my mother from nigeria to come and operate on you",
+    "i knew we were a thing",
+    "oh a winky and a smiley face"
    ],
    "ok_words": [],
    "muted_for": {
@@ -1299,7 +1317,13 @@
     "and it cost him his voice so he couldn't preach": "religion",
     "and i know that alcohol is considered haram and forbidden": "religion",
     "god he just keeps choosing the wrong one of us": "religion",
-    "he talked for a while about conversion therapy": "samesex"
+    "he talked for a while about conversion therapy": "samesex",
+    "mm may your egos have a wonderful time spooning": "sexref",
+    "handsome guy like you must have some fun": "sexref",
+    "i was trying to get away from my client's husband": "casual",
+    "i'm ready let's move in together": "oppsex",
+    "he asked me to move in with him": "oppsex",
+    "move in together and then host": "oppsex"
    },
    "notes": [
     "Nic (Nic Nevin) is a character's name: a swear heard where 'Nic' fits is the name.",
@@ -1460,7 +1484,17 @@
     "mom left because you cheated on her",
     "bank robber and a cheat",
     "bank robber and a cheet",
-    "i do know a place right around the corner full bar comfy bed"
+    "i do know a place right around the corner full bar comfy bed",
+    "maybe next time i'll even see some action",
+    "i wanted to go au naturel",
+    "bare ass naked in front of a bunch of minors",
+    "things get heavy with you and cal",
+    "some dirty pictures of you or something",
+    "i didn't realize that was you from behind",
+    "so how long have you and zoe been special friends",
+    "and i'm making sure the cheating boyfriend",
+    "but a tube steak like you doesn't get to call me either",
+    "one of you split tails gonna do something about it"
    ],
    "kept": [
     "or this sad specimen will",
@@ -1481,7 +1515,10 @@
     "took some balls calling a meeting like this",
     "i do like men with glasses",
     "i'm keeping an eye on you you slippery little mutt",
-    "'your lovely wife and two little girls'"
+    "'your lovely wife and two little girls'",
+    "we think he was having a relationship with the victim",
+    "you're not still pining for that girl in staad",
+    "to be occupying my mind"
    ],
    "ok_words": [],
    "muted_for": {
@@ -1517,7 +1554,17 @@
     "mom left because you cheated on her": "casual",
     "bank robber and a cheat": "casual",
     "bank robber and a cheet": "casual",
-    "i do know a place right around the corner full bar comfy bed": "casual"
+    "i do know a place right around the corner full bar comfy bed": "casual",
+    "maybe next time i'll even see some action": "sexref",
+    "i wanted to go au naturel": "sexref",
+    "bare ass naked in front of a bunch of minors": "sexref",
+    "things get heavy with you and cal": "sexref",
+    "some dirty pictures of you or something": "sexref",
+    "i didn't realize that was you from behind": "sexref",
+    "so how long have you and zoe been special friends": "casual",
+    "and i'm making sure the cheating boyfriend": "casual",
+    "but a tube steak like you doesn't get to call me either": "sexref",
+    "one of you split tails gonna do something about it": "sexref"
    },
    "notes": [
     "Finch (Harold Finch) is a main character: 'bitch' heard where 'Finch' fits is the name.",
@@ -1756,6 +1803,15 @@
    "notes": [
     "Garcia's online friend Sir Kneighf, from the Camelot game, is a man (S1E22: \"he's the online alter ego of a real person\"): her crush on him isn't same-sex, even when JJ jokes \"or even if he is a him\"."
    ]
+  },
+  "adventures-of-the-gummi-bears": {
+   "muted": [],
+   "kept": [
+    "but you're only fairy tales"
+   ],
+   "ok_words": [],
+   "muted_for": {},
+   "notes": []
   }
  },
  "general": {

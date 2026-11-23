@@ -2684,6 +2684,10 @@ CASUAL_TERMS = [
     # in Jersey to have a tryst", "David doesn't sleep with every girl who walks by"
     r"two[- ]tim(?:e|es|ed|ing|er|ers)", r"trysts?",
     r"sleep(?:s|ing)? with every(?:one|body| girl| woman| guy| man)",
+    # the past scans on this PC (1.18.166; the owner: "Yes, teach them"): "...making sure the
+    # cheating boyfriend", "SO NOW ALL WE HAVE IS A CHEATING HUSBAND", "your cheating husband's
+    # STD" (all four such lines in the past reviews here are an affair); only "cheating" muted
+    r"cheating(?= (?:husband|wife|boyfriend|girlfriend|spouse|partner|fianc[eé]e?)(?:s|'s)?\b)",
 ]
 
 # graphic case talk (with rape and the rest, 1.18.125)
