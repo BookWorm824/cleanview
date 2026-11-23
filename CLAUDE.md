@@ -1304,6 +1304,30 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   The rest ("I always pictured you in the back of my car. / In handcuffs.") is for the readers:
   `OPT_TEXT`, `ai.LINE_TYPES` and `cc.TYPE_TEXT` for sexref say handcuffs as a sexual joke, not
   police cuffing someone. No past line here is newly caught. `test_handcuffs.py`.
+- A DVD's own folder is one movie (1.18.164, 2026-11-23; the owner's screenshot of a VIDEO_TS
+  folder being cleaned: VIDEO_TS.VOB, VTS_01_0, VTS_01_1 and VTS_02_0 failed "has no sound in
+  it", each with a box, and VTS_02_1 to VTS_02_4 were cleaned as four pieces; "Yes, build it",
+  "will it combine the parts"). `engine.dvd_split(paths)`: a folder with VTS_nn_k.VOB pieces
+  (or VIDEO_TS.VOB) is a DVD; its menus (VIDEO_TS.VOB, VTS_nn_0.VOB, `DVD_MENU`), shorter titles
+  (warnings, trailers) and any other .VOB there are left out, and the title whose pieces are
+  biggest in all is the movie, every piece of it on the disc, in order (one chosen piece brings
+  the rest). `join_dvd`: ffmpeg's concat of the pieces, copied (-c copy, video, every sound and
+  subtitle track) into `DVD_DIR` (APP_DATA\dvd\<folder hash>\<DVD name>.mkv), done.json
+  noting the pieces' names and sizes (`dvd_ready`: not joined twice), source.txt the DVD's
+  folder (`dvd_mark`, written before joining). Not enough room: `DVD_NO_ROOM`. The three newest
+  joined movies are kept (`DVD_KEEP`, `_tidy_dvds`). The DVD is named after its folder, or the
+  one above VIDEO_TS (`dvd_name`, `dvd_home`), so its clean copy and the subtitle lookup go by
+  the movie's name; `clean_folder` puts its clean copy in "Clean" beside that folder
+  (`dvd_source`). The start page (`App._take_dvds`, from Choose files and a drop): one video
+  per DVD, joined in the background (`_join_dvd`), step 1 saying "Putting the DVD's movie
+  together from its pieces… N%" (`DVD_JOINING`); Start cleaning meanwhile says to wait
+  (`DVD_WAIT`); only menus says so (`DVD_ONLY_MENUS`); a join that fails is taken off the list
+  with a plain message. A loose .VOB not named like a DVD's is an ordinary video, as before. The
+  disc's files are never touched. A real DVD wasn't tried here (a made-up one: menus with no
+  sound, a short trailer, a 12-second movie split into three pieces at byte boundaries as a
+  disc splits it, joined back to 12 s). `test_dvd.py`.
+  Also in 1.18.164 (CleanListen 1.17.101's care): pink, velvet, satin and silk count only before
+  "handcuffs", since "his silk cuffs" are a shirt's sleeves in a period drama.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

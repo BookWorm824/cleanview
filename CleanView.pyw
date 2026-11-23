@@ -2155,16 +2155,25 @@ class App(tk.Tk):
             folder = os.path.normpath(str(Path(videos[0]).parent))
             n = len(videos)
 
+            src = engine.dvd_source(videos[0])
+            if src is not None or str(videos[0]) in getattr(self, "_dvd_joining", {}):
+                folder = os.path.normpath(str(engine.dvd_home(src))) if src else "a DVD folder"
+            joining = [v for v in videos if v in getattr(self, "_dvd_joining", {})]
+
             def show(length=""):
                 # two sizes bigger and a little bolder once chosen (1.18.100; the owner:
                 # "after choosing a file the name of the file chosen goes in the area, can the
                 # text be a couple sizes bigger and bolder a little")
+                if joining:                     # the DVD's movie isn't ready yet
+                    self._dvd_progress(joining[0], self._dvd_joining.get(joining[0], 0.0))
+                    return
                 if self.videos == videos and self.vid_lbl.winfo_exists():
                     self.vid_lbl.config(text=f"{n} video{'s' if n != 1 else ''}{length}   in  "
                                         f"{folder}\n{first}{extra}", fg=INK,
                                         font=CHOSEN_FONT)
             show()
-            self._lengths(videos, lambda dur: show(f" · {fmt_len(dur)}"))
+            if not joining:
+                self._lengths(videos, lambda dur: show(f" · {fmt_len(dur)}"))
             self.start_btn.config(state="normal")
             if not self.outdir:
                 self.out_lbl.config(text=os.path.normpath(str(engine.clean_folder(self.videos[0]))),
@@ -2214,9 +2223,71 @@ class App(tk.Tk):
         files = filedialog.askopenfilenames(title="Choose the movie or episodes",
                                             filetypes=[("Videos", exts), ("All files", "*.*")])
         if files:
-            self.videos = sorted(files, key=natural_key)
+            self.videos = self._take_dvds(sorted(files, key=natural_key))
             self.outdir = self._remembered_folder()
             self._refresh_labels()
+
+    # A DVD's own folder (1.18.164; the owner: "will it combine the parts"): its menus and
+    # short titles are left out, and the movie's pieces (VTS_02_1 to VTS_02_4) are joined into
+    # one video in the background, which is what's cleaned (engine.dvd_split, join_dvd).
+    DVD_JOINING = "Putting the DVD's movie together from its pieces… {pct}%"
+    DVD_WAIT = ("CleanView Save is still putting the DVD's movie together from its pieces. "
+                "Wait a moment, then press Start cleaning again.")
+    DVD_ONLY_MENUS = ("That DVD folder only has menus in it, no movie to clean.")
+
+    def _take_dvds(self, videos):
+        """The videos to clean, with each DVD's pieces as one movie (joined in the
+        background when it isn't yet)."""
+        others, dvds = engine.dvd_split(videos)
+        if not dvds:
+            if not others and videos:
+                messagebox.showinfo("CleanView Save", self.DVD_ONLY_MENUS, parent=self)
+            return others
+        self._dvd_joining = getattr(self, "_dvd_joining", {})
+        out = list(others)
+        for d in dvds:
+            try:
+                movie = str(engine.dvd_mark(d))
+            except OSError:
+                movie = str(engine.dvd_movie(d))
+            out.append(movie)
+            if not engine.dvd_ready(d) and movie not in self._dvd_joining:
+                self._dvd_joining[movie] = 0.0
+                threading.Thread(target=self._join_dvd, args=(d, movie), daemon=True).start()
+        return out
+
+    def _join_dvd(self, dvd, movie):
+        def told(frac):
+            self.q.put(("call", lambda: self._dvd_progress(movie, frac)))
+        try:
+            engine.join_dvd(dvd, progress=told)
+            self.q.put(("call", lambda: self._dvd_progress(movie, None)))
+        except Exception as ex:
+            msg = str(ex) if isinstance(ex, engine.VideoError) else (
+                "CleanView Save couldn't put the DVD's movie together.")
+            self.q.put(("call", lambda: self._dvd_failed(movie, msg)))
+
+    def _dvd_progress(self, movie, frac):
+        joining = getattr(self, "_dvd_joining", {})
+        if frac is None:
+            joining.pop(movie, None)
+            if movie in (self.videos or []) and getattr(self, "page_name", "") == "setup":
+                self._refresh_labels()
+            return
+        joining[movie] = frac
+        lbl = getattr(self, "vid_lbl", None)
+        if movie in (self.videos or []) and lbl is not None and lbl.winfo_exists():
+            lbl.config(text=self.DVD_JOINING.format(pct=int(frac * 100)) + "\n" +
+                       short(Path(movie).stem, 70), fg=INK, font=CHOSEN_FONT)
+
+    def _dvd_failed(self, movie, msg):
+        getattr(self, "_dvd_joining", {}).pop(movie, None)
+        if movie in (self.videos or []):
+            self.videos = [v for v in self.videos if v != movie]
+            if getattr(self, "page_name", "") == "setup":
+                self._refresh_labels()
+            chime()
+            messagebox.showinfo("CleanView Save", msg, parent=self)
 
     def _drag_over(self, on):
         """Files held over the window (1.18.134; the owner, 2026-11-18: "when someone drags a
@@ -2267,7 +2338,9 @@ class App(tk.Tk):
             return
         if page == "done":
             self.reset()
-        self.videos = videos
+        self.videos = self._take_dvds(videos)
+        if not self.videos:
+            return
         self.outdir = self._remembered_folder()
         self._go_step(1)
         self._refresh_labels()
@@ -2282,6 +2355,9 @@ class App(tk.Tk):
 
     # ---------- page 2: working ----------
     def start(self):
+        if any(v in getattr(self, "_dvd_joining", {}) for v in self.videos or []):
+            messagebox.showinfo("CleanView Save", self.DVD_WAIT, parent=self)
+            return
         if not self.videos:          # the button is always on, so it never looks broken
             messagebox.showinfo("CleanView Save", "First choose the movie or episodes to clean, "
                                 "with Choose files in step 1.", parent=self)

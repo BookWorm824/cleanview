@@ -14,14 +14,16 @@ class Handcuffs(unittest.TestCase):
     def test_innuendo(self):
         for t in ("Bring the furry handcuffs.", "Handcuff me to the bed.",
                   "You can cuff me to the bedpost later.", "I keep handcuffs in the bedroom.",
-                  "The handcuffs are kinky.", "Ooh, naughty handcuffs."):
+                  "The handcuffs are kinky.", "Ooh, naughty handcuffs.",
+                  "She bought pink handcuffs."):
             self.assertTrue(found(t), t)
 
     def test_police_and_patients_left_alone(self):
         for t in ("Cuff him.", "75 cops in cuffs, that's news.",
                   "You cuff her to the bed if need be.", "Get these cuffs off.",
                   "Someone paid her to handcuff you to a bed, so they could murder you.",
-                  "You just found real handcuffs?", "I'm not the one handcuffed to a chair."):
+                  "You just found real handcuffs?", "I'm not the one handcuffed to a chair.",
+                  "He straightened his silk cuffs.", "The velvet cuffs of her gown."):
             self.assertEqual(found(t), [], t)
 
     def test_readers_told(self):

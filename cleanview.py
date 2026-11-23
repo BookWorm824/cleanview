@@ -14,6 +14,7 @@ lists and tools lives beside it. Used by the CleanView app; can also run from a 
 """
 import argparse
 import atexit
+import hashlib
 import importlib.util
 import json
 import os
@@ -2497,8 +2498,10 @@ SEXUAL_TERMS = [
     # furry or pink ones, cuffed to the bed(post) by "me/you", in the bedroom, or kinky/naughty
     # in the same sentence. The rest is for the readers (`OPT_TEXT`, `ai.LINE_TYPES`,
     # `cc.TYPE_TEXT`)
-    r"(?:furry|fuzzy|fluffy|pink|novelty|leopard[- ]print|velvet|satin|silk|feathered) "
-    r"(?:hand)?cuffs",
+    # (1.18.164, as CleanListen 1.17.101: "silk cuffs" are a shirt's sleeves in a period
+    # drama, so pink/velvet/satin/silk only with "handcuffs")
+    r"(?:furry|fuzzy|fluffy|novelty|leopard[- ]print|feathered) (?:hand)?cuffs",
+    r"(?:pink|velvet|satin|silk) handcuffs",
     r"(?:hand)?cuff(?:s|ed|ing)? (?:me|you) to (?:the|my|your) bed(?:posts?|frame)?",
     r"(?:hand)?cuffs (?:in|for) (?:the|my|your) bedroom",
     r"(?:kinky|naughty|frisky)\b[^.!?]{0,40}?\b(?:hand)?cuff(?:s|ed)?",
@@ -4068,9 +4071,185 @@ def is_clean_copy(video):
 
 def clean_folder(video):
     """Where a video's clean copy goes unless another folder is chosen: a "Clean" folder
-    beside it, or for a clean copy cleaned again, its own folder (so it replaces itself)."""
+    beside it, or for a clean copy cleaned again, its own folder (so it replaces itself). A
+    DVD's movie (joined by `join_dvd`) goes in a "Clean" folder beside the DVD's folder."""
     p = Path(video)
+    src = dvd_source(p)
+    if src is not None:
+        return dvd_home(src) / "Clean"
     return p.parent if is_clean_copy(p) else p.parent / "Clean"
+
+
+# ---------------------------------------------------------------------------
+# A DVD's own folder (1.18.164; the owner, with a VIDEO_TS folder chosen: every .VOB was cleaned
+# as its own video, the menus failed with "has no sound in it", and the movie, VTS_02_1 to
+# VTS_02_4, came out as four pieces; "Yes, build it", "will it combine the parts"). The menus
+# (VIDEO_TS.VOB, VTS_nn_0.VOB) and the shorter titles (warnings, trailers) are left out, and
+# the movie's pieces are joined into one video, copied, not made again (`join_dvd`), in
+# CleanView's own folder (`DVD_DIR`, the three newest kept), and cleaned as one movie named
+# after the DVD's folder, its clean copy beside that folder. The disc's files aren't touched.
+# ---------------------------------------------------------------------------
+DVD_DIR = ai.APP_DATA / "dvd"
+DVD_KEEP = 3
+DVD_PART = re.compile(r"^VTS_(\d\d)_(\d)\.VOB$", re.I)
+DVD_MENU = re.compile(r"^(VIDEO_TS|VTS_\d\d_0)\.VOB$", re.I)
+
+
+def dvd_home(folder):
+    """The folder a DVD's files are in, or the one above when that's VIDEO_TS."""
+    folder = Path(folder)
+    return folder.parent if folder.name.upper() == "VIDEO_TS" and folder.parent != folder \
+        else folder
+
+
+def dvd_name(folder):
+    """What a DVD is called: its folder's name, or the one above VIDEO_TS."""
+    return dvd_home(folder).name or "DVD"
+
+
+def dvd_split(paths):
+    """(other videos, DVDs) for a list of chosen videos. A folder with VTS_nn_k.VOB pieces is a
+    DVD: [{"name", "folder", "parts"}] with the title whose pieces are biggest in all (the
+    movie), its pieces in order. Its menus and other titles are left out of both."""
+    by_folder = {}
+    others = []
+    dvd_folders = {os.path.normcase(str(Path(p).parent)) for p in paths
+                   if DVD_PART.match(Path(p).name) or DVD_MENU.match(Path(p).name)}
+    for p in paths:
+        folder = os.path.normcase(str(Path(p).parent))
+        if folder in dvd_folders and Path(p).suffix.lower() == ".vob":
+            by_folder.setdefault(folder, []).append(p)      # any other .VOB there too
+        else:
+            others.append(p)
+    dvds = []
+    for _, files in by_folder.items():
+        folder = Path(files[0]).parent
+        titles = {}
+        for f in files:
+            m = DVD_PART.match(Path(f).name)
+            if m and m.group(2) != "0":
+                titles.setdefault(m.group(1), []).append(f)
+        # every piece of the chosen titles, even ones not picked (a folder may be dropped,
+        # or only some files chosen): the movie is the whole title on the disc
+        for t in list(titles):
+            on_disc = sorted(folder.glob(f"VTS_{t}_*.VOB"), key=lambda x: x.name.upper())
+            parts = [str(x) for x in on_disc
+                     if DVD_PART.match(x.name) and DVD_PART.match(x.name).group(2) != "0"]
+            if parts:
+                titles[t] = parts
+        if not titles:
+            continue                    # only menus: nothing to clean
+        size = {t: sum(_size(x) for x in ps) for t, ps in titles.items()}
+        best = max(sorted(titles), key=lambda t: size[t])
+        parts = sorted(titles[best], key=lambda x: int(DVD_PART.match(Path(x).name).group(2)))
+        dvds.append({"name": dvd_name(folder), "folder": str(folder), "parts": parts})
+    return others, dvds
+
+
+def _size(p):
+    try:
+        return os.path.getsize(p)
+    except OSError:
+        return 0
+
+
+def dvd_movie(dvd):
+    """Where a DVD's joined movie goes: its own folder in DVD_DIR, named after the DVD."""
+    key = hashlib.sha1(os.path.normcase(os.path.abspath(dvd["folder"])).encode()).hexdigest()[:12]
+    safe = re.sub(r'[<>:"/\\|?*]', "", dvd["name"]).strip(" .") or "DVD"
+    return DVD_DIR / key / f"{safe}.mkv"
+
+
+def dvd_mark(dvd):
+    """Note which DVD folder this movie comes from (so its clean copy goes beside it), before
+    it's joined: the start page shows where it'll be saved straight away."""
+    out = dvd_movie(dvd)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    (out.parent / "source.txt").write_text(dvd["folder"], encoding="utf8")
+    return out
+
+
+def dvd_source(video):
+    """The DVD folder a joined movie came from, or None for any other video."""
+    try:
+        p = Path(video)
+        if p.parent.parent != DVD_DIR:
+            return None
+        return Path((p.parent / "source.txt").read_text(encoding="utf8").strip())
+    except (OSError, ValueError):
+        return None
+
+
+def dvd_ready(dvd):
+    """True if this DVD's movie is joined already, from these same pieces."""
+    out = dvd_movie(dvd)
+    try:
+        done = json.loads((out.parent / "done.json").read_text(encoding="utf8"))
+    except (OSError, ValueError):
+        return False
+    return out.exists() and done == [[os.path.basename(p), _size(p)] for p in dvd["parts"]]
+
+
+DVD_NO_ROOM = ("There isn't room to put the DVD's movie together: it needs about {need} free on "
+               "drive {drive}, and there's {free}. Make some room, then choose the DVD again.")
+
+
+def join_dvd(dvd, progress=None, cancel=None):
+    """Join a DVD's movie pieces into one video (copied, so a few minutes) and return its path.
+    progress(fraction). Raises VideoError in plain words when it can't."""
+    out = dvd_movie(dvd)
+    if dvd_ready(dvd):
+        return out
+    total = sum(_size(p) for p in dvd["parts"]) or 1
+    out.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        free = shutil.disk_usage(out.parent).free
+    except OSError:
+        free = None
+    if free is not None and free < total * 1.05 + 200e6:
+        gb = lambda n: f"{n / 1e9:.1f} GB"
+        raise VideoError(DVD_NO_ROOM.format(need=gb(total * 1.05 + 200e6),
+                                            drive=out.anchor or str(out.parent), free=gb(free)))
+    _tidy_dvds(keep=out.parent)
+    dvd_mark(dvd)
+    tmp = out.with_suffix(".partial.mkv")
+    cmd = [cl._tool("ffmpeg"), "-y", "-v", "error", "-fflags", "+genpts",
+           "-i", "concat:" + "|".join(dvd["parts"]),
+           "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?", "-c", "copy", str(tmp)]
+    proc = cl.popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    while proc.poll() is None:
+        if cancel and cancel.is_set():
+            proc.kill()
+            proc.wait()
+            _remove(tmp)
+            raise KeyboardInterrupt
+        if progress:
+            progress(min(0.99, _size(tmp) / total))
+        time.sleep(0.5)
+    err = proc.stderr.read().decode("utf8", "replace") if proc.stderr else ""
+    if proc.stderr:
+        proc.stderr.close()
+    if proc.returncode != 0 or not tmp.exists() or _size(tmp) < total * 0.5:
+        _remove(tmp)
+        raise VideoError("CleanView Save couldn't put the DVD's movie together. "
+                         + (err.strip().splitlines() or [""])[-1][:200])
+    os.replace(tmp, out)
+    (out.parent / "done.json").write_text(json.dumps(
+        [[os.path.basename(p), _size(p)] for p in dvd["parts"]]), encoding="utf8")
+    if progress:
+        progress(1.0)
+    return out
+
+
+def _tidy_dvds(keep):
+    """Only the newest DVD_KEEP joined movies are kept (they can be joined again)."""
+    try:
+        folders = sorted((d for d in DVD_DIR.iterdir() if d.is_dir() and d != keep),
+                         key=lambda d: d.stat().st_mtime, reverse=True)
+    except OSError:
+        return
+    for d in folders[DVD_KEEP - 1:]:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def finish_review(st, res, work=None, thumbs=True):
