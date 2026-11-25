@@ -61,9 +61,10 @@ class TheBoxes(unittest.TestCase):
             self.assertTrue(cl.never_fine(w), w)
 
     def test_every_word_kept(self):
-        # the same 161 words as before, only sorted ("skeevy" with the rude words)
+        # the same 161 words as before, only sorted ("skeevy" with the rude words); 1.18.172
+        # added "pansy" and "pansy-ass" to the slurs
         self.assertEqual(sum(map(len, (cl.STRONG, cl.SLURS, cl.MODERATE, cl.SEX_WORDS,
-                                       cl.CRUDE_WORDS, cl.MILD, cl.SAMESEX_WORDS))), 160)
+                                       cl.CRUDE_WORDS, cl.MILD, cl.SAMESEX_WORDS))), 162)
         self.assertIn("skeevy", cl.RUDE)
         self.assertEqual(len(cl.SLANG_CAT), len(cl.BODY_SLANG))
 

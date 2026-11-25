@@ -46,6 +46,13 @@ MAX_LINES = 400
 # you think?", "Right.") would be muted in every later episode (The Resident). Lines this
 # short are never muted again just because they were learned.
 LEARNED_SHORTEST = 5
+# Her own muted lines shorter than this only come back in the video she muted them in
+# (1.18.172; The Resident: 112 of the 400 lines she'd muted were 5-6 everyday words, "I like the
+# sound of that", "And the results are in", "Why didn't you tell me?", muted as part of a
+# conversation and then muted in every later episode; the owner: "Words and short lines").
+# Lines taught in shared_learned.json aren't affected.
+MINE_ELSEWHERE = 7
+VIDEO_LINES_KEEP = 300          # videos whose short lines are kept, newest last
 # The CleanView inbox's web app address (tools/README-inbox.txt; set up 2026-10-28 in the
 # owner's Google account). Empty: the file is only saved and the person is told where.
 SEND_URL = ("https://script.google.com/macros/s/"
@@ -155,7 +162,7 @@ def load(key):
         d = {}
     for k, v in (("muted", []), ("kept", []), ("scenes", {}), ("words", {}), ("old_kept", []),
                  ("claude_muted", []), ("claude_kept", []), ("claude_ok_words", []),
-                 ("videos", {}), ("word_only", {})):
+                 ("videos", {}), ("word_only", {}), ("video_lines", {})):
         d.setdefault(k, v)
     if not d.get("v2"):     # "Gore" used to mean any blood; that's "Graphic violence" now
         if "Gore" in d["scenes"]:
@@ -284,6 +291,19 @@ def _remember(lst, text):
         lst.append(n)
 
 
+def _remember_here(d, video, n):
+    """A short muted line is kept for its own video too (MINE_ELSEWHERE)."""
+    if not video or len(n.split()) < 2 or len(n.split()) >= MINE_ELSEWHERE:
+        return
+    k = video_key(video)
+    lines = d["video_lines"].pop(k, [])          # moved to the end: the newest
+    if n not in lines:
+        lines.append(n)
+    d["video_lines"][k] = lines
+    while len(d["video_lines"]) > VIDEO_LINES_KEEP:
+        d["video_lines"].pop(next(iter(d["video_lines"])))
+
+
 def _changed(it, on):
     """True if you set this yourself: ticked or unticked it on the review page
     (this time, or in an earlier look at it)."""
@@ -309,6 +329,7 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
             if _changed(l, on) or (not on and n in d["kept"]) else []
         if on:
             _remember(d["muted"], n)
+            _remember_here(d, video, n)
             if n in d["kept"]:
                 d["kept"].remove(n)
             d["word_only"].pop(n, None)
@@ -324,6 +345,7 @@ def record(key, flagged_lines, line_choice, extra_lines, scenes, scene_choice, a
             d["word_only"].pop(n, None)
     for l in extra_lines:
         _remember(d["muted"], l.get("plain") or l["text"])
+        _remember_here(d, video, norm(l.get("plain") or l["text"]))
     for sc, on in zip(scenes, scene_choice):
         _count(d["scenes"], scene_kind(sc), sc, on if on or _changed(sc, on) else None,
                "cut", "kept")
@@ -488,6 +510,7 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
             n_kept += 1
     added = []
     mine_muted = set(d["muted"])
+    here = set(d["video_lines"].get(video_key(video), [])) if video else set()
     find = LearnedLines(muted)
     for l in dialogue:
         if (round(l["s"], 2), round(l["e"], 2)) in flagged_at:
@@ -496,6 +519,9 @@ def apply(key, dialogue, line_flags, scenes, mutes, label_learned="learned", on=
         hit = n if n in muted else find.match(n)
         if not hit and MASKED.search(l["text"]):    # a clean copy: its swear words blanked out
             hit = next((m for m in muted if _masked_fits(l["text"], m)), None)
+        if hit and hit in mine_muted and hit not in shared_muted and \
+                len(hit.split()) < MINE_ELSEWHERE and hit not in here:
+            continue                    # a short line of hers: only in its own video
         if hit and len(hit.split()) >= LEARNED_SHORTEST:
             added.append(dict(l, learned_from="you" if hit in mine_muted else "shared"))
     n_sc = n_again = 0

@@ -1472,6 +1472,31 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `analyze()` with no subtitles and God's name ticked (fails on 1.18.170), and
   `test_module_names.py` reads every shipped file and checks each `alias.name` it reads from
   one of CleanView's own modules exists (it found only this one).
+- Her The Resident S04E01-E07 and S05E01-E23 and Pollyanna reports (1.18.172, 2026-11-25; The
+  Resident adults, read by Claude, made on 1.18.166; Pollyanna Young kids with nearly every box
+  on, the AI helper, 184 min; the owner: "Yes, go through them", then "Words and short lines").
+  The 31 dialogues were read by five helpers and their finds checked: The Resident had no clear
+  miss; Pollyanna's sermons, sermon practice, grace and hymn went through, but she unticked two
+  sermon lines and both "Amen"s herself, so nothing religious was taught (put to her). Words she
+  ticked: `SLURS` has pans(y|ies) and pansyass ("Those pansy-ass keyboard crusaders"), not the
+  flower (`pansy_flower`, `PANSY_FLOWERS` within 10 words, not after `PANSY_INSULT_BEFORE`
+  unless a flower word follows) nor a name (`NAME_WORDS`); `BODY_SLANG` ends with "kung flu"
+  and "bat eater(s)" (slurs; at the end for CleanStream's sync); `MODERATE` "numbnuts?"; `RUDE`
+  smartypants, goodytwoshoes, knowitall(s), blabbermouth(s), and `RUDE_PHRASES` the same written
+  apart ("know it all" only after miss/mister/mr/little: "you know it all went wrong" isn't
+  one). In the 184,916 past lines here they catch only those three slurs, "numbnut" and six
+  real name-callings ("arrogant, know-it-all interns", "you two smarty-pants"). Short lines:
+  112 of the 400 lines she'd muted in The Resident (`learned/the-resident.json`) were 5-6
+  everyday words muted as part of a conversation and then muted in every later episode ("I like
+  the sound of that", "You have something you want to say,", "Why didn't you tell me?", which
+  she unticked); her own muted lines under `learn.MINE_ELSEWHERE` (7) words now only come back
+  in the video she muted them in (`d["video_lines"]`, `_remember_here`, newest
+  `VIDEO_LINES_KEEP` 300 videos; `apply(video=)`, also from `add_new_lessons`). Ones learned
+  before have no video, so they stop. Shared, taught lines are unchanged. Not changed (put to
+  her or left): drinking jokes, "won't be sleeping on your sofa anymore" (S05E23), the S05E16
+  pastor's church talk muted as religion, the S04E03 kiss labelled "two men" (AJ and Mina) and a
+  Pollyanna scene labelled "two women" (the cuts are right). For CleanListen, CleanRead and
+  CleanStream: the words. `test_resident_words.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

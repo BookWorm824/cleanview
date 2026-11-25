@@ -4133,7 +4133,8 @@ def add_new_lessons(st, reused=False):
     have = {(round(l["s"], 2), l.get("plain") or l.get("text")) for l in line_mutes}
     learned = []
     for k in dict.fromkeys([key, old_key]):
-        got, _ = learn.apply(k, [dict(l) for l in lines], [], [], [], on=on_kinds(o))
+        got, _ = learn.apply(k, [dict(l) for l in lines], [], [], [], on=on_kinds(o),
+                             video=st.get("path"))
         learned += got
     n_lines = 0
     for l in learned:
@@ -5647,7 +5648,7 @@ NAME_CATS = ("mild", "minced")
 # ... and these stronger words that are also first names (Forest Gump, 2026-11-16: "Well, it's
 # easy if you try, Dick." to Dick Cavett was muted; the owner: "Fix ... Dick"), but not after
 # a word that makes it the insult ("you Dick", "such a Dick")
-NAME_WORDS = {"dick"}
+NAME_WORDS = {"dick", "pansy"}          # Pansy as a name (1.18.172)
 NAME_INSULT_BEFORE = {"you", "a", "such", "big", "little", "total", "complete", "real",
                       "absolute", "being", "what", "that", "this", "some", "your", "his", "my"}
 

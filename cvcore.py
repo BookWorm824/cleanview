@@ -115,6 +115,9 @@ SLURS = [
     # Forest Gump (2026-11-16): "Get your faggotty ass on the bus" went through
     r"fagg?ott?(y|ie|ies)",
     r"lez(z?ie|z?ies|bos?)",
+    # The Resident S05E14 (1.18.172; the owner ticked it): "Those pansy-ass keyboard crusaders".
+    # Not the flower ("pansies in the window box": `pansy_flower`) nor a name (NAME_WORDS)
+    r"pans(y|ies)", r"pansyass(es)?",
     # Spanish, with the short list below (a slur, as "faggot" is here)
     r"marico?n(es)?"]
 # Never "fine in context", whatever an AI says: slurs, and "retarded" even said as a plain
@@ -175,7 +178,7 @@ MODERATE = [
     r"ching(a|as|ar|ada|adas|ado|ados|o?n|ona|ones|adera|aderas)",
     # more crude slang heard in TV and films
     r"a-?holes?", r"lardass(es)?", r"bia?y?o?tch(es)?", r"beyotch", r"shat",
-    r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts", r"knobheads?", r"tossers?",
+    r"dick(wad|weed|face|ish|wit|bag|less)s?", r"numbnuts?", r"knobheads?", r"tossers?",
     r"bellends?", r"feck(ing|in|er|ers)?", r"arsed", r"arses",
 ]
 # ("damning" = incriminating, and "damnation", are left alone)
@@ -507,6 +510,10 @@ BODY_SLANG = [re.compile(p) for p in (
     r"(?! (the|a|an|his|her|its|their|my|your|our|of|to|into|onto|from|at|toward|towards|"
     r"course|balance|guard|track|road|path|ground|floor|table|shelf|wall|hook|feet|chair|bed|"
     r"couch|stage|bike|horse|seat|ledge|edge|roof|ladder)\b)",
+    # Anti-Asian slurs from the pandemic (1.18.172; The Resident S04E01, the owner ticked both:
+    # "called me a bat eater", "The China Virus, the Kung Flu"); not "kung fu". At the end, so
+    # the others keep their places.
+    r"kung flu\b", r"bat eaters?\b",
 )]
 
 
@@ -681,7 +688,7 @@ def bull_swear(words, i):
 # "s o b", "eff you" swearing.
 _CR, _SX = "crudewords", "sexwords"
 SLANG_CAT = ([_CR] * 9 + [_SX] * 6 + [_CR] * 2 + [_SX] * 7 + ["moderate"] + [_CR] * 2 +
-             ["moderate", "slurs", "moderate", "moderate"] + [_SX])
+             ["moderate", "slurs", "moderate", "moderate"] + [_SX] + ["slurs", "slurs"])
 assert len(SLANG_CAT) == len(BODY_SLANG)
 
 
@@ -925,11 +932,34 @@ def coon_animal(words, i):
     return any(w in COON_WORDS for w in near)
 
 
+# The flower, not the slur (1.18.172): "a pot of pansies", "pansies in the window box".
+PANSY_FLOWERS = {"flower", "flowers", "garden", "gardens", "gardening", "bloom", "blooms",
+                 "blooming", "bloomed", "petal", "petals", "plant", "plants", "planted",
+                 "planting", "pot", "pots", "potted", "seed", "seeds", "bed", "beds", "bouquet",
+                 "violet", "violets", "daisy", "daisies", "tulip", "tulips", "rose", "roses",
+                 "marigold", "marigolds", "petunia", "petunias", "primrose", "primroses",
+                 "geranium", "geraniums", "window", "windowbox", "purple", "yellow", "grow",
+                 "grows", "growing", "grew", "watered", "watering", "nursery", "florist", "vase",
+                 "pick", "picked", "picking", "smell", "pretty"}
+PANSY_INSULT_BEFORE = {"you", "ya", "such", "total", "complete", "big", "little", "bunch",
+                       "real", "those", "these"}
+
+
+def pansy_flower(words, i):
+    """Is "pansy"/"pansies" at words[i] the flower: a garden word close by, not said at
+    someone?"""
+    if (words[i - 1] if i else "") in PANSY_INSULT_BEFORE and \
+            not PANSY_FLOWERS & set(words[i + 1:i + 4]):
+        return False
+    return bool(PANSY_FLOWERS & set(words[max(0, i - 10):i + 11]))
+
+
 def old_word_innocent(words, i, wb):
     """The animal, the bundle of sticks, the seabird, the dazed look (CleanListen 1.17.57),
-    the raccoon (1.18.133)."""
+    the raccoon (1.18.133), the flower (1.18.172)."""
     near = set(words[max(0, i - 10):i + 11])
     return (wb in ("ass", "asses") and ass_animal(words, i) or
+            wb in ("pansy", "pansies") and pansy_flower(words, i) or
             wb in ("coon", "coons") and coon_animal(words, i) or
             wb == "damn" and dam_water(words, i) or
             wb in ("faggot", "faggots") and bool(FAGGOT_WOOD & near) or
@@ -994,14 +1024,23 @@ RUDE = [r"stupid(er|est)?", r"stupidity", r"dumb(er|est)?", r"dumbo", r"idiots?"
         r"wuss(es)?", r"wussy", r"sissy", r"sissies", r"crybab(y|ies)", r"scaredy(cats?)?",
         r"weirdos?", r"fatsos?", r"putz(es)?", r"schmucks?", r"ignoramus(es)?", r"brats?",
         r"dumbdumbs?", r"dumdums?", r"fatheads?",
-        r"skeevy"]       # creepy (from Swearing, 1.18.150)
+        r"skeevy",       # creepy (from Swearing, 1.18.150)
+        # Pollyanna (1.18.172; the maid's names for the child): "Miss Smarty-Pants", "Miss Goody
+        # Two-Shoes", "little Miss Know-It-All", "Old Blabbermouth Tarbell" (hyphens dropped)
+        r"smartypants", r"goodytwoshoes", r"knowitalls?", r"blabbermouths?"]
 RUDE_PHRASES = [("shut", "up"), ("shut", "your", "mouth"), ("shut", "your", "trap"),
                 ("shut", "your", "face"), ("shut", "it"), ("shut", "your", "pie", "hole"),
                 ("shut", "your", "piehole"), ("shut", "your", "cake", "hole"),
                 ("shut", "your", "cakehole"), ("shut", "your", "yap"),
                 ("shut", "your", "big", "mouth"), ("shut", "your", "big", "fat", "mouth"),
                 ("buzz", "off"), ("i", "hate", "you"), ("talk", "to", "the", "hand"),
-                ("eat", "my", "shorts"), ("you", "sucker"), ("you", "suckers")]
+                ("eat", "my", "shorts"), ("you", "sucker"), ("you", "suckers"),
+                # the same written apart (1.18.172); "know it all" only as a name ("you know it
+                # all went wrong" isn't one)
+                ("smarty", "pants"), ("goody", "two", "shoes"), ("goody", "twoshoes"),
+                ("miss", "know", "it", "all"), ("mister", "know", "it", "all"),
+                ("mr", "know", "it", "all"), ("little", "know", "it", "all"),
+                ("blabber", "mouth")]
 # "sucks" for "is bad": mild words since 1.18.163 (with `suck_swear` and `SUCK_SLANG`)
 SUCK_PHRASES = [("you", "suck"), ("it", "sucks"), ("this", "sucks"), ("that", "sucks"),
                 ("suck", "it"), ("sucks", "to", "be", "you")]
