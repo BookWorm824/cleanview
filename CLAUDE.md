@@ -1384,6 +1384,20 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   line before, under 5 words. Left: Gummi Bears' "Dummy"/"dummies" heard for Zummi/Gummies is
   still muted (2 lines). `test_past_scans.py`. For CleanListen, CleanRead and CleanStream: the
   "cheating husband" phrasing.
+- The Resident S2E12's guard and her girlfriend (1.18.167, 2026-11-24; the owner, watching the
+  clean copy: "missed a reference to a woman having a girlfriend", "she was referenced earlier
+  as a she", "Yes, both"). The former prison guard (Meg) is a woman: the dialogue says "Think
+  she's got it covered", "Doc, do you want to help her?" and later names her, but the voice
+  check tagged all her lines "man's voice", and Claude (adults, Same-sex relationship ticked)
+  read "How's your girlfriend?" / "Oh, in Tampa. We broke up." and "I'd like to call my
+  ex-girlfriend, but I really blew that one." as a man's. `cc.TYPE_TEXT["samesex"]` now says
+  to work out who each person is from the whole dialogue: someone called "she"/"her" or with a
+  woman's name is a woman whatever the voice tag, and every girlfriend/boyfriend/wife/husband/ex
+  line is checked against who that person is (ChatGPT and Gemini read with the same text).
+  Taught for the-resident (samesex): the ex-girlfriend line (matches only itself in the 167,147
+  past lines here), and for S2E12 only a sound-muted scene from "How's your girlfriend?" to just
+  before "So how are you lovebirds?" (8:53-9:01 in her copy; its lines are too short to teach).
+  `test_resident_s2e12.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

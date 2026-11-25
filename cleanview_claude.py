@@ -445,9 +445,14 @@ TYPE_TEXT = {
               "up, dating apps, being in love, flirting with nothing sexual said",
     "samesex": "same-sex romance or relationships, including flirting or romantic interest "
                "between two men or two women, including their tender lines to each other "
-               "('I thought I'd lost you'). Only when both are men or both are women: the "
-               "voice guess (man's/woman's voice) is often wrong, so go by names and what's "
-               "said. Not: a man and a woman together (dating, engaged or "
+               "('I thought I'd lost you'). Only when both are men or both are women. Work out "
+               "who each person is from the whole dialogue, not the voice guess (man's/woman's "
+               "voice), which is often wrong: someone the others call 'she' or 'her', or who "
+               "has a woman's name, is a woman even when her lines are tagged as a man's voice "
+               "(and the same for a man). So check every line about someone's girlfriend, "
+               "boyfriend, wife, husband or ex against who that person is: a woman asked 'How's "
+               "your girlfriend?' who says they broke up is in a same-sex relationship. Not: a "
+               "man and a woman together (dating, engaged or "
                "married); 'gay' meaning happy or cheerful (an old "
                "song, 'gay apparel'), which is only a word, never this kind of line",
     "oppsex": "an unmarried man and woman living or sleeping together, now or in the past "

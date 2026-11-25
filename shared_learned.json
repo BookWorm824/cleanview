@@ -991,7 +991,8 @@
     "i was trying to get away from my client's husband",
     "i'm ready let's move in together",
     "he asked me to move in with him",
-    "move in together and then host"
+    "move in together and then host",
+    "i'd like to call my ex girlfriend but i really blew that one"
    ],
    "kept": [
     "mine or yours",
@@ -1323,11 +1324,30 @@
     "i was trying to get away from my client's husband": "casual",
     "i'm ready let's move in together": "oppsex",
     "he asked me to move in with him": "oppsex",
-    "move in together and then host": "oppsex"
+    "move in together and then host": "oppsex",
+    "i'd like to call my ex girlfriend but i really blew that one": "samesex"
    },
    "notes": [
     "Nic (Nic Nevin) is a character's name: a swear heard where 'Nic' fits is the name.",
     "Medical talk (urine, stool, exams, bodies on the table) is not crude humor or a sexual reference."
+   ],
+   "scenes": [
+    {
+     "title": "The Resident",
+     "episode": [
+      2,
+      12
+     ],
+     "after": "i heard a rumor you were her favorite guard during her stint in prison",
+     "from": "how's your girlfriend",
+     "before": "so how are you lovebirds",
+     "action": "mute",
+     "kind": "Same-sex relationship",
+     "for": [
+      "samesex"
+     ],
+     "why": "S2E12: the former prison guard (a woman) is asked about her girlfriend and says they broke up (sound muted)"
+    }
    ]
   },
   "_movies@adults": {
