@@ -1451,6 +1451,27 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   dialogue tab's lines (search still goes by the real words). Only "Show" and "Show all words"
   on the words card write a word out, as she asked in 1.18.115. Sexual phrases only on
   `LINE_WORDS` (not `cl.CATS`) aren't starred. `test_hide_words.py`.
+- Her Criminal Minds S2E1 report (The Fisher King, Part 2; 1.18.171, 2026-11-25, adults, the AI
+  helper, made in Play 1.0.82 / 1.18.170 on a 12-thread PC, 44 min; the owner: "tech the 6",
+  "teach"). Every muted word fit her filters; her untick of the nudity find at 14:52 (the boy
+  shirtless at his computer) was a false alarm, kept for that file. Taught for criminal-minds
+  (sexref): the client on the boy's webcam, "You needed to be tied up, didn't you?" and "Let
+  me see you struggle."; "In that time, Kevin's been selling the only thing he's got,", "Just
+  like a street hustler.", "Help me? What I do is consensual.", and "no one ever touches me."
+  (borderline, taught on her word). None matches a line in the 180,296 past lines here. Not
+  taught (not chosen): the webcam scene itself (12:17-12:30); the boy's captivity (0:14, 28:03,
+  the rescue at 38:44, Disturbing ticked, not seen here); "child p***(ography)" as case talk
+  (muted as sexual words; coroner talk off). Her tick of "h***" at 22:27 (the name Elle
+  misheard) is her choice. `test_criminal_minds.Season2Episode1`.
+  Also in 1.18.171, a scan with God's name ticked and no subtitles works again (her "CleanView
+  couldn't check" note for Pretty Woman on 1.18.170, sent in 2026-11-25; the owner: "check sent
+  in logs"): "AttributeError: module 'cvcore' has no attribute 'LANG'". 1.18.133 wrote
+  `cl.LANG` for `cvlang.LANG` in analyze's lone "God," check (`heard_bare_god`, run only when
+  no subtitles lined up), so from 1.18.133 every such video failed its whole scan; the tests
+  called `heard_bare_god` directly. `test_forest_gump.ThroughAWholeScan` now also runs a whole
+  `analyze()` with no subtitles and God's name ticked (fails on 1.18.170), and
+  `test_module_names.py` reads every shipped file and checks each `alias.name` it reads from
+  one of CleanView's own modules exists (it found only this one).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

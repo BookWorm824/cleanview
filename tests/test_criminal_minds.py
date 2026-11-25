@@ -495,5 +495,35 @@ class Episode22(unittest.TestCase):
         self.assertEqual(engine.intimate_from_kiss([self.kiss(616.0, 628.0), bare])[1]["s"], 609.0)
 
 
+class Season2Episode1(unittest.TestCase):
+    """Her S2E1 report (The Fisher King, Part 2; 1.18.171, made in Play 1.0.82 / 1.18.170,
+    adults, the AI helper; the owner: "tech the 6", "teach"): six sexual lines about the boy
+    selling himself online went through with sexual references ticked. The client's scene on
+    the webcam (12:17-12:30) wasn't taught (lines only)."""
+
+    LINES = ["You needed to be tied up, didn't you?", "Let me see you struggle.",
+             "In that time, Kevin's been selling the only thing he's got,",
+             "Just like a street hustler.", "Help me? What I do is consensual.",
+             "no one ever touches me."]
+
+    def show(self):
+        with open(support.ROOT / "shared_learned.json", encoding="utf-8") as f:
+            return json.load(f)["shows"]["criminal-minds"]
+
+    def test_taught_for_sexual_references(self):
+        cm = self.show()
+        for line in self.LINES:
+            self.assertIn(learn.norm(line), cm["muted"], line)
+            self.assertEqual(cm["muted_for"][learn.norm(line)], "sexref", line)
+
+    def test_muted_when_ticked(self):
+        dialogue = [{"s": 10.0 * i, "e": 10.0 * i + 2, "text": t}
+                    for i, t in enumerate(self.LINES + ["Clear! Push through.", "Very."])]
+        added, _ = learn.apply("criminal-minds@adults", dialogue, [], [], [], on={"sexref"})
+        self.assertEqual({a["text"] for a in added}, set(self.LINES))
+        added, _ = learn.apply("criminal-minds@adults", dialogue, [], [], [], on={"casual"})
+        self.assertEqual(added, [])                   # only with sexual references ticked
+
+
 if __name__ == "__main__":
     unittest.main()

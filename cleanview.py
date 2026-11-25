@@ -6222,7 +6222,7 @@ def analyze(path, workdir, groups=("swearing", "mild", "deity"), opts=None, prog
               "raw": " ".join(asr[k]["n"] for k in range(i, j)),
               "ctx": " ".join(asr[k]["t"] for k in range(max(0, i - 6), i))}
              for i, j, cat in cl.find_language(asr_n, cats, mine)]
-    if "deity" in cats and not cues and cl.LANG == "en":
+    if "deity" in cats and not cues and cvlang.LANG == "en":
         mutes += heard_bare_god(asr, mutes)
     if cues and (cats or mine):
         sw, sw_cue = [], []

@@ -211,7 +211,7 @@ class ThroughAWholeScan(unittest.TestCase):
                      "lavfi", "-i", "sine=frequency=300:duration=20", "-c:v", "libx264",
                      "-c:a", "aac", "-shortest", cls.video)
 
-    def scan(self, opts):
+    def scan(self, opts, groups=("swearing",)):
         work = Path(tempfile.mkdtemp(dir=support.SANDBOX))
         lines = [{"s": 1.0, "e": 2.5, "text": "We're talking about five little points here."},
                  {"s": 3.0, "e": 4.0, "text": "He's on vacation."},
@@ -248,9 +248,17 @@ class ThroughAWholeScan(unittest.TestCase):
                 mock.patch.object(engine, "decide_picture_scenes",
                                   lambda *a, **k: [dict(f) for f in found]), \
                 mock.patch.object(engine, "make_thumbs", make_thumbs):
-            engine.analyze(str(self.video), str(work), groups=["swearing"], opts=opts,
+            engine.analyze(str(self.video), str(work), groups=list(groups), opts=opts,
                            progress=lambda f, m: None, log=lambda m: None)
         return json.loads((work / "analysis.json").read_text()), stills
+
+    def test_no_subtitles_with_gods_name_ticked(self):
+        """Her Pretty Woman on 1.18.170 (1.18.171): no subtitles and God's name ticked failed
+        the whole scan ("module 'cvcore' has no attribute 'LANG'")."""
+        st, _ = self.scan({"nudity": True, "sexref": True, "sex": False, "violence": False,
+                           "loudmusic": False, "ai": True, "reader": "local",
+                           "autosubs": True, "look": True}, groups=("swearing", "deity"))
+        self.assertIn("scenes", st)
 
     def test_numbered_ticked_and_stills_made(self):
         st, stills = self.scan({"nudity": True, "sexref": True, "sex": False, "violence": False,
