@@ -6,6 +6,7 @@
 import base64
 import collections
 import copy
+import functools
 import hashlib
 import json
 import os
@@ -218,6 +219,34 @@ CLAUDE_SAYS = {"remove": ("mute the whole line", "SAY_REMOVE"),      # (the colo
                "can't tell": ("can't tell", "MUTED")}
 
 
+def _star(tok):
+    """One word starred, its quotes and stops kept: “damn”, -> “d***”,"""
+    lead, core, tail = re.match(r"^(\W*)(.*?)(\W*)$", tok, re.S).groups()
+    return lead + engine.cl.mask(core) + tail if core else tok
+
+
+# Words are never written out on her screen (1.18.170, 2026-11-25; the owner, of an AI note that
+# said to mute just the word and wrote it in full: "I NEVER want to see the words spelled out!!
+# the whole point is not see it"). Every word on the lists is starred in whatever the window
+# shows that it didn't write itself: the AI's notes and answers, the chat, "Found:", the
+# subtitles' words, the All dialogue tab. Only "Show"/"Show all words" write a word out.
+@functools.lru_cache(maxsize=50000)
+def hide_words(text):
+    if not text or not isinstance(text, str):
+        return text
+    parts = re.split(r"(\s+)", text)
+    at = [i for i, p in enumerate(parts) if p and not p.isspace()]
+    try:
+        hits = engine.cl.find_language([engine.cl.norm(parts[i]) for i in at],
+                                       list(engine.cl.CATS))
+    except Exception:
+        return text
+    for a, b, _ in hits:
+        for q in range(a, b):
+            parts[at[q]] = _star(parts[at[q]])
+    return "".join(parts)
+
+
 def claude_note(item, on=None):
     c = item.get("claude")
     if not c:
@@ -235,7 +264,7 @@ def claude_note(item, on=None):
             c.get("decision") in ("remove", "not an issue", "just the word") and \
             on != (c["decision"] == "remove"):
         text += "  (you chose otherwise, so it stays as you set it)"
-    return text, col
+    return hide_words(text), col
 FONT = "Segoe UI" if os.name == "nt" else "DejaVu Sans"
 
 
@@ -4053,7 +4082,8 @@ class App(tk.Tk):
             who = l.get("who") or (voices[i].get("spk") if i < len(voices) and voices[i] else "")
             on = v is not None and v.get()
             tv.insert("", "end", iid=str(i), values=("\u2611" if on else "\u2610",
-                                                     engine.cl.fmt_t(l["s"]), who, l["text"]),
+                                                     engine.cl.fmt_t(l["s"]), who,
+                                                     hide_words(l["text"])),
                       tags=("muted",) if on else ())
         tv.selection_set([r for r in picked if tv.exists(r)])
         tv.yview_moveto(y)
@@ -4191,7 +4221,7 @@ class App(tk.Tk):
         log.tag_configure("claude", foreground=INK)
         log.tag_configure("note", foreground=MUTED, font=(FONT, 9))
         for text, tag in self.chat_history:
-            log.insert("end", text + "\n", tag)
+            log.insert("end", hide_words(text) + "\n", tag)
         log.configure(state="disabled")
         log.see("end")
         self.chat_log = log
@@ -4344,7 +4374,7 @@ class App(tk.Tk):
         self.chat_history.append((text, tag))
         log = self.chat_log
         log.configure(state="normal")
-        log.insert("end", text + "\n", tag)
+        log.insert("end", hide_words(text) + "\n", tag)
         log.configure(state="disabled")
         log.see("end")
 
@@ -4412,7 +4442,8 @@ class App(tk.Tk):
 
     def _answer_box(self, parent, it):
         if it.get("chat_answer"):
-            said = tk.Label(parent, text=f"{AI_NAME}: " + it["chat_answer"], bg=TINT,
+            said = tk.Label(parent, text=f"{AI_NAME}: " + hide_words(it["chat_answer"]),
+                            bg=TINT,
                             fg=ACCENT_DK, font=(FONT, 9), wraplength=wrap_width(680),
                             justify="left", padx=8, pady=4, anchor="w")
             said.pack(fill="x", pady=(6, 0))
@@ -4809,7 +4840,7 @@ class App(tk.Tk):
             tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap_width(220),
                      justify="left").pack(side="right", padx=4)
         elif m.get("sub") and not note:      # offered unticked: probably misheard
-            tk.Label(row, text=f"Maybe misheard: the subtitles have “{m['sub']}” "
+            tk.Label(row, text=f"Maybe misheard: the subtitles have “{hide_words(m['sub'])}” "
                      "here", bg=rbg, fg=MUTED, font=(FONT, 8), wraplength=wrap_width(220),
                      justify="left").pack(side="right", padx=4)
         line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
@@ -4937,7 +4968,8 @@ class App(tk.Tk):
             txt += f"   ({why_})"
         col_ = tk.Frame(row, bg=CARD)
         col_.pack(side="left", padx=(8, 0), fill="x", expand=True)
-        tw = self._sel_text(col_, txt, width_chars=70, max_lines=4, bg=CARD, fg=MUTED)
+        tw = self._sel_text(col_, hide_words(txt), width_chars=70, max_lines=4, bg=CARD,
+                            fg=MUTED)
         tw.pack(fill="x")
         note, col = claude_note(l, v.get())
         if note:
@@ -4985,7 +5017,7 @@ class App(tk.Tk):
         self._thumb_spots[id(sc)] = (mid, text)
         self._show_thumbs(sc)
         if sc.get("why"):
-            tk.Label(text, text="Found: " + sc["why"], bg=CARD, fg=INK, font=(FONT, 9),
+            tk.Label(text, text="Found: " + hide_words(sc["why"]), bg=CARD, fg=INK, font=(FONT, 9),
                      wraplength=wrap_width(210), justify="left", anchor="w").pack(fill="x")
         note, col = claude_note(sc, v.get())
         if note:

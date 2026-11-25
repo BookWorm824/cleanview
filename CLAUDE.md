@@ -1439,6 +1439,18 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   the dialogue, then 15 for the picture: about 40 minutes a video; now about 6.
   `test_chatgpt_stall.py` (a stand-in Codex that answers, hangs silently, or hangs after
   starting). Not seen on her other PC.
+- Words are never written out on her screen (1.18.170, 2026-11-25; the owner, with a screenshot
+  of a line's AI note "mute just the word" with the swear written in full under the starred
+  line: "I NEVER want to see the words spelled out!! the whole point is not see it").
+  `hide_words(text)` in CleanView.pyw stars every word on the lists (`cl.find_language` with
+  every `cl.CATS` list, the guards as for any line; a phrase all of it, as the lines show it:
+  "W*** t** h***"), keeping quotes, stops and spacing (`_star`). It runs on whatever the window
+  shows that it didn't write itself: `claude_note` (the AI's word and why), the AI's answers
+  under a line (`_answer_box`), the chat (`_log` and its history), a line's text and its
+  learned/hint note, a scene's "Found:", the subtitles' word in "Maybe misheard", and the All
+  dialogue tab's lines (search still goes by the real words). Only "Show" and "Show all words"
+  on the words card write a word out, as she asked in 1.18.115. Sexual phrases only on
+  `LINE_WORDS` (not `cl.CATS`) aren't starred. `test_hide_words.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
