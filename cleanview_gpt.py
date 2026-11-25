@@ -17,6 +17,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 import cleanview_accounts as accounts
@@ -24,6 +26,13 @@ import cleanview_accounts as accounts
 APP_DATA = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share") / "CleanView"
 _NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
 MODEL = os.environ.get("CLEANVIEW_CHATGPT_MODEL", "")      # empty: your plan's default
+# Codex says "thread.started" first thing (about 5 s here). On another PC of the owner's it
+# never answered at all (CleanListen, 2026-11-25: every part waited out its 20 minutes), so
+# one that hasn't started in this long is stuck, not slow, and is stopped.
+START_WAIT = 120
+LOG_KEEP = 200_000          # the log of requests (chatgpt_log.txt) keeps its newest 200 KB
+NOT_STARTED = ("ChatGPT didn't start on this PC. Sign in to ChatGPT again (the Sign in "
+               "button), then try again. If it still doesn't start, restart the PC.")
 
 
 class GptError(Exception):
@@ -135,6 +144,108 @@ def strict(schema):
     return s
 
 
+def _stop(p):
+    """Stop Codex and whatever it started (an npm codex.cmd runs node under cmd.exe)."""
+    if os.name == "nt":
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True,
+                           timeout=30, **_NOWIN)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    try:
+        p.kill()
+    except OSError:
+        pass
+
+
+def _run(cmd, stdin, timeout, cwd, env):
+    """Run Codex. Stops it when it hasn't started within START_WAIT (NOT_STARTED), or hasn't
+    finished within timeout ("took too long"); either way the log says what it did."""
+    t0 = time.monotonic()
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True, encoding="utf8", errors="replace",
+                         cwd=cwd, env=env, **_NOWIN)
+    out, err, started = [], [], threading.Event()
+
+    def read_out():
+        for line in p.stdout:
+            out.append(line)
+            if '"thread.started"' in line:
+                started.set()
+
+    def read_err():
+        err.append(p.stderr.read())
+
+    def feed():
+        try:
+            p.stdin.write(stdin)
+            p.stdin.close()
+        except (OSError, ValueError):
+            pass
+
+    readers = [threading.Thread(target=f, daemon=True) for f in (read_out, read_err)]
+    for t in readers + [threading.Thread(target=feed, daemon=True)]:
+        t.start()
+    stuck = None
+    if not started.wait(min(START_WAIT, timeout)) and p.poll() is None:
+        stuck = NOT_STARTED
+    else:
+        try:
+            p.wait(timeout=max(0.0, timeout - (time.monotonic() - t0)))
+        except subprocess.TimeoutExpired:
+            stuck = "ChatGPT took too long to answer. Try again."
+    if stuck:
+        _stop(p)
+    for t in readers:
+        t.join(30)
+    for f in (p.stdout, p.stderr):
+        try:
+            f.close()
+        except (OSError, ValueError):
+            pass
+    stdout, stderr = "".join(out), "".join(err)
+    _log(time.monotonic() - t0, "TIMED OUT" if stuck else f"exit {p.returncode}", len(stdin),
+         cmd, stdout, stderr)
+    if stuck:
+        raise GptError(stuck)
+    return subprocess.CompletedProcess(cmd, p.returncode, stdout, stderr)
+
+
+def _log(took, how, sent, cmd, stdout, stderr):
+    """A few lines a request in APP_DATA/chatgpt/chatgpt_log.txt: how long, how it ended, what
+    kinds of messages Codex gave and its errors. Never what was sent (the dialogue)."""
+    try:
+        kinds, errs = [], []
+        for line in stdout.splitlines():
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            kind = str(ev.get("type", "?"))
+            if not kinds or kinds[-1] != kind:
+                kinds.append(kind)
+            if kind in ("error", "turn.failed"):
+                e = ev.get("message") or (ev.get("error") or {}).get("message") or ""
+                errs.append(str(e)[:300])
+        args = [Path(a).name if os.sep in str(a) or "/" in str(a) else str(a)
+                for a in cmd[:8] if not str(a).endswith(".json")]
+        text = (f"{time.strftime('%Y-%m-%d %H:%M:%S')} · {round(took)} s · {how} · "
+                f"sent {sent} chars · {' '.join(args)}\n"
+                f"  messages: {' > '.join(kinds) or '(none)'}\n")
+        if errs:
+            text += "  errors: " + " | ".join(errs) + "\n"
+        if stderr.strip():
+            text += "  its own words: " + stderr.strip()[-600:].replace("\n", " / ") + "\n"
+        log = APP_DATA / "chatgpt" / "chatgpt_log.txt"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        old = log.read_text("utf8", errors="replace") if log.exists() else ""
+        if len(old) > LOG_KEEP:
+            old = old[-LOG_KEEP:].split("\n", 1)[-1]
+        log.write_text(old + text, encoding="utf8")
+    except Exception:           # the log never stops a request
+        pass
+
+
 def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, timeout=600,
         images=None):
     """One request to ChatGPT. Returns (answer_dict, session_id).
@@ -171,11 +282,10 @@ def ask(prompt, schema, stdin_text="", system=None, session=None, keep=False, ti
         cmd.append("-")
         stdin = full if not stdin_text else full + "\n\n<stdin>\n" + stdin_text + "\n</stdin>"
     try:
-        r = subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf8",
-                           errors="replace", timeout=timeout, cwd=str(empty), env=_env(),
-                           **_NOWIN)
-    except subprocess.TimeoutExpired:
-        raise GptError("ChatGPT took too long to answer. Try again.")
+        r = _run(cmd, stdin, timeout, str(empty), _env())
+    except GptError:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     sid, errs = None, []
     for line in (r.stdout or "").splitlines():
         try:

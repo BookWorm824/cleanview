@@ -1419,6 +1419,26 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   `add_new_lessons` re-reading the 20 scans against today's lists), the other 19 filled in over
   ~15 s while the window answers every ~0.08 s (never over 0.25 s). Not seen on her screen.
   `test_season_review.py`.
+- A ChatGPT that never starts is stopped soon (1.18.169, 2026-11-25; the owner, of CleanListen
+  on her other PC: "ChatGPT couldn't check it" (every part waited out its 20 minutes twice),
+  "I don't think you have chat set up correctly", then "you need to also check CleanView is
+  set up correct so have CleanListen let you know what was wrong"). The cause on that PC isn't
+  known (nothing from it reaches here; on this PC Codex 0.169.0 is signed in and answers in
+  ~6 s, and CleanView reads with Claude). `cleanview_gpt._run` (Popen, reading Codex's JSON
+  lines as they come): Codex says "thread.started" first, so one that hasn't within
+  `START_WAIT` (120 s) is stopped (`_stop`: taskkill /T, for an npm codex.cmd's node) and says
+  `NOT_STARTED` ("ChatGPT didn't start on this PC. Sign in to ChatGPT again..."); one that
+  started but runs past the timeout still says "took too long". Each request leaves a few
+  lines in APP_DATA\chatgpt\chatgpt_log.txt (`_log`, newest `LOG_KEEP` 200 KB: time, seconds,
+  how it ended, characters sent, Codex's first 8 arguments with folders by name, the kinds of
+  messages it gave, its errors and its own words; never what was sent), the same as
+  CleanListen 1.17.103's, so the next report from that PC shows what Codex did.
+  `cc.check_dialogue` doesn't ask again (nor for the parts after) when asking again won't mend
+  it (`no_use_asking_again`, `HOPELESS`: didn't start, not signed in, out of uses, not set up);
+  each such part is left unread as before. Before, a stuck Codex cost 10 minutes a try, twice for
+  the dialogue, then 15 for the picture: about 40 minutes a video; now about 6.
+  `test_chatgpt_stall.py` (a stand-in Codex that answers, hangs silently, or hangs after
+  starting). Not seen on her other PC.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

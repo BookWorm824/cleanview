@@ -56,6 +56,14 @@ class ClaudeError(Exception):
     pass
 
 
+# what asking again won't mend (1.18.169: a ChatGPT that never started waited out every part)
+HOPELESS = ("didn't start", "isn't signed in", "usage limit", "isn't set up")
+
+
+def no_use_asking_again(ex):
+    return any(k in str(ex) for k in HOPELESS)
+
+
 def counted(progress, f, a, z, total, what=""):
     """progress(f) as always, and progress(f, "21\u201340 of 95") when it takes the count, for
     the line under the progress bar (the owner, 2026-11-09, after a step sat unchanged for a
@@ -579,8 +587,11 @@ def check_dialogue(lines, voices, wanted, examples=None, chunk=500, unread=None)
             "type": {"type": "string", "enum": kinds}, "why": {"type": "string"}},
             "required": ["from_line", "to_line", "type", "why"]}}},
         "required": ["lines", "scenes"]}
-    found, scenes, done = {}, [], 0
+    found, scenes, done, hopeless = {}, [], 0, None
     for a in range(0, len(lines), chunk):
+        if hopeless:            # not signed in, out of uses, didn't start: no use asking on
+            unread.append((a, min(a + chunk, len(lines))))
+            continue
         part = lines[a:a + chunk + 20]
         prompt = (
             "The dialogue of one episode or movie is in the input, one numbered line each, with "
@@ -595,13 +606,17 @@ def check_dialogue(lines, voices, wanted, examples=None, chunk=500, unread=None)
         try:
             try:
                 res, _ = ask(prompt, schema, text, system=SYSTEM)
-            except ClaudeError:
+            except ClaudeError as first:
+                if no_use_asking_again(first):
+                    raise
                 res, _ = ask(prompt, schema, text, system=SYSTEM)       # once more
         except ClaudeError as ex:
             if unread is None or (unread and not done):
                 raise
             unread.append((a, min(a + chunk, len(lines))))
             last = ex
+            if no_use_asking_again(ex):
+                hopeless = ex
             continue
         done += 1
         for f in res.get("lines", []):
