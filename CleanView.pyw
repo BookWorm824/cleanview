@@ -4,6 +4,7 @@
 # copy, rebrand or republish it; helping them use the official app is fine. NOTICE-FOR-AI.md.
 """CleanView — a simple window for cleaning up movies and TV episodes you own."""
 import base64
+import collections
 import copy
 import hashlib
 import json
@@ -3460,6 +3461,7 @@ class App(tk.Tk):
         self._thumb_spots = {}      # id(scene) -> (row, text): where its pictures go
         self.dlg_vars = {}          # (job index, dialogue line index) -> BooleanVar
         self.found_frames = {}
+        self._premake_vars(good, vis)
         multi = len(good) > 1
         nb = ttk.Notebook(p)
         nb.pack(fill="both", expand=True)
@@ -3512,77 +3514,43 @@ class App(tk.Tk):
         by_filter = tk.Frame(inner, bg=BG)
         by_filter.pack(fill="x", padx=8, pady=(4, 4))
         self._by_filter = by_filter
+        # A season's review was slow to open (the owner, 2026-11-23: "after doing several it
+        # takes a long time to load this screen"; 20 episodes of The Resident took 40 s here,
+        # and once the window sat black). Every tick, label and button is a window of its own
+        # on Windows, and Tk placed all 5,563 before showing anything. Now the first video is
+        # built at once and the rest a piece at a time while she reviews (_build_more); every
+        # tick was made first (_premake_vars), so saving, the ticks by filter and the All
+        # dialogue tab have every video from the start.
+        self._review_gen = getattr(self, "_review_gen", 0) + 1
+        gen = self._review_gen
+        self._pending = collections.deque()     # (video number, a piece still to build)
+        self._head_ji = {}                      # a video's name on the list -> its number
+        rows = sum(len(s_) + len(l_) + len(w_) for s_, l_, w_, _ in vis.values()) + sum(
+            len(j["analysis"].get("blurs") or []) + len(j["analysis"].get("quiet") or [])
+            for j in good)
+        lazy = multi and rows > self.LAZY_FROM
         for ji, j in enumerate(good):
             st = j["analysis"]
             j["_ji"] = ji
+            sec = tk.Frame(inner, bg=BG)        # this video's part of the list
+            sec.pack(fill="x")
             if multi:
-                head = tk.Label(inner, text=Path(j["video"]).name, bg=BG, fg=INK,
+                head = tk.Label(sec, text=Path(j["video"]).name, bg=BG, fg=INK,
                                 font=(FONT, 12, "bold"), anchor="w")
                 head.pack(fill="x", padx=8, pady=(14, 0))
                 s_, l_, w_, _ = vis[id(j)]
                 spots.append((self._episode_label(j["video"]),
                               len(s_) + len(l_) + len(w_) + len(st.get("quiet") or []), head))
-            if st.get("claude_summary"):
-                box = self._round_card(inner, fill=NOTE, edge=NOTE_EDGE)
-                tk.Label(box, text="The AI's review", bg=NOTE,
-                         fg=NOTE_INK,
-                         font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
-                tk.Label(box, text=st["claude_summary"], bg=NOTE, fg=INK, font=(FONT, 10),
-                         wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x")
-                cnt = st.get("claude_counts") or {}
-                if cnt.get("dropped") or cnt.get("added") or cnt.get("words"):
-                    tk.Label(box, text=f"Unticked {cnt.get('dropped', 0)} false alarm(s) and added "
-                             f"{cnt.get('added', 0)} missed item(s)" +
-                             (f"; {cnt['words']} line(s) now mute just the bad word"
-                              if cnt.get("words") else "") +
-                             ". Anything you change yourself stays the way you set it.", bg=NOTE, fg=MUTED, font=(FONT, 9),
-                             wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
-            for note in engine.video_notes(st):     # not which AI model or how long it took
-                if note == engine.CARTOON_SAID:
-                    continue                # said below, with its "Not a cartoon" switch
-                tk.Label(inner, text="\u2139 " + engine.plain_ai(note), bg=BG, fg=MUTED,
-                         font=(FONT, 9),
-                         wraplength=wrap_width(720), justify="left", anchor="w").pack(fill="x", padx=8)
-            if (st.get("cartoon") or {}).get("animated"):
-                self._cartoon_row(inner, j)
-            holder = tk.Frame(inner, bg=BG)
-            holder.pack(fill="x")
-            self.found_frames[ji] = holder
-            scs, lns, wds, _ = vis[id(j)]
-            if scs and not multi:
-                spots.append(("Scenes", len(scs), holder))
-            if not scs:
-                tk.Label(holder, text="No scenes to check in this one.", bg=BG,
-                         fg=INK, font=(FONT, 10), anchor="w").pack(fill="x", padx=8, pady=(6, 0))
-            for gname, items in self.by_group(scs, self.scene_group):
-                group_vars = []
-                if len(scs) > 1:
-                    self._group_head(holder, gname, len(items), group_vars, bg=BG,
-                                     pady=(self._px(10), 0), padx=8)
-                for sc in items:
-                    group_vars.append(self._scene_card(holder, j, sc))
-            if lns:
-                mark = self._jump_mark(inner)
-                self._lines_card(inner, j, lns)
-                if not multi:
-                    spots.append(("Lines", len(lns), mark))
-            if wds:
-                mark = self._jump_mark(inner)
-                self._words_card(inner, j, wds)
-                if not multi:
-                    spots.append(("Words", len(wds), mark))
-            if st.get("blurs"):
-                mark = self._jump_mark(inner)
-                self._screen_card(inner, j, st["blurs"])
-                if not multi:
-                    spots.append(("On screen", len(st["blurs"]), mark))
-            if st.get("quiet"):
-                mark = self._jump_mark(inner)
-                self._music_card(inner, j, st["quiet"])
-                if not multi:
-                    spots.append(("Loud music", len(st["quiet"]), mark))
+                self._head_ji[str(head)] = ji
+            for step in self._video_steps(sec, j, vis[id(j)], None if multi else spots):
+                if lazy and ji > 0:
+                    self._pending.append((ji, step))
+                else:
+                    self._run_step(ji, step, now=True)
         self._jump_row(jump, spots)
         self._filter_row(by_filter, multi)
+        if self._pending:
+            self.after(30, lambda: self._build_more(gen))
 
         self._dialogue_tab(t_dlg, good)
         if keep:
@@ -3590,6 +3558,7 @@ class App(tk.Tk):
                 c = self._found_canvas
                 if not c.winfo_exists():
                     return
+                self._build_down_to(keep[0] + c.winfo_height())
                 self.update_idletasks()
                 c.configure(scrollregion=c.bbox("all"))
                 box = c.bbox("all")
@@ -3627,6 +3596,172 @@ class App(tk.Tk):
         ttk.Button(self.footer, text="Send what we refined…", style="Plain.TButton",
                    command=self._send_report_now).pack(side="left")
 
+    # rows on the Found tab above which the videos after the first are built a piece at a time
+    LAZY_FROM = 60
+    # how long one go at building more may hold the window (seconds), and the wait between
+    BUILD_SLICE, BUILD_GAP_MS = 0.015, 15     # (the window answers every ~0.1 s while it builds)
+
+    def _premake_vars(self, good, vis):
+        """Every found item's tick, for every video, before any row is built (1.18.168), in
+        the order the rows are built (so "Every video, by filter" lists the filters as before)."""
+        self._var_of = {}
+        for j in good:
+            st = j["analysis"]
+            scs, lns, wds, _ = vis[id(j)]
+            for g, items in self.by_group(scs, self.scene_group):
+                for sc in items:
+                    self._item_var(sc, sc.get("cut", True), self.scene_vars, j, g)
+            for g, items in self.by_group(lns, self.line_group):
+                for l in items:
+                    self._item_var(l, l.get("mute", True), self.line_vars, j, g)
+            for g, items in self.by_group(wds, self.word_group, self.WORD_GROUP_ORDER):
+                for m in items:
+                    self._item_var(m, not m.get("keep"), self.word_vars, j, g)
+            for b in st.get("blurs") or []:
+                self._item_var(b, b.get("blur", True), self.blur_vars, j)
+            for q in st.get("quiet") or []:
+                self._item_var(q, q.get("lower", True), self.quiet_vars, j)
+
+    def _item_var(self, item, value, into, job, group=None):
+        """One found item's tick: the one made for this page (_premake_vars), or a new one (a
+        scene added afterwards), listed in `into` and under its filter."""
+        made = self.__dict__.setdefault("_var_of", {})
+        v = made.get(id(item))
+        if v is None:
+            v = tk.BooleanVar(value=value)
+            item["_shown"] = v.get()
+            into.append((v, job, item))
+            if group is not None:
+                self._note_filter(group, v)
+            made[id(item)] = v
+        return v
+
+    def _video_steps(self, sec, j, seen, spots):
+        """The pieces of one video's part of the Found list, each built when called. spots:
+        where "Jump to:" goes, with one video (None with several: each video's name is)."""
+        st = j["analysis"]
+        ji = j["_ji"]
+        scs, lns, wds, _ = seen
+
+        def top():
+            if st.get("claude_summary"):
+                box = self._round_card(sec, fill=NOTE, edge=NOTE_EDGE)
+                tk.Label(box, text="The AI's review", bg=NOTE,
+                         fg=NOTE_INK,
+                         font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
+                tk.Label(box, text=st["claude_summary"], bg=NOTE, fg=INK, font=(FONT, 10),
+                         wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x")
+                cnt = st.get("claude_counts") or {}
+                if cnt.get("dropped") or cnt.get("added") or cnt.get("words"):
+                    tk.Label(box, text=f"Unticked {cnt.get('dropped', 0)} false alarm(s) and added "
+                             f"{cnt.get('added', 0)} missed item(s)" +
+                             (f"; {cnt['words']} line(s) now mute just the bad word"
+                              if cnt.get("words") else "") +
+                             ". Anything you change yourself stays the way you set it.", bg=NOTE, fg=MUTED, font=(FONT, 9),
+                             wraplength=wrap_width(700), justify="left", anchor="w").pack(fill="x", pady=(2, 0))
+            for note in engine.video_notes(st):     # not which AI model or how long it took
+                if note == engine.CARTOON_SAID:
+                    continue                # said below, with its "Not a cartoon" switch
+                tk.Label(sec, text="\u2139 " + engine.plain_ai(note), bg=BG, fg=MUTED,
+                         font=(FONT, 9),
+                         wraplength=wrap_width(720), justify="left", anchor="w").pack(fill="x", padx=8)
+            if (st.get("cartoon") or {}).get("animated"):
+                self._cartoon_row(sec, j)
+            holder = tk.Frame(sec, bg=BG)
+            holder.pack(fill="x")
+            self.found_frames[ji] = holder
+            if scs and spots is not None:
+                spots.append(("Scenes", len(scs), holder))
+            if not scs:
+                tk.Label(holder, text="No scenes to check in this one.", bg=BG,
+                         fg=INK, font=(FONT, 10), anchor="w").pack(fill="x", padx=8, pady=(6, 0))
+            cards = []                  # each scene's card, built in turn
+            for gname, items in self.by_group(scs, self.scene_group):
+                group_vars = [self._item_var(sc, sc.get("cut", True), self.scene_vars, j, gname)
+                              for sc in items]
+
+                def first(gname=gname, items=items, group_vars=group_vars):
+                    if len(scs) > 1:
+                        self._group_head(holder, gname, len(items), group_vars, bg=BG,
+                                         pady=(self._px(10), 0), padx=8)
+                    self._scene_card(holder, j, items[0])
+                cards.append(first)
+                cards += [lambda sc=sc: self._scene_card(holder, j, sc) for sc in items[1:]]
+            return cards
+
+        def card(what, count, make):
+            def step():
+                mark = self._jump_mark(sec)
+                rows = make()           # the card now, its rows to build in turn
+                if spots is not None:
+                    spots.append((what, count, mark))
+                return rows
+            return step
+
+        steps = [top]
+        if lns:
+            steps.append(card("Lines", len(lns), lambda: self._lines_card(sec, j, lns)))
+        if wds:
+            steps.append(card("Words", len(wds), lambda: self._words_card(sec, j, wds)))
+        if st.get("blurs"):
+            steps.append(card("On screen", len(st["blurs"]),
+                              lambda: self._screen_card(sec, j, st["blurs"])))
+        if st.get("quiet"):
+            steps.append(card("Loud music", len(st["quiet"]),
+                              lambda: self._music_card(sec, j, st["quiet"])))
+        return steps
+
+    def _build_more(self, gen):
+        """Build the next pieces of the Found list, for at most BUILD_SLICE seconds, then let
+        the window answer and draw before the next go. Stops when the page is built again or
+        left (gen: which build of the page this was)."""
+        if gen != getattr(self, "_review_gen", None) or not self._pending:
+            return
+        inner = getattr(self, "_found_inner", None)
+        if inner is None or not inner.winfo_exists():
+            self._pending.clear()
+            return
+        start = time.monotonic()
+        while self._pending and time.monotonic() - start < self.BUILD_SLICE:
+            self._run_step(*self._pending.popleft(), now=False)
+        if self._pending:
+            self.after(self.BUILD_GAP_MS, lambda: self._build_more(gen))
+
+    def _build_through(self, ji):
+        """Build the Found list now up to and including video number ji (to jump to it, or to
+        add a scene to it)."""
+        pending = getattr(self, "_pending", None)
+        while pending and pending[0][0] <= ji:
+            self._run_step(*pending.popleft(), now=False)
+
+    def _run_step(self, ji, step, now):
+        """Build one piece of video ji's part of the list. What it hands back (a card's rows)
+        is built next: at once (now), or first in the queue, before the pieces after it. A
+        piece that fails is noted and the rest are still built."""
+        try:
+            more = step()
+        except Exception:
+            save_details(traceback.format_exc())
+            return
+        if not isinstance(more, list) or not more:
+            return
+        if now:
+            for s in more:
+                self._run_step(ji, s, now=True)
+        else:
+            self._pending.extendleft((ji, s) for s in reversed(more))
+
+    def _build_down_to(self, y):
+        """Build the Found list now, a video at a time, until it reaches y pixels down (going
+        back to where she was after the page was built again)."""
+        pending = getattr(self, "_pending", None)
+        inner = getattr(self, "_found_inner", None)
+        while pending and inner is not None and inner.winfo_exists():
+            self.update_idletasks()
+            if inner.winfo_reqheight() >= y:
+                return
+            self._build_through(pending[0][0])
+
     @staticmethod
     def _episode_label(video):
         """"S01E11" for a jump link, else the start of the name."""
@@ -3653,6 +3788,9 @@ class App(tk.Tk):
 
     def _jump_to(self, widget):
         c, inner = self._found_canvas, self._found_inner
+        ji = getattr(self, "_head_ji", {}).get(str(widget))
+        if ji is not None:                     # its rows (and those above) built first
+            self._build_through(ji)
 
         def go():
             if widget.winfo_exists() and c.winfo_exists():
@@ -3817,6 +3955,7 @@ class App(tk.Tk):
             said = " ".join(l["text"] for l in st.get("dialogue", []) if s - 0.5 <= l["s"] <= e)
         sc = {"s": round(s, 2), "e": round(e, 2), "kind": [kind], "why": why, "cut": True,
               "said": said[:400], "thumbs": [], "added": True}
+        self._build_through(job["_ji"])
         holder = self.found_frames.get(job["_ji"])
         if holder is not None:
             self._scene_card(holder, job, sc, top=True)
@@ -4636,68 +4775,73 @@ class App(tk.Tk):
             self._show_all_box = reveal_all
         heard = job["analysis"].get("asr") or []
         groups = self.by_group(mutes, self.word_group, self.WORD_GROUP_ORDER)
-        group_vars = []
-        for gname, n, m, gsize in [(g, n, m, len(ms)) for g, ms in groups
-                                   for n, m in enumerate(ms)]:
-            if n == 0:
-                group_vars = []
-                if len(groups) > 1:
-                    self._group_head(card, gname, gsize, group_vars)
-            v = tk.BooleanVar(value=not m.get("keep"))
-            m["_shown"] = v.get()
-            self.word_vars.append((v, job, m))
-            card_vars.append(v)
-            group_vars.append(v)
-            self._note_filter(gname, v)
-            wrap = tk.Frame(card, bg=CARD if n % 2 == 0 else SHADE, padx=4, pady=2)
-            wrap.pack(fill="x")
-            row = tk.Frame(wrap, bg=wrap.cget("bg"))
-            row.pack(fill="x")
-            rbg = row.cget("bg")
-            ttk.Checkbutton(row, text=engine.cl.fmt_t(m["s"]), variable=v).pack(side="left")
-            after = " ".join(w[0] for w in heard if m["e"] < w[1] < m["e"] + 4)[:60]
-            show = tk.Label(row, text="Show", bg=rbg, fg=ACCENT, font=(FONT, 9, "underline"),
-                            cursor="hand2", padx=6)
-            show.pack(side="right")
-            self._ask_link(row, job, "word", m, text="Ask", side="right", padx=4)
-            note, col = claude_note(m, v.get())
-            if note and m["claude"]["decision"] != "remove":
-                tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap_width(220),
-                         justify="left").pack(side="right", padx=4)
-            elif m.get("sub") and not note:      # offered unticked: probably misheard
-                tk.Label(row, text=f"Maybe misheard: the subtitles have “{m['sub']}” "
-                         "here", bg=rbg, fg=MUTED, font=(FONT, 8), wraplength=wrap_width(220),
-                         justify="left").pack(side="right", padx=4)
-            line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
-                           fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
-                           cursor="arrow")
-            line.tag_configure("w", background=WORD_BG, foreground=WORD_INK,
-                               font=(FONT, 10, "bold"))
+        made = {}
+        for g, ms in groups:        # every tick first: "Tick all" has the rows not built yet
+            group_vars = []
+            for m in ms:
+                v = self._item_var(m, not m.get("keep"), self.word_vars, job, g)
+                card_vars.append(v)
+                group_vars.append(v)
+                made[id(m)] = (v, group_vars)
+        return [lambda g=g, n=n, m=m, size=len(ms): self._word_row(
+                    card, job, m, made[id(m)], g if n == 0 and len(groups) > 1 else None, size, n,
+                    heard, rows, reveal_all, len(mutes))
+                for g, ms in groups for n, m in enumerate(ms)]
 
-            def fill(t=line, m=m, after=after, revealed=False):
-                before = m.get("ctx", "")
-                word = (m.get("raw") or m["word"]) if revealed else m["word"]
-                t.configure(state="normal")
-                t.delete("1.0", "end")
-                if before:
-                    t.insert("end", "\u2026" + before + " ")
-                t.insert("end", f" {word} ", "w")
-                if after:
-                    t.insert("end", " " + after + "\u2026")
-                t.configure(state="disabled", height=1 if len(before) + len(after) < 70 else 2)
+    def _word_row(self, card, job, m, made, head, gsize, n, heard, rows, reveal_all, count):
+        """One word's row on the words card (head: its filter's heading goes first)."""
+        v, group_vars = made
+        if head:
+            self._group_head(card, head, gsize, group_vars)
+        wrap = tk.Frame(card, bg=CARD if n % 2 == 0 else SHADE, padx=4, pady=2)
+        wrap.pack(fill="x")
+        row = tk.Frame(wrap, bg=wrap.cget("bg"))
+        row.pack(fill="x")
+        rbg = row.cget("bg")
+        ttk.Checkbutton(row, text=engine.cl.fmt_t(m["s"]), variable=v).pack(side="left")
+        after = " ".join(w[0] for w in heard if m["e"] < w[1] < m["e"] + 4)[:60]
+        show = tk.Label(row, text="Show", bg=rbg, fg=ACCENT, font=(FONT, 9, "underline"),
+                        cursor="hand2", padx=6)
+        show.pack(side="right")
+        self._ask_link(row, job, "word", m, text="Ask", side="right", padx=4)
+        note, col = claude_note(m, v.get())
+        if note and m["claude"]["decision"] != "remove":
+            tk.Label(row, text=note, bg=rbg, fg=col, font=(FONT, 8), wraplength=wrap_width(220),
+                     justify="left").pack(side="right", padx=4)
+        elif m.get("sub") and not note:      # offered unticked: probably misheard
+            tk.Label(row, text=f"Maybe misheard: the subtitles have “{m['sub']}” "
+                     "here", bg=rbg, fg=MUTED, font=(FONT, 8), wraplength=wrap_width(220),
+                     justify="left").pack(side="right", padx=4)
+        line = tk.Text(row, wrap="word", width=20, height=1, font=(FONT, 10), bg=rbg,
+                       fg=MUTED, relief="flat", borderwidth=0, highlightthickness=0,
+                       cursor="arrow")
+        line.tag_configure("w", background=WORD_BG, foreground=WORD_INK,
+                           font=(FONT, 10, "bold"))
 
-            state = {"on": len(mutes) > 1 and bool(reveal_all.get())}
+        def fill(t=line, m=m, after=after, revealed=False):
+            before = m.get("ctx", "")
+            word = (m.get("raw") or m["word"]) if revealed else m["word"]
+            t.configure(state="normal")
+            t.delete("1.0", "end")
+            if before:
+                t.insert("end", "\u2026" + before + " ")
+            t.insert("end", f" {word} ", "w")
+            if after:
+                t.insert("end", " " + after + "\u2026")
+            t.configure(state="disabled", height=1 if len(before) + len(after) < 70 else 2)
 
-            def toggle(_e=None, t=line, lbl=show, fill=fill, state=state):
-                state["on"] = not state["on"]
-                fill(t, revealed=state["on"])
-                lbl.configure(text="Hide" if state["on"] else "Show")
-            show.bind("<Button-1>", toggle)
-            show.configure(text="Hide" if state["on"] else "Show")
-            rows.append((fill, show, state))
-            fill(revealed=state["on"])
-            line.pack(side="left", fill="x", expand=True, padx=(6, 0))
-            self._answer_box(wrap, m)
+        state = {"on": count > 1 and bool(reveal_all.get())}
+
+        def toggle(_e=None, t=line, lbl=show, fill=fill, state=state):
+            state["on"] = not state["on"]
+            fill(t, revealed=state["on"])
+            lbl.configure(text="Hide" if state["on"] else "Show")
+        show.bind("<Button-1>", toggle)
+        show.configure(text="Hide" if state["on"] else "Show")
+        rows.append((fill, show, state))
+        fill(revealed=state["on"])
+        line.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        self._answer_box(wrap, m)
 
     def _screen_card(self, parent, job, blurs):
         """Bad words written in the picture (1.18.165): ticked ones are blurred where they're
@@ -4714,15 +4858,15 @@ class App(tk.Tk):
                  "for as long as they're there. They follow your word ticks, like the words "
                  "that are muted.", bg=CARD, fg=MUTED, font=(FONT, 9),
                  wraplength=wrap_width(640), justify="left").pack(anchor="w", pady=(0, 4))
-        for b in blurs:
+        for b in blurs:             # every tick first: "Tick all" has the rows not built yet
+            card_vars.append(self._item_var(b, b.get("blur", True), self.blur_vars, job))
+
+        def one(b, v):
             row = tk.Frame(card, bg=CARD)
             row.pack(fill="x", pady=2)
-            v = tk.BooleanVar(value=b.get("blur", True))
-            b["_shown"] = v.get()
-            self.blur_vars.append((v, job, b))
-            card_vars.append(v)
             ttk.Checkbutton(row, text=f"Blur  “{b['word']}”   ·   {engine.cl.fmt_t(b['s'])}   ·   "
                             f"{max(1, round(b['e'] - b['s']))} sec", variable=v).pack(side="left")
+        return [lambda b=b, v=v: one(b, v) for b, v in zip(blurs, card_vars)]
 
     def _music_card(self, parent, job, quiet):
         """Loud music with nobody talking: ticked ones are turned down (hard rock, metal and
@@ -4735,22 +4879,23 @@ class App(tk.Tk):
                  "Use Preview to listen, and untick anything that's fine.", bg=CARD,
                  fg=MUTED, font=(FONT, 9), wraplength=wrap_width(640), justify="left").pack(
             anchor="w", pady=(0, 4))
-        for q in quiet:
-            row = tk.Frame(card, bg=CARD)
-            row.pack(fill="x", pady=2)
-            v = tk.BooleanVar(value=q.get("lower", True))
-            q["_shown"] = v.get()
-            self.quiet_vars.append((v, job, q))
-            how = ("to a quarter" if q.get("level") == engine.OTHER_MUSIC_LEVEL else
-                   "barely heard")
-            ttk.Checkbutton(row, text=f"Turn down ({how})   ·   {engine.cl.fmt_t(q['s'])}   ·   "
-                            f"{q['e'] - q['s']:.0f} sec", variable=v).pack(side="left")
-            kind = q.get("kind", "Loud music")
-            look.chip(row, engine.plain_ai(kind), chip_color(kind)).pack(side="left",
-                                                                         padx=(10, 0))
-            pv = ttk.Button(row, text=PREVIEW_TEXT, style="Small.TButton")
-            pv.config(command=lambda q=q, pv=pv: self.preview(job, q, pv))
-            pv.pack(side="right")
+        return [lambda q=q: self._music_row(card, job, q) for q in quiet]
+
+    def _music_row(self, card, job, q):
+        """One stretch of loud music on its card."""
+        row = tk.Frame(card, bg=CARD)
+        row.pack(fill="x", pady=2)
+        v = self._item_var(q, q.get("lower", True), self.quiet_vars, job)
+        how = ("to a quarter" if q.get("level") == engine.OTHER_MUSIC_LEVEL else
+               "barely heard")
+        ttk.Checkbutton(row, text=f"Turn down ({how})   ·   {engine.cl.fmt_t(q['s'])}   ·   "
+                        f"{q['e'] - q['s']:.0f} sec", variable=v).pack(side="left")
+        kind = q.get("kind", "Loud music")
+        look.chip(row, engine.plain_ai(kind), chip_color(kind)).pack(side="left",
+                                                                     padx=(10, 0))
+        pv = ttk.Button(row, text=PREVIEW_TEXT, style="Small.TButton")
+        pv.config(command=lambda q=q, pv=pv: self.preview(job, q, pv))
+        pv.pack(side="right")
 
     def _lines_card(self, parent, job, lines):
         card = self._round_card(parent)
@@ -4762,50 +4907,51 @@ class App(tk.Tk):
         if len(lines) > 1:
             self._tick_links(head, CARD, card_vars).pack(side="left", padx=(self._px(6), 0))
         groups = self.by_group(lines, self.line_group)
-        group_vars = []
-        for gname, n, l, gsize in [(g, n, l, len(ls)) for g, ls in groups
-                                   for n, l in enumerate(ls)]:
-            if n == 0:
-                group_vars = []
-                if len(groups) > 1:
-                    self._group_head(card, gname, gsize, group_vars)
-            row = tk.Frame(card, bg=CARD)
-            row.pack(fill="x", pady=2)
-            v = tk.BooleanVar(value=l.get("mute", True))
-            l["_shown"] = v.get()
-            self.line_vars.append((v, job, l))
-            card_vars.append(v)
-            group_vars.append(v)
-            self._note_filter(gname, v)
-            ttk.Checkbutton(row, text=engine.cl.fmt_t(l["s"]), variable=v).pack(side="left", anchor="n")
-            for t in l["types"]:
-                name = f"Found by {AI_NAME}" if t == "claude" else engine.LINE_LABEL.get(t, t)
-                look.chip(row, name, chip_color(name)).pack(side="left", padx=(8, 0),
-                                                            anchor="n")
-            txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"
-            why_ = l.get("learned") or l.get("hint")
-            if why_ and "learned" not in l["types"]:     # that chip already says so
-                txt += f"   ({why_})"
-            col_ = tk.Frame(row, bg=CARD)
-            col_.pack(side="left", padx=(8, 0), fill="x", expand=True)
-            tw = self._sel_text(col_, txt, width_chars=70, max_lines=4, bg=CARD, fg=MUTED)
-            tw.pack(fill="x")
-            note, col = claude_note(l, v.get())
-            if note:
-                tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=wrap_width(440),
-                         justify="left", anchor="w").pack(fill="x", padx=(8, 0))
-            self._answer_box(col_, l)
-            self._ask_link(col_, job, "line", l, tw, text="Ask", anchor="e")
+        made = {}
+        for g, ls in groups:        # every tick first: "Tick all" has the rows not built yet
+            group_vars = []
+            for l in ls:
+                v = self._item_var(l, l.get("mute", True), self.line_vars, job, g)
+                card_vars.append(v)
+                group_vars.append(v)
+                made[id(l)] = (v, group_vars)
+        return [lambda g=g, n=n, l=l, size=len(ls): self._line_row(
+                    card, job, l, made[id(l)], g if n == 0 and len(groups) > 1 else None, size)
+                for g, ls in groups for n, l in enumerate(ls)]
+
+    def _line_row(self, card, job, l, made, head, gsize):
+        """One line's row on the lines card (head: its filter's heading goes first)."""
+        v, group_vars = made
+        if head:
+            self._group_head(card, head, gsize, group_vars)
+        row = tk.Frame(card, bg=CARD)
+        row.pack(fill="x", pady=2)
+        ttk.Checkbutton(row, text=engine.cl.fmt_t(l["s"]), variable=v).pack(side="left", anchor="n")
+        for t in l["types"]:
+            name = f"Found by {AI_NAME}" if t == "claude" else engine.LINE_LABEL.get(t, t)
+            look.chip(row, name, chip_color(name)).pack(side="left", padx=(8, 0),
+                                                        anchor="n")
+        txt = l["text"] if len(l["text"]) < 160 else l["text"][:157] + "\u2026"
+        why_ = l.get("learned") or l.get("hint")
+        if why_ and "learned" not in l["types"]:     # that chip already says so
+            txt += f"   ({why_})"
+        col_ = tk.Frame(row, bg=CARD)
+        col_.pack(side="left", padx=(8, 0), fill="x", expand=True)
+        tw = self._sel_text(col_, txt, width_chars=70, max_lines=4, bg=CARD, fg=MUTED)
+        tw.pack(fill="x")
+        note, col = claude_note(l, v.get())
+        if note:
+            tk.Label(col_, text=note, bg=CARD, fg=col, font=(FONT, 8), wraplength=wrap_width(440),
+                     justify="left", anchor="w").pack(fill="x", padx=(8, 0))
+        self._answer_box(col_, l)
+        self._ask_link(col_, job, "line", l, tw, text="Ask", anchor="e")
 
     def _scene_card(self, parent, job, sc, top=False):
         kids = parent.pack_slaves()
         card = self._round_card(parent, before=kids[0] if top and kids else None)
         top_row = tk.Frame(card, bg=CARD)
         top_row.pack(fill="x")
-        v = tk.BooleanVar(value=sc.get("cut", True))
-        sc["_shown"] = v.get()
-        self.scene_vars.append((v, job, sc))
-        self._note_filter(self.scene_group(sc), v)
+        v = self._item_var(sc, sc.get("cut", True), self.scene_vars, job, self.scene_group(sc))
         secs = sc["e"] - sc["s"]
         length = f"{secs / 60:.1f} min" if secs >= 60 else f"{secs:.0f} sec"
         # "Mute the sound only" keeps the picture (1.18.154; the owner: "we can keep more of the

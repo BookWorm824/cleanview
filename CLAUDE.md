@@ -1398,6 +1398,27 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   past lines here), and for S2E12 only a sound-muted scene from "How's your girlfriend?" to just
   before "So how are you lovebirds?" (8:53-9:01 in her copy; its lines are too short to teach).
   `test_resident_s2e12.py`.
+- The review page opens at once with a season (1.18.168, 2026-11-24; the owner, with a screenshot
+  of The Resident S03E01 "and 19 more" half drawn: "after doing several it takes a long time to
+  load this screen", "it will fix itself eventually...it just takes a long time", "Yes, fix
+  it"; her nine The Closer episodes had left the window black for a long time). On those 20
+  episodes here the page took 40 s: 12 s making 5,563 widgets and 28 s inside Tk placing them
+  (each tick, label and button is a window of its own on Windows; no resize loop: about two
+  `<Configure>` each). Now every found item's tick is made first (`_premake_vars`,
+  `_item_var`, in the order the rows are built), so Save, Tick all, "Every video, by filter",
+  the size estimate, learning her choices and the All dialogue tab have every video at once;
+  with several videos and more than `LAZY_FROM` (60) rows, the first video is built straight
+  away and the rest a piece at a time (`_video_steps`: each video in its own frame, the top part
+  and each card a step; a card hands back its rows, `_word_row`, `_line_row`, `_music_row`,
+  the screen words' rows and each scene card, built next: `_run_step`), `BUILD_SLICE` (0.015 s)
+  at a go with `BUILD_GAP_MS` between (`_build_more`; a build of the page again or leaving it
+  stops the old one, `_review_gen`). "Jump to" a video, a scene added to one and going back to
+  where she was after a rebuild build what's needed first (`_build_through`, `_build_down_to`).
+  A piece that fails is noted (`save_details`) and the rest still built. Here: the first video
+  shown in under a second of building (5.8 s with "Pick up where I left off", 4 s of it
+  `add_new_lessons` re-reading the 20 scans against today's lists), the other 19 filled in over
+  ~15 s while the window answers every ~0.08 s (never over 0.25 s). Not seen on her screen.
+  `test_season_review.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
