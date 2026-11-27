@@ -85,6 +85,11 @@ EVERYDAY = [
     "people hugging", "a group of people", "a person sitting", "an animal",
     "a person smiling", "a dark scene", "text on a screen", "a person running",
     "a person cooking", "children playing", "a person lying in bed asleep",
+    # 1.18.173 (the owner's meat-cutting training: a butcher's band saw dropping a red slice
+    # was nearly "gore" for want of anything closer; with these two, gore is under 0.2 on
+    # all 122 of her stills, every real bloody scene and fight in 259 past scans keeps its
+    # gore or fight still, and a third fewer stills elsewhere are "gore")
+    "a meat band saw cutting beef", "a raw steak",
 ]
 CLIP_CATS = {
     "kiss": ["two people kissing on the lips", "a couple kissing", "a passionate kiss"],

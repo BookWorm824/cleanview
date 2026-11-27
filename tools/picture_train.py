@@ -4,11 +4,16 @@ scenes Claude judged (her own changes win), prints 5-fold numbers with the rule 
 one), and writes <outdir>/picture_taught.json (taught from every video: copy it to the repo to
 ship it), picture_taught_fold<k>.json (taught without fold k, to try on those videos) and
 val_videos.json ([view id, path, fold]).
+Pictures the owner gave as examples of what a kind is NOT (picture_examples.py's x_*.npz in an
+examples folder, the 4th argument; 1.18.173, a butcher cutting meat isn't gore) are taught with
+every fold, each still counting EXTRA_W times, and never scored: the numbers stay the videos'.
 usage: picture_train.py %LOCALAPPDATA%\\CleanView\\views <embeddings folder> <outdir>"""
 import glob, json, os, sys, zlib, collections, hashlib, time
 import numpy as np
 sys.stdout.reconfigure(encoding="utf8")
 views, embdir, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+exdir = sys.argv[4] if len(sys.argv) > 4 else None
+EXTRA_W = float(os.environ.get("EXTRA_W", "200"))
 KINDS = {"fight": ("Violence", "Disturbing"), "gore": ("Gore", "Graphic violence", "Medical"),
          "kiss": ("Kiss",), "bed": ("Sex scene", "Intimate scene")}
 OPT = {"fight": ("violence",), "gore": ("gore", "graphic", "medical"), "kiss": ("kiss_os", "kiss_ss"),
@@ -47,6 +52,12 @@ for f in sorted(glob.glob(embdir + "/*.npz")):
         v["base"][cat] = np.array([(ct.get(int(round(x)), {}) or {}).get(cat, 0.0) for x in t])
     V.append(v)
 print("videos", len(V))
+X_ = []                                  # the owner's "not" examples
+for f in sorted(glob.glob((exdir or "//none") + "/x_*.npz")):
+    z = np.load(f)
+    X_.append({"name": os.path.basename(f)[2:-4], "t": z["t"].astype(float),
+               "e": z["emb"].astype(np.float32), "no": [str(k) for k in z["no"]]})
+print("examples", len(X_), "pictures", sum(len(x["t"]) for x in X_))
 fold = lambda v: zlib.crc32(v["vid"].encode()) % 5
 
 
@@ -70,8 +81,19 @@ def feats(e, n):
     return np.hstack([ez[j:j + len(e)] for j in range(n)])
 
 
-def ridge(X, y, lam=10.0):
+def feats_alone(e, n):
+    """An example's stills: the ones beside it are its own neighbours, and at the ends of a
+    run the end still again (a single picture is its own neighbours: the scene goes on)."""
+    h = n // 2
+    ez = np.vstack([e[:1]] * h + [e] + [e[-1:]] * h)
+    return np.hstack([ez[j:j + len(e)] for j in range(n)])
+
+
+def ridge(X, y, sw=None, LAM=10.0):
+    lam = LAM
     pos = y.mean(); cw = np.where(y > 0, 0.5 / max(pos, 1e-6), 0.5 / max(1 - pos, 1e-6))
+    if sw is not None:
+        cw = cw * sw
     Xb = np.hstack([X, np.ones((len(X), 1), np.float32)])
     A = (Xb * cw[:, None]).T @ Xb + lam * np.eye(Xb.shape[1])
     wb = np.linalg.solve(A, (Xb * cw[:, None]).T @ (2 * y - 1))
@@ -129,13 +151,28 @@ for cat in KINDS:
     K, LAM = CFG[cat]
     for v in V:
         v["f"] = feats(v["e"], K)
+    ex = [x for x in X_ if cat in x["no"]]
+    for x in ex:
+        x["f"] = feats_alone(x["e"], K)
+    exX = np.concatenate([x["f"] for x in ex]) if ex else np.zeros((0, K * 512), np.float32)
+
+    def with_examples(X, y):
+        sw = np.concatenate([np.ones(len(y)), np.full(len(exX), EXTRA_W)])
+        return np.concatenate([X, exX]), np.concatenate([y, np.zeros(len(exX))]), sw
+
+    def show_examples(w, b, th, said):
+        for x in ex:
+            p = 1 / (1 + np.exp(-np.clip(x["f"] @ w + b, -30, 30)))
+            if len(p) > 2:
+                p = np.convolve(p, [0.25, 0.5, 0.25], "same")
+            print(f"      {said} {x['name']}: highest {p.max():.2f} (found from {th})")
     tot = collections.defaultdict(collections.Counter)
     for k in range(5):
         tr = [v for v in vs if fold(v) != k]; te = [v for v in vs if fold(v) == k]
         X = np.concatenate([v["f"][~v["dark"]] for v in tr])
         y = np.concatenate([v["lab"][cat][~v["dark"]] for v in tr]).astype(float)
         if y.sum() < 5 or not te: continue
-        w, b = ridge(X, y, LAM); th = best_th(tr, cat, w, b); ths[cat].append(th)
+        w, b = ridge(*with_examples(X, y), LAM=LAM); th = best_th(tr, cat, w, b); ths[cat].append(th)
         val.setdefault(k, {})[cat] = {"w": [round(float(x), 5) for x in w], "b": round(float(b), 5), "th": th}
         tot["today"].update(score(te, cat, lambda v: [(s - 1, e + 1) for s, e, n in today_runs(v, cat)]))
         tot["taught only"].update(score(te, cat, lambda v: [(s - 1, e + 1) for s, e, n in taught_runs(v, w, b, th)]))
@@ -146,7 +183,8 @@ for cat in KINDS:
         print(f"   {name:20} {pr(c)}")
     X = np.concatenate([v["f"][~v["dark"]] for v in vs])
     y = np.concatenate([v["lab"][cat][~v["dark"]] for v in vs]).astype(float)
-    w, b = ridge(X, y, LAM)
+    w, b = ridge(*with_examples(X, y), LAM=LAM)
+    show_examples(w, b, float(np.median(ths[cat])), "taught on all:")
     final[cat] = {"w": [round(float(x), 5) for x in w], "b": round(float(b), 5),
                   "th": float(np.median(ths[cat]))}
 

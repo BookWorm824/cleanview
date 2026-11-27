@@ -1497,6 +1497,30 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   pastor's church talk muted as religion, the S04E03 kiss labelled "two men" (AJ and Mina) and a
   Pollyanna scene labelled "two women" (the cuts are right). For CleanListen, CleanRead and
   CleanStream: the words. `test_resident_words.py`.
+- Meat being cut isn't gore (1.18.173, 2026-11-27; the owner in the Play chat: "Meat-cutting
+  pictures", then "begin training"; 1.18.159 had only told the closer look). 122 stills she
+  gave (`training\meat-cutting` beside the repo): her four photos, four of a meat market's,
+  and stills every 2 s, taken in Play's browser pane with nothing downloaded, from six
+  butcher and kitchen videos (a side of beef broken down, a band saw cutting tomahawks, a
+  hanging quarter, a cook slicing ribeye off a whole roast, salted beef, a brisket trimmed).
+  Before, the taught gore check found the ribeye (0.81 over its 0.70, two stills) and the
+  descriptions called the band saw's red slice 0.68 gore (finds from 0.6). The gore check is
+  taught again (`tools/picture_examples.py` makes the examples' x_*.npz, a run split where
+  stills are missing; `tools/picture_train.py <views> <emb> <out> <examples>` teaches them as
+  "not" rows counted `EXTRA_W` (200) times each with every fold, never scored) from the 259
+  past scans' sheets here (`picture_embed.py`, ~4 h): 5-fold, blood found 53/146 (51 without
+  the examples), wrong finds about the same; on the 141 videos the shipped check never saw,
+  the same 5 of 6 found and 702 wrong runs instead of 992; every example now under 0.12. Only
+  `"gore"` in picture_taught.json is new (its `"gore"` note says so): taught with the examples
+  the fight check found 80/129 fights instead of 82, and the new kiss and bed checks found
+  fewer on the unseen videos (44 and 8 against 46 and 9), so fight, kiss and bed stay as made
+  on 2026-11-15. Two everyday descriptions, "a meat band saw cutting beef" and "a raw steak"
+  (`ai.EVERYDAY`), take the meat's share from gore (all 122 under 0.2): every real bloody scene,
+  fight and kiss in the 259 scans keeps its still over the line (one kiss 0.600 to 0.599 there,
+  0.70 in its real scan), and a third fewer stills elsewhere are gore (624 to 411); five meat
+  descriptions together lost two of The Closer's bloody stills (0.62, 0.69 to 0.50, 0.53).
+  Both change `clip_signature`, so a video's picture is looked at again on its next scan.
+  `test_meat_pictures.py` (`meat_examples.npz`; it fails with the old gore check).
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them
