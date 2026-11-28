@@ -2667,7 +2667,8 @@ SEXUAL_TERMS = [
     r"(?:hand)?cuff(?:s|ed)?\b[^.!?]{0,40}?\b(?:kinky|naughty|frisky)",
     # her The Resident S2E14 (1.18.176): "Think of England." (lie back and...) and "Happy VD,
     # boss-man." (venereal disease for Valentine's Day); in the past reviews here only those
-    r"(?:lie back and )?think(?:ing)? of england", r"v\.?d",
+    # (1.18.177, as CleanListen: "thinks", and "v d" as speech heard as letters writes it)
+    r"(?:lie back and )?think(?:s|ing)? of england", r"v\.? ?d",
 ]
 
 # sleeping around

@@ -1597,6 +1597,9 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   has "(lie back and) think(ing) of England" and "VD"/"V.D" (in the 159,785 past lines here
   only those); the rest taught for the-resident (sexref), each matching only its own line.
   `test_resident_s2e14.py`. For CleanListen, CleanRead and CleanStream: think of England, VD.
+  1.18.177 (the Play chat: `test_cleanlisten_words` failed on CleanListen's wider forms):
+  "think(s/ing) of England" and "v d" (speech heard as letters writes it so), as CleanListen;
+  in the past lines here still only the two S2E14 jokes.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

@@ -20,7 +20,8 @@ class Episode14(unittest.TestCase):
         sx = engine.LINE_WORDS["sexref"]
         for t, w in (("Think of England. What?", "Think of England"),
                      ("Just lie back and think of England.", "lie back and think of England"),
-                     ("Happy VD, boss-man.", "VD"),
+                     ("Happy VD, boss-man.", "VD"), ("happy v d honey", "v d"),
+                     ("She thinks of England.", "thinks of England"),
                      ('of spending "VD" with a scalpel in my hand,', "VD")):
             self.assertEqual([m.group(0) for m in sx.finditer(t)], [w], t)
         for t in ("a DVD player", "the VDOT office", "England is lovely in May",
