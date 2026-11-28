@@ -1521,6 +1521,17 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   descriptions together lost two of The Closer's bloody stills (0.62, 0.69 to 0.50, 0.53).
   Both change `clip_signature`, so a video's picture is looked at again on its next scan.
   `test_meat_pictures.py` (`meat_examples.npz`; it fails with the old gore check).
+- Two Bones episodes that never saved (1.18.174, 2026-11-27; the owner: "you should have just
+  received an error notice", then "its plugged in"). S01E03 and S01E08 stopped moving 2 s in
+  with h264_amf, libx264 and the careful way alike; the other nine of the season saved. The
+  picture was fine (decoding and encoding it alone ran on): ffmpeg's own AAC encoder froze on
+  their opening sound, even fed it as plain samples. The ffmpeg here (a nightly of 2026-10-22)
+  made a new method, "nmr", its AAC default, and it hangs for good on that sound; the method
+  every build used before, "twoloop", saves each whole episode's sound in under two minutes.
+  `cvcore.AAC` (`-c:a aac -aac_coder twoloop`) is used for every AAC CleanView writes
+  (`render`, every way, and `cvcore`'s audio save); older ffmpegs know twoloop too.
+  `test_aac_coder.py` (no plain `"-c:a", "aac"` in shipped code, and every save says
+  twoloop). CleanListen and Play encode AAC the same way.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

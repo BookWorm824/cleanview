@@ -47,6 +47,12 @@ def _tool(name):
     return found
 
 
+# ffmpeg's own AAC encoder, the way every build has done it for years. Builds from late 2026
+# made a new method ("nmr") the default, and it hangs for good on some sound: two of the
+# owner's Bones episodes (S01E03, S01E08) froze 2 s in, with every video encoder (1.18.174).
+AAC = ["-c:a", "aac", "-aac_coder", "twoloop"]
+
+
 # no console window, and below normal priority: making the clean copy with ffmpeg runs from
 # the window's own process, and the window must stay quick to answer (CleanListen 1.15.1)
 _NOWIN = {"creationflags": 0x08000000 | 0x00004000} if os.name == "nt" else {}
@@ -2081,7 +2087,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, chapters=False)
                  capture_output=True, text=True).stdout.strip()
         br = br if br.isdigit() else "96000"
         if ext in (".m4b", ".m4a", ".mp4", ".aac"):
-            codec, dst = ["-c:a", "aac", "-b:a", br], out / src.name
+            codec, dst = [*AAC, "-b:a", br], out / src.name
         else:
             codec, dst = ["-c:a", "libmp3lame", "-b:a", br], out / (src.stem + ".mp3")
         # ffmpeg 7+ reads filter files with "-/filter:a"; older builds use

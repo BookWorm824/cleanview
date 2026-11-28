@@ -7292,11 +7292,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                     "-metadata:s:s:0", "language=eng",
                     "-disposition:s:0", "0"]      # there if wanted, but off unless turned on
         if surround:
-            cmd += [fopt("a"), str(work / "afilter.txt"), "-c:a", "aac",
+            cmd += [fopt("a"), str(work / "afilter.txt"), *cl.AAC,
                     "-b:a:0", STEREO_RATE, "-ac:a:0", "2",
                     "-b:a:1", abr, "-ac:a:1", str(ch if ch in (3, 4, 5, 6, 8) else 6)]
         else:
-            cmd += [fopt("a"), str(work / "afilter.txt"), "-c:a", "aac", "-b:a", abr,
+            cmd += [fopt("a"), str(work / "afilter.txt"), *cl.AAC, "-b:a", abr,
                     "-ac", str(ch if ch in (1, 2) else 2)]
         if reencode:
             cmd += [fopt("v"), str(work / "vfilter.txt"), "-c:v", vname, *vargs, "-fps_mode", "vfr"]
