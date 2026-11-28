@@ -1554,6 +1554,49 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   and innuendo  (sexy dancing too)", "Immodest clothing  (swimsuits, underwear)". Swimsuit and
   revealing-clothes finds now get a closer look with sexual references ticked too, so such
   videos take a little longer. `test_sexy_dancing.py`.
+  1.18.176: "twerk(s/ed/er/ers/ing)" in `LINE_WORDS["sexref"]` beside lap and pole dancing (just
+  the word), as CleanListen has it (the Play chat found `test_cleanlisten_words` failing); one
+  past line here, The Resident S05E22's "reciting the periodic table while twerking."
+  `test_sexy_dancing.TwerkingSaid`.
+- Her The Resident S2E18, Emergency Contact (1.18.176, 2026-11-27, adults, Claude, made on
+  1.18.158; the owner: "did not catch everything on clean up", "Teach the dating lines", then
+  "again...there is a scene that Julian is undressing"). Every word was right. Kit's dating
+  around went through with sleeping around ticked: taught for the-resident (casual) "Brett knows
+  I write my dance card in pencil." and "He was asking if you were my current flavor of the
+  week."; the two short "FOW?" exchanges (12:14, 17:25) as sound-muted stretches for S2E18 only
+  (`"action": "mute"`): taught as a line, "Haven't you had enough of those? FOW?" would also
+  mute an ordinary "Haven't you had enough of those?". The undressing: the opening scene was
+  found as "Kiss · passionate" and its edges set by `cc.scene_bounds`, told only that label, so
+  the cut ended when the kissing did and Julian stripped to her bra right after it (4 s, before
+  the cat) stayed. `refine_bounds(wanted=)` / `scene_bounds(wanted=)` now get `picture_wanted(o)`
+  (from `look_at_picture`): the trouble is anything she removes on screen, and a kiss going on
+  into undressing, bed or sex is cut through it when sex scenes or nudity are removed. On her
+  scan's own bounds sheet Claude gave tiles 5-17 told the old way and 5-20 (through the bra
+  shot, not the cat) told the new way. Her clean copy (scanned again 2026-11-27, nothing found)
+  needs the 2:39-2:44 cut added by hand. `test_resident_s2e18.py`.
+  Bedroom scenes before and after intimacy (the owner: "any bedroom scenes that are any where
+  near intimate scenes (after or before) need removed", and of S2E18's end: "the edge of the
+  bed, then ... julian getting dressed, then ... devon smiling, then ... them dancing (all those
+  need removed)"). With sex scenes ticked, the couple in a bedroom or in bed just before or
+  after an intimate scene of theirs is part of it, even the next time they're seen there (the
+  morning after): `cc.PIC_RULES`, `PIC_TEXT["sex"]`, `OPT_TEXT["sex"]` (two people only talking
+  in bed with no intimate scene of theirs near is still not one). The whole picture is looked
+  at 12 sheets (8 min) at a time, so each batch is told the intimate scenes found before it
+  (`cc.earlier_intimate`): told only 8:00-16:00 Claude found nothing at S2E18's 9:34 (Devon
+  shirtless, Julian dressing, "That was incredible"); run as a scan, 0-8 then 8-16 minutes, it
+  found 9:34-10:34 as "aftermath of earlier intimate scene". Two intimate cuts (`INTIMATE_KINDS`,
+  one of them a sex or intimate scene) up to `INTIMATE_JOIN` (20 s) apart become one
+  (`join_gap`, in `refine_bounds` and `look_at_picture`); fights stay in pieces. Not done for the
+  AI on this PC: its closer look sees one scene's frames, not what's near it.
+- Her The Resident S2E14, Stupid Things in the Name of Sex (1.18.176, adults, Claude, made on
+  1.18.158; the owner: "also did not get all innuendos"). Went through: "Happy VD, boss-man."
+  and "spending 'VD' with a scalpel in my hand" (Valentine's Day as the disease), the naughty
+  candy hearts ("Wink, wink." High literature indeed; I ordered some special ones online; HR
+  would discourage me from reading these out loud), "Think of England." (offered unticked),
+  "a slight technical malfunction when you hit the emergency brake" (Chet's car). `SEXUAL_TERMS`
+  has "(lie back and) think(ing) of England" and "VD"/"V.D" (in the 159,785 past lines here
+  only those); the rest taught for the-resident (sexref), each matching only its own line.
+  `test_resident_s2e14.py`. For CleanListen, CleanRead and CleanStream: think of England, VD.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

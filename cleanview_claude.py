@@ -1148,10 +1148,16 @@ PIC_RULES = (
     "below the waist, kneeling or ducking under the covers in front of someone's crotch, "
     "someone's face showing pleasure while another's head is down), or touching someone's "
     "private parts (a hand down someone's pants or under a skirt, a hand moving at a crotch, "
-    "over or under clothes or covers), or touching themselves. It is NOT one when two people "
-    "only sit or lie in bed talking, reading, sleeping or waking up with nothing sexual "
-    "happening and nothing sexual said; call that implied nudity only if bare shoulders or "
-    "backs show they're undressed. When it's unclear, the dialogue and sounds decide "
+    "over or under clothes or covers), or touching themselves. The couple in a bedroom or in "
+    "bed just before or after an intimate scene of theirs IS part of it too, even when it's "
+    "the next time they're seen there (the morning after): leading into it, undressing or "
+    "getting dressed, lying or waking up together, one of them still shirtless or in "
+    "underwear, talking about what they just did (the owner, 2026-11-27: \"any bedroom scenes "
+    "that are any where near intimate scenes (after or before) need removed\"). It is NOT one "
+    "when two people only sit or lie in bed talking, reading, sleeping or waking up with "
+    "nothing sexual happening, nothing sexual said and no intimate scene of theirs just "
+    "before or after; call that implied nudity only if bare shoulders or backs show they're "
+    "undressed. When it's unclear, the dialogue and sounds decide "
     "(moaning, panting, talk of sex = a sex scene). Whenever you say who (man & woman, two "
     "men, two women), long hair alone does not make someone a woman: many men have long hair, "
     "so look at the face (a beard, stubble, the jaw), the build, the chest and the clothes, and "
@@ -1204,6 +1210,21 @@ def _heard(context, a, b):
     return f" ({said})" if said else ""
 
 
+def earlier_intimate(found):
+    """The intimate scenes found in the sheets before these, for the next batch (1.18.176):
+    the whole picture is looked at 8 minutes at a time, and told only its own 8 minutes Claude
+    didn't count The Resident S2E18's bedroom scene the morning after (9:34, Devon shirtless,
+    Julian dressing) as after one (3:12); with that scene in the same batch it did."""
+    near = [f for f in found if f.get("what") == "sex" or
+            (f.get("what") == "kissing" and f.get("level") == "passionate")]
+    if not near:
+        return ""
+    return ("\n\nEarlier in this video, before these sheets: " +
+            "; ".join(f"{_t(f['s'])} to {_t(f['e'])}, {f['what']} ({f.get('who', 'n/a')}): "
+                      f"{f.get('why', '')[:80]}" for f in near[-6:]) +
+            ". The same couple in a bedroom or in bed after that is part of it (see the rules).")
+
+
 def picture_review(sheets, wanted, per_request=12, progress=None, context=None, cancel=None):
     """sheets: [(path, start_seconds)], each 20 stills 2 s apart (5 across, 4 down).
     wanted: plain text of what to look for. context(t0, t1): what's said and heard then.
@@ -1235,6 +1256,7 @@ def picture_review(sheets, wanted, per_request=12, progress=None, context=None, 
             "shows one of "
             "these, with the sheet number and the first and last tile. If nothing does, return "
             "an empty list. Keep each \"why\" to a few plain words.")
+        prompt += earlier_intimate(out)
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
         for f in res.get("found", []):
             k = int(f.get("sheet", 0)) - 1
@@ -1287,14 +1309,18 @@ def verify_scenes(items, wanted, per_request=10, progress=None):
     return out
 
 
-def scene_bounds(items, per_request=8, progress=None):
+def scene_bounds(items, per_request=8, progress=None, wanted=None):
     """items: [(scene_id, kind_text, sheet_path)], each sheet 30 stills (6 across, 5 down),
     evenly spaced from before to after a scene that will be cut. Returns
     {scene_id: ([(first_tile, last_tile), ...], continues_before, continues_after)} or None
     for a scene where the trouble isn't seen at all. Several parts when the trouble stops
     and starts again: cut only those, so the story in between can still be followed
     (the owner 2026-11-03: a 6-minute cut of The Little Mermaid's ending; a phone ringing and
-    a cat after a sex scene in Julie & Julia)."""
+    a cat after a sex scene in Julie & Julia).
+    wanted: what the family removes (engine.picture_wanted). Told only a scene's label, a
+    scene found as a passionate kiss was cut where the kissing stopped and the woman undressing
+    to her bra right after it stayed (the owner, The Resident S2E18, 1.18.176: "there is a scene
+    that Julian is undressing")."""
     schema = {"type": "object", "properties": {"scenes": {"type": "array", "items": {
         "type": "object", "properties": {
             "scene": {"type": "integer"},
@@ -1326,6 +1352,13 @@ def scene_bounds(items, per_request=8, progress=None):
             "continues_before if it was already going on in tile 1, and continues_after if "
             "it's still going on in tile 30. Set seen to false (and no parts) if none of the "
             "stills show it.")
+        if wanted:
+            prompt += (
+                "\n\nThe trouble is anything this family removes that is on screen in the scene, "
+                "not only what the scene was found for:\n" + wanted + "\nSo a kiss that goes on "
+                "into undressing, getting into bed or sex is cut through all of that when sex "
+                "scenes, nudity or implied nudity are on the list; someone stripped to their "
+                "underwear in that moment is part of it.")
         res, _ = ask(prompt, schema, images=imgs, system=PIC_SYSTEM, timeout=900)
         for d in res.get("scenes", []):
             k = int(d.get("scene", 0)) - 1

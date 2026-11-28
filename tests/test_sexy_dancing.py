@@ -70,5 +70,18 @@ class LookedForWithSexualReferences(unittest.TestCase):
         self.assertIsNone(engine._pic_wanted(find, NEITHER))
 
 
+class TwerkingSaid(unittest.TestCase):
+    """1.18.176: the word, as CleanListen has it (The Resident S05E22 here: "reciting the
+    periodic table while twerking."); just the word muted, as the sexref list's words are."""
+    def test_on_the_list(self):
+        sx = engine.LINE_WORDS["sexref"]
+        for t in ("twerking", "she started twerking", "The girls started twerking.",
+                  "reciting the periodic table while twerking.", "Stop twerks!",
+                  "she twerked", "a twerker"):
+            self.assertEqual(len(list(sx.finditer(t))), 1, t)
+        for t in ("you little twerp", "a network", "Twerton"):
+            self.assertEqual(list(sx.finditer(t)), [], t)
+
+
 if __name__ == "__main__":
     unittest.main()

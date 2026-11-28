@@ -54,7 +54,7 @@ class ShorterSceneCuts(unittest.TestCase):
             return "sheet.jpg", (b - a) / 30.0
         with mock.patch.object(engine, "bounds_sheet", sheet), \
                 mock.patch.object(engine, "snap_to_shots", lambda *a, **k: None), \
-                mock.patch.object(engine.cc, "scene_bounds", lambda items, progress=None:
+                mock.patch.object(engine.cc, "scene_bounds", lambda items, progress=None, **k:
                                   {i: answer for i, _, _ in items}):
             return engine.refine_bounds("v.mkv", ".", 7200.0, scenes, [])
 
@@ -84,7 +84,7 @@ class ShorterSceneCuts(unittest.TestCase):
         sc = {"id": 1, "s": 100.0, "e": 400.0, "kind": ["Drinking"], "cut": True}
         with mock.patch.object(engine, "bounds_sheet", lambda *a: ("x.jpg", 10.0)), \
                 mock.patch.object(engine, "snap_to_shots", lambda *a, **k: None), \
-                mock.patch.object(engine.cc, "scene_bounds", lambda items, progress=None:
+                mock.patch.object(engine.cc, "scene_bounds", lambda items, progress=None, **k:
                                   {i: None for i, _, _ in items}):
             out, changed = engine.refine_bounds("v.mkv", ".", 7200.0, [sc], [])
         self.assertEqual((out[0]["s"], out[0]["e"], changed), (100.0, 400.0, 0))

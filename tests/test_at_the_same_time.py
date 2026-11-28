@@ -87,7 +87,7 @@ class WholePicture(unittest.TestCase):
                                   lambda *a, **k: copy.deepcopy(FINDS)), \
                 mock.patch.object(engine, "scene_sheet", lambda *a, **k: None), \
                 mock.patch.object(engine, "refine_bounds",
-                                  lambda path, work, dur, scenes, asr, progress=None: (scenes, 0)):
+                                  lambda path, work, dur, scenes, asr, progress=None, **k: (scenes, 0)):
             finds = engine.whole_picture("v.mp4", ".", 600.0, o, asr, []) if early else None
             return engine.look_at_picture("v.mp4", ".", 600.0, copy.deepcopy(SCENES), o, asr,
                                           cues=[], finds=finds)

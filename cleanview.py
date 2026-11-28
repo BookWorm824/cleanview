@@ -2665,6 +2665,9 @@ SEXUAL_TERMS = [
     r"(?:hand)?cuffs (?:in|for) (?:the|my|your) bedroom",
     r"(?:kinky|naughty|frisky)\b[^.!?]{0,40}?\b(?:hand)?cuff(?:s|ed)?",
     r"(?:hand)?cuff(?:s|ed)?\b[^.!?]{0,40}?\b(?:kinky|naughty|frisky)",
+    # her The Resident S2E14 (1.18.176): "Think of England." (lie back and...) and "Happy VD,
+    # boss-man." (venereal disease for Valentine's Day); in the past reviews here only those
+    r"(?:lie back and )?think(?:ing)? of england", r"v\.?d",
 ]
 
 # sleeping around
@@ -2737,6 +2740,9 @@ LINE_WORDS = {   # only phrases that are hard to mistake
                          r"strip (?:clubs?|joints?|shows?|bars?|teases?)|strip-?teases?|"
                          r"lap ?danc(?:e|es|er|ers|ing)|exotic dancers?|"
                          r"pole danc(?:e|es|er|ers|ing)|"
+                         # sexy dancing (1.18.176; the owner: "have sexy dancing under sexual
+                         # reference instead of immodesty"; CleanListen has the word)
+                         r"twerk(?:s|ed|er|ers|ing)?|"
                          r"blow ?job|porn|"
                          r"have sex|had sex|having sex|"
                          # sex drugs (the owner, 2026-11-04: "add sexual drugs")
@@ -3473,7 +3479,8 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                           "and bloody accident injuries",
             "nudity": "nudity (private parts actually shown)",
             "implied": "implied nudity (undressed but covered by sheets, towels or the camera)",
-            "sex": "sex scenes", "violence": "violence",
+            "sex": "sex scenes, and the couple's bedroom scenes just before or after them",
+            "violence": "violence",
             "gore": "gore (insides shown: organs, dismemberment)",
             "medical": "medical scenes (blood, wounds or insides in surgery, an autopsy or "
                        "while a wound is treated, and medical needles: shots, blood draws, "
@@ -4464,7 +4471,10 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             # not "a couple in bed": every couple talking in bed was cut (the tester, The Resident)
             "sex": "sex scenes, judged by what's happening and the context (a couple only "
                    "talking in bed is not one; sex with clothes on is), including oral sex "
-                   "and touching someone's private parts",
+                   "and touching someone's private parts, and the couple's bedroom scenes "
+                   "just before or after an intimate scene of theirs (leading into it, "
+                   "undressing or getting dressed, lying or waking up together, talking about "
+                   "it; 1.18.176)",
             "immodest": "immodest (swimsuits, underwear, very revealing clothes)",
             "smoking": "smoking (cigarettes, cigars, pipes, vaping)",
             "drinking": "drinking alcohol",
@@ -4661,13 +4671,33 @@ def bounds_sheet(path, a, b, work, name):
 
 SHORT_SCENE = 20.0      # a cut this short is only ever made longer (a brief hit between stills)
 FIGHT_KINDS = ("Violence", "Graphic", "Gore", "Disturbing")
+# Two intimate cuts this close are one: what's between is the couple in the bedroom (1.18.176;
+# the owner, The Resident S2E18: "you see the edge of the bed, then it cuts to julian getting
+# dressed, then cuts to devon smiling, then cuts to them dancing (all those need removed)": 8 s
+# between two cuts). Fights stay in pieces ("Cuts: only the trouble").
+INTIMATE_KINDS = ("Sex scene", "Intimate scene", "Kiss", "Nudity", "Implied nudity")
+INTIMATE_JOIN = 20.0
 
 
-def refine_bounds(path, work, dur, scenes, asr, progress=None):
+def join_gap(a, b):
+    """How far apart two cuts may be and still become one."""
+    def intimate(sc):
+        return any(str(k).startswith(INTIMATE_KINDS) for k in sc.get("kind", []))
+
+    def sexual(sc):
+        return any(str(k).startswith(("Sex scene", "Intimate scene")) for k in sc.get("kind", []))
+    if intimate(a) and intimate(b) and (sexual(a) or sexual(b)):
+        return INTIMATE_JOIN
+    return None
+
+
+def refine_bounds(path, work, dur, scenes, asr, progress=None, wanted=None):
     """Claude/ChatGPT sets where each scene to cut really starts and ends, then the edges
     snap to changes of shot. Only the part where the trouble is on screen is cut (a fight
     from its first blow to its last), in pieces when it stops and starts again, so they can
-    still follow the story (the owner 2026-11-03); a short cut is only ever made longer."""
+    still follow the story (the owner 2026-11-03); a short cut is only ever made longer.
+    wanted: what the family removes (`picture_wanted`), so a scene found as a kiss is cut
+    through the undressing after it when sex scenes are removed (1.18.176)."""
     say = progress or (lambda f, m: None)
     todo = [sc for sc in scenes if sc.get("cut", True)
             and not any(k.startswith(DIALOGUE_KINDS) for k in sc.get("kind", []))]
@@ -4686,7 +4716,8 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
         if not items:
             break
         got = cc.scene_bounds(items, progress=lambda f, n="": say(
-            (rnd + f) / 2, "is checking where each scene starts and ends" + also(n)))
+            (rnd + f) / 2, "is checking where each scene starts and ends" + also(n)),
+            wanted=wanted)
         windows = {}
         for sc in todo:
             if sc["id"] not in got or sc["id"] not in steps or got[sc["id"]] is None:
@@ -4730,7 +4761,8 @@ def refine_bounds(path, work, dur, scenes, asr, progress=None):
     merged = []
     for sc in sorted(scenes, key=lambda x: x["s"]):
         last = merged[-1] if merged else None
-        if last and last.get("cut", True) and sc.get("cut", True) and sc["s"] <= last["e"] + 1.0:
+        if last and last.get("cut", True) and sc.get("cut", True) and \
+                sc["s"] <= last["e"] + (join_gap(last, sc) or 1.0):
             last["e"] = max(last["e"], sc["e"])
             last["kind"] += [k for k in sc["kind"] if k not in last["kind"]]
             if sc.get("why") and sc["why"] not in last.get("why", ""):
@@ -4907,7 +4939,8 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
     merged = []                 # join scenes to cut that touch or overlap
     for sc in sorted(scenes + new, key=lambda sc: sc["s"]):
         last = merged[-1] if merged else None
-        if last and last.get("cut", True) and sc.get("cut", True) and sc["s"] <= last["e"] + 2.0:
+        if last and last.get("cut", True) and sc.get("cut", True) and \
+                sc["s"] <= last["e"] + (join_gap(last, sc) or 2.0):
             last["e"] = max(last["e"], sc["e"])
             last["kind"] += [k for k in sc["kind"] if k not in last["kind"]]
             if sc.get("why") and sc["why"] not in last.get("why", ""):
@@ -4926,7 +4959,8 @@ def look_at_picture(path, work, dur, scenes, o, asr, progress=None, cancel=None,
     widened = 0
     try:
         scenes, widened = refine_bounds(path, work, dur, scenes, asr,
-                                        lambda f, m: say(0.9 + 0.09 * f, m))
+                                        lambda f, m: say(0.9 + 0.09 * f, m),
+                                        wanted=wanted)
     except cc.ClaudeError:
         raise
     except Exception:

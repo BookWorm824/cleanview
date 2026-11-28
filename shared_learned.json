@@ -992,7 +992,15 @@
     "i'm ready let's move in together",
     "he asked me to move in with him",
     "move in together and then host",
-    "i'd like to call my ex girlfriend but i really blew that one"
+    "i'd like to call my ex girlfriend but i really blew that one",
+    "brett knows i write my dance card in pencil",
+    "he was asking if you were my current flavor of the week",
+    "wink wink high literature indeed",
+    "i ordered some special ones online",
+    "um i think hr would discourage me from reading these out loud",
+    "of spending vd with a scalpel in my hand",
+    "well to be fair you did have a slight technical malfunction",
+    "when you hit the emergency brake"
    ],
    "kept": [
     "mine or yours",
@@ -1325,7 +1333,15 @@
     "i'm ready let's move in together": "oppsex",
     "he asked me to move in with him": "oppsex",
     "move in together and then host": "oppsex",
-    "i'd like to call my ex girlfriend but i really blew that one": "samesex"
+    "i'd like to call my ex girlfriend but i really blew that one": "samesex",
+    "brett knows i write my dance card in pencil": "casual",
+    "he was asking if you were my current flavor of the week": "casual",
+    "i ordered some special ones online": "sexref",
+    "um i think hr would discourage me from reading these out loud": "sexref",
+    "of spending vd with a scalpel in my hand": "sexref",
+    "well to be fair you did have a slight technical malfunction": "sexref",
+    "when you hit the emergency brake": "sexref",
+    "wink wink high literature indeed": "sexref"
    },
    "notes": [
     "Nic (Nic Nevin) is a character's name: a swear heard where 'Nic' fits is the name.",
@@ -1347,6 +1363,38 @@
       "samesex"
      ],
      "why": "S2E12: the former prison guard (a woman) is asked about her girlfriend and says they broke up (sound muted)"
+    },
+    {
+     "title": "The Resident",
+     "episode": [
+      2,
+      18
+     ],
+     "after": "when he says friend does he mean good friend",
+     "from": "no stop it another fow",
+     "before": "what am i missing stop worrying about me",
+     "action": "mute",
+     "kind": "Sleeping around",
+     "for": [
+      "casual"
+     ],
+     "why": "S2E18: Brett teases Kit about another \"FOW\" (flavor of the week, the men she dates) (sound muted)"
+    },
+    {
+     "title": "The Resident",
+     "episode": [
+      2,
+      18
+     ],
+     "after": "nothing's more important than you",
+     "from": "listen i'm sorry i just got to ask fow",
+     "until": "he was asking if you were my current flavor of the week",
+     "action": "mute",
+     "kind": "Sleeping around",
+     "for": [
+      "casual"
+     ],
+     "why": "S2E18: Kit explains \"FOW\": she dates around, and Randolph is her current flavor of the week (sound muted)"
     }
    ]
   },
