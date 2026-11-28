@@ -1650,11 +1650,11 @@ class App(tk.Tk):
             ("samesexwords", "Words about same-sex relationships  (gay, lesbian…)", True)],
             extra=own_words)
         fold_group("Sex and nudity", "eye", [
-            ("sexref", "Sexual references and innuendo", True),
+            ("sexref", "Sexual references and innuendo  (sexy dancing too)", True),
             ("sex", "Sex scenes", True),
             ("nudity", "Nudity  (private parts shown)", True),
             ("implied", "Implied nudity  (under sheets, in towels, bare backs)", False),
-            ("immodest", "Immodest clothing  (swimsuits, underwear, sexy dancing)", False),
+            ("immodest", "Immodest clothing  (swimsuits, underwear)", False),
             ("gestures", "Rude and sexual gestures  (the middle finger, crude motions)",
              True)])
         fold_group("Romance and relationships", "heart", [

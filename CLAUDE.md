@@ -1532,6 +1532,28 @@ share ideas and some code lineage (`cvcore.py` started as CleanListen's core).
   (`render`, every way, and `cvcore`'s audio save); older ffmpegs know twoloop too.
   `test_aac_coder.py` (no plain `"-c:a", "aac"` in shipped code, and every save says
   twoloop). CleanListen and Play encode AAC the same way.
+  1.18.175 (CleanListen's reply: twoloop hung once there, 2026-11-05, two seconds of a mono
+  24 kHz book, 10 hours on "Saving..."; it uses "fast"): the careful last try uses
+  `cvcore.AAC_OTHER` (`-aac_coder fast`), so a sound one method trips on is saved by the
+  other once the stuck check (`SAVE_STUCK_SECS`) gives up on the usual ways. Both Bones
+  episodes' sound saves with fast too (~45 s each). `test_aac_coder` has a save whose
+  twoloop hangs finished by fast.
+- Sexy dancing is a sexual reference (1.18.175, 2026-11-27; the owner: "have sexy dancing under
+  sexual reference instead of immodesty", then "Yes, release it"). It was part of Immodest
+  clothing ("swimsuits, underwear, sexy dancing"), off for every age. The picture AI's "dancing"
+  (`needs`, with "condom", when `sexref` is ticked) is found where the immodest descriptions win
+  (`ai.SAME_SCORES`, `clip_candidates`; `THRESH`/`MIN_FRAMES` as immodest's), and the closer
+  look asks its own question (`LOOK["dancing"]`: stripping, pole or lap dancing, grinding,
+  twerking; not a party, wedding, class, ballet or a performer on stage); immodest's question
+  is clothes only. Splitting the two dancing descriptions off immodest's would have left it 4
+  of the 93 stills over its line in the 259 past scans here (dancing alone 4), so the
+  descriptions are unchanged and `clip_signature` with them (nothing scanned again). Claude,
+  ChatGPT and Gemini report "sexy dancing" (`cc.PIC_KINDS`, `PIC_RULES`, `picture_wanted` with
+  sexref, `_pic_wanted`). Its scenes are `SEXY_DANCING` ("Sexual reference · sexy dancing"),
+  so the review page puts them under "Sexual reference". The start page: "Sexual references
+  and innuendo  (sexy dancing too)", "Immodest clothing  (swimsuits, underwear)". Swimsuit and
+  revealing-clothes finds now get a closer look with sexual references ticked too, so such
+  videos take a little longer. `test_sexy_dancing.py`.
 - "Claude's findings on this video" (the Ask tab, 1.18.23, the tester: it had every movie he'd
   done) writes `Findings for this video.csv` with only the videos on the review page
   (`learn.findings_rows(videos)`/`write_findings`); `claude_findings.csv` still has them

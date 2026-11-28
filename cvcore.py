@@ -51,6 +51,10 @@ def _tool(name):
 # made a new method ("nmr") the default, and it hangs for good on some sound: two of the
 # owner's Bones episodes (S01E03, S01E08) froze 2 s in, with every video encoder (1.18.174).
 AAC = ["-c:a", "aac", "-aac_coder", "twoloop"]
+# twoloop has hung too (CleanListen, 2026-11-05: two seconds of a mono 24 kHz book, 10 hours on
+# "Saving..."; CleanListen uses "fast" since), so the careful last try uses "fast" (1.18.175):
+# whichever method a sound trips, the other still saves it.
+AAC_OTHER = ["-c:a", "aac", "-aac_coder", "fast"]
 
 
 # no console window, and below normal priority: making the clean copy with ffmpeg runs from

@@ -2,9 +2,12 @@
 way (h264_amf, libx264, the careful way) stopped moving 2 s in. The picture was fine; ffmpeg's
 AAC encoder froze on their opening sound. Builds from late 2026 (this PC's: 2026-10-22) made a
 new method, "nmr", the default, and it hangs for good on that sound; the old "twoloop" saves
-each whole episode's sound in under two minutes. Every AAC CleanView writes says twoloop."""
+each whole episode's sound in under two minutes. Every AAC CleanView writes says twoloop, but
+the careful last try says "fast" (1.18.175: twoloop hung once in CleanListen, on a mono 24 kHz
+book), so a sound that trips one method is still saved by the other."""
 import json
 import re
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,8 +31,9 @@ class EveryAac(unittest.TestCase):
             text = (REPO / name).read_text("utf8")
             for m in re.finditer(r'"-c:a",\s*"aac"', text):
                 line = text[:m.start()].count("\n") + 1
-                self.assertIn("AAC = ", text.splitlines()[line - 1], f"{name}:{line}")
+                self.assertRegex(text.splitlines()[line - 1], r"^AAC(_OTHER)? = ", f"{name}:{line}")
         self.assertEqual(cl.AAC, ["-c:a", "aac", "-aac_coder", "twoloop"])
+        self.assertEqual(cl.AAC_OTHER, ["-c:a", "aac", "-aac_coder", "fast"])
 
 
 @T.needs_ffmpeg
@@ -64,7 +68,7 @@ class SaveSaysTwoloop(unittest.TestCase):
         self.assertTrue(saves)
         for c in saves:
             i = c.index("-c:a")
-            self.assertEqual(c[i:i + 4], cl.AAC, c)
+            self.assertEqual(c[i:i + 4], cl.AAC_OTHER if "-err_detect" in c else cl.AAC, c)
         return saves
 
     def test_copy_with_mutes(self):
@@ -76,6 +80,28 @@ class SaveSaysTwoloop(unittest.TestCase):
     def test_the_careful_way(self):
         saves = self.render([{"s": 3.0, "e": 4.0, "cut": True}], careful=True)
         self.assertTrue(any("-err_detect" in c for c in saves))
+        self.assertTrue(any("twoloop" in c for c in saves))
+
+    def test_a_sound_twoloop_hangs_on_is_saved_by_fast(self):
+        script = support.SANDBOX / "hangs_on_twoloop.py"
+        script.write_text("import time\nprint('out_time_us=0', flush=True)\ntime.sleep(60)\n",
+                          encoding="utf8")
+        work = Path(tempfile.mkdtemp(dir=support.SANDBOX))
+        info = engine.probe(self.video)
+        st = {"path": str(self.video), "info": info, "duration": info["duration"],
+              "groups": [], "scenes": [], "lines": [], "notes": [], "mutes": [], "cues": []}
+        (work / "analysis.json").write_text(json.dumps(st))
+
+        def popen(cmd, **kw):
+            if "twoloop" in cmd:
+                return real_popen([sys.executable, str(script)], **kw)
+            return real_popen(cmd, **kw)
+        with mock.patch.object(cl, "popen", popen), \
+                mock.patch.object(engine, "SAVE_STUCK_SECS", 1.0):
+            res = engine.render(work, work / "Clean", [{"s": 3.0, "e": 4.0, "cut": True}],
+                                lines=[], words=[], encoders=[engine.ENCODERS[-1]],
+                                log=lambda m: None)
+        self.assertTrue(Path(res["out"]).exists())
 
 
 if __name__ == "__main__":

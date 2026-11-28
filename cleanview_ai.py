@@ -142,6 +142,13 @@ CLIP_CATS = {
     "condom": ["a condom", "a condom in its foil wrapper", "a box of condoms",
                "a hand holding a condom"],
 }
+# Sexy dancing goes with the sexual references box, not immodest clothing (1.18.175; the owner:
+# "have sexy dancing under sexual reference instead of immodesty"). It's found where the
+# immodest descriptions win (revealing clothes and the two dancing ones, as before), and the
+# closer look asks its own question. Splitting the dancing descriptions off would have left
+# immodest with 4 of the 93 stills over its line in the 259 past scans here, and dancing alone
+# with 4; the descriptions stay as they were, so nothing is scanned again.
+SAME_SCORES = {"dancing": "immodest"}
 # kiss_mf / kiss_mm / kiss_ff only decide *who*, never whether there is a kiss
 WHO = ("kiss_mf", "kiss_mm", "kiss_ff")
 
@@ -440,7 +447,7 @@ CARTOON_NOTE = (" These frames are from an animated cartoon. Bright colours, col
 # Turning CLIP scores into candidate scenes
 # ---------------------------------------------------------------------------
 THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
-          "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "christmas": 0.65,
+          "drinking": 0.7, "drugs": 0.6, "immodest": 0.65, "dancing": 0.65, "christmas": 0.65,
           "halloween": 0.65, "birthday": 0.65, "valentine": 0.7, "gestures": 0.65,
           "easter": 0.65, "darkmagic": 0.65, "magic": 0.65, "stpatricks": 0.65,
           "vampires": 0.65,
@@ -448,7 +455,7 @@ THRESH = {"kiss": 0.6, "bed": 0.6, "gore": 0.6, "fight": 0.65, "smoking": 0.65,
           # 0.58, and of 10,674 stills from nine other videos one scored 0.5 or more
           "condom": 0.5}
 MIN_FRAMES = {"kiss": 3, "bed": 4, "gore": 2, "fight": 3, "smoking": 3, "drinking": 3,
-              "drugs": 2, "immodest": 3, "christmas": 3, "halloween": 3, "birthday": 3,
+              "drugs": 2, "immodest": 3, "dancing": 3, "christmas": 3, "halloween": 3, "birthday": 3,
               "valentine": 3, "easter": 3, "stpatricks": 3, "darkmagic": 2, "vampires": 2,
               "magic": 2,      # a spell's flash can be over in a couple of seconds
               "gestures": 1,   # seconds of hits a scene needs (a rude gesture is over in a second)
@@ -471,7 +478,12 @@ def clip_candidates(clipdata, wanted, gap=4.0, pad=1.0, lum=None, fps=2.0, lifte
     out = []
     for cat in wanted:
         th = THRESH[cat]
-        hits = [(t, r) for t, r in zip(ts, rows) if r.get(cat, 0) >= th]
+        src = SAME_SCORES.get(cat, cat)
+        if src != cat:
+            rows_c = [dict(r, **{cat: r.get(src, 0)}) for r in rows]
+        else:
+            rows_c = rows
+        hits = [(t, r) for t, r in zip(ts, rows_c) if r.get(cat, 0) >= th]
         runs = []
         for t, r in hits:
             if runs and t - runs[-1][-1][0] <= gap:
@@ -1048,8 +1060,7 @@ LOOK = {
                    "nudity": {"type": "string", "enum": ["shown", "implied", "none"]}},
                 "required": ["see", "nudity"]}),
     "immodest": ("Question: is someone dressed immodestly (swimsuit, underwear, lingerie, very "
-                 "revealing clothes), or dancing in a sexual way (stripping, pole dancing, "
-                 "grinding)?",
+                 "revealing clothes)?",
                  {"type": "object", "properties": {"see": {"type": "string"},
                                                    "yes": {"type": "boolean"}},
                   "required": ["see", "yes"]}),
@@ -1099,6 +1110,10 @@ LOOK = {
                "cap, hair cap, hair net or hair tie, a sweet, "
                "gum or tea-bag wrapper, a sauce packet, a pill packet or another small packet "
                "is NOT.", _YES),
+    "dancing": ("Question: is someone dancing in a sexual way: stripping, pole dancing, a lap "
+                "dance, grinding on someone, twerking or other sexually suggestive dancing? "
+                "Ordinary dancing (at a party, a wedding, a dance class, ballet, a couple "
+                "dancing together, a performer on stage) is NOT.", _YES),
 }
 CLEAR_ASK = (" Also answer \"clear\": false only if the frames themselves are too dark, blurry "
              "or unclear to judge (dark hair, dark clothes or a dark room you can still see "

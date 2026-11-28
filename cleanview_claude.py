@@ -1085,7 +1085,7 @@ PIC_KINDS = ["violence", "graphic violence", "gore", "medical", "disturbing", "n
              "sex", "kissing", "immodest", "smoking", "drinking", "drugs", "christmas",
              "halloween", "birthday", "valentine", "easter", "st patrick's day", "dark magic",
              "magic", "vampires",
-             "rude gesture", "couple affection", "condom"]
+             "rude gesture", "couple affection", "condom", "sexy dancing"]
 VIOLENCE_LEVELS = ["none", "violence", "graphic violence", "gore", "disturbing", "medical"]
 PIC_SYSTEM = ("You help a family make movies and TV shows fit their standards by cutting scenes. "
               "You look at still frames and report exactly what is shown. Be accurate: flag what "
@@ -1171,7 +1171,9 @@ PIC_RULES = (
     "potions, fairies); a stage magician's trick, a science-fiction gadget, ray or machine, "
     "and a film company's logo are neither. \"vampires\" is a vampire or a "
     "werewolf (fangs and a cape, drinking blood, a wolf-man); a real bat or wolf is not. "
-    "Immodest includes sexual dancing (stripping, pole dancing, grinding); "
+    "Immodest is clothing (swimsuits, underwear, very revealing clothes); \"sexy dancing\" is "
+    "dancing in a sexual way (stripping, pole dancing, a lap dance, grinding, twerking), not "
+    "ordinary dancing at a party, a wedding, a class or on stage; "
     "smoking includes vaping. A rude gesture is someone raising the middle finger at someone, or a "
     "crude sexual gesture (a hand gesture mimicking sex or oral sex, thrusting the hips, "
     "grabbing the crotch); it's often over in a second, so look closely at hands and bodies. "

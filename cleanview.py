@@ -156,6 +156,7 @@ def needs(opts):
             clip_cats.append(k)
     if o["sexref"]:                 # a condom shown goes with the word (the owner's hard rule)
         clip_cats.append("condom")
+        clip_cats.append("dancing")  # and sexy dancing (1.18.175; it was immodest clothing)
     lines = [k for k in LINE_KINDS if o[k]]
     return {"sound": o["violence"] or o["sex"] or o["loudmusic"],
             "voices": (o["ai"] or o.get("reader") in CLOUD) and bool(lines),
@@ -3442,13 +3443,16 @@ def picture_voices(scenes, lines, genders):
             sc["why"] = why + VOICES_MIXED
             n += 1
     return n
+# sexy dancing is a sexual reference (1.18.175; the owner: "have sexy dancing under sexual
+# reference instead of immodesty"): found with that box, and on the review page under its heading
+SEXY_DANCING = "Sexual reference \u00b7 sexy dancing"
 CAT_LABEL = {"gore": "Graphic violence", "fight": "Violence", "smoking": "Smoking", "drinking": "Drinking",
              "drugs": "Drugs", "immodest": "Immodest clothing", "christmas": "Christmas",
              "halloween": "Halloween", "birthday": "Birthday candles",
              "valentine": "Valentine's Day", "easter": "Easter", "darkmagic": "Dark magic",
              "magic": "Magic", "stpatricks": "St. Patrick's Day",
              "vampires": "Vampires and werewolves", "gestures": "Rude or sexual gesture",
-             "condom": "Condom shown"}
+             "condom": "Condom shown", "dancing": SEXY_DANCING}
 
 
 # (1.18.150: slurs are a box of their own, and sexual and crude words go with those filters)
@@ -3474,7 +3478,7 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
             "medical": "medical scenes (blood, wounds or insides in surgery, an autopsy or "
                        "while a wound is treated, and medical needles: shots, blood draws, "
                        "IVs), kept apart from violence and drugs",
-            "immodest": "immodest clothing and sexual dancing (stripping, pole dancing)",
+            "immodest": "immodest clothing (swimsuits, underwear, very revealing clothes)",
             "smoking": "smoking (vaping too)",
             "drinking": "drinking", "drugs": "illegal drug use (not medical needles)",
             "samesex": "same-sex relationships and romance, including flirting",
@@ -3484,7 +3488,8 @@ OPT_TEXT = {"graphic": "graphic violence (blood and wounds shown, bloody bodies)
                       "fruit and vegetables used for body parts such as 'check out those "
                       "melons', 'pop her cherry', 'a banana in your pocket' (not real fruit), "
                       "and handcuffs as a sexual joke ('I always pictured you in handcuffs'; "
-                      "not police putting cuffs on someone)",
+                      "not police putting cuffs on someone); in the picture, sexy dancing "
+                      "(stripping, pole or lap dancing, grinding)",
             "crude": "crude humor, including slang such as 'grow some stones', 'grow a pair', "
                      "'has the balls to' (the whole phrase, not ordinary stones or balls) and "
                      "'kicked him in the plums'",
@@ -4460,8 +4465,7 @@ PIC_TEXT = {"violence": "violence (fighting, shooting, attacks, threatening with
             "sex": "sex scenes, judged by what's happening and the context (a couple only "
                    "talking in bed is not one; sex with clothes on is), including oral sex "
                    "and touching someone's private parts",
-            "immodest": "immodest (swimsuits, underwear, very revealing clothes, or sexual "
-                        "dancing: stripping, pole dancing, grinding)",
+            "immodest": "immodest (swimsuits, underwear, very revealing clothes)",
             "smoking": "smoking (cigarettes, cigars, pipes, vaping)",
             "drinking": "drinking alcohol",
             "drugs": "illegal drug use (not a medical shot, blood draw or IV)",
@@ -4501,7 +4505,7 @@ PIC_LABEL = {"christmas": "Christmas", "halloween": "Halloween", "birthday": "Bi
              "medical": "Medical", "disturbing": "Disturbing", "nudity": "Nudity",
              "implied nudity": "Implied nudity", "sex": "Sex scene",
              "immodest": "Immodest clothing", "smoking": "Smoking", "drinking": "Drinking",
-             "drugs": "Drugs", "condom": "Condom shown"}
+             "drugs": "Drugs", "condom": "Condom shown", "sexy dancing": SEXY_DANCING}
 WHO_FROM = {"man & woman": "mf", "two men": "mm", "two women": "ff"}
 
 
@@ -4512,6 +4516,9 @@ def picture_wanted(o):
                    ("kiss_ss", "between two men or two women")):
         if o.get(k) in KISS_TEXT:
             out.append(KISS_TEXT[o[k]] + " " + who)
+    if o.get("sexref"):             # with the condom, under the sexual references box
+        out.append("sexy dancing (someone dancing in a sexual way: stripping, pole dancing, a "
+                   "lap dance, grinding, twerking; not ordinary dancing)")
     if o.get("samesex"):
         # not only kissing: holding hands, cuddling (the owner 2026-11-08), judged by context
         out.append("same-sex romance: two men or two women kissing, being intimate, or "
@@ -4548,6 +4555,8 @@ def _pic_wanted(f, o):
         return "Gore" if o.get("gore") else "Graphic violence" if o.get("graphic") else None
     if w == "condom":                    # the tick box is "sexref", as for the word
         return "Condom shown" if o.get("sexref") else None
+    if w == "sexy dancing":              # the tick box is "sexref" (1.18.175)
+        return SEXY_DANCING if o.get("sexref") else None
     if w == "rude gesture":              # the tick box is "gestures"
         return "Rude or sexual gesture" if o.get("gestures") else None
     if w == "dark magic":                # the tick box is "darkmagic"
@@ -7269,6 +7278,7 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
         def fopt(kind):  # ffmpeg 7+ spells it "-/filter:a"; older builds "-filter_script:a"
             return f"-/filter:{kind}" if new_style else f"-filter_script:{kind}"
         cmd = [cl._tool("ffmpeg"), "-y", "-v", "error", "-nostats", "-progress", "pipe:1"]
+        aac = cl.AAC_OTHER if careful else cl.AAC     # (the other AAC method: 1.18.175)
         if careful:
             cmd += ["-err_detect", "ignore_err", "-fflags", "+discardcorrupt+genpts"]
         cmd += ["-i", str(src)]
@@ -7292,11 +7302,11 @@ def render(workdir, outdir, cuts=None, progress=None, log=print, cancel=None, en
                     "-metadata:s:s:0", "language=eng",
                     "-disposition:s:0", "0"]      # there if wanted, but off unless turned on
         if surround:
-            cmd += [fopt("a"), str(work / "afilter.txt"), *cl.AAC,
+            cmd += [fopt("a"), str(work / "afilter.txt"), *aac,
                     "-b:a:0", STEREO_RATE, "-ac:a:0", "2",
                     "-b:a:1", abr, "-ac:a:1", str(ch if ch in (3, 4, 5, 6, 8) else 6)]
         else:
-            cmd += [fopt("a"), str(work / "afilter.txt"), *cl.AAC, "-b:a", abr,
+            cmd += [fopt("a"), str(work / "afilter.txt"), *aac, "-b:a", abr,
                     "-ac", str(ch if ch in (1, 2) else 2)]
         if reencode:
             cmd += [fopt("v"), str(work / "vfilter.txt"), "-c:v", vname, *vargs, "-fps_mode", "vfr"]
